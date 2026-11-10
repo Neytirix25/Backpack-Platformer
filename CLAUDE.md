@@ -71,7 +71,11 @@ endless after 20) → death/victory → back to the hub. `G.mode`: play / pack /
 - **Difficulty:** `enemyHpCurve(n) = 1 + 0.4(n-1) + 0.025(n-1)^2` (halved for Act II types); `THREAT` adds
   HP/damage/count/attack speed per pet in your team (and a bit per pet level).
 - **Saved data (localStorage):** `packrat_coll` (species rescued), `packrat_records`, `packrat_skin`
-  (female looks), `packrat_class`, `packrat_best`, mute/music flags.
+  (female looks), `packrat_class`, `packrat_best` — always read/written through `sk(key)`, which appends
+  `@<SLOT>` (a hash of the folder the game runs from). Chrome shares one storage for every `file://` page, so
+  this keeps each copy's progress separate and a fresh download starts unprogressed. A folder named
+  `pack-rat-dungeon` adopts the old unslotted save once. Mute/music flags (`packrat_muted`, `packrat_music`)
+  stay shared on purpose.
 - **Female heroes:** sheets `<cls>_f`, plus `warrior_f_block`, `archer_f_arcane`; `heroSheet()` picks them.
 
 ## Art pipeline (ChatGPT in Chrome)
