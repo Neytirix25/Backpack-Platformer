@@ -13,7 +13,7 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 | S | Drop through ledges |
 | Shift | Dash |
 | Space | Attack |
-| E | Class ability |
+| E | Class ability (in the Sanctuary: use / pet) |
 | Q | Drink a potion |
 | B | Open the backpack |
 | R / right-click | Rotate an item while packing |
@@ -23,6 +23,7 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 
 ## Features
 
+- **The Sanctuary:** a home base between runs. Walk around as your hero, switch class at the banners, pick a male or female look at the mirror, read your run records, and visit (and pet!) every animal you've ever rescued. Animals you haven't found yet wait as silhouettes. Walk through the gate to start a run.
 - **Four classes**, each with its own ten class-only items and an E ability:
   - **Warrior:** Shield Block
   - **Archer:** Arcane Shot

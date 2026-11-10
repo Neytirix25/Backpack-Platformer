@@ -50,8 +50,8 @@ const ART = {};
 const ART_FILES = {
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum'],
+  props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub'],
   anim: Object.keys(window.ANIMS || {}),
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
 };
@@ -75,11 +75,12 @@ function drawAnim(name, anim, i, x, y, face = 1, o = {}) {
   ctx.scale(face * (o.sx || 1), o.sy || 1);
   ctx.drawImage(img, fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s);
   if (o.flash) { ctx.globalAlpha *= 0.85; ctx.drawImage(whiteOf(img), fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s); }
+  if (o.shadow) ctx.drawImage(blackOf(img), fx, fy, fw, fh, -ax * s, -ay * s, fw * s, fh * s);
   ctx.restore();
   return true;
 }
 // (legacy) row of each Act I background where its painted floor starts
-const BG_FLOOR = { hall: 237, cave: 237, crypt: 237, camp: 237, boss: 237 };
+const BG_FLOOR = { hall: 237, cave: 237, crypt: 237, camp: 237, boss: 237, hub: 230 };
 function loadArt(dir, n, tries = 0) {
   const img = new Image();
   img.onload = () => {
@@ -92,6 +93,16 @@ function loadArt(dir, n, tries = 0) {
 for (const [dir, names] of Object.entries(ART_FILES)) for (const n of names) loadArt(dir, n);
 const art = k => ART[k] || null;
 const whiteCache = new Map();
+const blackCache = new Map();
+function blackOf(img) { // solid dark silhouette (pets you haven't rescued yet)
+  let c = blackCache.get(img);
+  if (!c) {
+    c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#0b0a12'; g.fillRect(0, 0, c.width, c.height);
+    blackCache.set(img, c);
+  }
+  return c;
+}
 function whiteOf(img) { // solid white silhouette for hit flashes
   let c = whiteCache.get(img);
   if (!c) {
@@ -571,7 +582,7 @@ function musicDirector(dt) {
     const R = G.room;
     if (G.mode === 'dead') want = 'death';
     else if (G.mode === 'won') want = 'victory';
-    else if (R.type === 'camp') want = 'camp';
+    else if (R.type === 'camp' || R.type === 'hub') want = 'camp';
     else if (R.type === 'boss') want = G.enemies.some(e => e.type === 'boss') ? 'boss' : 'camp';
     else {   // regular floors: a random track from the act's pool, rotated after two loops, never one of the last two played
       if (G.levelSongRoom !== R || !LEVEL_POOLS[R.act].includes(G.levelSong)) pickLevelSong(R);
@@ -858,6 +869,25 @@ const CLASSES = {
 };
 const CLASS_ORDER = ['warrior', 'archer', 'rogue', 'beastmaster'];
 let SCREEN = 'title';
+// what carries over between runs (saved in the browser): every species you've rescued, your records, and each class's look
+const SAVE = (() => {
+  const ld = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v && typeof v === 'object' ? Object.assign(d, v) : d; } catch (e) { return d; } };
+  return { coll: ld('packrat_coll', {}), rec: ld('packrat_records', { runs: 0, wins: 0, deaths: 0, kills: 0, rescues: 0, bestFloor: 0 }), skin: ld('packrat_skin', {}) };
+})();
+function saveData() {
+  try { localStorage.setItem('packrat_coll', JSON.stringify(SAVE.coll)); localStorage.setItem('packrat_records', JSON.stringify(SAVE.rec)); localStorage.setItem('packrat_skin', JSON.stringify(SAVE.skin)); } catch (e) {}
+}
+// which animation sheet a class is drawn with: the female look when chosen (and its art exists)
+function heroSheet(cls) { return SAVE.skin[cls] === 'f' && window.ANIMS && window.ANIMS[cls + '_f'] ? cls + '_f' : cls; }
+// a run ended (death or victory): fold it into the records
+function logRun(won) {
+  if (!G || G.hub) return;
+  const R = SAVE.rec, k = G.kills - (G.loggedKills || 0);
+  R.kills += k; G.loggedKills = G.kills;
+  if (won) R.wins++; else R.deaths++;
+  R.bestFloor = Math.max(R.bestFloor, G.roomNum);
+  saveData();
+}
 let selClass = (() => { try { return localStorage.getItem('packrat_class') || 'warrior'; } catch (e) { return 'warrior'; } })();
 if (!CLASSES[selClass]) selClass = 'warrior';
 function startItems(cls) {
@@ -895,6 +925,7 @@ const THEMES = {
              w: { bat: 3, slime: 3, brute: 1.4, archer: 1, skeleton: 0.6, ghost: 0.4 } },
   crypt:   { name: 'Forgotten Crypt', act: 1, bg: '#1b1526', tile: ['#3a2f4a', '#261e31', '#55466b', '#6a5885'], deco: 'candle',
              w: { ghost: 3, skeleton: 2.5, bat: 1.5, archer: 1, slime: 0.5, brute: 0.6 } },
+  hub:     { name: 'The Sanctuary',   act: 0, dim: 0.12, bg: '#1f1812', tile: ['#3d3022', '#281f16', '#5e4a32', '#6e5838'], w: {} },
   camp:    { name: 'Quiet Campsite',  act: 0, bg: '#1f1812', tile: ['#3d3022', '#281f16', '#5e4a32', '#6e5838'], w: {} },
   boss:    { name: "Warden's Lair",   act: 0, bg: '#1f1010', tile: ['#3d2222', '#271515', '#5a3030', '#7a3a3a'], deco: 'torch', torch: '#ff5a3c', w: {} },
   forge:   { name: 'Molten Forge',    act: 2, dim: 0.45, bg: '#24120c', tile: ['#3a2a24', '#22160f', '#5c3d2c', '#c2561f'], deco: 'torch', torch: '#ff7a2a',
@@ -905,7 +936,7 @@ const THEMES = {
              w: { cultist: 3, knight: 3, imp: 1.5, spider: 1, golem: 0.8 } },
 };
 // Act I backgrounds have a floor band baked in; only the rows above it are used for the parallax backdrop
-const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236 };
+const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236, hub: 229 };
 
 // ---------- tiles ----------
 const TILE = 30, EMPTY = 0, SOLID = 1, ONEWAY = 2, SPIKES = 3, LAVA = 4, CRUMBLE = 5, PHASE = 6;   // PHASE = arcane barrier: solid unless you dash through it
@@ -932,9 +963,198 @@ function newGame(cls = selClass) {
   stats = computeStats(); G.player.hp = stats.maxHp;
   nextRoom();
   SFX.play('start');
+  SAVE.rec.runs++; saveData();
 }
 
 function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
+
+// =====================================================================
+//  THE SANCTUARY — the hub between runs: walk around as your hero, switch class and look,
+//  read your records, visit (and pet!) every animal you've ever rescued, then take the gate down.
+// =====================================================================
+const HUB_COLS = 46;
+const HUB_SPOTS = {   // tile x of each station
+  board: 4, banners: { warrior: 9, archer: 12, rogue: 15, beastmaster: 18 }, mirror: 22, fire: 26, beds: 28.5,
+};
+function enterHub() {
+  pack = startItems(selClass); petSlots = [null, null, null]; stats = null; RUN = { buffs: {}, permHp: 0 };
+  G = {
+    roomNum: 0, mode: 'play', kills: 0, shake: 0, msg: '', msgT: 0, fade: 1, fadeDir: -1, deadT: 0, minimap: false, endless: false, hub: true, panel: null,
+    player: { x: 60, y: 0, w: 24, h: 46, vx: 0, vy: 0, kb: 0, face: 1, onGround: true, hp: 20, inv: 0, atk: 0, swing: 0, hitSet: new Set(),
+              dropT: 0, walk: 0, dashT: 0, dashCd: 0, dashDir: 1, airDashed: false, trail: [] },
+    enemies: [], proj: [], parts: [], texts: [], corpses: [], pets: [], wolves: [], room: null, cam: { x: 0, y: 0 },
+  };
+  G.cls = selClass; stats = computeStats(); G.player.hp = stats.maxHp;
+  const R = { type: 'hub', n: 0, act: 0, theme: THEMES.hub, bgKey: 'hub', tileKey: 'camp', cleared: true, chests: [], cages: [], plants: [], dashSpots: [],
+              fire: null, decor: [], baked: [], vents: [], crumbles: new Map(), crumbleBase: new Map(), lavaTiles: [], crumbleTiles: [], openT: 9 };
+  buildArena(R, HUB_COLS, 18);
+  const ft = R.floorTop * TILE;
+  R.fire = { x: HUB_SPOTS.fire * TILE - 22, y: ft - 30, w: 44, h: 30, used: true, hub: true };
+  G.room = R; R.terrain = bakeTerrain(R);
+  const P = G.player; P.x = 23 * TILE; P.y = ft - P.h; P.face = 1;
+  spawnHubPets(R);
+  snapCamera(); G.mode = 'trans';
+  const have = PET_IDS.filter(k => SAVE.coll[k]).length;
+  showMsg(have ? `The Sanctuary — ${have} of ${PET_IDS.length} animals rescued. Walk up to things and press E.` : 'The Sanctuary — walk up to things and press E. Rescue animals in the dungeon to bring them here!', 3.5);
+}
+function spawnHubPets(R) {
+  G.pets = []; const ft = R.floorTop * TILE;
+  PET_IDS.forEach((k, i) => {
+    if (!SAVE.coll[k]) return;
+    const d = PETS[k], x = rand(6, R.cols - 6) * TILE;
+    G.pets.push({ item: makeItem('pet_' + k), d, kind: k, hub: true, x, y: d.fly ? ft - 120 - rand(0, 80) : ft - d.h, w: d.w, h: d.h, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
+                  hp: 1, maxHp: 1, ko: 0, cd: 0, atkT: 0, phase: rand(0, 6), onGround: !d.fly, inv: 0, slot: i, wander: null, happyT: 0 });
+  });
+}
+const bedX = i => (HUB_SPOTS.beds + i * 1.3) * TILE;   // ends well before the gate   // where each species' bed sits (silhouettes wait here)
+// the hub's animals: wander, sniff, nap, zoom about when happy; flyers loop and perch
+function updateHubPets(dt) {
+  const R = G.room, P = G.player, ft = R.floorTop * TILE, pcx = P.x + P.w / 2;
+  for (const p of G.pets) {
+    p.phase += dt; p.happyT = Math.max(0, (p.happyT || 0) - dt);
+    const spd = Math.abs(p.vx);
+    if (spd > 40) { p.runHold = (p.runHold || 0) + dt; p.idleHold = 0; } else if (spd < 20) { p.idleHold = (p.idleHold || 0) + dt; p.runHold = 0; }
+    if (!p.moving && p.runHold > 0.06) p.moving = true; else if (p.moving && p.idleHold > 0.15) p.moving = false;
+    p.airT = p.onGround ? 0 : (p.airT || 0) + dt;
+    p.runF = (p.runF || 0) + dt * Math.max(5, Math.min(p.d.runFps || 11, spd / 26));
+    p.idleF = (p.idleF || 0) + dt * (p.d.idleFps || 5);
+    const cx = p.x + p.w / 2;
+    if (!p.wander || p.wander.t <= 0) {
+      const r = Math.random();
+      if (p.happyT > 0) p.wander = { mode: 'zoom', t: p.happyT, x: cx };
+      else if (r < 0.15) p.wander = { mode: 'visit', t: rand(3, 5) };                              // come say hello
+      else if (r < 0.55) p.wander = { mode: 'walk', t: rand(3, 6), x: rand(3, R.cols - 4) * TILE };
+      else if (r < 0.75) p.wander = { mode: 'sniff', t: rand(1.5, 3) };
+      else p.wander = { mode: 'rest', t: rand(4, 8), x: bedX(PET_IDS.indexOf(p.kind)) };          // nap on its own bed
+    }
+    const w = p.wander; w.t -= dt;
+    if (p.d.fly) {
+      let tx, ty;
+      if (w.mode === 'rest' || w.mode === 'sniff') { tx = w.mode === 'rest' ? w.x : (w.px ?? (w.px = cx)); ty = ft - p.h / 2 - 2; }
+      else if (w.mode === 'visit') { tx = pcx + Math.sin(p.phase * 1.4) * 60; ty = P.y - 30 + Math.cos(p.phase * 2) * 14; }
+      else if (w.mode === 'zoom') { tx = pcx + Math.sin(p.phase * 4) * 110; ty = P.y - 50 + Math.cos(p.phase * 5) * 30; }
+      else { tx = w.x; ty = ft - 150 + Math.sin(p.phase * 1.3 + p.slot) * 50; }
+      const cy = p.y + p.h / 2, dx = tx - cx, dy = ty - cy, d = Math.hypot(dx, dy) || 1, sp = Math.min(p.d.speed * (w.mode === 'zoom' ? 1 : 0.5), d * 4);
+      p.vx = dx / d * sp; p.vy = dy / d * sp; p.x += p.vx * dt; p.y += p.vy * dt;
+      if (Math.abs(p.vx) > 20) p.face = Math.sign(p.vx);
+      p.perched = (w.mode === 'rest' || w.mode === 'sniff') && d < 8; p.resting = p.perched && w.mode === 'rest'; p.onGround = p.perched;
+      continue;
+    }
+    let tx = cx, speed = p.d.speed * 0.4;
+    if (w.mode === 'walk' || w.mode === 'rest') { tx = w.x; if (Math.abs(tx - cx) < 8 && w.mode === 'walk') w.t = 0; }
+    else if (w.mode === 'visit') { tx = pcx - (Math.sign(pcx - cx) || 1) * (30 + p.slot * 6); speed = p.d.speed * 0.6; }
+    else if (w.mode === 'zoom') { if (Math.abs(w.x - cx) < 12 || p.hitWall) w.x = clamp(cx + (Math.random() < 0.5 ? -1 : 1) * rand(80, 200), 2 * TILE, (R.cols - 3) * TILE); tx = w.x; speed = p.d.speed * 1.1; }
+    if (w.mode === 'sniff' && Math.random() < dt * 0.6) p.face = -p.face;
+    const dx = tx - cx, close = Math.abs(dx) < 8;
+    const want = close ? 0 : Math.sign(dx) * Math.min(speed, Math.max(60, Math.abs(dx) * 5));
+    p.vx += (want - p.vx) * Math.min(1, dt * 10);
+    if (Math.abs(p.vx) > 30) p.face = Math.sign(p.vx); else if (w.mode === 'visit') p.face = Math.sign(pcx - cx) || p.face;
+    if (p.onGround && p.hitWall && !close) { p.vy = -560; p.onGround = false; }
+    if (p.happyT > 0 && p.onGround && Math.random() < dt * 2.5) { p.vy = -340; p.onGround = false; }   // happy hops
+    moveBody(p, dt);
+    p.resting = w.mode === 'rest' && close && p.onGround && Math.abs(p.vx) < 10;
+  }
+}
+// everything you can walk up to and use with E
+function hubStations() {
+  const R = G.room, ft = R.floorTop * TILE, out = [];
+  out.push({ kind: 'board', x: HUB_SPOTS.board * TILE, y: ft, label: 'Read your records' });
+  for (const c of CLASS_ORDER) out.push({ kind: 'class', cls: c, x: HUB_SPOTS.banners[c] * TILE, y: ft, label: G.cls === c ? `${CLASSES[c].name} (current)` : `Become the ${CLASSES[c].name}` });
+  out.push({ kind: 'mirror', x: HUB_SPOTS.mirror * TILE, y: ft, label: window.ANIMS && window.ANIMS[G.cls + '_f'] ? `Change look (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'} ${CLASSES[G.cls].name})` : 'Mirror' });
+  for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
+  PET_IDS.forEach((k, i) => { if (!SAVE.coll[k]) out.push({ kind: 'locked', id: k, x: bedX(i), y: ft, label: '' }); });
+  return out;
+}
+function hubNearest() {
+  const P = G.player, cx = P.x + P.w / 2, cy = P.y + P.h; let best = null, bd = 1e9;
+  for (const s of hubStations()) {
+    const dx = Math.abs(s.x - cx), dy = Math.abs(s.y - cy), r = s.kind === 'pet' ? 46 : s.kind === 'locked' ? 26 : 34;
+    if (dx < r && dy < 70) { const d = dx + dy * 0.3 + (s.kind === 'pet' ? 0 : 6); if (d < bd) { bd = d; best = s; } }
+  }
+  return best;
+}
+function hubInteract() {
+  const s = hubNearest(); if (!s) return;
+  const P = G.player;
+  if (s.kind === 'class' && s.cls !== G.cls) {
+    selClass = G.cls = s.cls; try { localStorage.setItem('packrat_class', s.cls); } catch (e) {}
+    pack = startItems(s.cls); stats = computeStats(); P.hp = stats.maxHp;
+    burst(P.x + P.w / 2, P.y + P.h / 2, CLASSES[s.cls].color, 26, 220); ring(P.x + P.w / 2, P.y + P.h / 2, 70, CLASSES[s.cls].color); SFX.play('pick');
+    showMsg(`You are now the ${CLASSES[s.cls].name}. ${CLASSES[s.cls].blurb}`, 3);
+  } else if (s.kind === 'mirror') {
+    if (!(window.ANIMS && window.ANIMS[G.cls + '_f'])) { showMsg('No other look for this class yet.', 1.6); return; }
+    SAVE.skin[G.cls] = SAVE.skin[G.cls] === 'f' ? 'm' : 'f'; saveData();
+    burst(P.x + P.w / 2, P.y + P.h / 2, '#e1bee7', 22, 180); SFX.play('merge');
+  } else if (s.kind === 'board') { G.panel = G.panel === 'records' ? null : 'records'; SFX.play('pick'); }
+  else if (s.kind === 'pet') {
+    const p = s.pet; p.happyT = 2.4; p.wander = null; p.face = Math.sign(P.x + P.w / 2 - (p.x + p.w / 2)) || p.face;
+    for (let k = 0; k < 4; k++) addText(p.x + p.w / 2 + rand(-14, 14), p.y - 4 - k * 9, '❤', '#ff80ab', 13 + k * 2);
+    SFX.play(p.kind === 'dog' ? 'bark' : p.d.fly ? 'chirp' : p.d.charge ? 'growl' : p.d.poison ? 'slimeHop' : 'meow');
+  }
+}
+function startRunFromHub() { G.panel = null; SFX.play('door'); newGame(selClass); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1; }
+// stations, beds, silhouettes and the "press E" bubble (drawn in the world)
+function drawHubWorld() {
+  const R = G.room, ft = R.floorTop * TILE;
+  // pet beds, with a dark silhouette waiting on each species you haven't found yet
+  const bed = art('props/hub_petbed');
+  PET_IDS.forEach((k, i) => {
+    const x = bedX(i);
+    if (bed) drawSprite(bed, x, ft + 2, 1); else { ctx.fillStyle = '#5d4037'; rr(x - 16, ft - 8, 32, 8, 4); ctx.fill(); }
+    if (!SAVE.coll[k]) {
+      const d = PETS[k], y = d.fly ? ft - 14 : ft + 1;
+      drawAnim(d.anim, d.fly ? 'fly' : 'idle', d.fly ? 0 : Math.floor(TIME * 2 + i), x, y, i % 2 ? -1 : 1, { shadow: true, alpha: 0.85 });
+    }
+  });
+  // board, class banners, mirror
+  const board = art('props/hub_board'), mirror = art('props/hub_mirror');
+  if (board) drawSprite(board, HUB_SPOTS.board * TILE, ft + 2, 1); else { ctx.fillStyle = '#6d4c41'; ctx.fillRect(HUB_SPOTS.board * TILE - 30, ft - 70, 60, 46); }
+  for (const c of CLASS_ORDER) {
+    const x = HUB_SPOTS.banners[c] * TILE, img = art('props/hub_banner_' + c), sel = G.cls === c;
+    if (sel) { const gl = ctx.createRadialGradient(x, ft - 50, 4, x, ft - 50, 70); gl.addColorStop(0, CLASSES[c].color + '55'); gl.addColorStop(1, CLASSES[c].color + '00'); ctx.fillStyle = gl; ctx.fillRect(x - 70, ft - 120, 140, 120); }
+    if (img) drawSprite(img, x, ft + 2, 1, { sy: 1 + Math.sin(TIME * 2 + x) * 0.01 }); else { ctx.fillStyle = CLASSES[c].color; ctx.fillRect(x - 14, ft - 90, 28, 50); ctx.fillStyle = '#4e342e'; ctx.fillRect(x - 2, ft - 96, 4, 96); }
+  }
+  if (mirror) drawSprite(mirror, HUB_SPOTS.mirror * TILE, ft + 2, 1); else { ctx.fillStyle = '#8d6e63'; rr(HUB_SPOTS.mirror * TILE - 16, ft - 76, 32, 76, 10); ctx.fill(); }
+}
+// the bubble over whatever you're next to (drawn on top of everything, above both you and it)
+function drawHubBubble() {
+  const s = hubNearest(); if (!s) return;
+  let lines;
+  if (s.kind === 'pet') {
+    const d = s.pet.d, n = SAVE.coll[s.pet.kind] || 0;
+    lines = [[d.name, '#ffe0b2', 'bold 13px'], [`${d.role} · ${d.ability}`, '#bcaaa4', '11px'], [`Rescued ${n} time${n === 1 ? '' : 's'}`, '#a5d6a7', '11px'], ['[E] Pet', '#69f0ae', 'bold 11px']];
+  } else if (s.kind === 'locked') lines = [['???', '#9e9e9e', 'bold 13px'], ['Not rescued yet', '#9e9e9e', '11px']];
+  else lines = [[s.label, '#ffe0b2', 'bold 12px'], ['[E]', '#69f0ae', 'bold 11px']];
+  const top = Math.min(s.kind === 'pet' ? s.pet.y : s.y - 100, G.player.y) - 12 - lines.length * 15;
+  ctx.font = `bold 13px ${UI}`; const wdt = Math.max(...lines.map(([t, , f]) => { ctx.font = `${f} ${UI}`; return ctx.measureText(t).width; })) + 18;
+  ctx.fillStyle = 'rgba(10,8,12,0.82)'; rr(s.x - wdt / 2, top, wdt, lines.length * 15 + 8, 6); ctx.fill();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach(([t, c, f], i) => { ctx.font = `${f} ${UI}`; ctx.fillStyle = c; ctx.fillText(t, s.x, top + 11 + i * 15); });
+}
+// the hub's screen overlay: who you are, controls, collection count, and the records board
+function drawHubHUD() {
+  const have = PET_IDS.filter(k => SAVE.coll[k]).length;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; rr(12, 8, 330, 52, 8); ctx.fill();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.font = `bold 16px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('The Sanctuary', 24, 24);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = '#e0e0e0';
+  ctx.fillText(`${CLASSES[G.cls].name} (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'})   ·   Animals rescued: ${have} / ${PET_IDS.length}`, 24, 44);
+  ctx.textAlign = 'center'; ctx.font = `11px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillText('A / D move  ·  W jump  ·  E use / pet  ·  walk through the gate to start a run  ·  Esc title screen', W / 2, H - 12);
+  if (G.panel === 'records') {
+    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Deaths', r.deaths], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Monsters slain', r.kills], ['Animals rescued', `${r.rescues}  (${have} of ${PET_IDS.length} species)`]];
+    const bw = 360, bh = 78 + rows.length * 28, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 20;
+    ctx.fillStyle = 'rgba(20,14,10,0.94)'; rr(bx, by, bw, bh, 10); ctx.fill(); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 2; rr(bx, by, bw, bh, 10); ctx.stroke();
+    ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.textAlign = 'center'; ctx.fillText('Run Records', W / 2, by + 26);
+    rows.forEach(([k, v], i) => {
+      const y = by + 60 + i * 28;
+      ctx.textAlign = 'left'; ctx.font = `14px ${UI}`; ctx.fillStyle = '#d7ccc8'; ctx.fillText(k, bx + 26, y);
+      ctx.textAlign = 'right'; ctx.font = `bold 14px ${UI}`; ctx.fillStyle = '#fff'; ctx.fillText(String(v), bx + bw - 26, y);
+    });
+    ctx.textAlign = 'center'; ctx.font = `11px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.fillText('E or walk away to close', W / 2, by + bh - 12);
+  }
+  drawHUDMessageOnly();
+}
 
 function nextRoom() {
   G.roomNum++;
@@ -1265,10 +1485,13 @@ function applyThreat(e, th = threat()) {   // scales an enemy to the current thr
   e.dmg = Math.max(1, Math.round(e.baseDmg * th.dmg)); e.agg = th.agg;
 }
 function rethreat() { if (!G || !G.enemies) return; const th = threat(); for (const e of G.enemies) if (!e.dead && e.baseHp) applyThreat(e, th); }
+function enemyHpCurve(n) { const f = Math.max(0, n - 1); return 1 + 0.4 * f + 0.025 * f * f; }
 function makeEnemy(type, n, x, y) {
   const d = ENEMIES[type];
   const k = n <= 10 ? n : n - 10;                          // floor within the current act
-  const hpMul = 1 + 0.1 * (k - 1), dmgAdd = Math.floor((k - 1) / 3);
+  // health climbs steeply floor after floor (about 3x by floor 5, 6x by 9, 17x by 20) to keep pace with your gear;
+  // Act II monsters are already about twice as sturdy by design, so their curve is divided by 2
+  const hpMul = enemyHpCurve(n) / (d.act === 2 ? 2 : 1), dmgAdd = Math.floor((k - 1) / 3);
   const e = { type, d, x, y, w: d.w, h: d.h, vx: 0, vy: 0, kbx: 0, hp: Math.round(d.hp * hpMul), dmg: d.dmg + dmgAdd,
               face: -1, state: 'walk', t: rand(0.4, 1.2), cd: rand(0.6, 1.4), flash: 0, spawn: 0, onGround: false,
               phase: rand(0, 6), visible: true, dead: false, awake: false };
@@ -1364,6 +1587,25 @@ function populate(R) {
       if (d.fly) { const up = randi(2, 4); if (tileAt(spot[0], spot[1] - up) === EMPTY && tileAt(spot[0], spot[1] - up - 1) === EMPTY) ey -= up * TILE; }
       G.enemies.push(makeEnemy(type, n, ex, ey));
     }
+    // then make sure every screen-width stretch has at least 3 monsters (4 once you have a full team)
+    const SCREEN_T = Math.floor(W / TILE), minPer = Math.max(3, Math.round(3 * threat().count));
+    const near = cells.filter(([x, y]) => { const d = Math.abs(x - etx) + Math.abs(y - ety) * 2; return d > 9 && d <= 16; }).sort(() => Math.random() - 0.5);
+    for (let x0 = 0; x0 < R.cols; x0 += SCREEN_T) {
+      const inWin = ([x]) => x >= x0 && x < x0 + SCREEN_T;
+      let have = G.enemies.filter(e => { const tx = Math.floor((e.x + e.w / 2) / TILE); return tx >= x0 && tx < x0 + SCREEN_T; }).length;
+      for (let gap = 3; have < minPer && gap >= 1; gap--) {
+        while (have < minPer) {
+          const type = wpick(pool.map(o => [o, R.theme.w[o] / ENEMIES[o].cost])), d = ENEMIES[type];   // lean toward the lighter monsters
+          const ok = ([x, y]) => inWin([x]) && !(R.chestSpots || []).some(([cx, cy]) => Math.abs(cx - x) < 3 && cy === y) && used.every(([ux, uy]) => Math.abs(ux - x) > gap || Math.abs(uy - y) > 2) && (d.h < 50 || tileAt(x, y - 2) === EMPTY);
+          const spot = far.find(ok) || (x0 === 0 ? near.find(ok) : null);   // the opening screen may use spots a bit closer to the entrance
+          if (!spot) break;
+          used.push(spot); have++;
+          let ex = (spot[0] + 0.5) * TILE - d.w / 2, ey = (spot[1] + 1) * TILE - d.h;
+          if (d.fly) { const up = randi(2, 4); if (tileAt(spot[0], spot[1] - up) === EMPTY && tileAt(spot[0], spot[1] - up - 1) === EMPTY) ey -= up * TILE; }
+          G.enemies.push(makeEnemy(type, n, ex, ey));
+        }
+      }
+    }
     // treasure chests waiting at the end of each challenge course
     // most floors: one challenge course ends in a caged animal instead of a chest, with its captors standing guard
     const spots = (R.chestSpots || []).slice(), cageAt = spots.length && Math.random() < 0.75 ? randi(0, spots.length - 1) : -1;
@@ -1404,7 +1646,7 @@ function bakeTerrain(R) {
   const [base, dark, light, top] = R.theme.tile, C = R.cols;
   const get = (x, y) => (x < 0 || y < 0 || x >= C || y >= R.rows) ? SOLID : R.grid[y * C + x];
   const solidish = t => t === SOLID || t === LAVA || t === CRUMBLE;
-  const tb = art('tiles/' + R.type + '_block'), tt = art('tiles/' + R.type + '_top');   // ChatGPT terrain blocks for this area
+  const tk = R.tileKey || R.type, tb = art('tiles/' + tk + '_block'), tt = art('tiles/' + tk + '_top');   // ChatGPT terrain blocks for this area
   for (let ty = 0; ty < R.rows; ty++) for (let tx = 0; tx < C; tx++) {
     const t = get(tx, ty), X = tx * TILE, Y = ty * TILE;
     if (t === SOLID && tb && tt) {
@@ -1793,7 +2035,7 @@ function die() {
     SFX.play('phoenix'); showMsg(`The Phoenix Feather${(feather.lvl || 1) > 1 ? ' ' + ROMAN[feather.lvl] : ''} bursts into flame — you rise again with ${Math.round(pct * 100)}% health!`, 3);
     return;
   }
-  const P = G.player; P.hp = 0; G.mode = 'dead'; G.deadT = 0;
+  const P = G.player; P.hp = 0; G.mode = 'dead'; G.deadT = 0; logRun(false);
   SFX.play('death');
   burst(P.x + P.w / 2, P.y + P.h / 2, '#3f6fb5', 30, 300, 5);
   if (G.roomNum > BEST) { BEST = G.roomNum; saveBest(BEST); G.newBest = true; }
@@ -1976,9 +2218,10 @@ function updatePlayer(dt) {
   if (P.y > R.hpx + 100) { P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vy = 0; } // safety net
 
   // exit
-  if (R.cleared && G.mode === 'play' && overlap(P, exitRect(R))) {
+  if (G.hub) { if (G.mode === 'play' && overlap(P, exitRect(R))) { startRunFromHub(); return; } if (G.panel && Math.abs(P.vx) > 40) G.panel = null; }
+  else if (R.cleared && G.mode === 'play' && overlap(P, exitRect(R))) {
     if (R.n >= FINAL_FLOOR && !G.endless) {
-      G.mode = 'won'; G.wonT = 0; SFX.play('kill_boss');
+      G.mode = 'won'; G.wonT = 0; SFX.play('kill_boss'); logRun(true);
       if (G.roomNum > BEST) { BEST = G.roomNum; saveBest(BEST); }
       return;
     }
@@ -2031,8 +2274,8 @@ function updatePlayer(dt) {
   }
   // Shadowstep Boots: dashing through enemies slashes them
   if (dashing && s.dashDmg > 0) for (const e of G.enemies) if (attackable(e) && !(P.dashHits || (P.dashHits = new Set())).has(e) && overlap(P, e)) { P.dashHits.add(e); playerHit(e, Math.max(1, Math.round(atkDmg() * s.dashDmg)), P.face * 160); }
-  if (hit('q')) usePotion();
-  if (hit('e')) useAbility();
+  if (hit('q') && !G.hub) usePotion();
+  if (hit('e')) { if (G.hub) hubInteract(); else useAbility(); }
 
   // interactables
   for (const pl of R.plants || []) if (!pl.taken && plantVisible(pl) && overlap(P, { x: pl.x - 14, y: pl.y - 30, w: 28, h: 30 })) pickPlant(pl);
@@ -2049,7 +2292,7 @@ function updatePlayer(dt) {
       break;
     }
   }
-  if (R.fire && !R.fire.used && overlap(P, R.fire)) {
+  if (R.fire && !R.fire.used && !R.fire.hub && overlap(P, R.fire)) {
     R.fire.used = true; healPlayer(Math.ceil(stats.maxHp * 0.5)); SFX.play('rest');
     showMsg('You rest by the fire and recover half your health.', 2.5);
   }
@@ -2658,7 +2901,63 @@ function steadyFace(o, dt, hold = 0.1) {
   if (o.face === o.vface) { o.faceHold = 0; return; }
   o.faceHold = (o.faceHold || 0) + dt; if (o.faceHold >= hold) { o.vface = o.face; o.faceHold = 0; }
 }
+// ---- the hero's breadcrumb trail: walking pets replay your exact moves a moment later, so they get over whatever you got over ----
+const TRAIL_MAX = 900;
+function recordTrail(dt) {
+  const P = G.player, fx = P.x + P.w / 2, fy = P.y + P.h;
+  let T = G.trail;
+  if (!T || T.room !== G.room) T = G.trail = { room: G.room, pts: [], clock: 0, s: 0, gen: 0 };
+  const last = T.pts[T.pts.length - 1];
+  if (last) {
+    const d = Math.hypot(fx - last.x, fy - last.y);
+    if (d > 70) { T.pts = []; T.gen++; }   // you were moved (back to safety after a fall, etc.): start a fresh trail
+    else if (d < 0.5) return;              // standing still: the trail's clock pauses, so pets never replay your waiting
+    else { T.clock += dt; T.s += d; }
+  }
+  T.pts.push({ x: fx, y: fy, t: T.clock, s: T.s, g: P.onGround });
+  if (T.pts.length > TRAIL_MAX) T.pts.shift();
+}
+function trailSearch(a, key, v) { let lo = 0, hi = a.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (a[m][key] <= v) lo = m; else hi = m; } return lo; }
+function trailAt(T, t) {
+  const a = T.pts; if (t <= a[0].t) return a[0]; if (t >= a[a.length - 1].t) return a[a.length - 1];
+  const i = trailSearch(a, 't', t), A = a[i], B = a[i + 1], k = (t - A.t) / ((B.t - A.t) || 1);
+  return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, s: A.s + (B.s - A.s) * k, g: k < 0.5 ? A.g : B.g };
+}
+function trailTimeAtS(T, sv) {
+  const a = T.pts; if (sv <= a[0].s) return a[0].t; if (sv >= a[a.length - 1].s) return a[a.length - 1].t;
+  const i = trailSearch(a, 's', sv), A = a[i], B = a[i + 1]; return A.t + (B.t - A.t) * ((sv - A.s) / ((B.s - A.s) || 1));
+}
+// a walking pet following you: step onto your trail where it passes under its paws, then replay it a little behind you
+function petTrailStep(p, dt) {
+  const T = G.trail; if (!T || T.pts.length < 2) return false;
+  const delay = 0.35 + 0.2 * p.slot, gap = 34 + 24 * p.slot;   // pets line up behind you: first pet closest
+  if (p.trailT === undefined || p.trailGen !== T.gen) {
+    if (!p.onGround) return false;
+    const fx = p.x + p.w / 2, fy = p.y + p.h, lim = T.s - gap; let found = null;
+    for (let i = T.pts.length - 1; i >= 0; i--) {
+      const c = T.pts[i]; if (c.s > lim) continue; if (lim - c.s > 900 || T.clock - c.t > 2.5) break;   // only rejoin recent parts of your path
+      if (c.g && Math.abs(c.x - fx) < 20 && Math.abs(c.y - fy) < 14) { found = c; break; }
+    }
+    if (!found) return false;
+    p.trailT = found.t; p.trailGen = T.gen; p.toffX = p.x - (found.x - p.w / 2); p.toffY = p.y - (found.y - p.h);
+  }
+  // play your moves back at your speed; hurry when falling behind; never closer than `gap` along your path
+  const behind = T.clock - delay - p.trailT;
+  let nt = Math.max(T.pts[0].t, p.trailT + dt * (behind > 0.1 ? 1.3 + Math.min(1.7, behind) : 1));   // the further behind, the faster it hurries (up to 3x)
+  nt = Math.min(nt, T.clock, trailTimeAtS(T, T.s - gap));
+  nt = Math.max(nt, p.trailT);
+  const pt = trailAt(T, nt), ox = p.x, oy = p.y, k = Math.exp(-dt * 10);
+  p.trailT = nt; p.toffX *= k; p.toffY *= k;
+  p.x = pt.x - p.w / 2 + p.toffX; p.y = pt.y - p.h + p.toffY;
+  p.vx = clamp((p.x - ox) / dt, -900, 900); p.vy = clamp((p.y - oy) / dt, -900, 900);
+  p.onGround = pt.g; p.hitWall = 0;
+  if (Math.abs(p.vx) > 30) p.face = Math.sign(p.vx);
+  else if (G.faceT > 0.6) p.face = Math.sign(G.player.x + G.player.w / 2 - (p.x + p.w / 2)) || p.face;   // settled: look toward you
+  return true;
+}
 function updatePets(dt) {
+  if (G.hub) { updateHubPets(dt); return; }
+  if (G.player && G.room) recordTrail(dt);
   if (!G.pets || !G.pets.length) return;
   const P = G.player, pcx = P.x + P.w / 2, R = G.room;
   const moving = Math.abs(P.vx) > 20 || !P.onGround || P.atkAnim > 0 || P.dashT > 0;
@@ -2679,7 +2978,7 @@ function updatePets(dt) {
     p.idleF = (p.idleF || 0) + dt * (p.d.idleFps || 5);
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
     if (p.ko > 0) { // fainted: lie there, then get back up
-      p.ko -= dt; p.vx = 0; p.chargeT = 0;
+      p.ko -= dt; p.vx = 0; p.chargeT = 0; p.trailT = undefined;
       if (p.d.fly) { p.vy = Math.min(p.vy + GRAV * dt, 500); moveBody(p, dt, false); } else moveBody(p, dt, false);
       if (p.ko <= 0) { p.hp = Math.round(p.maxHp * 0.6); burst(cx, cy, p.d.color, 10, 120); }
       continue;
@@ -2692,7 +2991,7 @@ function updatePets(dt) {
       if (d1 < 340 && d2 < bd && (p.d.fly || Math.abs(e.y + e.h - (p.y + p.h)) < 140)) { bd = d2; tgt = e; }
     }
     petsUseSkills(p, dt);
-    if (p.d.charge && boarCharge(p, tgt, dt)) continue;
+    if (p.d.charge && boarCharge(p, tgt, dt)) { p.trailT = undefined; continue; }
     // each pet keeps its own spot beside you: trailing behind while you move, staying on its side when you stop
     if (G.runDirT > 0.35) p.side = -G.runDir; else if (!p.side) p.side = -P.face;
     let hx = pcx + p.side * (34 + p.slot * 22); const hy = p.d.fly ? P.y - 30 - (p.slot % 2) * 16 : P.y + P.h;
@@ -2706,7 +3005,7 @@ function updatePets(dt) {
     p.stuckT = !p.d.fly && p.onGround && Math.abs(p.vx) < 5 && far > 220 && !relax ? (p.stuckT || 0) + dt : 0;
     if (far > 620 || p.stuckT > 1.6 || p.y > R.hpx + 40) {
       burst(cx, cy, p.d.color, 8, 120);
-      p.x = hx - p.w / 2; p.y = p.d.fly ? hy : P.y + P.h - p.h; p.vx = p.vy = 0; p.stuckT = 0;
+      p.x = hx - p.w / 2; p.y = p.d.fly ? hy : P.y + P.h - p.h; p.vx = p.vy = 0; p.stuckT = 0; p.trailT = undefined;
       burst(p.x + p.w / 2, p.y + p.h / 2, p.d.color, 8, 120);
       continue;
     }
@@ -2736,7 +3035,9 @@ function updatePets(dt) {
       const reach = p.d.reach + 25 * tal(it, 'tongue');
       const sameLevel = Math.abs(P.y + P.h - (p.y + p.h)) < 24;
       p.dropT = (p.dropT || 0) - dt;
-      if (!tgt && (!sameLevel || Math.abs(hx - cx) > 160)) {
+      if (tgt || relax) p.trailT = undefined;
+      if (!tgt && !relax && petTrailStep(p, dt)) { /* walking: copying your moves along your trail */ }
+      else if (!tgt && (!sameLevel || Math.abs(hx - cx) > 160)) {
         const fs = Math.max(p.d.speed, stats.moveSpeed * 1.2) * spMul, above = P.y + P.h < p.y + p.h - 40;
         if (above && p.onGround && R.navDist && R.pNode !== undefined && navDistAt(p) > 0) navChase(p, fs);   // climbing up to you: route-find
         else petRun(p, hx, P.y + P.h, fs, dt);                                                                    // level or below: run, drop, leap
@@ -2848,6 +3149,8 @@ function freeCage(C) {
   C.open = true;
   const it = makeItem('pet_' + C.pet), cx = C.x + C.w / 2, cy = C.y + C.h / 2;
   burst(cx, cy, PETS[C.pet].color, 30, 260); ring(cx, cy, 90, '#a5d6a7'); SFX.play('chest', true);
+  const firstTime = !SAVE.coll[C.pet]; SAVE.coll[C.pet] = (SAVE.coll[C.pet] || 0) + 1; SAVE.rec.rescues++; saveData();
+  if (firstTime) addText(cx, C.y - 30, 'NEW in your Sanctuary!', '#a5d6a7', 15);
   if (addPet(it)) { syncPets(); const p = G.pets.find(q => q.item === it); if (p) { p.x = cx - p.w / 2; p.y = C.y + C.h - p.h; } showMsg(`You freed a ${it.def.name}! It joins your team... and the dungeon's monsters grow stronger.`, 3); }
   else { showMsg(`You freed a ${it.def.name}, but your team is full: swap or release.`, 2.8); openPack([it]); }
 }
@@ -2944,11 +3247,11 @@ function gridCellAt(p) {
 function onMouseDown(btn) {
   if (!G) {
     if (btn !== 0) return;
-    if (SCREEN === 'title') { SCREEN = 'class'; SFX.play('pick'); return; }
+    if (SCREEN === 'title') { SFX.play('pick'); enterHub(); return; }
     const c = classCardAt(mouse); if (c) newGame(c);
     return;
   }
-  if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) { G = null; SCREEN = 'class'; } return; }
+  if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
   if (G.mode !== 'pack' || !PK) return;
   if (PK.talent != null) { if (btn === 0) talentClick(); else PK.talent = null; return; }
   if (btn === 2 && !PK.drag) { const ps = petSlotAt(mouse); if (ps !== null && petSlots[ps]) { PK.talent = ps; SFX.play('pick'); return; } }
@@ -3203,7 +3506,7 @@ function drawWorldDynamic(R) {
   // gates: the entrance behind you stays shut; the exit opens once the floor is cleared
   const gate = art('props/gate');
   const gw = gate ? gate.width * PX : 60, gh = gate ? gate.height * PX : 90, gx = (R.cols - 1) * TILE - gw / 2 + 6;
-  if (gate) { drawSprite(gate, TILE + gw / 2 - 6, R.entry.y + 2, -1); drawSprite(gate, gx, R.exitY + 2, 1); }
+  if (gate) { if (!G.hub) drawSprite(gate, TILE + gw / 2 - 6, R.entry.y + 2, -1); drawSprite(gate, gx, R.exitY + 2, 1); }
   else { ctx.fillStyle = '#1a1a20'; ctx.fillRect(gx - gw / 2, R.exitY - gh, gw, gh); }
   if (R.cleared) {
     const t = Math.min(1, R.openT / 0.7), ix = gx - gw * 0.27, iw = gw * 0.54, ih = gh * 0.68, itop = R.exitY + 2 - ih;
@@ -3279,7 +3582,7 @@ function drawDashObstacles(R) {
 
 // animated hero: picks the class's animation from what the player is doing
 function drawPlayerAnim(P) {
-  const nm = G.cls; if (!animFrames(nm, 'idle')) return false;
+  let nm = heroSheet(G.cls); if (!animFrames(nm, 'idle')) nm = G.cls; if (!animFrames(nm, 'idle')) return false;
   const cx = P.x + P.w / 2, by = P.y + P.h + 1, f = P.face, o = {}, N = a => animLen(nm, a);
   let anim = 'idle', i = Math.floor(TIME * 5);
   if (G.mode === 'dead') { anim = 'death'; i = Math.min(N('death') - 1, Math.floor(G.deadT / 0.15)); }
@@ -3310,7 +3613,7 @@ function drawPlayerAnim(P) {
     if (P.blockT > 0) {           // Warrior shield block: raise, brace, spark on impact, lower
       const k = P.blockHitT > 0 ? 2 : P.blockT > 0.5 ? 0 : P.blockT < 0.1 ? 3 : 1;
       ctx.fillStyle = `rgba(255,245,200,${P.blockHitT > 0 ? 0.35 : 0.12})`; ctx.beginPath(); ctx.ellipse(cx + f * 18, P.y + 22, 14, 28, 0, 0, 7); ctx.fill();
-      if (drawAnim('warrior_block', 'block', k, cx, by, f, o)) return true;
+      if (drawAnim(heroSheet('warrior') + '_block', 'block', k, cx, by, f, o) || drawAnim('warrior_block', 'block', k, cx, by, f, o)) return true;
       const r = drawAnim(nm, 'idle', 0, cx, by, f, o);   // no sheet yet: draw a shield in code
       ctx.fillStyle = '#90a4ae'; ctx.beginPath(); ctx.ellipse(cx + f * 16, P.y + 22, 8, 16, 0, 0, 7); ctx.fill(); return r;
     }
@@ -3320,7 +3623,7 @@ function drawPlayerAnim(P) {
       ctx.beginPath(); ctx.arc(0, 0, 18 + (P.castT > 0 ? (0.3 - P.castT) * 20 : 6), 0, 7); ctx.stroke();
       for (let q = 0; q < 6; q++) { const a = q * Math.PI / 3; ctx.fillStyle = '#e1bee7'; ctx.fillRect(Math.cos(a) * 18 - 1.5, Math.sin(a) * 18 - 1.5, 3, 3); }
       ctx.restore();
-      if (drawAnim('archer_arcane', 'arcane', k, cx, by, f, o)) return true;
+      if (drawAnim(heroSheet('archer') + '_arcane', 'arcane', k, cx, by, f, o) || drawAnim('archer_arcane', 'arcane', k, cx, by, f, o)) return true;
       return drawAnim(nm, 'attack', Math.min(N('attack') - 1, k), cx, by, f, o);
     }
   }
@@ -3990,12 +4293,12 @@ function drawTitle() {
   if (tc) drawSprite(tc, W / 2, 126, 1, { scale: 4 }); else { ctx.font = `64px ${EMOJI}`; ctx.fillText('🎒', W / 2, 96); }
   // hero vs. the Warden
   const th = art('chars/hero_idle'), tb = art('chars/boss_idle');
-  if (!drawAnim(selClass, 'idle', TIME * 5, 150, 440, 1, { scale: 5 }) && th) drawSprite(th, 150, 440 + Math.round(Math.sin(TIME * 2) * 2), 1, { scale: 5 });
+  if (!drawAnim(heroSheet(selClass), 'idle', TIME * 5, 150, 440, 1, { scale: 5 }) && th) drawSprite(th, 150, 440 + Math.round(Math.sin(TIME * 2) * 2), 1, { scale: 5 });
   if (!drawAnim('warden', 'idle', TIME * 4, W - 150, 440, -1, { scale: 3 }) && tb) drawSprite(tb, W - 150, 440, -1, { scale: 3 });
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold 54px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('PACK RAT DUNGEON', W / 2, 168);
   ctx.font = `16px ${UI}`; ctx.fillStyle = '#bcaaa4'; ctx.fillText('Fight through rooms. Loot everything. Pack it well — your backpack IS your build.', W / 2, 212);
-  const lines = [['A / D  or  ← →', 'Move'], ['W / ↑', 'Jump  (S / ↓ drops through platforms)'], ['Space (hold)', 'Attack'], ['Q', 'Drink a Health Potion'], ['E', 'Throw a Bomb'], ['B / Tab', 'Open backpack (when the room is clear)'], ['Shift / L', 'Dash (you can\'t be hurt mid-dash)'], ['N', 'Show / hide the minimap'], ['P / Esc', 'Pause'], ['M', 'Mute / unmute sound']];
+  const lines = [['A / D  or  ← →', 'Move'], ['W / ↑', 'Jump  (S / ↓ drops through platforms)'], ['Space (hold)', 'Attack'], ['Q', 'Drink a Health Potion'], ['E', 'Class ability  (in the Sanctuary: use / pet)'], ['B / Tab', 'Open backpack (when the room is clear)'], ['Shift / L', 'Dash (you can\'t be hurt mid-dash)'], ['N', 'Show / hide the minimap'], ['P / Esc', 'Pause'], ['M', 'Mute / unmute sound']];
   lines.forEach(([k, v], i) => {
     const y = 246 + i * 21;
     ctx.textAlign = 'right'; ctx.font = `bold 15px ${UI}`; ctx.fillStyle = '#ffcc80'; ctx.fillText(k, W / 2 - 14, y);
@@ -4067,6 +4370,7 @@ function draw() {
   ctx.translate(-camX + Math.round(Math.sin(TIME * 63) * shk), -camY + Math.round(Math.cos(TIME * 51) * shk));  // camera follows the player
   drawTerrain(G.room);
   drawWorldDynamic(G.room);
+  if (G.hub) drawHubWorld();
   drawCorpses();
   for (const e of G.enemies) drawEnemy(e);
   drawPets();
@@ -4074,10 +4378,11 @@ function draw() {
   drawPlayer();
   for (const p of G.proj) drawProj(p);
   drawFx();
+  if (G.hub) drawHubBubble();
   ctx.restore();
   drawVignette();
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
-  drawHUD();
+  if (G.hub) drawHubHUD(); else drawHUD();
   if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, W, H); }
   if (G.mode === 'pause') drawOverlay('Paused', 'Press P or Esc to resume');
   if (G.mode === 'won') drawOverlay('VICTORY!', `The ${CLASSES[G.cls].name} conquered all ${FINAL_FLOOR} floors · ${G.kills} enemies slain`, G.wonT > 1 ? 'Enter: keep descending (endless)  ·  Esc: title screen' : '');
@@ -4107,7 +4412,7 @@ function update(dt) {
   }
   musicDirector(dt);
   if (!G) {
-    if (SCREEN === 'title') { if (hit('Enter', ' ')) { SCREEN = 'class'; SFX.play('pick'); } return; }
+    if (SCREEN === 'title') { if (hit('Enter', ' ')) { SFX.play('pick'); enterHub(); } return; }
     const i = CLASS_ORDER.indexOf(selClass), before = selClass;
     const nc = CLASS_ORDER.length;
     if (hit('ArrowLeft', 'a')) selClass = CLASS_ORDER[(i + nc - 1) % nc];
@@ -4120,6 +4425,11 @@ function update(dt) {
   }
   switch (G.mode) {
     case 'play':
+      if (G.hub) {
+        if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
+        if (hit('p')) { G.mode = 'pause'; SFX.play('pause'); break; }
+        updateWorld(dt); break;
+      }
       if (hit('p', 'Escape')) { G.mode = 'pause'; SFX.play('pause'); break; }
       if (hit('b', 'i', 'Tab')) { tryOpenPack(); if (G.mode === 'pack') break; }
       if (hit('n')) G.minimap = !G.minimap;
@@ -4139,18 +4449,18 @@ function update(dt) {
       break;
     case 'trans':
       G.fade += dt * 3.5 * G.fadeDir;
-      if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; nextRoom(); G.fadeDir = -1; }
+      if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; if (!G.hub) nextRoom(); G.fadeDir = -1; }
       else if (G.fadeDir < 0 && G.fade <= 0) { G.fade = 0; G.fadeDir = 0; G.mode = 'play'; }
       updateFx(dt);
       break;
     case 'dead':
       G.deadT += dt; updateFx(dt);
-      if (G.deadT > 0.8 && hit('Enter')) { G = null; SCREEN = 'class'; }
+      if (G.deadT > 0.8 && hit('Enter')) enterHub();
       break;
     case 'won':
       G.wonT += dt; updateFx(dt);
       if (G.wonT > 1 && hit('Enter')) { G.endless = true; G.mode = 'trans'; G.fadeDir = 1; G.fade = 0; }
-      else if (G.wonT > 1 && hit('Escape')) { G = null; SCREEN = 'title'; }
+      else if (G.wonT > 1 && hit('Escape')) enterHub();
       break;
   }
 }
