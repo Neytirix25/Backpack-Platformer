@@ -36,9 +36,11 @@ Open `index.html` in a browser (double-click works). No install or build step ne
   - **Legendary:** Dragon (burn).
 - **Pet talents:** pets level up from the kills you make together. Right-click a pet in its slot to spend talent points across three tiers.
 - **Team synergies:** Clowder (both cats), Pack Hunt (Shepherd + Fox) and Wildfire (Dragon + Toad).
-- **Big levels:** platforming challenge courses with treasure chests at the end, buff plants, and an Explorer's Lantern that reveals more with each level.
+- **Lively pets:** they follow you, hop off ledges and leap gaps, and wander, sniff, perch or lie down when you stand still.
+- **The dungeon fights back:** monsters are tougher, hit harder, attack faster and come in larger numbers for every pet on your team (and a little more as your pets level up), so a full team still has a tough time.
+- **Long levels:** one long stretch per floor, with chasms and arcane barriers you can only get past by dashing, challenge courses with treasure chests at the end, buff plants, and an Explorer's Lantern that reveals more with each level.
 - **Two acts:** floors 1–10 end with the Warden boss, and floors 11–20 bring new enemies and hazards (lava, flame vents, crumbling blocks). Endless mode unlocks after floor 20.
-- **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio.
+- **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio. Floors rotate through a pool of tracks without repeating the last two.
 
 ## Project layout
 
