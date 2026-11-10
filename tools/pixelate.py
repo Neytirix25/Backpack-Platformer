@@ -459,3 +459,21 @@ def do_classitems(cls):
 
 if __name__ == '__main__' and sys.argv[1] == 'classitems':
     do_classitems(sys.argv[2])
+
+
+# ---------- new pet icons + rescue cages (4x2 sheet: 5 pet icons, cage, broken cage) ----------
+def do_petcages():
+    im = Image.open(os.path.join(RAW, 'petcages_sheet.png')).convert('RGBA')
+    sprites = cutouts(im)
+    sprites = [sp for sp in sprites if sp.width * sp.height > 0.15 * max(q.width * q.height for q in sprites)]
+    assert len(sprites) == 7, f'found {len(sprites)} sprites, expected 7'
+    for iid, src in zip(['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad'], sprites[:5]):
+        spr, leak = fit_to_shape(src, [[1, 1], [1, 1]])
+        spr.save(os.path.join(OUT, 'items', iid + '.png')); print(iid, spr.size)
+    for name, src in zip(['cage', 'cage_open'], sprites[5:]):
+        spr = pixelate(src, 24, 24)
+        spr.save(os.path.join(OUT, 'props', name + '.png')); print(name, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'petcages':
+    do_petcages()

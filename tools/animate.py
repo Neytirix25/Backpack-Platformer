@@ -44,6 +44,11 @@ SPECS = {
     'pet_catcalico': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=12),
     'pet_cockatiel': dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=14, ref='fly', fly=True),
     'pet_dragon':    dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=19, ref='fly', fly=True),
+    'pet_fox':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=14),
+    'pet_owl':       dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=15, ref='fly', fly=True),
+    'pet_ferret':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=9, ref='run'),   # idle stands up tall: size from the run
+    'pet_boar':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=17, row_scale={'run': 1.35}),
+    'pet_toad':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=12, row_scale={'run': 1.3}),
 }
 
 
@@ -181,7 +186,8 @@ def process(name):
     # 1) shrink every frame by the same factor
     small = []
     for (aname, _), row in zip(spec['rows'], rows):
-        small.append([c[1].resize((max(1, round(c[1].width * s)), max(1, round(c[1].height * s))), Image.BOX) for c in row])
+        rs = s * spec.get('row_scale', {}).get(aname, 1)   # fix rows the source drew at a different size
+        small.append([c[1].resize((max(1, round(c[1].width * rs)), max(1, round(c[1].height * rs))), Image.BOX) for c in row])
     if spec.get('bright'):  # lift very dark characters so they read against the dungeon backgrounds
         from PIL import ImageEnhance
         def lift(f):

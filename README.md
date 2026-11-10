@@ -28,8 +28,14 @@ Open `index.html` in a browser (double-click works). No install or build step ne
   - **Archer:** Arcane Shot
   - **Rogue:** Bombs
   - **Beastmaster:** Spirit Wolf, plus +1 damage on every pet
-- **Backpack management:** items have shapes, synergies (whetstones, charms, pet treats, fletching kits) and merge up to level V.
-- **Pets:** a white German Shepherd, gray and calico cats, a healing cockatiel and a legendary fire-breathing dragon.
+- **Backpack management:** items have shapes, synergies (whetstones, charms, fletching kits) and merge up to level V.
+- **Rescue animals:** monsters keep captured animals in guarded cages. Beat the guards, open the cage, and the animal joins you in one of 3 pet slots. There are 10 to find, each with its own ability:
+  - **Common:** White Shepherd (stun), Gray Cat (finisher), Calico (mark), Ferret (weaken), Toad (poison).
+  - **Uncommon:** Fox (triple crits), Boar (charge).
+  - **Rare:** Cockatiel (heals you), Owl (blind).
+  - **Legendary:** Dragon (burn).
+- **Pet talents:** pets level up from the kills you make together. Right-click a pet in its slot to spend talent points across three tiers.
+- **Team synergies:** Clowder (both cats), Pack Hunt (Shepherd + Fox) and Wildfire (Dragon + Toad).
 - **Big levels:** platforming challenge courses with treasure chests at the end, buff plants, and an Explorer's Lantern that reveals more with each level.
 - **Two acts:** floors 1–10 end with the Warden boss, and floors 11–20 bring new enemies and hazards (lava, flame vents, crumbling blocks). Endless mode unlocks after floor 20.
 - **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio.
