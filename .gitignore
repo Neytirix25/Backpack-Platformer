@@ -1,0 +1,12 @@
+# raw ChatGPT sprite sheets and check images (large; only needed to re-run the art tools)
+assets_raw/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS / editor clutter
+Thumbs.db
+desktop.ini
+.DS_Store
+*.tmp
