@@ -50,7 +50,7 @@ const ART = {};
 const ART_FILES = {
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
+  props: ['barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum'],
   anim: Object.keys(window.ANIMS || {}),
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -64,6 +64,7 @@ function animLen(name, anim) { const f = animFrames(name, anim); return f ? f.le
 function drawAnim(name, anim, i, x, y, face = 1, o = {}) {
   const fr = animFrames(name, anim); if (!fr || !fr.length) return false;
   const img = art('anim/' + name), n = fr.length;
+  if (!Number.isFinite(i)) i = 0;   // never crash on a not-yet-started animation clock
   const [fx, fy, fw, fh, ax, ay] = fr[((Math.floor(i) % n) + n) % n];
   const s = o.scale || PX;
   ctx.save();
@@ -300,7 +301,7 @@ const SONGS = {
       'E5 - - - - - - - D5 - C5 - B4 - C5 -', 'A4 - - - - - - - C5 - - - F5 - - -',
       'E5 - - - D5 - - - C5 - - - A4 - - -', 'B4 - - - - - - - G#4 - - - - - - -'] },
   ] },
-  act1: { bpm: 100, chords: ['Dm', 'Bb', 'C', 'Am', 'Dm', 'Bb', 'Gm', 'A'], parts: [
+  act1: { title: 'Stone and Shadow', bpm: 100, chords: ['Dm', 'Bb', 'C', 'Am', 'Dm', 'Bb', 'Gm', 'A'], parts: [
     { inst: 'pad', vol: 0.6 },
     { inst: 'pluck', arp: '0 . 1 . 2 . 1 . 0 . 1 . 2 . 3 .', vol: 0.8 },
     { inst: 'bass', pat: 'r - . r o - r - f - . r o - r -' },
@@ -316,7 +317,7 @@ const SONGS = {
       'D4 - - - F4 - - - A4 - - - - - - -', 'Bb4 - - - - - - - A4 - - - F4 - - -',
       'G4 - - - - - - - Bb4 - - - A4 - G4 -', 'A4 - - - - - - - - - - - - - - -'] },
   ] },
-  act2: { bpm: 108, chords: ['Em', 'F', 'Em', 'D', 'C', 'B', 'Em', 'F'], parts: [
+  act2: { title: 'Embers Below', bpm: 108, chords: ['Em', 'F', 'Em', 'D', 'C', 'B', 'Em', 'F'], parts: [
     { inst: 'pad', vol: 0.7, dark: true },
     { inst: 'pluck', arp: '0 1 2 3 2 1 0 1 2 3 2 1 0 1 2 1', vol: 0.45 },
     { inst: 'bass', pat: 'r . r . r . o . r . r . f . o .', saw: true },
@@ -326,6 +327,72 @@ const SONGS = {
       'B4 - - - - - - - G5 - - - F#5 - E5 -', 'F#5 - - - - - - - D5 - - - A4 - - -',
       'G5 - - - E5 - - - C5 - - - E5 - G5 -', 'F#5 - - - - - - - D#5 - - - B4 - - -',
       'E5 - - - G5 - - - B5 - - - A5 - G5 -', 'F5 - - - - - - - E5 - - - - - - -'] },
+  ] },
+  // ----- level rotation: five more pieces (each floor picks one at random, never the last two played) -----
+  halls: { title: 'Torchlit Halls', bpm: 92, chords: ['Gm', 'Eb', 'F', 'D', 'Gm', 'Cm', 'D', 'D'], parts: [
+    { inst: 'pad', vol: 0.7 },
+    { inst: 'pluck', arp: '0 . 2 . 1 . 2 . 0 . 2 . 3 . 2 .', vol: 0.8 },
+    { inst: 'bass', pat: 'r - - . r . f . r - - . o . f .' },
+    { inst: 'drums', kick: 'x . . . . . x . x . . . . . . .', snare: '. . . . x . . . . . . . x . . .', hat: 'x . . x . . x . x . . x . . x .' },
+    { inst: 'lead', loops: [1, 0], mel: [
+      'G4 - - - Bb4 - D5 - - - C5 - Bb4 - A4 -', 'G4 - - - - - - - Bb4 - - - G4 - Eb4 -',
+      'F4 - - - A4 - C5 - - - Bb4 - A4 - F4 -', 'F#4 - - - - - - - A4 - - - D5 - - -',
+      'G5 - - - F5 - D5 - - - Bb4 - C5 - D5 -', 'Eb5 - - - D5 - C5 - - - G4 - C5 - Eb5 -',
+      'D5 - - - C5 - Bb4 - A4 - - - F#4 - - -', 'A4 - - - - - - - - - - - . . . .'] },
+    { inst: 'flute', loops: [0, 1], vol: 0.7, mel: [
+      'D4 - - - - - - - G4 - - - - - - -', 'Eb4 - - - - - - - G4 - - - - - - -',
+      'F4 - - - - - - - A4 - - - - - - -', 'F#4 - - - - - - - A4 - - - - - - -',
+      'G4 - - - - - - - Bb4 - - - - - - -', 'C5 - - - - - - - G4 - - - - - - -',
+      'A4 - - - - - - - F#4 - - - - - - -', 'D4 - - - - - - - - - - - - - - -'] },
+  ] },
+  caves: { title: 'Whispering Caves', bpm: 84, chords: ['Am', 'D', 'Am', 'G', 'F', 'G', 'Am', 'E'], parts: [
+    { inst: 'pad', vol: 0.8, dark: true },
+    { inst: 'bell', arp: '0 . . 2 . . 1 . . 3 . . 2 . . .', vol: 0.6 },
+    { inst: 'bass', pat: 'r - - - - - - - f - - - r - - -' },
+    { inst: 'drums', kick: 'x . . . . . . . x . . . . . . .', snare: '. . . . . . . . . . . . x . . .', hat: '. . x . . . x . . . x . . . x .' },
+    { inst: 'bell', loops: [1, 1, 0], mel: [
+      'E5 - - - - - D5 - C5 - - - A4 - - -', 'F#5 - - - - - - - E5 - - - D5 - - -',
+      'C5 - - - E5 - - - A5 - - - G5 - E5 -', 'D5 - - - - - - - B4 - - - G4 - - -',
+      'A4 - - - C5 - - - F5 - - - E5 - D5 -', 'D5 - - - - - - - G5 - - - B4 - D5 -',
+      'C5 - - - B4 - A4 - - - - - E4 - - -', 'G#4 - - - - - - - B4 - - - E5 - - -'] },
+  ] },
+  ember: { title: 'Ember Road', bpm: 116, chords: ['Dm', 'Eb', 'Dm', 'C', 'Bb', 'A', 'Dm', 'Eb'], parts: [
+    { inst: 'pad', vol: 0.6, dark: true },
+    { inst: 'pluck', arp: '0 1 2 1 0 1 2 1 0 1 2 3 2 1 2 1', vol: 0.4 },
+    { inst: 'bass', pat: 'r . r o r . r . r . r o f . r .', saw: true },
+    { inst: 'drums', kick: 'x . . x . . x . x . . x . . x .', snare: '. . . . x . . . . . . . x . . .', hat: 'x . x . x . x . x . x . x . x .' },
+    { inst: 'lead', loops: [1, 1, 0], mel: [
+      'D5 - - - A4 - - - D5 - F5 - E5 - D5 -', 'Eb5 - - - - - - - D5 - - - Bb4 - G4 -',
+      'A4 - - - D5 - F5 - A5 - - - G5 - F5 -', 'E5 - - - - - - - G5 - - - E5 - C5 -',
+      'D5 - - - F5 - - - Bb5 - - - A5 - F5 -', 'E5 - - - - - - - C#5 - - - A4 - - -',
+      'F5 - E5 - D5 - - - A4 - - - D5 - F5 -', 'G5 - - - - - - - Eb5 - - - - - - -'] },
+  ] },
+  hollowdeep: { title: 'The Hollow Deep', bpm: 98, chords: ['F#m', 'D', 'E', 'C#', 'F#m', 'D', 'Bm', 'C#'], parts: [
+    { inst: 'pad', vol: 0.7, dark: true },
+    { inst: 'bell', arp: '0 . 1 . 2 . 3 . 2 . 1 . 0 . . .', vol: 0.5 },
+    { inst: 'bass', pat: 'r - - . r . . . o - - . f . . .' },
+    { inst: 'drums', kick: 'x . . . . . . . x . . x . . . .', snare: '. . . . x . . . . . . . x . . .', hat: '. . x . . . x . . . x . . . x .' },
+    { inst: 'flute', loops: [1, 0], mel: [
+      'C#5 - - - - - - - F#5 - - - E5 - C#5 -', 'D5 - - - - - - - A4 - - - - - - -',
+      'B4 - - - E5 - - - G#5 - - - F#5 - E5 -', 'F5 - - - - - - - C#5 - - - - - - -',
+      'A5 - - - G#5 - - - F#5 - - - C#5 - - -', 'D5 - - - F#5 - - - A5 - - - F#5 - D5 -',
+      'D5 - - - - - - - B4 - - - F#4 - - -', 'G#4 - - - - - - - C#5 - - - - - - -'] },
+    { inst: 'lead', loops: [0, 1], vol: 0.8, mel: [
+      'F#4 - - - A4 - - - C#5 - - - - - - -', 'F#4 - - - A4 - - - D5 - - - - - - -',
+      'G#4 - - - B4 - - - E5 - - - - - - -', 'G#4 - - - C#5 - - - F5 - - - - - - -',
+      'A4 - - - C#5 - - - F#5 - - - - - - -', 'A4 - - - D5 - - - F#5 - - - - - - -',
+      'B4 - - - D5 - - - F#5 - - - - - - -', 'C#5 - - - - - - - G#4 - - - - - - -'] },
+  ] },
+  march: { title: "Wanderer's March", bpm: 104, chords: ['Cm', 'Ab', 'Eb', 'Bb', 'Cm', 'Fm', 'G', 'G'], parts: [
+    { inst: 'pad', vol: 0.6 },
+    { inst: 'pluck', arp: '0 . 1 . 2 . 1 . 0 . 1 . 2 . 3 .', vol: 0.7 },
+    { inst: 'bass', pat: 'r . r . f . r . r . r . o . f .' },
+    { inst: 'drums', kick: 'x . . . x . . . x . . . x . . .', snare: '. . . . x . . . . . . . x . x .', hat: 'x . x . x . x . x . x . x . x .', fill: true },
+    { inst: 'lead', mel: [
+      'G4 - - - C5 - - - Eb5 - D5 - C5 - - -', 'Eb5 - - - - - - - C5 - - - Ab4 - - -',
+      'G5 - - - F5 - Eb5 - Bb4 - - - Eb5 - G5 -', 'F5 - - - - - - - D5 - - - Bb4 - - -',
+      'C5 - - - Eb5 - - - G5 - - - C6 - - -', 'Ab5 - - - G5 - F5 - C5 - - - F5 - Ab5 -',
+      'G5 - - - - - - - D5 - - - B4 - - -', 'D5 - - - B4 - - - G4 - - - B4 - D5 -'] },
   ] },
   boss: { bpm: 144, chords: ['Cm', 'Ab', 'Bb', 'G', 'Cm', 'Ab', 'Fm', 'G'], parts: [
     { inst: 'pad', vol: 0.6, dark: true },
@@ -483,8 +550,19 @@ const Music = (() => {
     if (Math.abs(v - duck) < 0.01) return; duck = v;
     if (bus && SFX.ac && on) bus.gain.setTargetAtTime(MUSIC_VOL * duck, SFX.ac.currentTime, 0.15);
   }
-  return { play, setOn, setDuck, set intensity(v) { intensity = v; }, get on() { return on; }, get song() { return cur && cur.name; }, SONGS };
+  return { play, setOn, setDuck, set intensity(v) { intensity = v; }, get on() { return on; }, get song() { return cur && cur.name; },
+           get loops() { return cur ? Math.floor(step / (SONGS[cur.name].chords.length * 16)) : 0; }, SONGS };
 })();
+const LEVEL_POOLS = { 1: ['act1', 'halls', 'caves', 'march'], 2: ['act2', 'ember', 'hollowdeep', 'march'] };
+const SONG_HISTORY = [];   // across runs too, so a new run doesn't open with the song you just heard
+function pickLevelSong(R) {
+  const pool = LEVEL_POOLS[R.act === 2 ? 2 : 1];
+  let opts = pool.filter(k => !SONG_HISTORY.slice(-2).includes(k));
+  if (!opts.length) opts = pool.filter(k => k !== SONG_HISTORY[SONG_HISTORY.length - 1]);
+  const k = pick(opts);
+  SONG_HISTORY.push(k); if (SONG_HISTORY.length > 6) SONG_HISTORY.shift();
+  G.levelSong = k; G.levelSongRoom = R; G.songBanner = { name: SONGS[k].title, t: 4 };
+}
 // picks the song for what's happening and feeds the "danger" level to the drums
 function musicDirector(dt) {
   if (!SFX.ac) return;
@@ -495,7 +573,12 @@ function musicDirector(dt) {
     else if (G.mode === 'won') want = 'victory';
     else if (R.type === 'camp') want = 'camp';
     else if (R.type === 'boss') want = G.enemies.some(e => e.type === 'boss') ? 'boss' : 'camp';
-    else want = R.act === 2 ? 'act2' : 'act1';
+    else {   // regular floors: a random track from the act's pool, rotated after two loops, never one of the last two played
+      if (G.levelSongRoom !== R || !LEVEL_POOLS[R.act].includes(G.levelSong)) pickLevelSong(R);
+      else if (Music.song === G.levelSong && Music.loops >= 2) pickLevelSong(R);
+      want = G.levelSong;
+    }
+    if (G.songBanner) G.songBanner.t -= dt;
     const P = G.player, near = G.enemies.filter(e => e.awake && !e.dead && Math.hypot(e.x - P.x, e.y - P.y) < 650).length;
     G.musicI = (G.musicI || 0) + (Math.min(1, near / 3) - (G.musicI || 0)) * Math.min(1, dt * 1.5);
     Music.intensity = G.musicI;
@@ -825,10 +908,11 @@ const THEMES = {
 const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236 };
 
 // ---------- tiles ----------
-const TILE = 30, EMPTY = 0, SOLID = 1, ONEWAY = 2, SPIKES = 3, LAVA = 4, CRUMBLE = 5;
+const TILE = 30, EMPTY = 0, SOLID = 1, ONEWAY = 2, SPIKES = 3, LAVA = 4, CRUMBLE = 5, PHASE = 6;   // PHASE = arcane barrier: solid unless you dash through it
 const FINAL_FLOOR = 20;
-const isSolidT = t => t === SOLID || t === CRUMBLE;
-function tileAt(tx, ty) { const R = G.room; if (tx < 0 || ty < 0 || tx >= R.cols || ty >= R.rows) return SOLID; return R.grid[ty * R.cols + tx]; }
+const isSolidT = t => t === SOLID || t === CRUMBLE || t === PHASE;
+const solidFor = (o, t) => isSolidT(t) && !(t === PHASE && o.phasing);
+function tileAt(tx, ty) { const R = G.room; if (tx < 0 || ty < 0 || tx >= R.cols) return SOLID; if (ty >= R.rows) return EMPTY; return R.grid[ty * R.cols + tx]; }   // below the map = open air (chasms)
 function setTile(R, tx, ty, v) { if (tx >= 0 && ty >= 0 && tx < R.cols && ty < R.rows) R.grid[ty * R.cols + tx] = v; }
 const actOf = n => (n <= 10 ? 1 : 2);
 const hash2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -926,56 +1010,56 @@ const SEGMENTS = {
   flames:    { acts: [2],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '', '', '..v..v..v..vC.', '##############'] },
   towertop:  { acts: [1, 2], chest: true, rows: ['', '', '', '......C.......', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
 };
-const SEG_STARTS = [1, 17, 33, 49, 65, 81];
+const SEG_W = 16, NSEG = 18;                  // 18 segments in one long storey (3 old storeys' worth)
+const SEG_STARTS = Array.from({ length: NSEG }, (_, k) => 1 + k * SEG_W);
 
 function buildLevel(R) {
   for (let attempt = 0; attempt < 40; attempt++) if (tryBuild(R, attempt < 34)) return;
 }
 function tryBuild(R, features) {
-  const C = 96, RO = 54, SH = 18, act = R.act;
-  const g = new Uint8Array(C * RO), bases = new Map(), vents = [], chestSpots = [];
+  const C = NSEG * SEG_W, RO = 18, act = R.act, f = 16;   // floor-top row
+  const g = new Uint8Array(C * RO), bases = new Map(), vents = [], chestSpots = [], dashSpots = [];
   const ok = (x, y) => x >= 1 && y >= 1 && x <= C - 2 && y <= RO - 1;
   const set = (x, y, v) => { if (ok(x, y)) g[y * C + x] = v; };
   const fill = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, v); };
   for (let x = 0; x < C; x++) g[x] = SOLID;
   for (let y = 0; y < RO; y++) { g[y * C] = SOLID; g[y * C + C - 1] = SOLID; }
-  const ft = s => s * SH + 16;                       // floor-top row of storey s
-  for (let s = 0; s < 3; s++) fill(1, ft(s), C - 2, ft(s) + 1, SOLID);
-  const sIn = randi(0, 2); let sOut = randi(0, 2);
-  if (sOut === sIn && Math.random() < 0.6) sOut = (sIn + randi(1, 2)) % 3;
-  const plan = [[], [], []];                         // plan[storey][segment] = template name
-  plan[sIn][0] = 'flat'; plan[sOut][5] = 'flat';
-  // shafts: a trapdoor in the floor above + a zig-zag ladder of ledges in the segment below
-  for (let b = 0; b < 2; b++) {
-    const free = [1, 2, 3, 4].filter(k => !plan[b][k] && !plan[b + 1][k]).sort(() => Math.random() - 0.5);
-    for (const k of free.slice(0, Math.random() < 0.65 ? 2 : 1)) { plan[b][k] = plan[b][k] || 'trapdoor'; plan[b + 1][k] = 'ladder'; }
+  fill(1, f, C - 2, RO - 1, SOLID);
+  const plan = new Array(NSEG).fill(null);
+  plan[0] = 'flat'; plan[NSEG - 1] = 'flat';
+  if (features) {
+    // 3-4 dash obstacles spread along the level, at least one of each kind
+    const nDash = randi(3, 4), kinds = ['chasm', 'barrier', pick(['chasm', 'barrier']), pick(['chasm', 'barrier'])].slice(0, nDash).sort(() => Math.random() - 0.5);
+    const span = (NSEG - 2) / nDash;
+    kinds.forEach((kind, i) => { plan[clamp(1 + Math.floor(span * i + rand(0.5, span - 0.5)), 1, NSEG - 2)] = kind; });
   }
-  // fill the rest: 2-3 challenge segments (each ends in a chest), the others traversal pieces
+  // the rest: 2-3 challenge segments (each ends in a chest or a cage), the others traversal pieces
   const pool = n => Object.keys(SEGMENTS).filter(k => SEGMENTS[k].acts.includes(act) && !!SEGMENTS[k].chest === n);
-  const open = []; for (let s = 0; s < 3; s++) for (let k = 0; k < 6; k++) if (!plan[s][k]) open.push([s, k]);
+  const open = []; for (let k = 1; k < NSEG - 1; k++) if (!plan[k]) open.push(k);
   open.sort(() => Math.random() - 0.5);
   const nChal = features ? randi(2, 3) : 0;
-  open.forEach(([s, k], i) => {
-    if (!features) { plan[s][k] = 'flat'; return; }
+  open.forEach((k, i) => {
+    if (!features) { plan[k] = 'flat'; return; }
     const list = pool(i < nChal);
-    let name; do { name = pick(list); } while (list.length > 1 && (plan[s][k - 1] === name));
-    plan[s][k] = name;
+    let name; do { name = pick(list); } while (list.length > 1 && (plan[k - 1] === name || plan[k + 1] === name));
+    plan[k] = name;
   });
-  // stamp the templates
-  for (let s = 0; s < 3; s++) for (let k = 0; k < 6; k++) {
-    const name = plan[s][k], x0 = SEG_STARTS[k], f = ft(s);
-    if (name === 'trapdoor') {
-      const cx = x0 + 6;
-      for (let x = cx; x < cx + 4; x++) { g[f * C + x] = ONEWAY; g[(f + 1) * C + x] = EMPTY; }
+  for (let k = 0; k < NSEG; k++) {
+    const name = plan[k], x0 = SEG_STARTS[k];
+    if (name === 'chasm') {        // a bottomless gap too wide to jump: jump, then dash across
+      const gx = x0 + 4;
+      fill(gx, f, gx + 7, RO - 1, EMPTY);
+      dashSpots.push({ kind: 'chasm', x0: gx, x1: gx + 7 });
       continue;
     }
-    if (name === 'ladder') {
-      const cx = x0 + 6;
-      [[-2, 3], [2, 6], [-2, 9], [2, 12], [0, 15]].forEach(([off, up]) => fill(cx + off, f - up, cx + off + 3, f - up, ONEWAY));
+    if (name === 'barrier') {      // an arcane wall from floor to ceiling: only a dash gets you through
+      const bx = x0 + 7;
+      fill(bx, 1, bx, f - 1, PHASE);
+      dashSpots.push({ kind: 'barrier', x0: bx, x1: bx });
       continue;
     }
     const T = SEGMENTS[name]; if (!T) continue;
-    const off = k === 5 ? 0 : 1;
+    const off = k === NSEG - 1 ? 0 : 1;
     T.rows.forEach((row, r) => {
       const y = f - 13 + r;
       for (let c = 0; c < row.length; c++) {
@@ -992,9 +1076,9 @@ function tryBuild(R, features) {
   }
   Object.assign(R, { cols: C, rows: RO, grid: g, wpx: C * TILE, hpx: RO * TILE });
   const nav = buildNav(R);
-  const reach = navReach(nav, (ft(sIn) - 1) * C + 2);
-  if (!reach.has((ft(sOut) - 1) * C + (C - 3))) return false;  // exit must be reachable, otherwise regenerate
-  Object.assign(R, { reach, nav, vents, crumbleBase: bases, plan, entry: { x: 2.5 * TILE, y: ft(sIn) * TILE }, exitY: ft(sOut) * TILE,
+  const reach = navReach(nav, (f - 1) * C + 2);
+  if (!reach.has((f - 1) * C + (C - 3))) return false;  // exit must be reachable (dashing allowed), otherwise regenerate
+  Object.assign(R, { reach, nav, vents, crumbleBase: bases, plan, dashSpots, floorTop: f, entry: { x: 2.5 * TILE, y: f * TILE }, exitY: f * TILE,
                      chestSpots: chestSpots.filter(([x, y]) => reach.has(y * C + x)) });
   return true;
 }
@@ -1005,7 +1089,7 @@ function tryBuild(R, features) {
 function buildNav(R) {
   const C = R.cols, RO = R.rows, g = R.grid;
   const get = (x, y) => (x < 0 || y < 0 || x >= C || y >= RO) ? SOLID : g[y * C + x];
-  const sol = t => t === SOLID || t === CRUMBLE, sup = t => t === SOLID || t === ONEWAY || t === CRUMBLE;
+  const sol = t => t === SOLID || t === CRUMBLE || t === PHASE, sup = t => t === SOLID || t === ONEWAY || t === CRUMBLE;
   const stand = (x, y) => x > 0 && x < C - 1 && y > 0 && y < RO - 1 && get(x, y) === EMPTY && !sol(get(x, y - 1)) && get(x, y - 1) !== SPIKES && get(x, y - 1) !== LAVA && sup(get(x, y + 1));
   const clearCol = (x, y0, y1) => { for (let y = y0; y <= y1; y++) if (sol(get(x, y))) return false; return true; };
   const edges = new Map();
@@ -1038,9 +1122,20 @@ function buildNav(R) {
       }
       if (okJ) add(k, ty * C + tx, 'jump', dx, dy);
     }
+    // player-only dash: straight across a chasm or through an arcane barrier at the same height
+    for (const d of [-1, 1]) {
+      let needs = false;
+      for (let dx = 1; dx <= 9; dx++) {
+        const cx = x + d * dx, a = get(cx, y), b = get(cx, y - 1);
+        if (a === SOLID || a === CRUMBLE || b === SOLID || b === CRUMBLE) break;
+        if (a === PHASE || b === PHASE || !stand(cx, y)) { needs = true; continue; }
+        if (needs && dx >= 2) { add(k, y * C + cx, 'dash', d * dx, 0); break; }
+        if (!needs) break;   // plain floor: no dash needed
+      }
+    }
   }
   const rev = new Map();
-  for (const [from, list] of edges) for (const e of list) { let a = rev.get(e.to); if (!a) rev.set(e.to, a = []); a.push(from); }
+  for (const [from, list] of edges) for (const e of list) { if (e.type === 'dash') continue; let a = rev.get(e.to); if (!a) rev.set(e.to, a = []); a.push(from); }   // enemies can't dash
   return { edges, rev, stand };
 }
 function navReach(nav, start) {
@@ -1108,7 +1203,7 @@ function navChase(e, speed, loose = false) {
     e.navImproved = TIME; e.navBestD = pd;
     if (!inView(e.x, e.y, 60) && here > 0) { // out of sight: skip a few steps ahead along the route
       let node = k;
-      for (let i = 0; i < 4; i++) { let nb = null; for (const ed of R.nav.edges.get(node) || []) if (dist[ed.to] >= 0 && dist[ed.to] < dist[node] && (!nb || dist[ed.to] < dist[nb])) nb = ed.to; if (nb === null) break; node = nb; }
+      for (let i = 0; i < 4; i++) { let nb = null; for (const ed of R.nav.edges.get(node) || []) if (ed.type !== 'dash' && dist[ed.to] >= 0 && dist[ed.to] < dist[node] && (!nb || dist[ed.to] < dist[nb])) nb = ed.to; if (nb === null) break; node = nb; }
       e.x = (node % C + 0.5) * TILE - e.w / 2; e.y = (Math.floor(node / C) + 1) * TILE - e.h; e.vy = 0; return;
     }
     e.vy = -540; e.vx = direct * speed; e.navAir = e.vx; e.onGround = false; return; // on screen: hop free
@@ -1116,14 +1211,14 @@ function navChase(e, speed, loose = false) {
   if (here < 0) { // not on a valid spot (e.g. wandered into spikes, or wedged on a lip): head for the nearest one
     let bk = -1, bd = 1e9;
     for (let dy = -2; dy <= 2; dy++) for (let dx = -4; dx <= 4; dx++) { const kk = (ty + dy) * C + tx + dx; if (kk >= 0 && kk < dist.length && dist[kk] >= 0) { const c = Math.abs(dx) + Math.abs(dy) * 2 + dist[kk] * 0.1; if (c < bd) { bd = c; bk = kk; } } }
-    if (bk < 0) { e.vx = direct * speed; return; }
+    if (bk < 0) { e.vx = 0; return; }   // no way to you from here (e.g. across a chasm): hold position
     const bx = (bk % C + 0.5) * TILE; e.vx = (Math.sign(bx - ecx) || direct) * speed; e.face = Math.sign(e.vx);
     if (Math.floor(bk / C) < ty && e.onGround) { e.vy = -520; e.navAir = e.vx; e.onGround = false; }
     return;
   }
   if (here <= 1 || Math.abs(P.y + P.h - (e.y + e.h)) < 20 && Math.abs(pcx - ecx) < 90) { e.vx = direct * speed; e.face = direct; return; }
   let best = null;
-  for (const ed of R.nav.edges.get(k) || []) { const d = dist[ed.to]; if (d >= 0 && (here < 0 || d < here) && (!best || d < dist[best.to])) best = ed; }
+  for (const ed of R.nav.edges.get(k) || []) { if (ed.type === 'dash') continue; const d = dist[ed.to]; if (d >= 0 && (here < 0 || d < here) && (!best || d < dist[best.to])) best = ed; }
   if (!best) { e.vx = direct * speed; return; }
   if (best.type === 'walk' || best.type === 'fall') { e.vx = best.dx * speed; e.face = best.dx; return; }
   if (best.type === 'drop') { // move to the middle of the ledge / trapdoor so the whole body is over it, then drop
@@ -1156,6 +1251,20 @@ function flyToward(e, tx, ty, speed) {
 }
 
 // ---------- enemies, loot and decorations ----------
+// ---- difficulty: enemies are tougher across the board, and grow with your animal team ----
+// 0 pets: a little harder than before. Every pet you bring makes the dungeon hit back harder; leveled pets add a bit more.
+const THREAT = { baseHp: 1.25, baseDmg: 1.05, petHp: 0.4, petDmg: 0.12, petLvlHp: 0.03, petCount: 0.12, petAgg: 0.05 };
+function threat() {
+  const its = typeof petSlots !== 'undefined' ? petSlots.filter(Boolean) : [], n = its.length, lv = its.reduce((a, it) => a + petLvl(it) - 1, 0);
+  return { n, hp: THREAT.baseHp + THREAT.petHp * n + THREAT.petLvlHp * lv, dmg: THREAT.baseDmg + THREAT.petDmg * n,
+           count: 1 + THREAT.petCount * n, agg: 1 + THREAT.petAgg * n };
+}
+function applyThreat(e, th = threat()) {   // scales an enemy to the current threat, keeping how hurt it already is
+  const frac = e.maxHp ? e.hp / e.maxHp : 1;
+  e.maxHp = Math.max(1, Math.round(e.baseHp * th.hp)); e.hp = Math.max(e.dead ? 0 : 1, Math.round(e.maxHp * frac));
+  e.dmg = Math.max(1, Math.round(e.baseDmg * th.dmg)); e.agg = th.agg;
+}
+function rethreat() { if (!G || !G.enemies) return; const th = threat(); for (const e of G.enemies) if (!e.dead && e.baseHp) applyThreat(e, th); }
 function makeEnemy(type, n, x, y) {
   const d = ENEMIES[type];
   const k = n <= 10 ? n : n - 10;                          // floor within the current act
@@ -1168,7 +1277,7 @@ function makeEnemy(type, n, x, y) {
   if (type === 'imp') e.t = rand(1.5, 2.8);
   if (type === 'cultist') e.t = rand(2, 3.5);
   if (type === 'boss') { e.t = 1.5; }
-  e.maxHp = e.hp;
+  e.baseHp = e.hp; e.baseDmg = e.dmg; e.maxHp = 0; applyThreat(e);
   return e;
 }
 function standCells(R) { return [...R.reach].map(k => [k % R.cols, Math.floor(k / R.cols)]); }
@@ -1242,10 +1351,10 @@ function populate(R) {
     // enemies: spend a budget that grows every floor, on spots the player can reach (away from the entrance)
     const far = cells.filter(([x, y]) => Math.abs(x - etx) + Math.abs(y - ety) * 2 > 16).sort(() => Math.random() - 0.5);
     const n = R.n, k = R.act === 1 ? n : n - 10;
-    let budget = R.act === 1 ? 8 + n * 2.2 : 14 + k * 2.6;
+    let budget = (R.act === 1 ? 8 + n * 2.2 : 14 + k * 2.6) * threat().count;   // more monsters the bigger your team
     const pool = Object.keys(ENEMIES).filter(t => ENEMIES[t].act === R.act && ENEMIES[t].min <= n && R.theme.w[t]);
     const used = [];
-    while (budget > 0 && used.length < 24) {
+    while (budget > 0 && used.length < 32) {
       const opts = pool.filter(t => ENEMIES[t].cost <= budget + 0.5); if (!opts.length) break;
       const type = wpick(opts.map(o => [o, R.theme.w[o]])), d = ENEMIES[type];
       const spot = far.find(([x, y]) => !(R.chestSpots || []).some(([cx, cy]) => Math.abs(cx - x) < 3 && cy === y) && used.every(([ux, uy]) => Math.abs(ux - x) > 3 || Math.abs(uy - y) > 2) && (d.h < 50 || tileAt(x, y - 2) === EMPTY));
@@ -1352,19 +1461,32 @@ function bakeTerrain(R) {
   return c;
 }
 function bakeMinimap(R) {
-  const c = document.createElement('canvas'); c.width = R.cols * 2; c.height = R.rows * 2;
+  const sc = R.miniS = R.cols > 120 ? 1.25 : 2;
+  const c = document.createElement('canvas'); c.width = Math.ceil(R.cols * sc); c.height = Math.ceil(R.rows * sc);
   const g = c.getContext('2d');
-  const col = { [SOLID]: 'rgba(150,152,170,0.9)', [ONEWAY]: 'rgba(200,190,150,0.9)', [SPIKES]: '#e53935', [LAVA]: '#ff6d00', [CRUMBLE]: 'rgba(190,150,100,0.9)' };
+  const col = { [SOLID]: 'rgba(150,152,170,0.9)', [ONEWAY]: 'rgba(200,190,150,0.9)', [SPIKES]: '#e53935', [LAVA]: '#ff6d00', [CRUMBLE]: 'rgba(190,150,100,0.9)', [PHASE]: '#b388ff' };
   for (let ty = 0; ty < R.rows; ty++) for (let tx = 0; tx < R.cols; tx++) {
     const t = R.grid[ty * R.cols + tx]; if (!t) continue;
-    g.fillStyle = col[t]; g.fillRect(tx * 2, ty * 2, 2, t === ONEWAY ? 1 : 2);
+    g.fillStyle = col[t]; g.fillRect(tx * sc, ty * sc, sc, t === ONEWAY ? sc / 2 : sc);
   }
-  for (const v of R.vents) { g.fillStyle = '#ffab40'; g.fillRect(v.tx * 2, v.ty * 2, 2, 2); }
+  for (const v of R.vents) { g.fillStyle = '#ffab40'; g.fillRect(v.tx * sc, v.ty * sc, sc, sc); }
   return c;
 }
 
 // ---------- tile physics ----------
 // moves a box through the tile map: solid tiles block every side, one-way ledges only catch you from above
+function overlapsTile(o, type) {
+  for (let ty = Math.floor((o.y + 2) / TILE); ty <= Math.floor((o.y + o.h - 2) / TILE); ty++)
+    for (let tx = Math.floor((o.x + 1) / TILE); tx <= Math.floor((o.x + o.w - 1) / TILE); tx++) if (tileAt(tx, ty) === type) return true;
+  return false;
+}
+function fellInChasm() {
+  const P = G.player, R = G.room, dmg = 2 + Math.floor(G.roomNum / 4);
+  P.x = P.safeX ?? R.entry.x - P.w / 2; P.y = P.safeY ?? R.entry.y - P.h; P.vx = P.vy = P.kb = 0; P.dashT = 0;
+  P.hp -= dmg; P.inv = 1.2; addText(P.x + P.w / 2, P.y - 8, '-' + dmg, '#ff5252', 18); SFX.play('hurt');
+  showMsg('You fell into the chasm!', 1.6); G.shake = 6; placePetsAtPlayer();
+  if (P.hp <= 0) die();
+}
 function moveBody(o, dt, drop = false, noGrav = false) {
   if (!noGrav) o.vy = Math.min(o.vy + GRAV * dt, 1100);
   o.hitWall = 0;
@@ -1372,7 +1494,7 @@ function moveBody(o, dt, drop = false, noGrav = false) {
   if (o.vx) {
     const tx = Math.floor((o.vx > 0 ? nx + o.w - 0.01 : nx) / TILE);
     const ty0 = Math.floor((o.y + 2) / TILE), ty1 = Math.floor((o.y + o.h - 2) / TILE);
-    for (let ty = ty0; ty <= ty1; ty++) if (isSolidT(tileAt(tx, ty))) { nx = o.vx > 0 ? tx * TILE - o.w : (tx + 1) * TILE; o.hitWall = Math.sign(o.vx); break; }
+    for (let ty = ty0; ty <= ty1; ty++) if (solidFor(o, tileAt(tx, ty))) { nx = o.vx > 0 ? tx * TILE - o.w : (tx + 1) * TILE; o.hitWall = Math.sign(o.vx); break; }
   }
   o.x = nx;
   const prevBottom = o.y + o.h;
@@ -1383,15 +1505,15 @@ function moveBody(o, dt, drop = false, noGrav = false) {
     landing: for (let ty = Math.floor(prevBottom / TILE); ty <= Math.floor((ny + o.h) / TILE); ty++) {
       for (let tx = tx0; tx <= tx1; tx++) {
         const t = tileAt(tx, ty);
-        if (ty * TILE < prevBottom - 1 && !isSolidT(t)) continue;
-        if (isSolidT(t) || (t === ONEWAY && !drop && prevBottom <= ty * TILE + 1)) {
+        if (ty * TILE < prevBottom - 1 && !solidFor(o, t)) continue;
+        if (solidFor(o, t) || (t === ONEWAY && !drop && prevBottom <= ty * TILE + 1)) {
           ny = ty * TILE - o.h; o.vy = 0; o.onGround = true; o.support = t; o.supTx = tx; o.supTy = ty; break landing;
         }
       }
     }
   } else if (o.vy < 0) {
     const ty = Math.floor(ny / TILE);
-    for (let tx = tx0; tx <= tx1; tx++) if (isSolidT(tileAt(tx, ty))) { ny = (ty + 1) * TILE; o.vy = 0; break; }
+    for (let tx = tx0; tx <= tx1; tx++) if (solidFor(o, tileAt(tx, ty))) { ny = (ty + 1) * TILE; o.vy = 0; break; }
   }
   o.y = ny;
 }
@@ -1402,7 +1524,7 @@ function groundBelow(x, y) {
     const t = tileAt(tx, ty);
     if (isSolidT(t) || t === ONEWAY) return ty * TILE;
   }
-  return y;
+  return G.room.hpx;
 }
 
 // ---------- camera ----------
@@ -1412,10 +1534,11 @@ function snapCamera() {
 }
 function updateCamera(dt) {
   const P = G.player, R = G.room;
-  const tx = clamp(P.x + P.w / 2 - W / 2 + P.face * 50, 0, Math.max(0, R.wpx - W));
+  G.camLook = (G.camLook ?? P.face * 50) + (P.face * 50 - (G.camLook ?? P.face * 50)) * Math.min(1, dt * 2.2);   // ease the look-ahead when you turn
+  const tx = clamp(P.x + P.w / 2 - W / 2 + G.camLook, 0, Math.max(0, R.wpx - W));
   const ty = clamp(P.y + P.h / 2 - H * 0.55, 0, Math.max(0, R.hpx - H));
-  G.cam.x += (tx - G.cam.x) * Math.min(1, dt * 5);
-  G.cam.y += (ty - G.cam.y) * Math.min(1, dt * 6);
+  G.cam.x += (tx - G.cam.x) * (1 - Math.exp(-dt * 5));
+  G.cam.y += (ty - G.cam.y) * (1 - Math.exp(-dt * 6));
 }
 const inView = (x, y, m = 80) => x > G.cam.x - m && x < G.cam.x + W + m && y > G.cam.y - m && y < G.cam.y + H + m;
 
@@ -1498,7 +1621,7 @@ function drawVignette() {
 }
 function drawMinimap() {
   const R = G.room; if (!G.minimap || !R.mini) return;
-  const mw = R.mini.width, mh = R.mini.height, s = 2, x = W - mw - 12, y = 42;
+  const mw = R.mini.width, mh = R.mini.height, s = R.miniS || 2, x = W - mw - 12, y = 42;
   ctx.fillStyle = 'rgba(8,8,12,0.7)'; rr(x - 4, y - 4, mw + 8, mh + 8, 5); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.stroke();
   ctx.drawImage(R.mini, x, y);
@@ -1805,6 +1928,7 @@ function updatePlayer(dt) {
     if (!P.onGround) P.airDashed = true;
     SFX.play('dash'); burst(P.x + P.w / 2, P.y + P.h - 6, '#d7dcff', 8, 120, 3);
   }
+  if (P.dashT <= 0 && overlapsTile(P, PHASE)) P.dashT = 0.04;   // never stop inside an arcane barrier
   const dashing = P.dashT > 0;
   if (dashing) { P.vx = P.dashDir * 720; P.vy = 0; P.trail.push({ x: P.x, y: P.y, face: P.face, t: 0.22 }); }
   else {
@@ -1826,7 +1950,15 @@ function updatePlayer(dt) {
   P.landT = (P.landT || 0) - dt; P.hurtT = (P.hurtT || 0) - dt; P.atkAnim = (P.atkAnim || 0) - dt;
   P.kb *= Math.pow(0.003, dt);
   const keep = P.vx, wasGround = P.onGround, fallV = P.vy;
+  P.phasing = dashing;
   P.vx += P.kb; moveBody(P, dt, P.dropT > 0, dashing); P.vx = keep;
+  // remember the last solid footing, and fall back to it from a chasm
+  if (P.onGround && P.support !== ONEWAY && isSolidT(tileAt(Math.floor((P.x + 2) / TILE), Math.floor((P.y + P.h + 2) / TILE))) && isSolidT(tileAt(Math.floor((P.x + P.w - 2) / TILE), Math.floor((P.y + P.h + 2) / TILE)))) { P.safeX = P.x; P.safeY = P.y; }
+  if (P.y > R.hpx + 40) fellInChasm();
+  for (const sp of R.dashSpots || []) if (!(G.hints && G.hints[sp.kind]) && Math.abs((sp.x0 + sp.x1) / 2 * TILE - (P.x + P.w / 2)) < 280) {
+    G.hints = G.hints || {}; G.hints[sp.kind] = true;
+    showMsg(sp.kind === 'chasm' ? 'A chasm! Jump, then DASH (Shift) across it.' : 'An arcane barrier! DASH (Shift) straight through it.', 3.2);
+  }
   if (dashing && P.hitWall) P.dashT = 0;
   // Winged Boots IV+: hold jump while falling to glide down slowly
   P.gliding = s.glide && !P.onGround && !dashing && P.vy > 90 && down('w', 'ArrowUp', 'k');
@@ -1942,7 +2074,7 @@ function updateEnemy(e, dt) {
   const P = G.player, R = G.room;
   const pcx = P.x + P.w / 2, pcy = P.y + P.h / 2, ecx = e.x + e.w / 2, ecy = e.y + e.h / 2;
   const dx = pcx - ecx, dy = pcy - ecy, dir = Math.sign(dx) || 1, adx = Math.abs(dx);
-  e.flash -= dt; e.cd -= dt; e.phase += dt;
+  e.flash -= dt; e.cd -= dt * (e.agg || 1); e.phase += dt;   // bigger team = monsters attack more often
   e.landT = (e.landT || 0) - dt; e.relT = (e.relT || 0) - dt; e.slamT = (e.slamT || 0) - dt; e.jcd2 = (e.jcd2 || 0) - dt;
   e.walkT = (e.walkT || 0) + dt * Math.abs(e.vx) / 11; // drives walk-cycle speed
   const wasGround = e.onGround;
@@ -2212,10 +2344,13 @@ function updateWorld(dt) {
   if (R.navT <= 0) { updateNavFields(); R.navT = 0.3; }
   for (const e of G.enemies) if (!e.dead) {
     const k = tickStatus(e, dt); if (e.dead) continue;
+    if (e.y > G.room.hpx + 40) { killEnemy(e); continue; }   // fell into a chasm
     if (e.stunT > 0) { e.stunT -= dt; e.vx = 0; if (!e.d.fly) moveBody(e, dt); }   // stunned by the Shepherd
     else updateEnemy(e, dt * k);
   }
   updatePets(dt);
+  for (const p of G.pets || []) steadyFace(p, dt, 0.15);
+  for (const e of G.enemies) steadyFace(e, dt, e.state === 'walk' ? 0.12 : 0);
   updateBuffs(dt);
   updateWolves(dt);
   updateCages(R);
@@ -2229,7 +2364,8 @@ function updateWorld(dt) {
     healPlayer(stats.healClear);
     SFX.play('clear');
     const lk = R.lastKill || { x: G.player.x + G.player.w / 2, y: G.player.y };
-    const gy = groundBelow(lk.x, lk.y);
+    let gy = groundBelow(lk.x, lk.y);
+    if (gy >= R.hpx - 1 || lk.y > R.hpx) { lk.x = G.player.x + G.player.w / 2; gy = groundBelow(lk.x, G.player.y); }   // killed over a chasm: drop it by you
     R.chests.push({ x: clamp(lk.x, TILE + 20, R.wpx - TILE - 20) - 19, y: gy - 30, w: 38, h: 30, open: false, rare: R.type === 'boss', seen: true });
     burst(lk.x, gy - 20, '#ffd54f', 20, 220);
     G.proj = G.proj.filter(p => p.friendly);
@@ -2324,7 +2460,7 @@ function gainPetXp(n) {
     it.xp = (it.xp || 0) + n;
     while (petLvl(it) < PET_MAX_LVL && it.xp >= petXpNeed(petLvl(it))) {
       it.xp -= petXpNeed(petLvl(it)); it.plvl = petLvl(it) + 1;
-      showMsg(`${it.def.name} reached level ${it.plvl}! Right-click it in your backpack to pick a talent.`, 2.6); SFX.play('merge');
+      showMsg(`${it.def.name} reached level ${it.plvl}! Right-click it in your backpack to pick a talent.`, 2.6); SFX.play('merge'); rethreat();
       const p = (G.pets || []).find(q => q.item === it); if (p) { ring(p.x + p.w / 2, p.y + p.h / 2, 60, '#ffd54f'); burst(p.x + p.w / 2, p.y, '#ffd54f', 18, 200); }
     }
     if (petLvl(it) >= PET_MAX_LVL) it.xp = 0;
@@ -2336,6 +2472,7 @@ function syncPets() {
   G.pets = G.pets || [];
   const items = petSlots.filter(Boolean), P = G.player, have = new Set(items.map(i => i.def.pet));
   G.syn = Object.fromEntries(SYNERGIES.map(s => [s.id, s.pets.every(k => have.has(k))]));
+  rethreat();
   G.pets = G.pets.filter(p => items.includes(p.item));
   for (const it of items) if (!G.pets.some(p => p.item === it)) {
     const d = PETS[it.def.pet];
@@ -2461,16 +2598,83 @@ function petBite(p, tgt) {
   p.cd = petCooldown(p); p.atkT = Math.min(p.d.atk || 0.3, p.cd);
   if (inView(cx, p.y)) SFX.play(p.item.def.pet === 'dog' ? 'bark' : p.d.fly ? 'chirp' : p.d.charge ? 'growl' : p.d.poison ? 'slimeHop' : 'meow');
 }
+// ---- pet idle behaviour helpers ----
+function navDistAt(o) { const R = G.room; if (!R.navDist) return 0; const k = Math.floor((o.y + o.h - 2) / TILE) * R.cols + Math.floor((o.x + o.w / 2) / TILE); return R.navDist[k] ?? -1; }
+function walkableBetween(x0, x1, footY) {   // flat, safe floor all the way (no walls, pits, spikes or lava)
+  const ty = Math.floor((footY + 2) / TILE), a = Math.floor(Math.min(x0, x1) / TILE), b = Math.floor(Math.max(x0, x1) / TILE);
+  for (let tx = a; tx <= b; tx++) {
+    const g = tileAt(tx, ty), above = tileAt(tx, ty - 1);
+    if (!(isSolidT(g) || g === ONEWAY) || g === PHASE || isSolidT(above) || above === SPIKES || above === LAVA) return false;
+  }
+  return true;
+}
+// what's just past the pet's front paw? null = floor continues; {gap:false} = a safe drop; {gap:true, ...} = a pit to leap
+function edgeAhead(p, dir) {
+  const ftx = Math.floor((dir > 0 ? p.x + p.w + 3 : p.x - 3) / TILE), fty = Math.floor((p.y + p.h + 2) / TILE), R = G.room;
+  const g = tileAt(ftx, fty); if (isSolidT(g) || g === ONEWAY) return null;
+  for (let ty = fty; ty < R.rows; ty++) {          // a drop: fine to step off if it lands on safe ground
+    const t = tileAt(ftx, ty); if (t === SPIKES || t === LAVA) break;
+    if (isSolidT(t) || t === ONEWAY) return { gap: false };
+  }
+  for (let k = 1; k <= 11; k++) {                  // a pit: where does the floor pick up again?
+    const tx = ftx + dir * k;
+    for (const ty of [fty, fty - 1, fty + 1, fty - 2]) {
+      const t = tileAt(tx, ty), up = tileAt(tx, ty - 1);
+      if ((isSolidT(t) || t === ONEWAY) && !isSolidT(up) && up !== SPIKES && up !== LAVA && t !== PHASE)
+        return { gap: true, landX: (tx + 0.5) * TILE + dir * 10, landY: ty * TILE };
+    }
+  }
+  return { gap: true };
+}
+// ground pets heading for a spot on your level or below: run, simply step off ledges, drop through thin ones, leap pits
+function petRun(p, tx, footY, speed, dt = 1 / 60) {
+  const cx = p.x + p.w / 2, dir = Math.sign(tx - cx) || p.face, dist = Math.abs(tx - cx);
+  if (!p.onGround) { if (p.leapVx !== undefined) p.vx = p.leapVx; else if (p.navAir !== undefined) p.vx = p.navAir; return; }
+  p.leapVx = undefined; p.navAir = undefined;
+  p.vx += ((dist > 10 ? dir * Math.min(speed, Math.max(70, (dist - 5) * 6)) : 0) - p.vx) * Math.min(1, dt * 10);   // ease in, no overshoot
+  if (footY > p.y + p.h + 30 && p.support === ONEWAY && dist < 200) p.dropT = 0.3;   // you're below: hop down through the ledge
+  if (dist > 16) {
+    const e = edgeAhead(p, dir);
+    if (e && e.gap) {
+      if (e.landX === undefined) { p.vx = 0; return; }   // nowhere to land: wait (the leash will bring it over)
+      const d = Math.abs(e.landX - cx), rise = Math.max(0, p.y + p.h - e.landY);
+      let vy = Math.max(480, Math.sqrt(d * GRAV / 2), Math.sqrt(2 * GRAV * (rise + 40)));
+      const t = (vy + Math.sqrt(Math.max(0, vy * vy - 2 * GRAV * rise))) / GRAV;
+      p.vy = -vy; p.leapVx = clamp(dir * d / t, -620, 620); p.vx = p.leapVx; p.onGround = false; p.face = dir;
+      if (inView(cx, p.y)) SFX.play('jump');
+      return;
+    }
+  }
+  if (p.hitWall && dist > 10) { p.vy = -620; p.onGround = false; p.leapVx = dir * speed * 0.8; }   // hop up a step
+}
+function pickWander(p, pcx) {
+  if (Math.random() < 0.4) return { mode: 'rest', t: rand(2.5, 5) };
+  for (let i = 0; i < 6; i++) { const x = pcx + rand(-150, 150); if (Math.abs(x - (p.x + p.w / 2)) > 30 && walkableBetween(p.x + p.w / 2, x, p.y + p.h)) return { mode: 'walk', x, t: rand(3, 5) }; }
+  return { mode: 'sniff', t: rand(1.5, 3) };
+}
+// turn sprites around only once a new facing has held for a moment (no flip-flopping when something passes overhead)
+function steadyFace(o, dt, hold = 0.1) {
+  if (o.vface === undefined) o.vface = o.face;
+  if (o.face === o.vface) { o.faceHold = 0; return; }
+  o.faceHold = (o.faceHold || 0) + dt; if (o.faceHold >= hold) { o.vface = o.face; o.faceHold = 0; }
+}
 function updatePets(dt) {
   if (!G.pets || !G.pets.length) return;
-  const P = G.player, pcx = P.x + P.w / 2;
+  const P = G.player, pcx = P.x + P.w / 2, R = G.room;
+  const moving = Math.abs(P.vx) > 20 || !P.onGround || P.atkAnim > 0 || P.dashT > 0;
+  G.stillT = moving ? 0 : (G.stillT || 0) + dt;   // pets relax once you've stood still for a moment
+  if (P.face !== G.lastPFace) { G.lastPFace = P.face; G.faceT = 0; } else G.faceT = (G.faceT || 0) + dt;
+  const rd = Math.abs(P.vx) > 40 ? Math.sign(P.vx) : 0; if (rd && rd === G.runDir) G.runDirT = (G.runDirT || 0) + dt; else if (rd) { G.runDir = rd; G.runDirT = 0; }
   for (const p of G.pets) {
     const it = p.item;
     p.phase += dt; p.cd -= dt * (RUN.buffs.catnip > 0 ? 2 : 1); p.atkT -= dt; p.inv -= dt; p.frenzyT = (p.frenzyT || 0) - dt;
     if (p.tongue) { p.tongue.t -= dt; if (p.tongue.t <= 0) p.tongue = null; }
     // smooth animation clocks: advance at a steady rate instead of jumping with every speed change
     const spd = Math.abs(p.vx);
-    p.moving = p.moving ? spd > 15 : spd > 45;
+    if (spd > 40) { p.runHold = (p.runHold || 0) + dt; p.idleHold = 0; } else if (spd < 20) { p.idleHold = (p.idleHold || 0) + dt; p.runHold = 0; }
+    if (!p.moving && p.runHold > 0.06) p.moving = true;            // start running once it's really moving
+    else if (p.moving && p.idleHold > 0.15) p.moving = false;      // settle into idle once it's really stopped
+    p.airT = p.onGround ? 0 : (p.airT || 0) + dt;
     p.runF = (p.runF || 0) + dt * Math.max(5, Math.min(p.d.runFps || 11, spd / 26));
     p.idleF = (p.idleF || 0) + dt * (p.d.idleFps || 5);
     const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
@@ -2489,12 +2693,18 @@ function updatePets(dt) {
     }
     petsUseSkills(p, dt);
     if (p.d.charge && boarCharge(p, tgt, dt)) continue;
-    // each pet has its own spot beside you
-    const hx = pcx - P.face * (34 + p.slot * 22), hy = p.d.fly ? P.y - 30 - (p.slot % 2) * 16 : P.y + P.h;
-    // leash: if it falls far behind or gets stuck, it pops back to you
+    // each pet keeps its own spot beside you: trailing behind while you move, staying on its side when you stop
+    if (G.runDirT > 0.35) p.side = -G.runDir; else if (!p.side) p.side = -P.face;
+    let hx = pcx + p.side * (34 + p.slot * 22); const hy = p.d.fly ? P.y - 30 - (p.slot % 2) * 16 : P.y + P.h;
+    // keep a ground pet's spot on floor it can actually stand on (not inside a wall or over a pit)
+    if (!p.d.fly && P.onGround) for (let k = 0; k < 14 && Math.abs(hx - pcx) > 8 && !walkableBetween(pcx, hx, P.y + P.h); k++) hx -= Math.sign(hx - pcx) * 8;
+    const relax = !tgt && G.stillT > 1.2;
+    if (!relax) { p.wander = null; p.perched = false; }
+    // leash: pops back to you if it ends up far away, stuck, cut off (e.g. across a chasm) or falls off the map
     const far = Math.hypot(cx - pcx, cy - (P.y + P.h / 2));
-    p.stuckT = !p.d.fly && Math.abs(p.vx) < 5 && far > 160 ? (p.stuckT || 0) + dt : 0;
-    if (far > 560 || p.stuckT > 1.6) {
+    p.phasing = true;   // pets slip through arcane barriers
+    p.stuckT = !p.d.fly && p.onGround && Math.abs(p.vx) < 5 && far > 220 && !relax ? (p.stuckT || 0) + dt : 0;
+    if (far > 620 || p.stuckT > 1.6 || p.y > R.hpx + 40) {
       burst(cx, cy, p.d.color, 8, 120);
       p.x = hx - p.w / 2; p.y = p.d.fly ? hy : P.y + P.h - p.h; p.vx = p.vy = 0; p.stuckT = 0;
       burst(p.x + p.w / 2, p.y + p.h / 2, p.d.color, 8, 120);
@@ -2506,21 +2716,53 @@ function updatePets(dt) {
       if (tgt) {
         const ex = tgt.x + tgt.w / 2, ey = tgt.y + tgt.h / 2;
         if (p.d.ranged) { tx = ex - (Math.sign(ex - pcx) || 1) * 150; ty = ey - 60; } else { tx = ex; ty = ey; }
+      } else if (relax) {   // lazy loops around you, then settle on the ground nearby for a rest
+        if (!p.wander) p.wander = { t: rand(2.5, 4.5), perch: false };
+        p.wander.t -= dt;
+        if (p.wander.t <= 0) {   // alternate loops and landings; look at a few spots so it reliably finds somewhere to land
+          let spot = null;
+          if (!p.wander.perch) for (let k = 0; k < 8 && !spot; k++) { const px = pcx + rand(-90, 90), gy = groundBelow(px, P.y); if (gy < R.hpx - 1 && walkableBetween(px, px, gy - 1)) spot = { px, gy }; }
+          p.wander = spot ? { perch: true, px: spot.px, gy: spot.gy, t: rand(4, 7) } : { perch: false, t: p.wander.perch ? rand(3, 5) : 1.2 };
+        }
+        if (p.wander.perch) { tx = p.wander.px; ty = p.wander.gy - p.h / 2 - 2; }
+        else { tx = pcx + Math.sin(p.phase * 0.7 + p.slot * 2) * 90; ty = P.y - 35 + Math.cos(p.phase * 1.1 + p.slot) * 22; }
       }
-      const dx = tx - cx, dy = ty - cy, d = Math.hypot(dx, dy) || 1, sp = Math.min(p.d.speed * spMul, d * 4);
+      const dx = tx - cx, dy = ty - cy, d = Math.hypot(dx, dy) || 1, sp = Math.min(p.d.speed * spMul * (relax && !tgt ? 0.45 : 1), d * 4);
       p.vx = dx / d * sp; p.vy = dy / d * sp; p.x += p.vx * dt; p.y += p.vy * dt;
-      p.face = tgt ? (Math.sign(tgt.x + tgt.w / 2 - cx) || p.face) : (Math.abs(p.vx) > 20 ? Math.sign(p.vx) : P.face);
-    } else {        // ground pets run, jump walls and ledges, and drop through ledges after you
+      p.face = tgt ? (Math.sign(tgt.x + tgt.w / 2 - cx) || p.face) : (Math.abs(p.vx) > 20 ? Math.sign(p.vx) : p.perched ? p.face : P.face);
+      p.perched = relax && p.wander && p.wander.perch && d < 8;
+      p.resting = p.perched;
+    } else {        // ground pets
       const reach = p.d.reach + 25 * tal(it, 'tongue');
-      const stop = tgt && p.d.poison ? reach * 0.6 : (tgt ? 6 : 14);
-      const tx = tgt ? tgt.x + tgt.w / 2 : hx, dx = tx - cx, close = Math.abs(dx) < stop;
-      p.vx += ((close ? 0 : Math.sign(dx) * p.d.speed * spMul * (tgt || Math.abs(dx) > 60 ? 1 : 0.55)) - p.vx) * Math.min(1, dt * 10);
-      if (Math.abs(p.vx) > 40) p.face = Math.sign(p.vx); else if (tgt && Math.abs(dx) > 4) p.face = Math.sign(dx);
-      const ty = tgt ? tgt.y + tgt.h : P.y + P.h;
-      if (p.onGround && ((p.hitWall && Math.abs(dx) > 10) || (ty < p.y + p.h - 50 && Math.abs(dx) < 120))) { p.vy = -620; p.onGround = false; }
+      const sameLevel = Math.abs(P.y + P.h - (p.y + p.h)) < 24;
       p.dropT = (p.dropT || 0) - dt;
-      if (p.onGround && p.support === ONEWAY && ty > p.y + p.h + 50) p.dropT = 0.3;
-      moveBody(p, dt, p.dropT > 0);
+      if (!tgt && (!sameLevel || Math.abs(hx - cx) > 160)) {
+        const fs = Math.max(p.d.speed, stats.moveSpeed * 1.2) * spMul, above = P.y + P.h < p.y + p.h - 40;
+        if (above && p.onGround && R.navDist && R.pNode !== undefined && navDistAt(p) > 0) navChase(p, fs);   // climbing up to you: route-find
+        else petRun(p, hx, P.y + P.h, fs, dt);                                                                    // level or below: run, drop, leap
+        moveBody(p, dt, p.dropT > 0);
+      } else {
+        let tx = tgt ? tgt.x + tgt.w / 2 : hx, speed = p.d.speed * spMul, stop = tgt && p.d.poison ? reach * 0.6 : (tgt ? 6 : 14);
+        if (relax) {   // potter about: wander to a nearby spot, sniff around, lie down for a rest
+          if (!p.wander || p.wander.t <= 0) p.wander = pickWander(p, pcx);
+          p.wander.t -= dt;
+          if (p.wander.mode === 'walk') {
+            tx = p.wander.x; speed *= 0.35; stop = 6;
+            if (Math.abs(tx - cx) < 8 || p.hitWall) p.wander = { mode: Math.random() < 0.65 ? 'rest' : 'sniff', t: rand(2, 4.5) };
+          } else tx = cx;
+          if (p.wander.mode === 'sniff' && Math.random() < dt * 0.5) p.face = -p.face;
+        }
+        const dx = tx - cx, close = Math.abs(dx) < stop;
+        // arrive smoothly: ease off as the spot gets close instead of overshooting and turning back
+        const want = close ? 0 : Math.sign(dx) * Math.min(speed, Math.max(70, (Math.abs(dx) - stop * 0.5) * (tgt ? 9 : 6)));
+        p.vx += (want - p.vx) * Math.min(1, dt * 10);
+        if (Math.abs(p.vx) > 40) p.face = Math.sign(p.vx); else if (tgt && Math.abs(dx) > 4) p.face = Math.sign(dx); else if (!tgt && !relax && close && G.faceT > 0.6) p.face = P.face;   // only match your facing once you've settled
+        const ty = tgt ? tgt.y + tgt.h : P.y + P.h;
+        if (p.onGround && !relax && ((p.hitWall && Math.abs(dx) > 10) || (ty < p.y + p.h - 50 && Math.abs(dx) < 120))) { p.vy = -620; p.onGround = false; }
+        if (p.onGround && p.support === ONEWAY && ty > p.y + p.h + 50) p.dropT = 0.3;
+        moveBody(p, dt, p.dropT > 0);
+      }
+      p.resting = relax && !!p.wander && p.wander.mode === 'rest' && Math.abs(p.vx) < 10 && p.onGround;
     }
     // attack
     if (tgt && p.cd <= 0) {
@@ -2558,17 +2800,19 @@ function drawPets() {
       ctx.strokeStyle = '#f48fb1'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx + p.face * 8, p.y + p.h * 0.45); ctx.lineTo(p.tongue.x, p.tongue.y); ctx.stroke();
       ctx.fillStyle = '#f06292'; ctx.beginPath(); ctx.arc(p.tongue.x, p.tongue.y, 3.5, 0, 7); ctx.fill();
     }
-    let anim, i;
+    let anim, i, sheet = p.d.anim;
     if (p.ko > 0) { anim = 'ko'; i = Math.min(3, Math.floor((6 - p.ko) / 0.12)); }
+    else if (p.resting && animFrames(p.d.anim + '_rest', 'rest')) { sheet = p.d.anim + '_rest'; anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }
     else if (p.chargeT > 0) { anim = 'run'; i = Math.floor(TIME * 18); o.sx = 1.08; }
     else if (p.atkT > 0) { anim = 'attack'; i = Math.min(3, Math.floor((1 - p.atkT / (p.d.ranged ? 0.35 : p.d.atk || 0.3)) * 4)); }
     else if (p.d.fly) { anim = 'fly'; i = Math.floor(TIME * 12 + p.phase); }
-    else if (!p.onGround) { anim = 'run'; i = 2; }
-    else if (p.moving) { anim = 'run'; i = Math.floor(p.runF); }
-    else { anim = 'idle'; i = Math.floor(p.idleF); }
+    else if (!p.onGround && p.airT > 0.08) { anim = 'run'; i = 2; }
+    else if (p.moving) { anim = 'run'; i = Math.floor(p.runF || 0); }
+    else { anim = 'idle'; i = Math.floor(p.idleF || 0); }
     const y = p.d.fly && p.ko <= 0 ? p.y + p.h / 2 : p.y + p.h + 1;
-    if (!p.d.fly) footShadow(cx, p.y + p.h, p.w * 0.5, p.onGround ? 0.8 : 0.4);
-    if (!drawAnim(p.d.anim, anim, i, cx, y, p.face, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
+    if (!p.d.fly || p.perched) footShadow(cx, p.y + p.h, p.w * 0.5, p.onGround || p.perched ? 0.8 : 0.4);
+    const pf = p.vface ?? p.face;
+    if (!drawAnim(sheet, anim, i, cx, y, pf, o) && !drawAnim(p.d.anim, p.d.fly ? 'fly' : 'idle', i, cx, y, pf, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if (p.ko > 0) { ctx.fillStyle = '#ffeb3b'; ctx.font = `bold 12px ${UI}`; ctx.fillText('z', cx + 8 + Math.sin(TIME * 3) * 3, p.y - 6 - (TIME * 10) % 10); }
     else if (p.hp < p.maxHp) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(cx - 12, p.y - 7, 24, 3); ctx.fillStyle = '#81c784'; ctx.fillRect(cx - 12, p.y - 7, 24 * p.hp / p.maxHp, 3); }
@@ -2604,7 +2848,7 @@ function freeCage(C) {
   C.open = true;
   const it = makeItem('pet_' + C.pet), cx = C.x + C.w / 2, cy = C.y + C.h / 2;
   burst(cx, cy, PETS[C.pet].color, 30, 260); ring(cx, cy, 90, '#a5d6a7'); SFX.play('chest', true);
-  if (addPet(it)) { syncPets(); const p = G.pets.find(q => q.item === it); if (p) { p.x = cx - p.w / 2; p.y = C.y + C.h - p.h; } showMsg(`You freed a ${it.def.name}! It joins your team.`, 2.6); }
+  if (addPet(it)) { syncPets(); const p = G.pets.find(q => q.item === it); if (p) { p.x = cx - p.w / 2; p.y = C.y + C.h - p.h; } showMsg(`You freed a ${it.def.name}! It joins your team... and the dungeon's monsters grow stronger.`, 3); }
   else { showMsg(`You freed a ${it.def.name}, but your team is full: swap or release.`, 2.8); openPack([it]); }
 }
 function updateCages(R) {
@@ -3010,6 +3254,27 @@ function drawWorldDynamic(R) {
     else { ctx.fillStyle = C.rare ? '#7a4a1a' : '#6b4423'; ctx.fillRect(C.x, C.y + 10, C.w, C.h - 10); }
   }
   drawCages(R);
+  drawDashObstacles(R);
+}
+function drawDashObstacles(R) {
+  for (const sp of R.dashSpots || []) {
+    const x = sp.x0 * TILE, x1 = (sp.x1 + 1) * TILE;
+    if (!inView(x, R.hpx - 100, 120) && !inView(x1, R.hpx - 100, 120)) continue;
+    if (sp.kind === 'chasm') {   // a dark drop into nothing
+      const top = R.floorTop * TILE, gr = ctx.createLinearGradient(0, top, 0, R.hpx);
+      gr.addColorStop(0, 'rgba(0,0,0,0.15)'); gr.addColorStop(1, 'rgba(0,0,0,0.95)');
+      ctx.fillStyle = gr; ctx.fillRect(x, top, x1 - x, R.hpx - top);
+      if (Math.random() < 0.15) G.parts.push({ x: x + rand(0, x1 - x), y: R.hpx, vx: 0, vy: -rand(30, 70), life: 1.2, max: 1.2, color: 'rgba(120,120,140,0.5)', size: rand(2, 3), grav: 0 });
+    } else {                     // shimmering arcane barrier
+      const top = TILE, bot = R.floorTop * TILE, cx = x + TILE / 2, img = art('props/barrier');
+      const gl = ctx.createLinearGradient(x - 20, 0, x1 + 20, 0);
+      gl.addColorStop(0, 'rgba(124,77,255,0)'); gl.addColorStop(0.5, `rgba(179,136,255,${0.35 + 0.12 * Math.sin(TIME * 4)})`); gl.addColorStop(1, 'rgba(124,77,255,0)');
+      ctx.fillStyle = gl; ctx.fillRect(x - 20, top, x1 - x + 40, bot - top);
+      if (img) { ctx.save(); ctx.globalAlpha = 0.85; ctx.imageSmoothingEnabled = false; const ih = img.height * PX, off = (TIME * 30) % ih; for (let yy = top - off; yy < bot; yy += ih) ctx.drawImage(img, cx - img.width * PX / 2, Math.max(top, yy), img.width * PX, Math.min(ih, bot - Math.max(top, yy))); ctx.restore(); }
+      else { ctx.fillStyle = `rgba(206,147,216,${0.55 + 0.2 * Math.sin(TIME * 6)})`; ctx.fillRect(x + 8, top, TILE - 16, bot - top); }
+      if (Math.random() < 0.5) G.parts.push({ x: cx + rand(-10, 10), y: rand(top, bot), vx: rand(-10, 10), vy: -rand(20, 60), life: 0.8, max: 0.8, color: pick(['#ea80fc', '#b388ff', '#e1bee7']), size: rand(2, 4), grav: 0 });
+    }
+  }
 }
 
 // animated hero: picks the class's animation from what the player is doing
@@ -3225,7 +3490,7 @@ function drawEnemyArt(e) {
   const pose = enemyPose(e), img = art(`chars/${e.type}_${pose}`), idle = art(`chars/${e.type}_idle`);
   const anm = enemyAnim(e);
   if (!img && !anm) return false;
-  const f = e.face, cx = e.x + e.w / 2, fl = e.flash > 0;
+  const f = e.vface ?? e.face, cx = e.x + e.w / 2, fl = e.flash > 0;
   let by = e.y + e.h + 1, o = { flash: fl }, x = img ? poseX(idle, img, cx, f) : cx, shake = 0;
   if (e.spawn > 0) o.alpha = 0.35 + 0.3 * Math.sin(TIME * 30);
   if (e.alpha !== undefined && e.alpha < 1) o.alpha = (o.alpha ?? 1) * e.alpha; // cultist teleport fade
@@ -3465,6 +3730,12 @@ function drawHUD() {
     ctx.fillStyle = '#4a1010'; ctx.fillRect(W / 2 - 194, 56, 388, 9);
     ctx.fillStyle = '#e53935'; ctx.fillRect(W / 2 - 194, 56, 388 * Math.max(0, boss.hp / boss.maxHp), 9);
     ctx.textAlign = 'center'; ctx.font = `bold 10px ${UI}`; ctx.fillStyle = '#ffcdd2'; ctx.fillText('THE WARDEN', W / 2, 51);
+  }
+  // now playing
+  if (G.songBanner && G.songBanner.t > 0 && Music.on && !SFX.muted) {
+    ctx.globalAlpha = Math.min(1, G.songBanner.t, (4 - G.songBanner.t) * 3);
+    ctx.textAlign = 'left'; ctx.font = `italic 12px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('♪ ' + G.songBanner.name, 14, H - 30);
+    ctx.globalAlpha = 1;
   }
   // controls hint
   ctx.textAlign = 'center'; ctx.font = `11px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.45)';
@@ -3789,9 +4060,11 @@ function draw() {
   ctx.imageSmoothingEnabled = false;
   if (!G) { if (SCREEN === 'class') drawClassSelect(); else drawTitle(); return; }
   ctx.save();
-  const shk = G.shake > 0.5 && G.mode === 'play' ? G.shake : 0;
+  const shk = G.shake > 0.5 && G.mode === 'play' ? G.shake * 0.8 : 0;
   drawParallax(G.room);
-  ctx.translate(Math.round(-G.cam.x + rand(-shk, shk)), Math.round(-G.cam.y + rand(-shk, shk)));  // camera follows the player
+  // snap the camera relative to the hero, so the hero never wobbles a pixel against the screen while running
+  const Pp = G.player, camX = Math.round(Pp.x) - Math.round(Pp.x - G.cam.x), camY = Math.round(Pp.y) - Math.round(Pp.y - G.cam.y);
+  ctx.translate(-camX + Math.round(Math.sin(TIME * 63) * shk), -camY + Math.round(Math.cos(TIME * 51) * shk));  // camera follows the player
   drawTerrain(G.room);
   drawWorldDynamic(G.room);
   drawCorpses();
@@ -3882,9 +4155,12 @@ function update(dt) {
   }
 }
 let last = performance.now();
+let dtSmooth = 1 / 60;
 function frame(t) {
-  const dt = Math.min(0.033, (t - last) / 1000); last = t;
-  update(dt); draw();
+  const raw = Math.min(0.05, Math.max(0, (t - last) / 1000)); last = t;
+  // browsers hand out frames a little unevenly: smooth the step so motion glides, but follow real rate changes at once
+  dtSmooth += (raw - dtSmooth) * 0.2; if (Math.abs(raw - dtSmooth) > 0.012) dtSmooth = raw;
+  update(Math.min(0.033, dtSmooth)); draw();
   pressed = {};
   requestAnimationFrame(frame);
 }

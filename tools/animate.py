@@ -51,6 +51,19 @@ SPECS = {
     'pet_toad':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=12, row_scale={'run': 1.3}),
 }
 
+# resting / idle-behaviour sheets: the first row repeats the normal idle (or flight) pose only to lock the scale
+for _pet in [k for k in list(SPECS) if k.startswith('pet_')]:
+    _b = SPECS[_pet]; _first = _b['rows'][0]
+    _h = _b['height']
+    try:   # match the size of the already-processed idle (or flight) frames exactly
+        import json as _json
+        _m = _json.load(open(os.path.join(PXL.OUT, 'anim', _pet + '.json')))
+        _fr = (_m.get(_first[0]) or _m.get('anims', {}).get(_first[0]))
+        if _fr: _hs = sorted(f[3] for f in _fr); _h = _hs[len(_hs) // 2]
+    except Exception: pass
+    _h = {'pet_ferret': 15, 'pet_fox': 20, 'pet_catcalico': 20}.get(_pet, _h)   # the source drew these idle poses differently: tuned by eye
+    SPECS[_pet + '_rest'] = dict(rows=[_first, ('rest', 4)], height=_h, ref=_first[0], fly=_b.get('fly', False))
+
 
 def components(im):
     """(box, cutout image) for every sprite on the sheet, neighbours' pixels removed."""
@@ -172,6 +185,10 @@ def anchor(img, fly):
     return round(sum(xs) / len(xs), 1), h
 
 
+# per-row size corrections so every pose of a pet reads as the same-sized animal (measured by on-screen area)
+ROW_FIX = {"pet_dog": {"run": 1.274, "attack": 1.039, "ko": 1.073}, "pet_dog_rest": {"rest": 1.166}, "pet_catgray": {"run": 1.095, "ko": 0.903}, "pet_catcalico": {"ko": 1.009}, "pet_catcalico_rest": {"rest": 0.842}, "pet_dragon": {"ko": 0.953}, "pet_fox": {"run": 1.163, "ko": 0.921}, "pet_fox_rest": {"rest": 0.89}, "pet_owl": {"attack": 0.896, "ko": 0.885}, "pet_owl_rest": {"rest": 1.149}, "pet_ferret": {"run": 1.36, "attack": 1.063, "ko": 1.021}, "pet_ferret_rest": {"rest": 1.043}, "pet_boar": {"run": 1.066, "attack": 1.051, "ko": 1.106}, "pet_boar_rest": {"rest": 1.106}, "pet_toad": {"run": 1.208, "attack": 1.065, "ko": 1.063}, "pet_toad_rest": {"rest": 1.069}}
+
+
 def process(name):
     spec = SPECS[name]; fly = spec.get('fly', False); ref = spec.get('ref', 'idle')
     im = Image.open(os.path.join(RAW, f'anim_{name}.png')).convert('RGBA')
@@ -186,7 +203,7 @@ def process(name):
     # 1) shrink every frame by the same factor
     small = []
     for (aname, _), row in zip(spec['rows'], rows):
-        rs = s * spec.get('row_scale', {}).get(aname, 1)   # fix rows the source drew at a different size
+        rs = s * spec.get('row_scale', {}).get(aname, 1) * ROW_FIX.get(name, {}).get(aname, 1)   # fix rows the source drew at a different size
         small.append([c[1].resize((max(1, round(c[1].width * rs)), max(1, round(c[1].height * rs))), Image.BOX) for c in row])
     if spec.get('bright'):  # lift very dark characters so they read against the dungeon backgrounds
         from PIL import ImageEnhance
