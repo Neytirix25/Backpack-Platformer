@@ -21,6 +21,13 @@ SPECS = {
     'archer':   dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=28),
     'rogue':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=27, bright=1.45),
     'beastmaster': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=28),
+    # female heroes (skin choice in the hub)
+    'warrior_f':  dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=28),
+    'archer_f':   dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=28),
+    'rogue_f':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=27, bright=1.45),
+    'beastmaster_f': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)], height=28),
+    'warrior_f_block': dict(rows=[('idle', 4), ('block', 4)], height=28),
+    'archer_f_arcane': dict(rows=[('idle', 4), ('arcane', 4)], height=28),
     'slime':    dict(rows=[('idle', 4), ('hop', 4), ('death', 4)], height=12),
     'bat':      dict(rows=[('fly', 6), ('attack', 4), ('death', 4)], height=15, ref='fly', fly=True),
     'skeleton': dict(rows=[('idle', 4), ('walk', 6), ('attack', 4), ('jump', 3), ('death', 4)], height=26),

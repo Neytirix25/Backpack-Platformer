@@ -477,3 +477,20 @@ def do_petcages():
 
 if __name__ == '__main__' and sys.argv[1] == 'petcages':
     do_petcages()
+
+
+# ---- Sanctuary hub props: 4 class banners, standing mirror, records board, pet bed (in that reading order) ----
+def do_hubprops():
+    im = Image.open(os.path.join(RAW, 'hubprops_sheet.png')).convert('RGBA')
+    sprites = cutouts(im)
+    sprites = [sp for sp in sprites if sp.width * sp.height > 0.04 * max(q.width * q.height for q in sprites)]
+    assert len(sprites) == 7, f'found {len(sprites)} sprites, expected 7'
+    names = [('hub_banner_warrior', 26, 50), ('hub_banner_archer', 26, 50), ('hub_banner_rogue', 26, 50), ('hub_banner_beastmaster', 26, 50),
+             ('hub_mirror', 24, 38), ('hub_board', 38, 34), ('hub_petbed', 22, 9)]
+    for (name, mw, mh), src in zip(names, sprites):
+        spr = pixelate(src, mw, mh)
+        spr.save(os.path.join(OUT, 'props', name + '.png')); print(name, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'hubprops':
+    do_hubprops()
