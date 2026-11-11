@@ -59,10 +59,19 @@ SPECS = {
     'pet_ferret':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=9, ref='run'),   # idle stands up tall: size from the run
     'pet_boar':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=17, row_scale={'run': 1.35}),
     'pet_toad':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=12, row_scale={'run': 1.3}),
+    # ----- mythical fire beasts (Act II): one sheet each, with the resting pose as the last row -----
+    'pet_phoenix':    dict(rows=[('fly', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=16, ref='fly', fly=True),
+    'pet_hellhound':  dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=18),
+    'pet_salamander': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=10),
+    'pet_tortoise':   dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=14),
+    'pet_qilin':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=20),
+    'pet_chimera':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=19),
+    'pet_lion':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=18),
+    'pet_moth':       dict(rows=[('fly', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=13, ref='fly', fly=True),
 }
 
 # resting / idle-behaviour sheets: the first row repeats the normal idle (or flight) pose only to lock the scale
-for _pet in [k for k in list(SPECS) if k.startswith('pet_')]:
+for _pet in [k for k in list(SPECS) if k.startswith('pet_') and not any(r[0] == 'rest' for r in SPECS[k]['rows'])]:
     _b = SPECS[_pet]; _first = _b['rows'][0]
     _h = _b['height']
     try:   # match the size of the already-processed idle (or flight) frames exactly
@@ -196,7 +205,7 @@ def anchor(img, fly):
 
 
 # per-row size corrections so every pose of a pet reads as the same-sized animal (measured by on-screen area)
-ROW_FIX = {"pet_dog": {"run": 1.274, "attack": 1.039, "ko": 1.073}, "pet_dog_rest": {"rest": 1.166}, "pet_catgray": {"run": 1.095, "ko": 0.903}, "pet_catcalico": {"ko": 1.009}, "pet_catcalico_rest": {"rest": 0.842}, "pet_dragon": {"ko": 0.953}, "pet_fox": {"run": 1.163, "ko": 0.921}, "pet_fox_rest": {"rest": 0.89}, "pet_owl": {"attack": 0.896, "ko": 0.885}, "pet_owl_rest": {"rest": 1.149}, "pet_ferret": {"run": 1.36, "attack": 1.063, "ko": 1.021}, "pet_ferret_rest": {"rest": 1.043}, "pet_boar": {"run": 1.066, "attack": 1.051, "ko": 1.106}, "pet_boar_rest": {"rest": 1.106}, "pet_toad": {"run": 1.208, "attack": 1.065, "ko": 1.063}, "pet_toad_rest": {"rest": 1.069}, "shadowwolf": {"run": 1.35}, "unicorn": {"run": 1.2}}
+ROW_FIX = {"pet_dog": {"run": 1.274, "attack": 1.039, "ko": 1.073}, "pet_dog_rest": {"rest": 1.166}, "pet_catgray": {"run": 1.095, "ko": 0.903}, "pet_catcalico": {"ko": 1.009}, "pet_catcalico_rest": {"rest": 0.842}, "pet_dragon": {"ko": 0.953}, "pet_fox": {"run": 1.163, "ko": 0.921}, "pet_fox_rest": {"rest": 0.89}, "pet_owl": {"attack": 0.896, "ko": 0.885}, "pet_owl_rest": {"rest": 1.149}, "pet_ferret": {"run": 1.36, "attack": 1.063, "ko": 1.021}, "pet_ferret_rest": {"rest": 1.043}, "pet_boar": {"run": 1.066, "attack": 1.051, "ko": 1.106}, "pet_boar_rest": {"rest": 1.106}, "pet_toad": {"run": 1.208, "attack": 1.065, "ko": 1.063}, "pet_toad_rest": {"rest": 1.069}, "shadowwolf": {"run": 1.35}, "unicorn": {"run": 1.2}, "pet_hellhound": {"run": 1.484, "attack": 1.063, "ko": 1.143, "rest": 1.08}, "pet_salamander": {"run": 1.401, "attack": 1.063, "ko": 1.063, "rest": 1.081}, "pet_tortoise": {"run": 1.304, "ko": 1.114, "rest": 1.087}, "pet_qilin": {"run": 1.357, "ko": 1.07, "rest": 1.102}, "pet_chimera": {"run": 1.28, "ko": 1.046, "rest": 1.063}, "pet_lion": {"run": 1.469, "ko": 1.094, "rest": 1.115}, "pet_moth": {"rest": 0.964}}
 
 
 def process(name):

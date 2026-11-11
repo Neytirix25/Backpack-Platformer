@@ -36,7 +36,7 @@ assets/items|props|tiles|bg|chars/   static sprites (items: 18 art px per backpa
 assets/ui/          the menu UI kit (leather/parchment panels, wooden buttons, slot, banner ribbon, wax seal), 9-sliced at 2x
 assets/fonts/       pixel fonts (SIL OFL) + fonts.js (base64, loaded with FontFace so file:// works)
 tools/animate.py    slices raw ChatGPT animation sheets -> assets/anim/*.png + anims.js   (SPECS dict, ROW_FIX)
-tools/pixelate.py   slices raw item/prop/bg sheets -> assets/*   (classitems pets1|pets2|pets3 = the pet item icon sheets; also items2, tiles, plants, hubprops, bg <name>, uikit = assets_raw/ui_kit_sheet.png -> assets/ui)
+tools/pixelate.py   slices raw item/prop/bg sheets -> assets/*   (classitems pets1..pets6 = the pet item icon sheets, pets4-6 drawn to their odd shapes and cut with fit_fill; vfx vfx1|vfx2|vfx3 = the 36 ability-effect sprites -> assets/vfx, cut as a 4x3 grid; also items2, tiles, plants, hubprops, bg <name>, uikit = assets_raw/ui_kit_sheet.png -> assets/ui)
 assets_raw/         raw ChatGPT downloads (gitignored, local only)
 ```
 
@@ -93,6 +93,8 @@ Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 
   9px and below is Micro 5), each string is cached as solid pixels with a 1px ink shadow (`ctx.textShadowOff = true`
   turns it off). Because sizes snap, use `fitText(t, maxW)` / `wrap()` for text in fixed boxes. Pixelify Sans was
   tried and dropped: its 2 reads as an 8 at game sizes.
+- **Two acts of animals:** `THEME_POOL` — hall/cave/crypt (floors 1-10) list only ordinary animals, forge/hollow/sanctum (11-20) only mythical ones (`BS[k].myth`). Compositions pick roles from `ACT_ROLES[act]` through the `ROLE_OF` proxy. The 8 fire beasts (phoenix, hellhound, salamander, tortoise, qilin, chimera, lion, moth) follow the full recipe for a new animal: `ABIL` (6) + `AB` sound + `FXR` animation per ability, `BS`, `PETS` (with a `fallback` sheet + `STAND_IN` tint until art exists), `FAMILY`, `PET_TREES` (3 trees), `ITEMS.pet_<k>` (+ `egg_<k>` for egg layers, icons in pixelate pets6), `THEME_POOL`/`ACT_ROLES`, `animate.py` SPECS (their resting pose is the last row of the main sheet), `ROW_FIX`. The Sanctuary is 56 tiles wide for 21 beds. Pets with no item icon draw their idle frame (`drawPetIcon`).
+- **Ability animations:** ABILITY ANIMATIONS section. `FXR[id] = [impact seconds, c => emitters]`; `fxCtx` gives `c.T` (foes struck), `c.H` (every hit, for multi-hits), `c.A` (allies helped) and emitters (shot, rain, slash, bite, waves, breath, rise, orbit, aura, beam, swirl, ground, above, toMe, flash, shake). `fxCues` adds a small cue for each status that landed. `act()` sets `B.wait` to the impact time: `bText`, hurt flashes (`hurtWait`), HP bars (`showHp`/`hpWait`) and faints (`faintWait`) wait for it, and `B.fxEnd` stretches the turn lock. Sprites: `VFX_SPR` (assets/vfx); a missing one draws as a glow in `VFX_COL`.
 - **Ability sounds:** every `ABIL` entry has its own sound in the SOUND section: `voice()` (pitch contour + formant filters + roughness + breath) builds the animal calls in `V` (howl, darkHowl, growl, snarl, bark, yip, foxScream, squawk, whistle, meow, yowl, hoot, screech, dook, grunt, squeal, croak, roar, whinny...), and `AB[id]` composes each ability from them. `act()` plays `ab_<id>` (bosses 12% lower) and mutes the generic hit thud while it does (crits still ring). All of them run through one gain, `VOX_VOL`. A new ability needs an `AB` entry too.
 - **Female heroes:** sheets `<cls>_f`; `heroSheet()` picks them.
 
@@ -104,6 +106,10 @@ Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 
 3. Copy the newest `*.tmp` (match it by byte size) from `Downloads` into `assets_raw/` (animations:
    `anim_<name>.png`; icon sheets: `items_<name>_sheet.png`), remove white backgrounds/halos if needed, then run
    `tools/animate.py <name>` or `tools/pixelate.py classitems <name>`. Check `assets_raw/anim_<name>_check.png`.
+   Downloads: Chrome opens a Save As window and writes a `*.tmp` in Downloads meanwhile; cancelling it deletes the
+   tmp, so copy it the moment it appears and check it's a complete PNG (a grab script that loops on that works well).
+   If ChatGPT starts "cleaning the background" with code, just save the generated image (its haze is below the alpha cut).
+   Ask for "just generate the image, no code or post-processing" to skip that detour.
 4. New static sprites must be added to `ART_FILES` — animation sheets register themselves via `anims.js`.
 
 ## Testing

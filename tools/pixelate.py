@@ -213,6 +213,18 @@ def shape_mask(shape):
     return m
 
 
+FILL_SHEETS = {'pets4', 'pets5', 'pets6'}   # icons ChatGPT drew to match their odd shapes: fill the whole block, trim what spills
+
+
+def fit_fill(src, shape):
+    mask = shape_mask(shape); cw, ch = mask.size
+    s = min((cw - 2) / src.width, (ch - 2) / src.height)
+    spr = pixelate(src, max(1, round(src.width * s)), max(1, round(src.height * s)))
+    out = Image.new('RGBA', (cw, ch), (0, 0, 0, 0)); out.paste(spr, ((cw - spr.width) // 2, (ch - spr.height) // 2))
+    a = out.getchannel('A'); from PIL import ImageChops; out.putalpha(ImageChops.multiply(a, mask))
+    return out, 0
+
+
 def fit_to_shape(src, shape, max_leak=0.03):
     """Pixelate src as large as possible inside the item's cells: tries shrinking and sliding the art
     until (almost) nothing spills into the empty cells of an L/T/S/C/plus shape.
@@ -451,8 +463,8 @@ CLASS_ITEMS = {
     # awkward-shape items (assets_raw/items_pets4_sheet.png): the new batch
     'pets4': [('horseshoe', [[1, 0, 1], [1, 1, 1]]), ('glownectar', [[1, 0], [1, 1]]), ('embertotem', [[1, 1, 1], [0, 1, 0]]), ('boneflute', [[1, 1, 1, 1]]),
               ('serpenttorc', [[0, 1, 1], [1, 1, 0]]), ('antlercrown', [[1, 1, 0], [0, 1, 1]]), ('saddlebag', [[1, 1], [1, 1], [1, 0]]),
-              ('buckler', [[0, 1, 0], [1, 1, 1], [1, 1, 1]]), ('windchimes', [[1, 0, 1], [1, 1, 1], [1, 0, 1]]), ('huntinghorn', [[1, 0, 0], [1, 1, 1]]),
-              ('emberring', [[1, 1, 1], [1, 0, 1], [1, 1, 1]]), ('wishbone', [[1, 0, 1], [0, 1, 0]])],
+              ('buckler', [[0, 1, 0], [1, 1, 1], [1, 1, 1]]), ('windchimes', [[1, 1, 1], [1, 1, 1], [1, 0, 1]]), ('huntinghorn', [[1, 0, 0], [1, 1, 1]]),
+              ('emberring', [[1, 1, 1], [1, 0, 1], [1, 1, 1]]), ('wishbone', [[1, 0, 1], [1, 1, 1], [0, 1, 0]])],
     # old 1-block items redrawn for their new awkward shapes (items_pets5_sheet.png)
     'pets5': [('collar', [[1, 1], [1, 0], [1, 1]]), ('clawfile', T3), ('treats', [[1, 0], [1, 1]]), ('spikes', [[1, 1, 1], [1, 0, 1]]),
               ('whistle', [[1, 1, 1], [0, 0, 1]]), ('bell', [[0, 1, 0], [1, 1, 1]]), ('huntmark', [[0, 1], [1, 1], [1, 0]]), ('nightshade', T2),
@@ -471,12 +483,47 @@ def do_classitems(cls):
     want = CLASS_ITEMS[cls]
     assert len(sprites) == len(want), f'found {len(sprites)} sprites, expected {len(want)}'
     for (iid, shape), src in zip(want, sprites):
-        spr, leak = fit_to_shape(src, shape)
+        spr, leak = fit_fill(src, shape) if cls in FILL_SHEETS else fit_to_shape(src, shape)
         spr.save(os.path.join(OUT, 'items', iid + '.png')); print(iid, spr.size)
 
 
 if __name__ == '__main__' and sys.argv[1] == 'classitems':
     do_classitems(sys.argv[2])
+
+
+# ---------- battle effect sprites: three 4x3 sheets (assets_raw/vfx1_sheet.png ...), read left to right, top to bottom ----------
+# (name, max size in art pixels). The game draws them at 2.5x and flies, rains, spins and bursts them in code.
+VFX_SHEETS = {
+    'vfx1': [('star', 14), ('fireball', 16), ('flame', 14), ('spark', 10), ('meteor', 20), ('sun', 24),
+             ('moon', 20), ('feather', 12), ('note', 12), ('wave', 16), ('plus', 10), ('bubble', 22)],
+    'vfx2': [('claw', 18), ('bite', 18), ('impact', 18), ('poison', 10), ('acid', 12), ('skull', 12),
+             ('wisp', 16), ('rune', 26), ('eye', 16), ('drop', 8), ('stars', 14), ('lava', 18)],
+    'vfx3': [('rock', 10), ('dust', 14), ('coin', 9), ('swirl', 20), ('tongue', 20), ('shard', 12),
+             ('rainbow', 22), ('orb', 16), ('crack', 26), ('heart', 10), ('ray', 18), ('leaf', 10)],
+}
+
+
+def do_vfx(sheet):
+    # effects are often made of loose pieces (the arcs of a sound wave, a sun's rays), so cut the sheet as a 4x3 grid
+    im = Image.open(os.path.join(RAW, f'{sheet}_sheet.png')).convert('RGBA')
+    a = im.getchannel('A').point(lambda v: 255 if v > 40 else 0)
+    x0, y0, x1, y1 = a.getbbox()
+    want = VFX_SHEETS[sheet]; cols, rows = 4, len(want) // 4
+    sprites = []
+    for r in range(rows):
+        for c in range(cols):
+            box = (x0 + (x1 - x0) * c // cols, y0 + (y1 - y0) * r // rows, x0 + (x1 - x0) * (c + 1) // cols, y0 + (y1 - y0) * (r + 1) // rows)
+            cell = im.crop(box); bb = cell.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox()
+            assert bb, f'empty cell {r},{c}'
+            sprites.append(cell.crop(bb))
+    os.makedirs(os.path.join(OUT, 'vfx'), exist_ok=True)
+    for (name, size), src in zip(want, sprites):
+        spr = pixelate(src, size, size, colors=24)
+        spr.save(os.path.join(OUT, 'vfx', name + '.png')); print(name, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'vfx':
+    do_vfx(sys.argv[2])
 
 
 # ---------- new pet icons + rescue cages (4x2 sheet: 5 pet icons, cage, broken cage) ----------

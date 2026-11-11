@@ -1143,10 +1143,10 @@ const ITEMS = {
   antlercrown: { name: 'Antler Crown',    icon: '🦌', shape: [[1, 1, 0], [0, 1, 1]],          color: '#6a5040', rarity: 'uncommon',  tags: [], def: 2, hp: 0.12, desc: 'All pets +2 defense and +12% max HP.' },
   saddlebag:   { name: 'Saddlebag',       icon: '👜', shape: [[1, 1], [1, 1], [1, 0]],        color: '#6a4a2a', rarity: 'common',    tags: [], regen: 0.03, hp: 0.06, desc: 'All pets regenerate 3% of their max HP every turn and get +6% max HP.' },
   buckler:     { name: 'Shell Buckler',   icon: '🛡️', shape: [[0, 1, 0], [1, 1, 1], [1, 1, 1]], color: '#4a3a2a', rarity: 'rare',     tags: [], frontDR: 0.25, def: 2, desc: 'Your FRONT pet takes 25% less damage, and all pets +2 defense.' },
-  windchimes:  { name: 'Wind Chimes',     icon: '🎐', shape: [[1, 0, 1], [1, 1, 1], [1, 0, 1]], color: '#3a6a6a', rarity: 'rare',     tags: [], heal: 0.25, regen: 0.02, desc: 'Healing and shields from your pets are 25% stronger, and all pets regenerate 2% per turn.' },
+  windchimes:  { name: 'Wind Chimes',     icon: '🎐', shape: [[1, 1, 1], [1, 1, 1], [1, 0, 1]], color: '#3a6a6a', rarity: 'rare',     tags: [], heal: 0.25, regen: 0.02, desc: 'Healing and shields from your pets are 25% stronger, and all pets regenerate 2% per turn.' },
   huntinghorn: { name: 'Hunting Horn',    icon: '📯', shape: [[1, 0, 0], [1, 1, 1]],          color: '#7a5a2a', rarity: 'uncommon',  tags: [], backAtk: 0.3, crit: 0.03, desc: 'Your BACK pet deals 30% more damage, and all pets +3% crit.' },
   emberring:   { name: 'Ring of Embers',  icon: '💍', shape: [[1, 1, 1], [1, 0, 1], [1, 1, 1]], color: '#8a2a10', rarity: 'legendary', tags: [], atk: 0.2, dot: 0.4, desc: 'LEGENDARY. All pets +20% attack, and burn, poison and bleed deal 40% more.' },
-  wishbone:    { name: 'Wishbone',        icon: '🦴', shape: [[1, 0, 1], [0, 1, 0]],          color: '#8a8060', rarity: 'rare',      tags: [], luck: 1, offspring: 0.15, crit: 0.04, desc: 'Rarer loot, +15% offspring chance from species you own, and +4% crit for all pets.' },
+  wishbone:    { name: 'Wishbone',        icon: '🦴', shape: [[1, 0, 1], [1, 1, 1], [0, 1, 0]],          color: '#8a8060', rarity: 'rare',      tags: [], luck: 1, offspring: 0.15, crit: 0.04, desc: 'Rarer loot, +15% offspring chance from species you own, and +4% crit for all pets.' },
   // ----- consumables (the hero uses them in battle) -----
   salve:     { name: 'Healing Salve',   icon: '🩹', shape: [[1]],             color: '#8a2c3c', rarity: 'common',    tags: ['consumable'], use: 'salve', w: 2, desc: 'Battle: heal one pet for 35% of its max HP. Used up.' },
   herb:      { name: 'Revival Herb',    icon: '🌱', shape: [[1]],             color: '#2a6a3a', rarity: 'uncommon',  tags: ['consumable'], use: 'revive', w: 1.2, desc: 'Battle: bring a fainted pet back with 40% HP. Used up.' },
@@ -3248,7 +3248,7 @@ function drawPets() {
     const k = p.kind || (p.item && p.item.def.pet);
     let anim, i, sheet = speciesSheet(k);
     if (p.ko > 0) { anim = 'ko'; i = Math.min(3, Math.floor((6 - p.ko) / 0.12)); }
-    else if (p.resting && animFrames(sheet + '_rest', 'rest')) { sheet = sheet + '_rest'; anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }
+    else if (p.resting && (animFrames(sheet + '_rest', 'rest') || animFrames(sheet, 'rest'))) { if (!animFrames(sheet, 'rest')) sheet = sheet + '_rest'; anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }   // the fire beasts keep their resting pose on their main sheet
     else if (p.d.fly) { anim = 'fly'; i = Math.floor(TIME * 12 + p.phase); }
     else if (!p.onGround && p.airT > 0.08) { anim = 'run'; i = 2; }
     else if (p.moving) { anim = 'run'; i = Math.floor(p.runF || 0); }
@@ -4679,6 +4679,14 @@ function iconCell(sh) {
   sh.forEach((row, r) => row.forEach((v, c) => { if (!v) return; const d = (c + 0.5 - w / 2) ** 2 + (r + 0.5 - h / 2) ** 2; if (d < bd) { bd = d; best = [c, r]; } }));
   return best;
 }
+function drawPetIcon(k, x, y, w, h) {
+  const sheet = speciesSheet(k), fr = animFrames(sheet, 'idle') || animFrames(sheet, 'fly'), img = art('anim/' + sheet);
+  if (!fr || !img) return false;
+  const [fx, fy, fw, fh] = fr[0], s = Math.min(w / fw, h / fh) * 0.85;
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.filter = standInTint(k, sheet);
+  ctx.drawImage(img, fx, fy, fw, fh, Math.round(x + (w - fw * s) / 2), Math.round(y + (h - fh * s) / 2), fw * s, fh * s);
+  ctx.restore(); return true;
+}
 function drawItem(it, x, y, cs, alpha = 1) {
   const sh = it.shape, d = it.def, rc = RARITY[d.rarity].c;
   ctx.save(); ctx.globalAlpha = alpha;
@@ -4714,6 +4722,8 @@ function drawItem(it, x, y, cs, alpha = 1) {
     ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowOffsetY = 2;
     ctx.drawImage(ia, -ia.width * k / 2, -ia.height * k / 2, ia.width * k, ia.height * k);
     ctx.restore();
+  } else if (d.pet && drawPetIcon(d.pet, x, y, sh[0].length * cs, sh.length * cs)) {
+    // pets without an icon of their own show the first frame of their animation
   } else {
     const [ic, ir] = iconCell(sh);
     ctx.font = `${Math.floor(cs * 0.58)}px ${EMOJI}`;
