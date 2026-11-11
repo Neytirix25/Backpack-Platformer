@@ -448,6 +448,17 @@ CLASS_ITEMS = {
               ('nightshade', T1), ('hexcharm', T1), ('healbell', T2), ('dragonheart', SQ), ('alphafang', T1)],
     'pets3': [('salve', T1), ('herb', T1), ('salts', T1), ('brew', T1), ('smoke', T1), ('net', W2),
               ('egg_cockatiel', T1), ('egg_owl', T2), ('egg_toad', T1), ('egg_dragon', SQ), ('egg_elder', SQ)],
+    # awkward-shape items (assets_raw/items_pets4_sheet.png): the new batch
+    'pets4': [('horseshoe', [[1, 0, 1], [1, 1, 1]]), ('glownectar', [[1, 0], [1, 1]]), ('embertotem', [[1, 1, 1], [0, 1, 0]]), ('boneflute', [[1, 1, 1, 1]]),
+              ('serpenttorc', [[0, 1, 1], [1, 1, 0]]), ('antlercrown', [[1, 1, 0], [0, 1, 1]]), ('saddlebag', [[1, 1], [1, 1], [1, 0]]),
+              ('buckler', [[0, 1, 0], [1, 1, 1], [1, 1, 1]]), ('windchimes', [[1, 0, 1], [1, 1, 1], [1, 0, 1]]), ('huntinghorn', [[1, 0, 0], [1, 1, 1]]),
+              ('emberring', [[1, 1, 1], [1, 0, 1], [1, 1, 1]]), ('wishbone', [[1, 0, 1], [0, 1, 0]])],
+    # old 1-block items redrawn for their new awkward shapes (items_pets5_sheet.png)
+    'pets5': [('collar', [[1, 1], [1, 0], [1, 1]]), ('clawfile', T3), ('treats', [[1, 0], [1, 1]]), ('spikes', [[1, 1, 1], [1, 0, 1]]),
+              ('whistle', [[1, 1, 1], [0, 0, 1]]), ('bell', [[0, 1, 0], [1, 1, 1]]), ('huntmark', [[0, 1], [1, 1], [1, 0]]), ('nightshade', T2),
+              ('hexcharm', [[1, 0, 1], [0, 1, 0], [1, 0, 1]]), ('alphafang', [[1, 1], [1, 0], [1, 0]]), ('bogmoss', [[1, 1, 0], [0, 1, 1]]), ('truffle', [[1, 1], [1, 0]])],
+    # the fire beasts' eggs (items_pets6_sheet.png)
+    'pets6': [('egg_phoenix', T2), ('egg_salamander', W3), ('egg_tortoise', SQ), ('egg_moth', T3)],
     'beastmaster': [('barbwhip', W3), ('alphahorn', W2), ('collar', T1), ('totem', T2), ('poultice', T1),
                     ('falconglove', W2), ('whistle', T1), ('wolfcloak', SQ), ('bearclaw', T1), ('crown', W3)],
 }
