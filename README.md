@@ -40,13 +40,15 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 - **Pet items:** collars, chew bones, harnesses and charms; family items for canines, cats, birds, drakes, toads and critters; front and back position items; legendaries like the Dragon Heart; and battle consumables. Items merge up to level V.
 - **Team synergies:** Clowder (both cats), Pack Hunt (Shepherd + Fox) and Wildfire (Dragon + Toad).
 - **Long levels:** chasms and arcane barriers you dash past, hazards that hurt your team, challenge courses with treasure chests, and buff plants that power up your next battle. Beat half of a floor's wild groups to open the exit, or all of them for the floor's chest. Camps on floors 5 and 15 fully heal your team.
+- **A hand-made adventurer's look:** every menu is stitched leather, brass rivets, parchment notes and wooden buttons, with crisp pixel fonts (Jersey 10, Micro 5 and the blackletter Jacquarda Bastarda 9, all under the SIL Open Font License).
 - **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio.
 
 ## Project layout
 
 ```
 index.html          the whole game (plain JavaScript + canvas, no libraries)
-assets/             processed pixel art: items, characters, props, tiles, backgrounds, animations
+assets/             processed pixel art: items, characters, props, tiles, backgrounds, animations, the UI kit (assets/ui)
+assets/fonts/       the bundled pixel fonts and their OFL licenses
 tools/pixelate.py   turns raw art sheets into game sprites (Pillow)
 tools/animate.py    slices animation sheets into frames + anims.js
 ```

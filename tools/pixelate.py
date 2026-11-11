@@ -501,3 +501,28 @@ def do_hubprops():
 
 if __name__ == '__main__' and sys.argv[1] == 'hubprops':
     do_hubprops()
+
+
+# ---------- the menu UI kit: one sheet (assets_raw/ui_kit_sheet.png) -> assets/ui/*.png, used 9-sliced at 2x ----------
+UI_KIT = [('panel_leather', 64, 64), ('panel_parch', 64, 60), ('btn', 64, 22), ('btn_hover', 64, 22), ('btn_off', 64, 22),
+          ('slot', 24, 24), ('banner', 128, 26), ('seal', 22, 22)]
+
+
+def do_uikit():
+    im = Image.open(os.path.join(RAW, 'ui_kit_sheet.png')).convert('RGBA')
+    sprites = cutouts(im)
+    sprites = [sp for sp in sprites if sp.width * sp.height > 0.02 * max(q.width * q.height for q in sprites)]
+    assert len(sprites) == len(UI_KIT), f'found {len(sprites)} pieces, expected {len(UI_KIT)}'
+    os.makedirs(os.path.join(OUT, 'ui'), exist_ok=True)
+    for (name, w, h), src in zip(UI_KIT, sprites):
+        out = src.resize((w, h), Image.LANCZOS)                     # exact size: 9-slice needs it
+        px = out.load()
+        for y in range(h):                                           # hard pixel edges, no soft alpha
+            for x in range(w):
+                r, g, b, a = px[x, y]
+                px[x, y] = (r, g, b, 255 if a >= 110 else 0)
+        out.save(os.path.join(OUT, 'ui', name + '.png')); print(name, out.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'uikit':
+    do_uikit()
