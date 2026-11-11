@@ -93,6 +93,7 @@ Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 
   9px and below is Micro 5), each string is cached as solid pixels with a 1px ink shadow (`ctx.textShadowOff = true`
   turns it off). Because sizes snap, use `fitText(t, maxW)` / `wrap()` for text in fixed boxes. Pixelify Sans was
   tried and dropped: its 2 reads as an 8 at game sizes.
+- **Ability sounds:** every `ABIL` entry has its own sound in the SOUND section: `voice()` (pitch contour + formant filters + roughness + breath) builds the animal calls in `V` (howl, darkHowl, growl, snarl, bark, yip, foxScream, squawk, whistle, meow, yowl, hoot, screech, dook, grunt, squeal, croak, roar, whinny...), and `AB[id]` composes each ability from them. `act()` plays `ab_<id>` (bosses 12% lower) and mutes the generic hit thud while it does (crits still ring). All of them run through one gain, `VOX_VOL`. A new ability needs an `AB` entry too.
 - **Female heroes:** sheets `<cls>_f`; `heroSheet()` picks them.
 
 ## Art pipeline (ChatGPT in Chrome)

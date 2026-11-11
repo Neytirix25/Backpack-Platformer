@@ -41,7 +41,7 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 - **Team synergies:** Clowder (both cats), Pack Hunt (Shepherd + Fox) and Wildfire (Dragon + Toad).
 - **Long levels:** chasms and arcane barriers you dash past, hazards that hurt your team, challenge courses with treasure chests, and buff plants that power up your next battle. Beat half of a floor's wild groups to open the exit, or all of them for the floor's chest. Camps on floors 5 and 15 fully heal your team.
 - **A hand-made adventurer's look:** every menu is stitched leather, brass rivets, parchment notes and wooden buttons, with crisp pixel fonts (Jersey 10, Micro 5 and the blackletter Jacquarda Bastarda 9, all under the SIL Open Font License).
-- **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio.
+- **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio. Every battle ability has its own animal voice: the Shepherd howls, bites come with a growl, the Cockatiel squawks and whistles its songs, the Toad croaks, the Owl hoots and shrieks, and the dragons roar.
 
 ## Project layout
 
