@@ -51,16 +51,17 @@ const ART = {};
 // ability effect sprites (assets/vfx): three ChatGPT sheets cut by tools/pixelate.py vfx
 const VFX_SPR = ['star', 'fireball', 'flame', 'spark', 'meteor', 'sun', 'moon', 'feather', 'note', 'wave', 'plus', 'bubble',
   'claw', 'bite', 'impact', 'poison', 'acid', 'skull', 'wisp', 'rune', 'eye', 'drop', 'stars', 'lava',
-  'rock', 'dust', 'coin', 'swirl', 'tongue', 'shard', 'rainbow', 'orb', 'crack', 'heart', 'ray', 'leaf'];
+  'rock', 'dust', 'coin', 'swirl', 'tongue', 'shard', 'rainbow', 'orb', 'crack', 'heart', 'ray', 'leaf',
+  'vine', 'thorn', 'petal', 'lily', 'splash', 'whirl', 'spore', 'pixie', 'antler', 'paw', 'mist', 'acorn'];   // vfx4: the Fey Wilds
 const ART_FILES = {
   vfx: VFX_SPR,
-  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth'],
+  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub'],
+  props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine'],
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake'],
   anim: Object.keys(window.ANIMS || {}),
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
-  tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
+  tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
 };
 // which animation sheet each character uses
 const ANIM_OF = { slime: 'slime', bat: 'bat', skeleton: 'skeleton', archer: 'goblin', ghost: 'ghost', brute: 'brute', boss: 'warden',
@@ -68,12 +69,14 @@ const ANIM_OF = { slime: 'slime', bat: 'bat', skeleton: 'skeleton', archer: 'gob
 function animFrames(name, anim) { const A = window.ANIMS && window.ANIMS[name]; return (A && art('anim/' + name) && A.anims[anim]) || null; }
 function animLen(name, anim) { const f = animFrames(name, anim); return f ? f.length : 0; }
 // draw frame i of an animation with its anchor (feet, or body centre for flyers) at (x, y)
+// sheets drawn with extra detail (more pixels) than their on-screen size: shrink them back so they match the others
+const ANIM_SCALE = { pet_lakewyrm: 22 / 32 };
 function drawAnim(name, anim, i, x, y, face = 1, o = {}) {
   const fr = animFrames(name, anim); if (!fr || !fr.length) return false;
   const img = art('anim/' + name), n = fr.length;
   if (!Number.isFinite(i)) i = 0;   // never crash on a not-yet-started animation clock
   const [fx, fy, fw, fh, ax, ay] = fr[((Math.floor(i) % n) + n) % n];
-  const s = o.scale || PX;
+  const s = (o.scale || PX) * (ANIM_SCALE[name] || 1);
   ctx.save();
   if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
   ctx.imageSmoothingEnabled = false;
@@ -675,7 +678,76 @@ const SFX = (() => {
     sparkswarm: p => { V.flutter(0, 1.3, 12, 0.03); for (let i = 0; i < 6; i++) noise({ dur: 0.04, vol: 0.2, f0: 3000 + Math.random() * 3000, q: 4, delay: 0.25 + i * 0.08 }); V.fire(0.3, 0.8, 0.6); },
     lunarglow: p => { V.flutter(0, 0.9, 6); V.chord(0.1, 1.1, [440, 554, 659, 880], 1.0); V.sparkle(0.4, 0.9, [1760, 1319, 1109, 880], 0.08); },
     mesmerize: p => { V.flutter(0, 0.8, 6); V.eerie(0.1, 1.3, p * 1.4, 0.9); V.chord(0.2, 0.8, [415, 440], 0.8); },
+    // ===== Act III: the fey creatures =====
+    // Moss Bear
+    barkmaul: p => { V.growl(0, 1, p * 0.75, 0.35); V.thud(0.28, 1.2); V.stone(0.3, 0.6); },
+    mossarmor: p => { V.grunt(0, 1, p * 0.7, 0.25); V.rumble(0.1, 0.6, 0.5); V.shield(0.35, 1); },
+    forestshelter: p => { V.growl(0, 0.6, p * 0.8, 0.4); V.wind(0.1, 0.6, 0.6); V.chord(0.3, 0.8, [294, 370, 440], 0.8); },
+    ancientgrove: p => { V.roar(0, 1, p * 0.7, 0.9); V.rumble(0.3, 1, 0.9); V.chord(0.5, 0.9, [196, 247, 294, 392], 1.0); },
+    hibernate: p => { V.grunt(0, 0.9, p * 0.6, 0.3); V.purr(0.25, 1.2, 1.2); V.shield(0.6, 1); },
+    earthshaker: p => { V.roar(0, 1.1, p * 0.65, 0.6); V.boom(0.45, 1.2); V.rumble(0.5, 1.1, 0.8); },
+    // Fairy Dragon
+    pixiebreath: p => { V.yip(0, 0.6, p * 1.4); V.whoosh(0.08, 0.8, 0.3); V.sparkle(0.2, 0.9, [2093, 2637, 3136]); },
+    sleepdust: p => { V.flutter(0, 1, 8); V.sparkle(0.15, 1, [1568, 1319, 1175, 1047], 0.09); V.chord(0.3, 0.6, [523, 659], 0.7); },
+    glamour: p => { V.yip(0, 0.5, p * 1.6); V.eerie(0.1, 0.9, p * 1.6, 0.6); V.sparkle(0.25, 0.8, [1760, 2217, 2637]); },
+    wonderdust: p => { V.flutter(0, 1.2, 10, 0.035); V.sparkle(0.1, 1.3, [1047, 1319, 1568, 1760, 2093, 2637, 3136], 0.05); V.boom(0.45, 0.4); },
+    lullaby: p => { V.chord(0, 1.1, [392, 494, 587], 1.2); V.whistle(0.1, 0.6, p, [784, 659, 587, 523], 0.22); },
+    prismbolt: p => { V.yip(0, 0.7, p * 1.3); V.sparkle(0.15, 1.2, [3136, 2637, 2093, 1568, 1319]); V.boom(0.35, 0.6); },
+    // Wolpertinger
+    antlerjab: p => { V.yip(0, 0.6, p * 1.2); V.slash(0.1, 0.9, 1.3); V.slash(0.22, 0.9, 1.2); },
+    hopstrike: p => { for (let i = 0; i < 3; i++) { V.dig(i * 0.14, 0.5, 1); V.slash(0.06 + i * 0.14, 0.8, 1.2); } V.yip(0.05, 0.5, p * 1.3); },
+    featherdodge: p => { V.flaps(0, 1, 3, 0.07, 1.4); V.whoosh(0.1, 0.7, 0.25); },
+    antlerstorm: p => { V.squeal(0, 0.5, p * 1.3, 0.3); for (let i = 0; i < 6; i++) V.slash(0.15 + i * 0.08, 0.8, 1 + i * 0.05); V.wind(0, 0.7, 0.7); },
+    harefrenzy: p => { V.squeal(0, 0.6, p * 1.4, 0.35); for (let i = 0; i < 4; i++) V.thud(0.2 + i * 0.09, 0.8); },
+    moonhop: p => { V.whoosh(0, 1, 0.4); V.yip(0.1, 0.7, p * 1.5); V.fall(0.25, 1); },
+    // Moon Stag (a low stag's bellow and moonlit chimes)
+    moonbeam: p => { V.bleat(0, 0.6, p * 0.5, 0.4); V.chord(0.1, 0.8, [880, 1109, 1319], 0.6); V.sparkle(0.25, 0.6, [2637, 3136]); },
+    silverlight: p => { V.chord(0, 1, [659, 831, 988], 0.9); V.sparkle(0.2, 0.8, [1319, 1661, 1976], 0.08); },
+    lunarblessing: p => { V.bleat(0, 0.6, p * 0.5, 0.5); V.chord(0.15, 1, [440, 554, 659, 880], 1.1); },
+    fullmoon: p => { V.bleat(0, 1, p * 0.42, 0.9); V.chord(0.3, 1.2, [330, 415, 494, 659, 831], 1.4); V.sparkle(0.6, 1, [1319, 1661, 1976, 2637], 0.08); },
+    antlerhalo: p => { V.chord(0, 1, [523, 659, 784, 1047], 1.0); V.shield(0.25, 1.2); V.hooves(0.1, 0.5, 3); },
+    moonfall: p => { V.bleat(0, 0.9, p * 0.45, 0.7); V.fall(0.3, 1); V.chord(0.6, 0.9, [440, 554, 659], 0.8); },
+    // Bramble Viper
+    thornfang: p => { V.hiss(0, 1, 0.3); V.snap(0.25, 0.9); },
+    entangle: p => { V.hiss2(0, 0.8, 0.3); V.dig(0.1, 0.5, 4); V.wind(0.15, 0.4, 0.4); },
+    brambleburst: p => { V.hiss(0, 0.8, 0.25); V.dig(0.15, 0.8, 6); V.slash(0.3, 1, 0.8); },
+    venombloom: p => { V.hiss(0, 1, 0.5); V.bubbles(0.2, 1, 8, 250); V.sparkle(0.5, 0.5, [1047, 1319]); },
+    strangle: p => { V.hiss2(0, 1, 0.5); V.dig(0.15, 0.7, 6); V.thud(0.5, 1); },
+    shedskin: p => { V.hiss(0, 0.6, 0.6); V.whoosh(0.2, 0.7, 0.4); V.chord(0.4, 0.6, [523, 659, 784], 0.7); },
+    // Cu Sith (a great hound's baying)
+    feybite: p => { V.growl(0, 0.9, p * 0.9, 0.3); V.snap(0.22, 1.1); },
+    baying: p => { V.bark(0, 1.2, p * 0.6); V.howl(0.2, 0.8, p * 0.6, 0.9); },
+    silenthunt: p => { V.whoosh(0, 0.6, 0.4); V.snap(0.32, 1.3); },
+    thirdbay: p => { for (let i = 0; i < 3; i++) V.bark(i * 0.35, 1.2, p * 0.55); V.howl(1.05, 0.8, p * 0.55, 0.8); V.rumble(0.9, 0.7, 0.7); },
+    wildhunt: p => { V.howl(0, 0.8, p * 0.7, 0.8); for (let i = 0; i < 5; i++) V.snap(0.4 + i * 0.1, 0.8); V.hooves(0.2, 0.5, 6); },
+    moormaul: p => { V.snarl(0, 1.1, p * 0.75, 0.45); V.snap(0.35, 1.3); V.thud(0.45, 1); },
+    // Puca (goat bleats, a horse's whinny, stolen coins)
+    prankhorn: p => { V.bleat(0, 0.8, p * 1.1, 0.35); V.thud(0.25, 0.8); },
+    swaptrick: p => { V.bleat(0, 0.6, p * 1.3, 0.25); V.whoosh(0.15, 0.8, 0.3); V.coins(0.35, 0.8); },
+    shapeshift: p => { V.bleat(0, 0.6, p * 1.2, 0.3); V.eerie(0.1, 0.8, p * 1.1, 0.5); V.whinny(0.35, 0.5, p * 1.1, 0.4); },
+    foolsgold: p => { V.bleat(0, 0.8, p * 1.3, 0.4); V.coins(0.2, 1.2); V.sparkle(0.4, 0.8, [1319, 1568, 2093]); },
+    grandheist: p => { V.whinny(0, 0.7, p, 0.5); V.whoosh(0.2, 1, 0.3); V.coins(0.4, 1.4); },
+    wildride: p => { V.whinny(0, 1, p * 0.9, 0.8); V.hooves(0.2, 1, 9); V.eerie(0.3, 0.7, p, 0.8); },
+    // Spirit Wolf (ghostly howls)
+    spiritfang: p => { V.snap(0.05, 0.9); V.eerie(0, 0.8, p * 1.2, 0.4); },
+    phantomlunge: p => { V.whoosh(0, 1, 0.3); V.eerie(0.05, 0.7, p * 1.3, 0.35); V.snap(0.3, 1.1); },
+    ghostveil: p => { V.howl(0, 0.4, p * 1.3, 0.6); V.whoosh(0.1, 0.8, 0.6); V.eerie(0.1, 0.9, p * 1.1, 0.7); },
+    spiritpack: p => { for (let i = 0; i < 4; i++) { V.howl(i * 0.14, 0.3, p * (1.1 + i * 0.05), 0.5); V.snap(0.5 + i * 0.12, 0.6); } V.eerie(0, 0.6, p, 0.8); },
+    soulhowl: p => { V.howl(0, 1.1, p * 1.1, 1.4); V.eerie(0.2, 0.8, p * 0.9, 1.1); },
+    spectralguard: p => { V.howl(0, 0.6, p * 1.2, 0.8); V.shield(0.4, 1.2); V.chord(0.3, 0.6, [440, 554, 659], 0.8); },
+    // Lake Wyrm (pet)
+    tidebite: p => { V.hiss2(0, 0.7, 0.2); V.snap(0.15, 1.1); V.bubbles(0.2, 0.8, 4, 300); },
+    whirlpool: p => { V.wind(0, 0.9, 0.8); V.bubbles(0.15, 1, 10, 200); },
+    lilyveil: p => { V.bubbles(0, 0.8, 5, 400); V.chord(0.15, 0.9, [392, 494, 587, 784], 1.0); },
+    moonflood: p => { V.roar(0, 0.8, p * 1.2, 0.6); V.wind(0.2, 1.2, 0.9); V.bubbles(0.3, 1.2, 12, 150); V.boom(0.6, 0.7); },
+    faetide: p => { V.wind(0, 0.6, 0.6); V.chord(0.1, 1.1, [349, 440, 523, 698], 1.2); V.bubbles(0.2, 0.8, 8, 400); },
+    drowningcoil: p => { V.hiss2(0, 1, 0.5); V.bubbles(0.3, 1.1, 12, 120); V.gulp(0.8, 1); },
     // ----- bosses -----
+    wyrmcoil: p => { V.hiss2(0, 1.1, 0.4); V.thud(0.3, 1.2); V.bubbles(0.35, 0.7, 6, 150); },
+    tidalwave: p => { V.roar(0, 1, p * 0.75, 0.7); V.wind(0.2, 1.4, 0.9); V.boom(0.6, 0.8); },
+    glamourmist: p => { V.eerie(0, 1.2, p * 0.9, 1.0); V.sparkle(0.2, 0.9, [1319, 1568, 1760, 2093], 0.08); },
+    lilyrest: p => { V.bubbles(0, 1, 8, 200); V.chord(0.2, 0.8, [262, 330, 392], 0.9); },
+    moontide: p => { V.roar(0, 1.2, p * 0.7, 0.8); for (let i = 0; i < 6; i++) V.boom(0.4 + i * 0.13, 0.5); V.wind(0.3, 1.2, 1.0); },
     shadowclaw: p => { V.snarl(0, 1, p * 0.7, 0.4); V.slash(0.32, 1.4, 0.7); },
     dreadhowl: p => V.darkHowl(0, 1.2, p * 0.85, 1.7),
     umbralveil: p => { V.whoosh(0, 1.2, 0.7); V.eerie(0.1, 1, p * 0.6, 0.8); V.growl(0.2, 0.6, p * 0.7, 0.5); },
@@ -727,6 +799,8 @@ const SFX = (() => {
     crumble: () => { noise({ dur: 0.35, vol: 0.22, f0: 800, f1: 120, filter: 'lowpass' }); for (let i = 0; i < 3; i++) noise({ dur: 0.05, vol: 0.12, f0: 1500 + i * 400, q: 3, delay: 0.05 + i * 0.07 }); },
     lava: () => { noise({ dur: 0.4, vol: 0.25, f0: 3000, f1: 600, q: 1, attack: 0.005 }); tone({ type: 'sawtooth', f0: 380, f1: 120, dur: 0.25, vol: 0.12 }); },
     spikes: () => { tone({ type: 'square', f0: 900, f1: 300, dur: 0.12, vol: 0.12 }); noise({ dur: 0.08, vol: 0.18, f0: 4000, filter: 'highpass' }); },
+    thorns: () => { for (let i = 0; i < 4; i++) noise({ dur: 0.05, vol: 0.16, f0: 2200 + i * 500, q: 3, delay: i * 0.04 }); tone({ type: 'square', f0: 700, f1: 260, dur: 0.12, vol: 0.09 }); },
+    boing: () => { tone({ type: 'sine', f0: 180, f1: 620, dur: 0.28, vol: 0.22, vib: 18 }); tone({ type: 'triangle', f0: 360, f1: 1240, dur: 0.22, vol: 0.08, delay: 0.02 }); },
     kill_imp: () => { noise({ dur: 0.4, vol: 0.2, f0: 2500, f1: 300, q: 0.8 }); tone({ type: 'square', f0: 900, f1: 1600, dur: 0.12, vol: 0.06 }); },
     kill_golem: () => { tone({ type: 'sine', f0: 90, f1: 30, dur: 0.6, vol: 0.35 }); noise({ dur: 0.7, vol: 0.3, f0: 700, f1: 60, filter: 'lowpass' }); for (let i = 0; i < 4; i++) noise({ dur: 0.06, vol: 0.15, f0: 900 + i * 300, q: 3, delay: 0.1 + i * 0.09 }); },
     kill_cultist: () => { tone({ type: 'sine', f0: 600, f1: 120, dur: 0.6, vol: 0.15, vib: 12 }); tone({ type: 'triangle', f0: 900, f1: 200, dur: 0.5, vol: 0.08, delay: 0.05 }); },
@@ -830,6 +904,43 @@ const SONGS = {
       'B4 - - - - - - - G5 - - - F#5 - E5 -', 'F#5 - - - - - - - D5 - - - A4 - - -',
       'G5 - - - E5 - - - C5 - - - E5 - G5 -', 'F#5 - - - - - - - D#5 - - - B4 - - -',
       'E5 - - - G5 - - - B5 - - - A5 - G5 -', 'F5 - - - - - - - E5 - - - - - - -'] },
+  ] },
+  act3: { title: 'Into the Fey Wilds', bpm: 96, chords: ['D', 'E', 'Bm', 'G', 'D', 'E', 'G', 'A'], parts: [
+    { inst: 'pad', vol: 0.7 },
+    { inst: 'bell', arp: '0 . 2 . 3 . 2 . 1 . 2 . 3 . 2 .', vol: 0.5 },
+    { inst: 'bass', pat: 'r - - . r . f . r - - . o . f .', vol: 0.8 },
+    { inst: 'drums', kick: 'x . . . . . x . x . . . . . . .', snare: '. . . . x . . . . . . . x . . .', hat: '. . x . . . x . . . x . . . x .' },
+    { inst: 'flute', loops: [1, 0], mel: [
+      'F#5 - - - A5 - - - D6 - - - A5 - - -', 'G#5 - - - - - - - E5 - - - B4 - - -',
+      'D5 - - - F#5 - - - B5 - - - A5 - F#5 -', 'G5 - - - - - - - D5 - - - B4 - - -',
+      'A4 - - - D5 - F#5 - A5 - - - G#5 - A5 -', 'B5 - - - - - - - G#5 - - - E5 - - -',
+      'D5 - - - G5 - - - B5 - - - A5 - G5 -', 'E5 - - - - - - - C#5 - - - A4 - - -'] },
+    { inst: 'bell', loops: [0, 1], vol: 0.6, mel: [
+      'D5 - - - - - - - F#5 - - - - - - -', 'E5 - - - - - - - G#5 - - - - - - -',
+      'F#5 - - - - - - - D5 - - - - - - -', 'D5 - - - - - - - B4 - - - - - - -',
+      'F#5 - - - - - - - A5 - - - - - - -', 'G#5 - - - - - - - B5 - - - - - - -',
+      'B5 - - - - - - - G5 - - - - - - -', 'A5 - - - - - - - - - - - - - - -'] },
+  ] },
+  glimmer: { title: 'Glimmer Glade', bpm: 88, chords: ['C', 'Am', 'F', 'G', 'C', 'Em', 'F', 'G'], parts: [
+    { inst: 'pad', vol: 0.7 },
+    { inst: 'bell', arp: '0 . 1 . 2 . 3 . 2 . 1 . 3 . 2 .', vol: 0.55 },
+    { inst: 'bass', pat: 'r - - - - - - - f - - - r - - -', vol: 0.7 },
+    { inst: 'drums', kick: 'x . . . . . . . x . . . . . . .', snare: '. . . . . . . . . . . . x . . .', hat: '. . x . . . x . . . x . . . x .' },
+    { inst: 'flute', mel: [
+      'E5 - G5 - C6 - - - B5 - G5 - E5 - - -', 'A5 - - - - - - - E5 - - - C5 - - -',
+      'F5 - A5 - C6 - - - A5 - F5 - C5 - - -', 'D5 - - - G5 - - - B5 - - - D6 - - -',
+      'C6 - - - G5 - - - E5 - G5 - C6 - - -', 'B5 - - - - - - - G5 - - - E5 - - -',
+      'A5 - G5 - F5 - - - C5 - - - F5 - A5 -', 'G5 - - - - - - - . . . . D5 - - -'] },
+  ] },
+  moonlake: { title: 'Moonlit Lake', bpm: 72, chords: ['Em', 'C', 'G', 'D', 'Em', 'Am', 'B', 'B'], parts: [
+    { inst: 'pad', vol: 0.8, dark: true },
+    { inst: 'pluck', arp: '0 . . 1 . . 2 . . 3 . . 2 . 1 .', vol: 0.6 },
+    { inst: 'bass', pat: 'r - - - - - - - r - - - f - - -', vol: 0.7 },
+    { inst: 'bell', loops: [1, 1, 0], mel: [
+      'B4 - - - - - - - E5 - - - G5 - - -', 'G5 - - - - - - - E5 - - - C5 - - -',
+      'D5 - - - - - - - G5 - - - B5 - - -', 'A5 - - - - - - - F#5 - - - D5 - - -',
+      'E5 - - - G5 - - - B5 - - - E6 - - -', 'C6 - - - - - - - B5 - A5 - E5 - - -',
+      'D#5 - - - - - - - F#5 - - - B5 - - -', 'A5 - - - - - - - F#5 - - - D#5 - - -'] },
   ] },
   // ----- level rotation: five more pieces (each floor picks one at random, never the last two played) -----
   halls: { title: 'Torchlit Halls', bpm: 92, chords: ['Gm', 'Eb', 'F', 'D', 'Gm', 'Cm', 'D', 'D'], parts: [
@@ -1056,10 +1167,10 @@ const Music = (() => {
   return { play, setOn, setDuck, set intensity(v) { intensity = v; }, get on() { return on; }, get song() { return cur && cur.name; },
            get loops() { return cur ? Math.floor(step / (SONGS[cur.name].chords.length * 16)) : 0; }, SONGS };
 })();
-const LEVEL_POOLS = { 1: ['act1', 'halls', 'caves', 'march'], 2: ['act2', 'ember', 'hollowdeep', 'march'] };
+const LEVEL_POOLS = { 1: ['act1', 'halls', 'caves', 'march'], 2: ['act2', 'ember', 'hollowdeep', 'march'], 3: ['act3', 'glimmer', 'moonlake', 'march'] };
 const SONG_HISTORY = [];   // across runs too, so a new run doesn't open with the song you just heard
 function pickLevelSong(R) {
-  const pool = LEVEL_POOLS[R.act === 2 ? 2 : 1];
+  const pool = LEVEL_POOLS[R.act] || LEVEL_POOLS[1];
   let opts = pool.filter(k => !SONG_HISTORY.slice(-2).includes(k));
   if (!opts.length) opts = pool.filter(k => k !== SONG_HISTORY[SONG_HISTORY.length - 1]);
   const k = pick(opts);
@@ -1077,7 +1188,7 @@ function musicDirector(dt) {
     else if (R.type === 'camp' || R.type === 'hub') want = 'camp';
     else if (R.type === 'boss') want = G.enemies.some(e => e.type === 'boss') ? 'boss' : 'camp';
     else {   // regular floors: a random track from the act's pool, rotated after two loops, never one of the last two played
-      if (G.levelSongRoom !== R || !LEVEL_POOLS[R.act].includes(G.levelSong)) pickLevelSong(R);
+      if (G.levelSongRoom !== R || !(LEVEL_POOLS[R.act] || LEVEL_POOLS[1]).includes(G.levelSong)) pickLevelSong(R);
       else if (Music.song === G.levelSong && Music.loops >= 2) pickLevelSong(R);
       want = G.levelSong;
     }
@@ -1122,12 +1233,12 @@ const ITEMS = {
   bell:      { name: 'Guardian Bell',   icon: '🔔', shape: [[0, 1, 0], [1, 1, 1]],             color: '#2c4a76', rarity: 'rare',      tags: [], frontShield: 0.2, frontTaunt: 1, desc: 'Your FRONT pet starts every battle with a shield (20% of its max HP) and taunts for 1 turn.' },
   huntmark:  { name: "Hunter's Charm",  icon: '🎯', shape: [[0, 1], [1, 1], [1, 0]],             color: '#5a4a2a', rarity: 'uncommon',  tags: [], backAtk: 0.25, desc: 'Your BACK pet deals 25% more damage.' },
   // ----- animal families -----
-  squeaky:   { name: 'Squeaky Bone',    icon: '🐕', shape: [[1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['canine'], fam: 'canine', famAtk: 0.2, famCrit: 0.05, desc: 'Canines (Shepherd, Fox, Shadow Wolf, Hellhound) +20% attack and +5% crit.' },
+  squeaky:   { name: 'Squeaky Bone',    icon: '🐕', shape: [[1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['canine'], fam: 'canine', famAtk: 0.2, famCrit: 0.05, desc: 'Canines (Shepherd, Fox, Shadow Wolf, Hellhound, Cu Sith, Spirit Wolf) +20% attack and +5% crit.' },
   catnip:    { name: 'Catnip Pouch',    icon: '🌿', shape: [[1]],             color: '#4a6a3a', rarity: 'uncommon',  tags: ['feline'], fam: 'feline', famCrit: 0.12, famCritMul: 0.3, desc: 'Cats +12% crit, and their crits hit 30% harder.' },
   cuttlebone:{ name: 'Cuttlebone',      icon: '🐚', shape: [[1], [1]],        color: '#8a8a7a', rarity: 'uncommon',  tags: ['bird'], fam: 'bird', famHeal: 0.35, famDef: 2, desc: 'Birds (Cockatiel, Owl, Phoenix) heal 35% more and get +2 defense.' },
-  heatrock:  { name: 'Heat Rock',       icon: '🔥', shape: [[1, 1]],          color: '#7a3a1a', rarity: 'uncommon',  tags: ['drake'], fam: 'drake', famAtk: 0.15, famDot: 0.5, desc: 'Drakes (Dragon, Elder Drake) +15% attack, and their burns deal 50% more.' },
-  bogmoss:   { name: 'Bog Moss',        icon: '🍃', shape: [[1, 1, 0], [0, 1, 1]],             color: '#3a5a2a', rarity: 'uncommon',  tags: ['amphibian'], fam: 'amphibian', famDot: 0.5, famRegen: 0.05, desc: 'Toads and Salamanders: poison deals 50% more and they regenerate 5% max HP per turn.' },
-  truffle:   { name: 'Truffle',         icon: '🍄', shape: [[1, 1], [1, 0]],             color: '#5a4030', rarity: 'uncommon',  tags: ['critter'], fam: 'critter', famHp: 0.25, famDef: 2, desc: 'Critters (Ferret, Boar, Magma Tortoise) +25% max HP and +2 defense.' },
+  heatrock:  { name: 'Heat Rock',       icon: '🔥', shape: [[1, 1]],          color: '#7a3a1a', rarity: 'uncommon',  tags: ['drake'], fam: 'drake', famAtk: 0.15, famDot: 0.5, desc: 'Drakes (Dragon, Elder Drake, Fairy Dragon, Lake Wyrm) +15% attack, and their burns deal 50% more.' },
+  bogmoss:   { name: 'Bog Moss',        icon: '🍃', shape: [[1, 1, 0], [0, 1, 1]],             color: '#3a5a2a', rarity: 'uncommon',  tags: ['amphibian'], fam: 'amphibian', famDot: 0.5, famRegen: 0.05, desc: 'Toads, Salamanders and the Bramble Viper: poison deals 50% more and they regenerate 5% max HP per turn.' },
+  truffle:   { name: 'Truffle',         icon: '🍄', shape: [[1, 1], [1, 0]],             color: '#5a4030', rarity: 'uncommon',  tags: ['critter'], fam: 'critter', famHp: 0.25, famDef: 2, desc: 'Critters (Ferret, Boar, Magma Tortoise, Moss Bear, Wolpertinger) +25% max HP and +2 defense.' },
   // ----- powerful -----
   nightshade:{ name: 'Nightshade Vial', icon: '🧪', shape: [[1], [1]],             color: '#3a2a5a', rarity: 'rare',      tags: [], dot: 0.4, desc: 'Burn, poison and bleed from your pets deal 40% more.' },
   hexcharm:  { name: 'Hex Charm',       icon: '🧿', shape: [[1, 0, 1], [0, 1, 0], [1, 0, 1]],             color: '#4a2a5a', rarity: 'rare',      tags: [], dur: 1, desc: 'Curses your pets put on foes (stun aside) last 1 turn longer.' },
@@ -1135,7 +1246,7 @@ const ITEMS = {
   dragonheart:{ name: 'Dragon Heart',   icon: '❤️‍🔥', shape: [[1, 1], [1, 1]], color: '#7a1a2a', rarity: 'legendary', tags: [], hp: 0.25, atk: 0.25, desc: 'LEGENDARY. All pets +25% max HP and +25% attack.' },
   alphafang: { name: 'Alpha Fang',      icon: '🦷', shape: [[1, 1], [1, 0], [1, 0]],             color: '#571d29', rarity: 'legendary', tags: [], crit: 0.1, critMul: 0.7, desc: 'LEGENDARY. All pets +10% crit, and crits deal x2.2 instead of x1.5.' },
   // ----- awkward shapes: strong for their size, hard to fit -----
-  horseshoe:   { name: 'Lucky Horseshoe', icon: '🧲', shape: [[1, 0, 1], [1, 1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['equine'], fam: 'equine', famHeal: 0.3, famAtk: 0.12, desc: 'Hooved beasts (Unicorn, Qilin) heal 30% more and get +12% attack.' },
+  horseshoe:   { name: 'Lucky Horseshoe', icon: '🧲', shape: [[1, 0, 1], [1, 1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['equine'], fam: 'equine', famHeal: 0.3, famAtk: 0.12, desc: 'Hooved beasts (Unicorn, Qilin, Moon Stag, Puca) heal 30% more and get +12% attack.' },
   glownectar:  { name: 'Glow Nectar',     icon: '🍯', shape: [[1, 0], [1, 1]],                color: '#8a6a1a', rarity: 'uncommon',  tags: ['insect'], fam: 'insect', famCrit: 0.1, famDot: 0.4, desc: 'Moths get +10% crit, and their burns deal 40% more.' },
   embertotem:  { name: 'Ember Totem',     icon: '🗿', shape: [[1, 1, 1], [0, 1, 0]],          color: '#7a3a1a', rarity: 'rare',      tags: [], dot: 0.3, crit: 0.04, desc: 'Burn, poison and bleed from your pets deal 30% more, and +4% crit.' },
   boneflute:   { name: 'Bone Flute',      icon: '🪈', shape: [[1, 1, 1, 1]],                  color: '#8a8070', rarity: 'uncommon',  tags: [], hp: 0.08, atk: 0.08, desc: 'All pets +8% max HP and +8% attack.' },
@@ -1163,6 +1274,8 @@ const ITEMS = {
   egg_phoenix:    { name: 'Phoenix Egg',      icon: '🥚', shape: [[1], [1]],          color: '#8a3a10', rarity: 'legendary', tags: ['egg'], egg: 'phoenix', noDrop: true, desc: 'Warm to the touch. Hatches into a Phoenix chick after you win 2 fights carrying it.' },
   egg_salamander: { name: 'Salamander Eggs',  icon: '🫧', shape: [[1, 1, 1]],         color: '#7a3a1a', rarity: 'rare',      tags: ['egg'], egg: 'salamander', noDrop: true, desc: 'A string of glowing eggs. Hatches into a Salamander after you win 2 fights carrying it.' },
   egg_tortoise:   { name: 'Tortoise Egg',     icon: '🥚', shape: [[1, 1], [1, 1]],    color: '#5a3a2a', rarity: 'rare',      tags: ['egg'], egg: 'tortoise', noDrop: true, desc: 'Heavy as a stone. Hatches into a Magma Tortoise after you win 2 fights carrying it.' },
+  egg_fairydragon:{ name: 'Fairy Dragon Egg', icon: '🥚', shape: [[1, 1]],           color: '#7a4a6a', rarity: 'rare',      tags: ['egg'], egg: 'fairydragon', noDrop: true, desc: 'Speckled pink and blue, and it hums. Hatches into a Fairy Dragon after you win 2 fights carrying it.' },
+  egg_viper:      { name: 'Bramble Eggs',     icon: '🥚', shape: [[1, 0], [1, 1]],    color: '#3a5a2a', rarity: 'rare',      tags: ['egg'], egg: 'viper', noDrop: true, desc: 'A clutch tucked in a thorny nest. Hatches into a Bramble Viper after you win 2 fights carrying it.' },
   egg_moth:       { name: 'Ember Cocoon',     icon: '🥚', shape: [[1], [1], [1]],     color: '#7a5a2a', rarity: 'rare',      tags: ['egg'], egg: 'moth', noDrop: true, desc: 'It glows from inside. Hatches into an Ember Moth after you win 2 fights carrying it.' },
   // ----- your pets (kept in the pet slots, never in chests) -----
   pet_dog:        { name: 'Loyal Shepherd', icon: '🐕', shape: [[1, 1], [1, 1]], color: '#5a5a62', rarity: 'common',    tags: ['pet'], pet: 'dog', noDrop: true, desc: 'A tough Guardian: bites that stun, taunts that protect.' },
@@ -1185,6 +1298,15 @@ const ITEMS = {
   pet_qilin:      { name: 'Qilin',          icon: '🦌', shape: [[1, 1], [1, 1]], color: '#7a5a2a', rarity: 'legendary', tags: ['pet'], pet: 'qilin', noDrop: true, desc: 'A sacred Support that blesses its friends and burns away curses.' },
   pet_chimera:    { name: 'Chimera',        icon: '🦁', shape: [[1, 1], [1, 1]], color: '#5a4a3a', rarity: 'legendary', tags: ['pet'], pet: 'chimera', noDrop: true, desc: 'A Hexer with three heads: lion, goat and serpent.' },
   pet_lion:       { name: 'Sunmane Lion',   icon: '🦁', shape: [[1, 1], [1, 1]], color: '#8a6a1a', rarity: 'rare',      tags: ['pet'], pet: 'lion', noDrop: true, desc: 'A proud Hunter whose mane blazes like the sun.' },
+  pet_mossbear:     { name: 'Moss Bear',     icon: '🐻', shape: [[1, 1], [1, 1]], color: '#3e5a2a', rarity: 'rare',      tags: ['pet'], pet: 'mossbear', noDrop: true, desc: 'A Guardian wrapped in living moss: it soaks up blows and shelters its friends.' },
+  pet_fairydragon:  { name: 'Fairy Dragon',  icon: '🐉', shape: [[1, 1], [1, 1]], color: '#7a4a6a', rarity: 'rare',      tags: ['pet'], pet: 'fairydragon', noDrop: true, desc: 'A tiny Hexer with butterfly wings whose dust puts foes to sleep.' },
+  pet_wolpertinger: { name: 'Wolpertinger',  icon: '🐇', shape: [[1, 1], [1, 1]], color: '#6a5a4a', rarity: 'rare',      tags: ['pet'], pet: 'wolpertinger', noDrop: true, desc: 'A winged, antlered hare: a Hunter of quick flurries.' },
+  pet_moonstag:     { name: 'Moon Stag',     icon: '🦌', shape: [[1, 1], [1, 1]], color: '#3a4a6a', rarity: 'legendary', tags: ['pet'], pet: 'moonstag', noDrop: true, desc: 'A Healer whose silver antlers pour out moonlight.' },
+  pet_viper:        { name: 'Bramble Viper', icon: '🐍', shape: [[1, 1], [1, 1]], color: '#3a5a2a', rarity: 'rare',      tags: ['pet'], pet: 'viper', noDrop: true, desc: 'A Poisoner with thorny scales and venom that blooms.' },
+  pet_cusith:       { name: 'Cu Sith',       icon: '🐕', shape: [[1, 1], [1, 1]], color: '#2a4a2a', rarity: 'legendary', tags: ['pet'], pet: 'cusith', noDrop: true, desc: 'The great green hound of the fairy mounds: a Hunter whose baying freezes foes.' },
+  pet_puca:         { name: 'Puca',          icon: '🐐', shape: [[1, 1], [1, 1]], color: '#3a3a4a', rarity: 'legendary', tags: ['pet'], pet: 'puca', noDrop: true, desc: 'A shapeshifting Trickster that steals luck and plays wicked pranks.' },
+  pet_spiritwolf:   { name: 'Spirit Wolf',   icon: '🐺', shape: [[1, 1], [1, 1]], color: '#4a6a7a', rarity: 'legendary', tags: ['pet'], pet: 'spiritwolf', noDrop: true, desc: 'A ghostly Hunter that runs through walls, like the Beastmaster\'s old companion.' },
+  pet_lakewyrm:     { name: 'Lake Wyrm',     icon: '🐉', shape: [[1, 1], [1, 1]], color: '#2a4a6a', rarity: 'legendary', tags: ['pet'], pet: 'lakewyrm', noDrop: true, desc: 'The Lake Wyrm\'s own Wyrmling: a Mystic of tides and fae water.' },
   pet_moth:       { name: 'Ember Moth',     icon: '🦋', shape: [[1, 1], [1, 1]], color: '#7a4a1a', rarity: 'rare',      tags: ['pet'], pet: 'moth', noDrop: true, desc: 'A Trickster that blinds foes with glowing dust.' },
 };
 
@@ -1198,7 +1320,7 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
 const LVL_COLOR = ['', '#ffffff', '#a5d6a7', '#81d4fa', '#ce93d8', '#ffd54f'];
 const lvlMult = it => LVL_MULT[Math.min(MAX_LVL, it.lvl || 1) - 1];
 function itemAllowed(id, cls = G && G.cls) { const d = ITEMS[id]; return !(d.only && d.only !== cls) && !(d.not && d.not.includes(cls)); }
-const FAM_NAME = { canine: 'canines', feline: 'cats', bird: 'birds', drake: 'drakes', amphibian: 'toads and salamanders', critter: 'critters', equine: 'hooved beasts', insect: 'moths' };
+const FAM_NAME = { canine: 'canines', feline: 'cats', bird: 'birds', drake: 'drakes', amphibian: 'toads, salamanders and vipers', critter: 'critters', equine: 'hooved beasts', insect: 'moths' };
 // consumable strength by item level
 const useMult = it => 1 + 0.35 * ((it.lvl || 1) - 1);
 // human-readable bonuses for a levelled item
@@ -1353,18 +1475,27 @@ const THEMES = {
              w: { spider: 3.5, imp: 1.2, cultist: 1, knight: 1, golem: 0.8 } },
   sanctum: { name: 'Shadow Sanctum',  act: 2, dim: 0.35, bg: '#100e18', tile: ['#1f1d2b', '#121019', '#36324a', '#7d64c0'], deco: 'candle',
              w: { cultist: 3, knight: 3, imp: 1.5, spider: 1, golem: 0.8 } },
+  // Act III (floors 21-30): the Fey Wilds — thorns, bounce mushrooms and climbing vines
+  thornwood: { name: 'Thornwood',     act: 3, dim: 0.3,  bg: '#101a12', tile: ['#3b3326', '#241e16', '#5a4a34', '#6a9a3a'], deco: 'mush', w: {} },
+  glade:     { name: 'Glimmer Glade', act: 3, dim: 0.25, bg: '#12162a', tile: ['#34402e', '#1f2a1c', '#4f6a42', '#9ad06a'], deco: 'fairy', w: {} },
+  lake:      { name: 'Moonlit Lake',  act: 3, dim: 0.3,  bg: '#0c1424', tile: ['#2e3a46', '#1a232c', '#4a5c6c', '#7ec8d8'], deco: 'fairy', w: {} },
 };
 // Act I backgrounds have a floor band baked in; only the rows above it are used for the parallax backdrop
 const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236, hub: 229 };
 
 // ---------- tiles ----------
 const TILE = 30, EMPTY = 0, SOLID = 1, ONEWAY = 2, SPIKES = 3, LAVA = 4, CRUMBLE = 5, PHASE = 6;   // PHASE = arcane barrier: solid unless you dash through it
-const FINAL_FLOOR = 20;
+const THORN = 7, VINE = 8;   // Fey Wilds: brambles hurt on touch; vines hang from ledges and can be climbed (neither is solid)
+const FINAL_FLOOR = 30;
+const BOSS_OF = n => ['wyrm', 'shadow', 'elder'][Math.floor(n / 10) % 3];   // floor 10 the Shadow Wolf, 20 the Elder Dragon, 30 the Lake Wyrm (then round again in endless)
+const BOSS_INFO = { shadow: { k: 'shadowwolf', name: 'The Shadow Wolf', floor: 10, lair: 'Shadow Den' }, elder: { k: 'elder', name: 'The Elder Dragon', floor: 20, lair: "Elder Dragon's Roost" },
+                    wyrm: { k: 'lakewyrm', name: 'The Lake Wyrm', floor: 30, lair: "The Wyrm's Lake" } };
+const isOpenT = t => t === EMPTY || t === VINE;
 const isSolidT = t => t === SOLID || t === CRUMBLE || t === PHASE;
 const solidFor = (o, t) => isSolidT(t) && !(t === PHASE && o.phasing);
 function tileAt(tx, ty) { const R = G.room; if (tx < 0 || ty < 0 || tx >= R.cols) return SOLID; if (ty >= R.rows) return EMPTY; return R.grid[ty * R.cols + tx]; }   // below the map = open air (chasms)
 function setTile(R, tx, ty, v) { if (tx >= 0 && ty >= 0 && tx < R.cols && ty < R.rows) R.grid[ty * R.cols + tx] = v; }
-const actOf = n => (n <= 10 ? 1 : 2);
+const actOf = n => (n <= 10 ? 1 : n <= 20 ? 2 : 3);
 const hash2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
 
 let G = null;
@@ -1391,7 +1522,7 @@ function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
 //  THE SANCTUARY — the hub between runs: walk around as your hero, switch class and look,
 //  read your records, visit (and pet!) every animal you've ever rescued, then take the gate down.
 // =====================================================================
-const HUB_COLS = 56;
+const HUB_COLS = 66;
 const HUB_SPOTS = {   // tile x of each station
   board: 4, banners: { warrior: 9, archer: 12, rogue: 15, beastmaster: 18 }, mirror: 22, fire: 26, beds: 28.5,
 };
@@ -1554,7 +1685,7 @@ function drawHubBubble() {
   if (s.kind === 'pet') {
     const d = s.pet.d, it = s.pet.item;
     lines = [[d.name, '#5a2e0c', 'bold 15px'], [`${d.role} · level ${petLvl(it)}`, PAL.parchInk, '13px'], [petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
-  } else if (s.kind === 'locked') lines = [['???', '#5a2e0c', 'bold 15px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Win a battle on its very first turn' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, PAL.parchInk, '13px']];
+  } else if (s.kind === 'locked') lines = [['???', '#5a2e0c', 'bold 15px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Win a battle on its very first turn' : s.id === 'lakewyrm' ? 'Beat the Lake Wyrm on floor 30' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, PAL.parchInk, '13px']];
   else lines = [[s.label, '#5a2e0c', 'bold 14px'], ['[E]', '#7a2e14', 'bold 13px']];
   const top = Math.min(s.kind === 'pet' ? s.pet.y : s.y - 100, G.player.y) - 18 - lines.length * 17;
   const wdt = Math.max(...lines.map(([t, , f]) => { ctx.font = `${f} ${UI}`; return ctx.measureText(t).width; })) + 30;
@@ -1574,7 +1705,7 @@ function drawHubHUD() {
   ctx.globalAlpha = 1;
   if (G.panel === 'records') {
     const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`],
-      ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—']];
+      ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
     const bw = 400, bh = 96 + rows.length * 27, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10;
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
     panel(bx, by, bw, bh, 'parch');
@@ -1597,16 +1728,16 @@ function nextRoom() {
   G.roomNum++;
   const n = G.roomNum, act = actOf(n);
   let type;
-  if (n % 10 === 0) type = 'boss';            // the Shadow Wolf on 10, the Elder Dragon on 20 (and again in endless)
+  if (n % 10 === 0) type = 'boss';            // the Shadow Wolf on 10, the Elder Dragon on 20, the Lake Wyrm on 30 (and round again in endless)
   else if (n % 5 === 0) type = 'camp';
   else {
-    let opts = act === 1 ? ['hall', 'cave', 'crypt'] : ['forge', 'hollow', 'sanctum'];
+    let opts = act === 1 ? ['hall', 'cave', 'crypt'] : act === 2 ? ['forge', 'hollow', 'sanctum'] : ['thornwood', 'glade', 'lake'];
     const prev = G.room && G.room.type;
     if (opts.includes(prev) && Math.random() < 0.65) opts = opts.filter(o => o !== prev);
     type = pick(opts);
   }
   const R = { type, n, act, theme: THEMES[type], bgKey: type, cleared: false, chests: [], cages: [], fire: null, decor: [], baked: [],
-              vents: [], crumbles: new Map(), crumbleBase: new Map(), lavaTiles: [], crumbleTiles: [], openT: 0 };
+              vents: [], shrooms: [], crumbles: new Map(), crumbleBase: new Map(), lavaTiles: [], crumbleTiles: [], openT: 0 };
   if (type === 'boss') buildArena(R, 64, 18);
   else if (type === 'camp') buildArena(R, 32, 18);
   else buildLevel(R);
@@ -1616,7 +1747,11 @@ function nextRoom() {
     if (t === LAVA) R.lavaTiles.push([tx, ty]);
     if (t === CRUMBLE) R.crumbleTiles.push([tx, ty]);
   }
-  if (type === 'boss') R.theme = Object.assign({}, THEMES.boss, { name: n % 20 === 10 ? 'Shadow Den' : "Elder Dragon's Roost" });
+  if (type === 'boss') {
+    R.boss = BOSS_OF(n);
+    R.theme = Object.assign({}, R.boss === 'wyrm' ? THEMES.lake : THEMES.boss, { name: BOSS_INFO[R.boss].lair });
+    if (R.boss === 'wyrm') { R.bgKey = 'lake'; R.tileKey = 'lake'; }   // the final lair: the moonlit lake itself
+  }
   G.room = R; G.enemies = []; G.proj = []; G.texts = []; G.corpses = []; G.wild = [];
   populate(R);
   if (n > 1) healTeam(0.25);   // a breather between floors
@@ -1627,7 +1762,9 @@ function nextRoom() {
   snapCamera();
   const where = `Floor ${n}${n <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''} — ${R.theme.name}`;
   if (n === 11) showMsg('ACT II — The Burning Depths. Wilder animals and deadly hazards await...', 4);
-  else if (type === 'boss') showMsg(n % 20 === 10 ? `${where}. The Shadow Wolf waits in the dark... (achievement: win in 3 turns)` : `${where}. The Elder Dragon awakens! (achievement: no pet faints)`, 4);
+  else if (n === 21) showMsg('ACT III — The Fey Wilds. Bewitched beasts, thorns and strange magic await...', 4);
+  else if (type === 'boss') showMsg({ shadow: `${where}. The Shadow Wolf waits in the dark... (achievement: win in 3 turns)`, elder: `${where}. The Elder Dragon awakens! (achievement: no pet faints)`,
+    wyrm: `${where}. The Lake Wyrm rises from the moonlit water... The final battle!` }[R.boss], 4);
   else if (type === 'camp') showMsg(`${where}. Rest by the fire to heal your pets.`, 3);
   else showMsg(where, 2.2);
 }
@@ -1646,28 +1783,36 @@ function buildArena(R, C, RO) {
 // big levels: 3 screens wide x 3 screens tall = three storeys, each built from six hand-designed segments.
 // Template legend (14 wide x 14 tall, bottom row = the floor):
 //   # stone   = one-way ledge   ^ spikes   ~ lava (in the floor)   x crumbling block   v flame vent   C treasure chest
+//   t thorns (Fey Wilds)   m bounce mushroom   | climbing vine
 // Ledges always sit at 3, 6, 9 or 12 tiles above the floor, so every jump is a clean 3-tile hop.
 const SEGMENTS = {
   // ----- traversal pieces -----
-  steps:     { acts: [1, 2], rows: ['', '', '', '', '', '', '', '', '', '', '.....####.....', '...########...', '.############.', '##############'] },
-  walkway:   { acts: [1, 2], rows: ['', '', '', '', '', '', '', '....======....', '', '', '..==========..', '', '', '##############'] },
-  tower:     { acts: [1, 2], rows: ['', '', '', '', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
-  pillars:   { acts: [1, 2], rows: ['', '', '', '', '', '', '', '', '', '', '', '..##..##..##..', '..##..##..##..', '##############'] },
-  floaters:  { acts: [1, 2], rows: ['', '', '', '', '', '', '', '.....####.....', '', '', '.####....####.', '', '', '##############'] },
-  pyramid:   { acts: [1, 2], rows: ['', '', '', '', '.....====.....', '', '', '...========...', '', '', '.============.', '', '', '##############'] },
+  steps:     { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '', '', '', '.....####.....', '...########...', '.############.', '##############'] },
+  walkway:   { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '....======....', '', '', '..==========..', '', '', '##############'] },
+  tower:     { acts: [1, 2, 3], rows: ['', '', '', '', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
+  pillars:   { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '', '', '', '', '..##..##..##..', '..##..##..##..', '##############'] },
+  floaters:  { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '.....####.....', '', '', '.####....####.', '', '', '##############'] },
+  pyramid:   { acts: [1, 2, 3], rows: ['', '', '', '', '.....====.....', '', '', '...========...', '', '', '.============.', '', '', '##############'] },
   spikepit:  { acts: [1],    rows: ['', '', '', '', '', '', '', '', '', '', '...==....==...', '', '..^^^^^^^^^^..', '##############'] },
   lavapit:   { acts: [2],    rows: ['', '', '', '', '', '', '', '', '', '', '...==....==...', '', '', '##~~~~~~~~~~##'] },
   stones:    { acts: [2],    rows: ['', '', '', '', '', '', '', '', '', '', '', '', '....x..x..x...', '#~~~~~~~~~~~~#'] },
   ventrun:   { acts: [2],    rows: ['', '', '', '', '', '', '', '', '', '', '', '', '..v...v...v...', '##############'] },
+  brambles:  { acts: [3],    rows: ['', '', '', '', '', '', '', '', '', '', '...==....==...', '', '..tttttttttt..', '##############'] },
+  hedgerow:  { acts: [3],    rows: ['', '', '', '', '', '', '', '', '', '', '', '.....t.....t..', '..t..t..t..t..', '##############'] },
+  shroomhop: { acts: [3],    rows: ['', '', '', '', '...======.....', '', '', '..........====', '', '', '', '', '..m.......m...', '##############'] },
+  vineclimb: { acts: [3],    rows: ['', '', '', '', '....======....', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '##############'] },
   // ----- challenge pieces: a fun obstacle with a treasure chest at the end -----
-  parkour:   { acts: [1, 2], chest: true, rows: ['......C.......', '.....====.....', '', '', '..........====', '', '', '.....====.....', '', '', '.====.........', '', '', '##############'] },
+  parkour:   { acts: [1, 2, 3], chest: true, rows: ['......C.......', '.....====.....', '', '', '..........====', '', '', '.....====.....', '', '', '.====.........', '', '', '##############'] },
   gauntlet:  { acts: [1],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '...==...==....', '', '.^^^^^^^^^^^C.', '##############'] },
   stairs:    { acts: [1],    chest: true, rows: ['............C.', '...........===', '', '', '.........===..', '', '', '.....===......', '', '', '.===..........', '', '', '##############'] },
   crumbles:  { acts: [2],    chest: true, rows: ['............C.', '...........xxx', '', '', '.........xxx..', '', '', '.....xxx......', '', '', '.xxx..........', '', '', '##############'] },
   island:    { acts: [1],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '......C.......', '..==..##..==..', '......##......', '.^^^^^##^^^^^.', '##############'] },
   lavaisle:  { acts: [2],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '......C.......', '......##......', '......##......', '...x..##..x...', '#~~~~~##~~~~~#'] },
   flames:    { acts: [2],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '', '', '..v..v..v..vC.', '##############'] },
-  towertop:  { acts: [1, 2], chest: true, rows: ['', '', '', '......C.......', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
+  shroomtop: { acts: [3],    chest: true, rows: ['', '', '.........C....', '.......=====..', '', '', '', '', '', '', '', '', '...m..........', '##############'] },
+  vinetower: { acts: [3],    chest: true, rows: ['.......C......', '....======....', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '##############'] },
+  thornrun:  { acts: [3],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '...==...==....', '', '.tttttttttttC.', '##############'] },
+  towertop:  { acts: [1, 2, 3], chest: true, rows: ['', '', '', '......C.......', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
 };
 const SEG_W = 16, NSEG = 18;                  // 18 segments in one long storey (3 old storeys' worth)
 const SEG_STARTS = Array.from({ length: NSEG }, (_, k) => 1 + k * SEG_W);
@@ -1677,7 +1822,7 @@ function buildLevel(R) {
 }
 function tryBuild(R, features) {
   const C = NSEG * SEG_W, RO = 18, act = R.act, f = 16;   // floor-top row
-  const g = new Uint8Array(C * RO), bases = new Map(), vents = [], chestSpots = [], dashSpots = [];
+  const g = new Uint8Array(C * RO), bases = new Map(), vents = [], shrooms = [], chestSpots = [], dashSpots = [];
   const ok = (x, y) => x >= 1 && y >= 1 && x <= C - 2 && y <= RO - 1;
   const set = (x, y, v) => { if (ok(x, y)) g[y * C + x] = v; };
   const fill = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, v); };
@@ -1729,11 +1874,14 @@ function tryBuild(R, features) {
         else if (ch === '~') set(x, y, LAVA);
         else if (ch === 'x') set(x, y, CRUMBLE);
         else if (ch === 'v') vents.push({ tx: x, ty: y, t: rand(0, 3.4), state: 'off' });
+        else if (ch === 't') set(x, y, THORN);
+        else if (ch === '|') set(x, y, VINE);
+        else if (ch === 'm') shrooms.push({ tx: x, ty: y, sq: 0 });
         else if (ch === 'C') chestSpots.push([x, y]);
       }
     });
   }
-  Object.assign(R, { cols: C, rows: RO, grid: g, wpx: C * TILE, hpx: RO * TILE });
+  Object.assign(R, { cols: C, rows: RO, grid: g, wpx: C * TILE, hpx: RO * TILE, shrooms });
   const nav = buildNav(R);
   const reach = navReach(nav, (f - 1) * C + 2);
   if (!reach.has((f - 1) * C + (C - 3))) return false;  // exit must be reachable (dashing allowed), otherwise regenerate
@@ -1749,17 +1897,17 @@ function buildNav(R) {
   const C = R.cols, RO = R.rows, g = R.grid;
   const get = (x, y) => (x < 0 || y < 0 || x >= C || y >= RO) ? SOLID : g[y * C + x];
   const sol = t => t === SOLID || t === CRUMBLE || t === PHASE, sup = t => t === SOLID || t === ONEWAY || t === CRUMBLE;
-  const stand = (x, y) => x > 0 && x < C - 1 && y > 0 && y < RO - 1 && get(x, y) === EMPTY && !sol(get(x, y - 1)) && get(x, y - 1) !== SPIKES && get(x, y - 1) !== LAVA && sup(get(x, y + 1));
+  const stand = (x, y) => x > 0 && x < C - 1 && y > 0 && y < RO - 1 && isOpenT(get(x, y)) && !sol(get(x, y - 1)) && get(x, y - 1) !== SPIKES && get(x, y - 1) !== LAVA && get(x, y - 1) !== THORN && sup(get(x, y + 1));
   const clearCol = (x, y0, y1) => { for (let y = y0; y <= y1; y++) if (sol(get(x, y))) return false; return true; };
   const edges = new Map();
   const add = (from, to, type, dx, dy) => { let a = edges.get(from); if (!a) edges.set(from, a = []); a.push({ to, type, dx, dy }); };
-  const fallTo = (x, y) => { for (let yy = y; yy < RO - 1; yy++) { const t = get(x, yy); if (sol(t) || t === LAVA || t === SPIKES) return -1; if (stand(x, yy)) return yy; } return -1; };
+  const fallTo = (x, y) => { for (let yy = y; yy < RO - 1; yy++) { const t = get(x, yy); if (sol(t) || t === LAVA || t === SPIKES || t === THORN) return -1; if (stand(x, yy)) return yy; } return -1; };
   for (let y = 1; y < RO - 1; y++) for (let x = 1; x < C - 1; x++) {
     if (!stand(x, y)) continue;
     const k = y * C + x;
     for (const d of [-1, 1]) {
       if (stand(x + d, y)) add(k, y * C + x + d, 'walk', d, 0);
-      else if (get(x + d, y) === EMPTY && !sol(get(x + d, y - 1))) { const yy = fallTo(x + d, y); if (yy > y) add(k, yy * C + x + d, 'fall', d, yy - y); }
+      else if (isOpenT(get(x + d, y)) && !sol(get(x + d, y - 1))) { const yy = fallTo(x + d, y); if (yy > y) add(k, yy * C + x + d, 'fall', d, yy - y); }
     }
     if (get(x, y + 1) === ONEWAY) { const yy = fallTo(x, y + 2); if (yy > 0) add(k, yy * C + x, 'drop', 0, yy - y); }
     for (let dx = -5; dx <= 5; dx++) for (let dy = -3; dy <= 4; dy++) {
@@ -1793,8 +1941,25 @@ function buildNav(R) {
       }
     }
   }
+  // bounce mushrooms (Fey Wilds): land on one and it flings you about 10 tiles high
+  for (const m of R.shrooms || []) {
+    const x = m.tx, y = m.ty; if (!stand(x, y)) continue;
+    for (let dx = -5; dx <= 5; dx++) for (let dy = -10; dy <= -1; dy++) {
+      const tx = x + dx, ty = y + dy; if (!stand(tx, ty)) continue;
+      let ok = clearCol(x, ty - 2, y - 1); const step = Math.sign(dx);
+      for (let cx = x + step; ok && dx && cx !== tx + step; cx += step) ok = clearCol(cx, ty - 2, ty);
+      if (ok) add(y * C + x, ty * C + tx, 'bounce', dx, dy);
+    }
+  }
+  // vines: climb between the foot of a vine and the ledge it hangs from
+  for (let x = 1; x < C - 1; x++) for (let y = 1; y < RO - 1; y++) if (get(x, y) === VINE && get(x, y - 1) !== VINE) {
+    let yb = y; while (get(x, yb + 1) === VINE) yb++;
+    const spots = [];
+    for (let yy = y - 2; yy <= yb; yy++) for (const xx of [x - 1, x, x + 1]) if (stand(xx, yy)) spots.push(yy * C + xx);
+    for (const a of spots) for (const b of spots) if (a !== b) add(a, b, 'climb', 0, 0);
+  }
   const rev = new Map();
-  for (const [from, list] of edges) for (const e of list) { if (e.type === 'dash') continue; let a = rev.get(e.to); if (!a) rev.set(e.to, a = []); a.push(from); }   // enemies can't dash
+  for (const [from, list] of edges) for (const e of list) { if (e.type === 'dash' || e.type === 'bounce' || e.type === 'climb') continue; let a = rev.get(e.to); if (!a) rev.set(e.to, a = []); a.push(from); }   // enemies can't dash
   return { edges, rev, stand };
 }
 function navReach(nav, start) {
@@ -1985,10 +2150,11 @@ function populate(R) {
   const spaced = (x, y, d) => placed.every(([px, py]) => Math.abs(px - x) > d || Math.abs(py - y) > 2);
   for (const [x, y] of shuffled) {
     if (placed.length > (R.type === 'camp' ? 3 : 18)) break;
-    if (deco === 'mush' && spaced(x, y, 5)) { placed.push([x, y]); R.decor.push({ kind: 'mush', x: (x + 0.5) * TILE, y: (y + 1) * TILE, s: rand(0.7, 1.3), c: pick(R.act === 2 ? ['#b388ff', '#a0e86a', '#80cbc4'] : ['#7cf0c8', '#a0e86a', '#6ad0f0']) }); }
+    if (deco === 'mush' && spaced(x, y, 5)) { placed.push([x, y]); R.decor.push({ kind: 'mush', x: (x + 0.5) * TILE, y: (y + 1) * TILE, s: rand(0.7, 1.3), c: pick(R.act === 3 ? ['#f48fb1', '#b388ff', '#80deea'] : R.act === 2 ? ['#b388ff', '#a0e86a', '#80cbc4'] : ['#7cf0c8', '#a0e86a', '#6ad0f0']) }); }
+    else if (deco === 'fairy' && spaced(x, y, 3)) { placed.push([x, y]); R.decor.push({ kind: 'fairy', x: (x + 0.5) * TILE, y: (y + 1) * TILE - rand(30, 90), c: pick(['#fff59d', '#b2ff59', '#80deea', '#f8bbd0']), ph: rand(0, 6.28) }); }
     else if (deco === 'candle' && spaced(x, y, 5)) { placed.push([x, y]); R.decor.push({ kind: 'candle', x: (x + 0.5) * TILE, y: (y + 1) * TILE }); }
   }
-  for (const [x, y] of shuffled.slice(0, R.type === 'camp' ? 0 : 10)) {
+  for (const [x, y] of shuffled.slice(0, R.type === 'camp' || R.act === 3 ? 0 : 10)) {   // no bones in the Fey Wilds
     const kind = R.type === 'crypt' || R.type === 'sanctum' ? 'tombstone' : 'bones';
     if (Math.abs(x - etx) > 4 && Math.random() < 0.6) R.baked.push({ kind, x: (x + 0.5) * TILE, y: (y + 1) * TILE + 2, f: flip() });
   }
@@ -2004,6 +2170,21 @@ function drawLedge(img, p, g = ctx) {
     const wpx = Math.min(mid * PX, p.x + p.w - cap * PX - x);
     g.drawImage(img, cap, 0, wpx / PX, img.height, x, y, wpx, h);
   }
+}
+// Fey Wilds terrain pieces (ChatGPT art when it exists, simple drawings until then)
+function drawThorn(g, X, Y, tx, ty) {
+  const img = art('props/thorns');
+  if (img) { drawSprite(img, X + TILE / 2, Y + TILE, (tx + ty) % 2 ? 1 : -1, { g }); return; }
+  g.strokeStyle = '#2e3b1a'; g.lineWidth = 3;
+  for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(X + 3 + i * 9, Y + TILE); g.quadraticCurveTo(X + 12 + i * 4, Y + 8 + i * 3, X + 26 - i * 9, Y + 4 + i * 5); g.stroke(); }
+  g.fillStyle = '#d7ccc8'; for (let i = 0; i < 7; i++) g.fillRect(X + 3 + Math.floor(hash2(tx * 5 + i, ty) * 24), Y + 4 + Math.floor(hash2(tx, ty * 3 + i) * 22), 2, 2);
+  g.fillStyle = '#558b2f'; for (let i = 0; i < 3; i++) g.fillRect(X + 4 + i * 9, Y + 10 + (i % 2) * 8, 4, 3);
+}
+function drawVine(g, X, Y, top, tx, ty) {
+  const img = art('props/vine');
+  if (img) { g.drawImage(img, X, Y, TILE, TILE); return; }
+  g.strokeStyle = '#33691e'; g.lineWidth = 3; g.beginPath(); g.moveTo(X + 15, Y + (top ? 0 : 0)); g.bezierCurveTo(X + 8, Y + 10, X + 22, Y + 20, X + 15, Y + TILE); g.stroke();
+  g.fillStyle = '#7cb342'; g.fillRect(X + 7, Y + 6 + (ty % 2) * 10, 6, 4); g.fillRect(X + 17, Y + 14 - (ty % 2) * 6, 6, 4);
 }
 function bakeTerrain(R) {
   const c = document.createElement('canvas'); c.width = R.wpx; c.height = R.hpx;
@@ -2023,6 +2204,8 @@ function bakeTerrain(R) {
       continue;
     }
     if (t === SPIKES && art('props/spikes')) { drawSprite(art('props/spikes'), X + TILE / 2, Y + TILE, 1, { g }); continue; }
+    if (t === THORN) { drawThorn(g, X, Y, tx, ty); continue; }
+    if (t === VINE) { drawVine(g, X, Y, get(tx, ty - 1) !== VINE, tx, ty); continue; }
     if (t === SOLID) {
       g.fillStyle = base; g.fillRect(X, Y, TILE, TILE);
       // stone blocks (2 courses per tile, offset every other row)
@@ -2071,12 +2254,13 @@ function bakeMinimap(R) {
   const sc = R.miniS = R.cols > 120 ? 1.25 : 2;
   const c = document.createElement('canvas'); c.width = Math.ceil(R.cols * sc); c.height = Math.ceil(R.rows * sc);
   const g = c.getContext('2d');
-  const col = { [SOLID]: 'rgba(150,152,170,0.9)', [ONEWAY]: 'rgba(200,190,150,0.9)', [SPIKES]: '#e53935', [LAVA]: '#ff6d00', [CRUMBLE]: 'rgba(190,150,100,0.9)', [PHASE]: '#b388ff' };
+  const col = { [SOLID]: 'rgba(150,152,170,0.9)', [ONEWAY]: 'rgba(200,190,150,0.9)', [SPIKES]: '#e53935', [LAVA]: '#ff6d00', [CRUMBLE]: 'rgba(190,150,100,0.9)', [PHASE]: '#b388ff', [THORN]: '#7cb342', [VINE]: '#33691e' };
   for (let ty = 0; ty < R.rows; ty++) for (let tx = 0; tx < R.cols; tx++) {
     const t = R.grid[ty * R.cols + tx]; if (!t) continue;
     g.fillStyle = col[t]; g.fillRect(tx * sc, ty * sc, sc, t === ONEWAY ? sc / 2 : sc);
   }
   for (const v of R.vents) { g.fillStyle = '#ffab40'; g.fillRect(v.tx * sc, v.ty * sc, sc, sc); }
+  for (const m of R.shrooms || []) { g.fillStyle = '#f48fb1'; g.fillRect(m.tx * sc, m.ty * sc, sc, sc); }
   return c;
 }
 
@@ -2149,18 +2333,19 @@ function updateCamera(dt) {
 const inView = (x, y, m = 80) => x > G.cam.x - m && x < G.cam.x + W + m && y > G.cam.y - m && y < G.cam.y + H + m;
 
 // ---------- hazards: spikes, lava, flame jets, crumbling blocks ----------
-function hazardDamage(kind) { return { spikes: 0.05, lava: 0.1, flame: 0.07 }[kind] + 0.01 * G.room.act; }   // share of every pet's HP
+function hazardDamage(kind) { return { spikes: 0.05, lava: 0.1, flame: 0.07, thorns: 0.06 }[kind] + 0.01 * G.room.act; }   // share of every pet's HP
 function hitHazard(kind) {
   const P = G.player;
   if (hurtTeam(hazardDamage(kind))) {
     P.vy = -560; P.onGround = false;
-    SFX.play(kind === 'spikes' ? 'spikes' : 'lava');
-    burst(P.x + P.w / 2, P.y + P.h, kind === 'spikes' ? '#cfd8dc' : '#ff7043', 14, 220);
+    SFX.play(kind === 'spikes' ? 'spikes' : kind === 'thorns' ? 'thorns' : 'lava');
+    burst(P.x + P.w / 2, P.y + P.h, kind === 'spikes' ? '#cfd8dc' : kind === 'thorns' ? '#7cb342' : '#ff7043', 14, 220);
   }
 }
 function ventRect(v) { return { x: v.tx * TILE + 5, y: (v.ty - 2) * TILE, w: TILE - 10, h: 3 * TILE }; }
 function updateHazards(dt) {
   const R = G.room, P = G.player;
+  updateShrooms(dt);
   for (const v of R.vents) {
     v.t += dt; const ph = v.t % 3.4, prev = v.state;
     v.state = ph < 2.2 ? 'off' : ph < 2.75 ? 'warn' : 'on';
@@ -2180,6 +2365,28 @@ function updateHazards(dt) {
     }
   }
 }
+// bounce mushrooms squash back into shape after a bounce
+function updateShrooms(dt) { for (const m of G.room.shrooms || []) if (m.sq > 0) m.sq = Math.max(0, m.sq - dt); }
+const BOUNCE_V = 960;   // ~10 tiles of height
+function shroomBounce(P, prevFeet) {
+  const feet = P.y + P.h;
+  for (const m of G.room.shrooms || []) {
+    const cap = (m.ty + 1) * TILE - 14, x0 = m.tx * TILE + 2, x1 = (m.tx + 1) * TILE - 2;
+    if (prevFeet <= cap + 2 && feet >= cap && P.x + P.w > x0 && P.x < x1) {
+      P.y = cap - P.h; P.vy = -BOUNCE_V; P.onGround = false; P.bounceT = 0.7; P.airDashed = false; P.airJumps = stats.jumps; P.climbing = false;
+      m.sq = 0.35; SFX.play('boing'); burst((m.tx + 0.5) * TILE, cap, '#f48fb1', 10, 160, 3);
+      if (!(G.hints && G.hints.shroom)) { G.hints = G.hints || {}; G.hints.shroom = true; showMsg('A bounce mushroom! Jump onto it to fly high.', 2.6); }
+      return true;
+    }
+  }
+  return false;
+}
+// is the hero touching a vine? (checked down the middle of the body)
+function vineUnder(o) {
+  const tx = Math.floor((o.x + o.w / 2) / TILE);
+  for (let ty = Math.floor((o.y + 4) / TILE); ty <= Math.floor((o.y + o.h - 2) / TILE); ty++) if (tileAt(tx, ty) === VINE) return true;
+  return false;
+}
 function startCrumble(tx, ty) {
   const R = G.room, k = ty * R.cols + tx;
   if (tileAt(tx, ty) !== CRUMBLE || R.crumbles.has(k)) return;
@@ -2194,6 +2401,7 @@ function checkPlayerHazards() {
     const t = tileAt(tx, ty);
     if (t === LAVA) return hitHazard('lava');
     if (t === SPIKES && P.y + P.h > ty * TILE + 12) return hitHazard('spikes');
+    if (t === THORN && P.y + P.h > ty * TILE + 8) return hitHazard('thorns');
   }
   for (const v of R.vents) if (v.state === 'on' && overlap(P, ventRect(v))) return hitHazard('flame');
 }
@@ -2306,19 +2514,30 @@ function updatePlayer(dt) {
   }
   for (const t of P.trail) t.t -= dt;
   P.trail = P.trail.filter(t => t.t > 0);
-  if (hit('w', 'ArrowUp', 'k') && !dashing) {
+  // vines (Fey Wilds): hold up on one to climb, down to slide, step sideways off it to let go
+  const onVine = !dashing && vineUnder(P);
+  if (P.climbing && !onVine) { P.climbing = false; if (down('w', 'ArrowUp', 'k')) P.vy = -430; }   // pull yourself up onto the ledge above
+  else if (!P.climbing && onVine && down('w', 'ArrowUp', 'k')) {
+    P.climbing = true; P.vy = 0;
+    if (!(G.hints && G.hints.vine)) { G.hints = G.hints || {}; G.hints.vine = true; showMsg('A vine! Hold W to climb it, S to slide down.', 2.6); }
+  }
+  P.bounceT = (P.bounceT || 0) - dt;
+  if (hit('w', 'ArrowUp', 'k') && !dashing && !P.climbing) {
     if (P.onGround) { P.vy = -s.jumpV; P.onGround = false; SFX.play('jump'); }
     else if (P.airJumps > 0) { P.airJumps--; P.vy = -s.jumpV * s.airPow; SFX.play('flap'); burst(P.x + P.w / 2, P.y + P.h, '#ffffff', 10, 140, 3); } // Winged Boots
   }
-  if (!down('w', 'ArrowUp', 'k') && P.vy < -200) P.vy += GRAV * dt * 1.2; // short hop when released early
+  if (!down('w', 'ArrowUp', 'k') && P.vy < -200 && !(P.bounceT > 0)) P.vy += GRAV * dt * 1.2; // short hop when released early
   if (hit('s', 'ArrowDown') && P.onGround && P.support === ONEWAY) P.dropT = 0.25;
   P.dropT -= dt; P.inv -= dt; P.atk -= dt;
   P.abilityCd = Math.max(0, (P.abilityCd || 0) - dt); P.blockT = (P.blockT || 0) - dt; P.blockHitT = (P.blockHitT || 0) - dt; P.castAfter = (P.castAfter || 0) - dt;
   P.landT = (P.landT || 0) - dt; P.hurtT = (P.hurtT || 0) - dt; P.atkAnim = (P.atkAnim || 0) - dt;
   P.kb *= Math.pow(0.003, dt);
-  const keep = P.vx, wasGround = P.onGround, fallV = P.vy;
+  if (P.climbing) { P.vx = mv * 110; P.vy = down('w', 'ArrowUp', 'k') ? -170 : down('s', 'ArrowDown') ? 230 : 0; P.airDashed = false; }
+  const keep = P.vx, wasGround = P.onGround, fallV = P.vy, prevFeet = P.y + P.h;
   P.phasing = dashing;
-  P.vx += P.kb; moveBody(P, dt, P.dropT > 0, dashing); P.vx = keep;
+  P.vx += P.kb; moveBody(P, dt, P.dropT > 0 || (P.climbing && down('s', 'ArrowDown')), dashing || P.climbing); P.vx = keep;
+  if (P.climbing && P.onGround && !down('w', 'ArrowUp', 'k')) P.climbing = false;   // slid down to the ground
+  if (!P.climbing && !dashing) shroomBounce(P, prevFeet);
   // remember the last solid footing, and fall back to it from a chasm
   if (P.onGround && P.support !== ONEWAY && isSolidT(tileAt(Math.floor((P.x + 2) / TILE), Math.floor((P.y + P.h + 2) / TILE))) && isSolidT(tileAt(Math.floor((P.x + P.w - 2) / TILE), Math.floor((P.y + P.h + 2) / TILE)))) { P.safeX = P.x; P.safeY = P.y; }
   if (P.y > R.hpx + 40) fellInChasm();
@@ -2427,12 +2646,23 @@ const PETS = {
   qilin:      { role: 'Support',  ability: 'Blessing', name: 'Qilin',        anim: 'pet_qilin',      fallback: 'unicorn',       fly: false, w: 32, h: 28, hp: 40, dmg: 3, cd: 0.9, speed: 290, reach: 34, kb: 200, color: '#ffb74d' },
   chimera:    { role: 'Hexer',    ability: 'Curse',    name: 'Chimera',      anim: 'pet_chimera',    fallback: 'pet_catcalico', fly: false, w: 32, h: 26, hp: 36, dmg: 3, cd: 0.9, speed: 290, reach: 34, kb: 200, color: '#a1887f' },
   lion:       { role: 'Hunter',   ability: 'Roar',     name: 'Sunmane Lion', anim: 'pet_lion',       fallback: 'pet_catgray',   fly: false, w: 32, h: 26, hp: 40, dmg: 3, cd: 0.9, speed: 300, reach: 34, kb: 220, color: '#ffca28' },
+  // fey creatures of the Wilds (floors 21-30)
+  mossbear:    { role: 'Guardian',  ability: 'Moss',      name: 'Moss Bear',     anim: 'pet_mossbear',     fallback: 'pet_boar',       fly: false, w: 36, h: 28, hp: 50, dmg: 3, cd: 1.1, speed: 210, reach: 34, kb: 300, color: '#7cb342' },
+  fairydragon: { role: 'Hexer',     ability: 'Dream',     name: 'Fairy Dragon',  anim: 'pet_fairydragon',  fallback: 'pet_dragon',     fly: true,  w: 24, h: 20, hp: 20, dmg: 2, cd: 0.9, speed: 270, ranged: 260, kb: 80, color: '#f48fb1' },
+  wolpertinger:{ role: 'Hunter',    ability: 'Flurry',    name: 'Wolpertinger',  anim: 'pet_wolpertinger', fallback: 'pet_fox',        fly: false, w: 22, h: 18, hp: 18, dmg: 2, cd: 0.5, speed: 340, reach: 26, kb: 90,  color: '#bcaaa4' },
+  moonstag:    { role: 'Healer',    ability: 'Moonlight', name: 'Moon Stag',     anim: 'pet_moonstag',     fallback: 'unicorn',        fly: false, w: 32, h: 30, hp: 40, dmg: 3, cd: 0.9, speed: 300, reach: 34, kb: 200, color: '#b3e5fc' },
+  viper:       { role: 'Poisoner',  ability: 'Venom',     name: 'Bramble Viper', anim: 'pet_viper',        fallback: 'pet_salamander', fly: false, w: 28, h: 12, hp: 22, dmg: 1, cd: 0.9, speed: 240, reach: 60, kb: 60,  color: '#558b2f' },
+  cusith:      { role: 'Hunter',    ability: 'Bay',       name: 'Cu Sith',       anim: 'pet_cusith',       fallback: 'pet_dog',        fly: false, w: 32, h: 26, hp: 30, dmg: 3, cd: 0.8, speed: 310, reach: 36, kb: 200, color: '#2e7d32' },
+  puca:        { role: 'Trickster', ability: 'Trick',     name: 'Puca',          anim: 'pet_puca',         fallback: 'unicorn',        fly: false, w: 30, h: 26, hp: 26, dmg: 2, cd: 0.8, speed: 300, reach: 30, kb: 120, color: '#37474f' },
+  spiritwolf:  { role: 'Hunter',    ability: 'Spirit',    name: 'Spirit Wolf',   anim: 'pet_spiritwolf',   fallback: 'shadowwolf',     fly: false, w: 32, h: 26, hp: 30, dmg: 3, cd: 0.8, speed: 320, reach: 36, kb: 200, color: '#b3e5fc' },
+  lakewyrm:    { role: 'Mystic',    ability: 'Tide',      name: 'Lake Wyrm',     anim: 'pet_lakewyrm',     fallback: 'pet_dragon',     fly: true,  w: 34, h: 26, hp: 46, dmg: 4, cd: 1.2, speed: 240, ranged: 300, kb: 160, color: '#4fc3f7' },
   moth:       { role: 'Trickster', ability: 'Blind',   name: 'Ember Moth',   anim: 'pet_moth',       fallback: 'pet_owl',       fly: true,  w: 22, h: 18, hp: 18, dmg: 2, cd: 0.8, speed: 280, reach: 24, kb: 60,  color: '#ffab40' },
 };
 // ---- battle data: stats, abilities and statuses of every species (see BATTLES below) ----
 const FAMILY = { dog: 'canine', fox: 'canine', shadowwolf: 'canine', catgray: 'feline', catcalico: 'feline', cockatiel: 'bird', owl: 'bird',
                  dragon: 'drake', elder: 'drake', toad: 'amphibian', ferret: 'critter', boar: 'critter', shade: 'canine', unicorn: 'equine',
-                 phoenix: 'bird', hellhound: 'canine', salamander: 'amphibian', tortoise: 'critter', qilin: 'equine', chimera: 'feline', lion: 'feline', moth: 'insect' };
+                 phoenix: 'bird', hellhound: 'canine', salamander: 'amphibian', tortoise: 'critter', qilin: 'equine', chimera: 'feline', lion: 'feline', moth: 'insect',
+                 mossbear: 'critter', fairydragon: 'drake', wolpertinger: 'critter', moonstag: 'equine', viper: 'amphibian', cusith: 'canine', puca: 'equine', spiritwolf: 'canine', lakewyrm: 'drake' };
 // battle stats at level 1 · base abilities · the ultimate each talent tree unlocks · what its offspring is
 const BS = {
   dog:        { hp: 46, atk: 9,  def: 4, crit: 0,    abil: ['bite', 'guard', 'howl'],          ult: ['bulwark', 'packleader', 'feral'],        off: 'baby', baby: 'Shepherd Pup' },
@@ -2457,6 +2687,16 @@ const BS = {
   chimera:    { hp: 42, atk: 10, def: 3, crit: 0.05, abil: ['lionmaw', 'goatcurse', 'serpentfang'], ult: ['threefold', 'serpentcoil', 'hexstorm'], off: 'baby', baby: 'Chimera Cub', myth: 1 },
   lion:       { hp: 48, atk: 10, def: 4, crit: 0.05, abil: ['sunclaw', 'blazeroar', 'solarpounce'], ult: ['kingbeasts', 'solarflare', 'pridehunt'], off: 'baby', baby: 'Lion Cub', myth: 1 },
   moth:       { hp: 32, atk: 9,  def: 2, crit: 0.05, abil: ['sparkdust', 'dazzle', 'flutter'],     ult: ['sparkswarm', 'lunarglow', 'mesmerize'], off: 'egg', baby: 'Ember Mothling', myth: 1 },
+  // fey creatures of the Wilds: wild only on floors 21-30 (the Lake Wyrm is the floor-30 boss; beat it and its Wyrmling joins you)
+  mossbear:    { hp: 60, atk: 8,  def: 5, crit: 0,    abil: ['barkmaul', 'mossarmor', 'forestshelter'], ult: ['ancientgrove', 'hibernate', 'earthshaker'], off: 'baby', baby: 'Moss Cub', fey: 1 },
+  fairydragon: { hp: 36, atk: 10, def: 2, crit: 0.05, abil: ['pixiebreath', 'sleepdust', 'glamour'], ult: ['wonderdust', 'lullaby', 'prismbolt'], off: 'egg', baby: 'Fairy Dragon Hatchling', fey: 1 },
+  wolpertinger:{ hp: 36, atk: 11, def: 2, crit: 0.12, abil: ['antlerjab', 'hopstrike', 'featherdodge'], ult: ['antlerstorm', 'harefrenzy', 'moonhop'], off: 'baby', baby: 'Wolpertinger Kit', fey: 1 },
+  moonstag:    { hp: 46, atk: 10, def: 3, crit: 0.05, abil: ['moonbeam', 'silverlight', 'lunarblessing'], ult: ['fullmoon', 'antlerhalo', 'moonfall'], off: 'baby', baby: 'Moon Fawn', fey: 1 },
+  viper:       { hp: 40, atk: 9,  def: 3, crit: 0.05, abil: ['thornfang', 'entangle', 'brambleburst'], ult: ['venombloom', 'strangle', 'shedskin'], off: 'egg', baby: 'Bramble Hatchling', fey: 1 },
+  cusith:      { hp: 46, atk: 11, def: 3, crit: 0.1,  abil: ['feybite', 'baying', 'silenthunt'], ult: ['thirdbay', 'wildhunt', 'moormaul'], off: 'baby', baby: 'Cu Sith Pup', fey: 1 },
+  puca:        { hp: 42, atk: 10, def: 3, crit: 0.1,  abil: ['prankhorn', 'swaptrick', 'shapeshift'], ult: ['foolsgold', 'grandheist', 'wildride'], off: 'baby', baby: 'Puca Kid', fey: 1 },
+  spiritwolf:  { hp: 44, atk: 11, def: 3, crit: 0.1,  abil: ['spiritfang', 'phantomlunge', 'ghostveil'], ult: ['spiritpack', 'soulhowl', 'spectralguard'], off: 'baby', baby: 'Spirit Pup', fey: 1 },
+  lakewyrm:    { hp: 54, atk: 11, def: 4, crit: 0.05, abil: ['tidebite', 'whirlpool', 'lilyveil'], ult: ['moonflood', 'faetide', 'drowningcoil'], off: 'special', baby: 'Wyrmling', fey: 1 },
   shade:      { hp: 22, atk: 8,  def: 1, crit: 0.05, abil: ['shadowbite', 'fade'], ult: [] },
 };
 const STARTERS = ['dog', 'fox', 'cockatiel'];
@@ -2610,7 +2850,76 @@ const ABIL = {
   sparkswarm:  { n: 'Spark Swarm', t: 'rand', hits: 6, pow: 0.55, cd: 4, st: [['burn', 1]], ult: 1, d: '6 sparks at random foes (55% each), each Burns.' },
   lunarglow:   { n: 'Lunar Glow', t: 'allies', cd: 5, heal: 1.0, allySt: [['regen', 2], ['evade', 1]], ult: 1, d: 'Heal every ally (100%), give them Regen for 2 turns, and each dodges the next attack.' },
   mesmerize:   { n: 'Mesmerize', t: 'foes', cd: 5, st: [['stun', 1, 0.6], ['mark', 2]], ult: 1, d: 'A hypnotic glow: 60% chance to stun each foe, and Mark them all for 2 turns.' },
+  // ===== Act III: the fey creatures of the Wilds (floors 21-30) =====
+  // Moss Bear
+  barkmaul:    { n: 'Bark Maul', t: 'foe', pow: 1.1, st: [['stun', 1, 0.2]], d: 'Maul one foe with bark-hard paws (110%). 20% chance to stun it.' },
+  mossarmor:   { n: 'Moss Armor', t: 'self', cd: 3, shieldPct: 0.15, self: [['taunt', 2], ['regen', 2]], d: 'Taunt for 2 turns, Regenerate for 2, and shield itself for 15% of its max HP.' },
+  forestshelter:{ n: 'Forest Shelter', t: 'allies', cd: 4, shieldOf: 0.15, allySt: [['regen', 1]], d: 'Shield every ally for 15% of the Bear\'s max HP and give them Regen for 1 turn.' },
+  ancientgrove:{ n: 'Ancient Grove', t: 'allies', cd: 5, shieldOf: 0.25, allySt: [['guard', 2]], ult: 1, d: 'Roots rise around your team: every ally is shielded for 25% of the Bear\'s max HP and Guarded for 2 turns.' },
+  hibernate:   { n: 'Hibernate', t: 'self', cd: 5, healPct: 0.5, self: [['undying', 1], ['guard', 2], ['taunt', 2]], ult: 1, d: 'Heal 50% of its max HP, can\'t drop below 1 HP for a turn, and taunt and Guard for 2 turns.' },
+  earthshaker: { n: 'Earthshaker', t: 'foes', cd: 5, pow: 1.2, st: [['stun', 1, 0.5]], ult: 1, d: 'Slam the forest floor: every foe takes 120%, with a 50% chance to be stunned.' },
+  // Fairy Dragon
+  pixiebreath: { n: 'Pixie Breath', t: 'foe', pow: 0.9, st: [['blind', 1, 0.4]], d: 'Puff glittering breath at one foe (90%), with a 40% chance to Blind it.' },
+  sleepdust:   { n: 'Sleep Dust', t: 'foes', cd: 3, st: [['stun', 1, 0.35]], d: 'Sprinkle dream dust: each foe has a 35% chance to fall asleep (stunned) for a turn.' },
+  glamour:     { n: 'Glamour', t: 'foe', cd: 2, st: [['weak', 2], ['mark', 2]], d: 'Bewitch one foe: Weakened and Marked for 2 turns.' },
+  wonderdust:  { n: 'Wonder Dust', t: 'foes', cd: 5, pow: 0.9, chaos: 1, st: [['blind', 1, 0.5]], ult: 1, d: 'A cloud of wild magic: every foe takes 90% and gets a random curse, with a 50% chance to be Blinded.' },
+  lullaby:     { n: 'Fairy Lullaby', t: 'foes', cd: 5, st: [['stun', 1, 0.7], ['weak', 2]], allySt: [['regen', 2]], ult: 1, d: 'A sleepy song: 70% chance to stun each foe, Weakens them for 2 turns, and every ally Regenerates for 2.' },
+  prismbolt:   { n: 'Prism Bolt', t: 'foe', cd: 4, pow: 2.6, st: [['blind', 2], ['mark', 2]], ult: 1, d: 'A rainbow bolt at one foe (260%): Blinded and Marked for 2 turns.' },
+  // Wolpertinger
+  antlerjab:   { n: 'Antler Jab', t: 'foe', pow: 0.6, hits: 2, d: 'Two quick antler jabs at one foe (60% each).' },
+  hopstrike:   { n: 'Hop Strike', t: 'rand', hits: 3, pow: 0.6, cd: 2, d: 'Hops from foe to foe: 3 strikes at random foes (60% each).' },
+  featherdodge:{ n: 'Feather Dodge', t: 'self', cd: 3, self: [['evade', 1], ['str', 2]], d: 'Flutters its little wings: dodges the next attack and gains Strength for 2 turns.' },
+  antlerstorm: { n: 'Antler Storm', t: 'rand', hits: 6, pow: 0.6, cd: 4, crit: 0.15, ult: 1, d: 'A whirlwind of hops: 6 strikes at random foes (60% each, +15% crit).' },
+  harefrenzy:  { n: 'Hare Frenzy', t: 'foe', cd: 4, hits: 4, pow: 0.7, again: 1, ult: 1, d: 'Four frantic kicks at one foe (70% each). If it faints, act again.' },
+  moonhop:     { n: 'Moon Hop', t: 'foe', cd: 4, pow: 2.3, alwaysCrit: 1, ult: 1, d: 'Leaps sky-high and lands antlers-first on one foe (230%). Always a critical hit.' },
+  // Moon Stag
+  moonbeam:    { n: 'Moonbeam', t: 'foe', pow: 1.0, st: [['blind', 1, 0.3]], d: 'A beam of moonlight from its antlers strikes one foe (100%), with a 30% chance to Blind it.' },
+  silverlight: { n: 'Silver Light', t: 'ally', heal: 2.2, cleanse: 1, d: 'Heal one ally (220% of the Stag\'s attack) and cure its curses.' },
+  lunarblessing:{ n: 'Lunar Blessing', t: 'allies', cd: 3, heal: 0.9, allySt: [['regen', 2]], d: 'Heal every ally (90%) and give them Regen for 2 turns.' },
+  fullmoon:    { n: 'Full Moon', t: 'allies', cd: 6, heal: 1.4, reviveAll: 0.5, ult: 1, d: 'The full moon rises: heal every ally (140%) and bring fainted ones back with 50% HP.' },
+  antlerhalo:  { n: 'Antler Halo', t: 'allies', cd: 5, shieldAtk: 1.8, cleanse: 1, allySt: [['guard', 1]], ult: 1, d: 'Shield every ally for 180% of the Stag\'s attack, cure their curses, and Guard them for 1 turn.' },
+  moonfall:    { n: 'Moonfall', t: 'foes', cd: 5, pow: 1.4, st: [['blind', 1, 0.6]], allySt: [['regen', 2]], ult: 1, d: 'Moonlight crashes down: every foe takes 140% (60% chance to be Blinded), and every ally Regenerates for 2 turns.' },
+  // Bramble Viper
+  thornfang:   { n: 'Thorn Fang', t: 'foe', pow: 0.9, st: [['poison', 3]], d: 'Bite one foe with thorny fangs (90%) and Poison it for 3 turns.' },
+  entangle:    { n: 'Entangle', t: 'foe', cd: 2, pow: 0.5, st: [['stun', 1, 0.5], ['poison', 2]], d: 'Vines wrap one foe (50%): 50% chance to stun it, and Poison for 2 turns.' },
+  brambleburst:{ n: 'Bramble Burst', t: 'foes', cd: 3, pow: 0.35, st: [['poison', 2], ['bleed', 2]], d: 'Thorns burst from the ground under every foe (35%): Poisoned and Bleeding for 2 turns.' },
+  venombloom:  { n: 'Venom Bloom', t: 'foes', cd: 5, pow: 0.6, st: [['poison', 4]], ult: 1, d: 'Poison flowers bloom under every foe: 60% damage and Poison for 4 turns.' },
+  strangle:    { n: 'Strangling Vines', t: 'foe', cd: 4, pow: 1.8, st: [['stun', 1, 0.7], ['poison', 3]], ult: 1, d: 'Vines crush one foe (180%): 70% chance to stun it, and Poison for 3 turns.' },
+  shedskin:    { n: 'Shed Skin', t: 'self', cd: 5, healPct: 0.4, self: [['evade', 1], ['regen', 3]], ult: 1, d: 'Slips out of its old skin: heals 40% of its max HP, dodges the next attack and Regenerates for 3 turns.' },
+  // Cu Sith
+  feybite:     { n: 'Fey Bite', t: 'foe', pow: 1.1, st: [['bleed', 2, 0.5]], d: 'Bite one foe (110%). 50% chance to make it Bleed for 2 turns.' },
+  baying:      { n: 'Terrible Baying', t: 'foes', cd: 3, st: [['weak', 2], ['stun', 1, 0.25]], d: 'A bay that chills the blood: every foe is Weakened for 2 turns, with a 25% chance to freeze in fear (stunned).' },
+  silenthunt:  { n: 'Silent Hunt', t: 'foe', cd: 2, pow: 1.7, crit: 0.3, d: 'Pads up without a sound and strikes one foe (170%, +30% crit).' },
+  thirdbay:    { n: 'The Third Bay', t: 'foes', cd: 5, pow: 1.1, st: [['stun', 1, 0.6], ['weak', 2]], ult: 1, d: 'The dreaded third bay: every foe takes 110%, has a 60% chance to be stunned, and is Weakened for 2 turns.' },
+  wildhunt:    { n: 'The Wild Hunt', t: 'rand', hits: 5, pow: 0.7, cd: 4, st: [['bleed', 1]], ult: 1, d: 'Phantom hounds join the chase: 5 bites at random foes (70% each), each making it Bleed.' },
+  moormaul:    { n: 'Moorland Maul', t: 'foe', cd: 4, pow: 2.6, again: 1, ult: 1, d: 'Mauls one foe (260%). If it faints, act again.' },
+  // Puca
+  prankhorn:   { n: 'Prank Horn', t: 'foe', pow: 1.0, st: [['mark', 1]], d: 'Butts one foe with a trick horn (100%) and Marks it for 1 turn.' },
+  swaptrick:   { n: 'Swap Trick', t: 'foe', cd: 3, pow: 0.6, steal: 1, d: 'Trades luck with one foe (60%): steals all its buffs and gains Strength.' },
+  shapeshift:  { n: 'Shapeshift', t: 'self', cd: 3, self: [['evade', 1], ['lucky', 2]], d: 'Becomes a horse, a goat, a hare...: dodges the next attack and gains Luck for 2 turns.' },
+  foolsgold:   { n: "Fool's Gold", t: 'foes', cd: 5, pow: 0.8, chaos: 1, st: [['weak', 2]], ult: 1, d: 'Scatters glamoured gold: every foe takes 80%, is Weakened for 2 turns and gets a random curse.' },
+  grandheist:  { n: 'The Great Swindle', t: 'foe', cd: 4, pow: 2.0, steal: 1, ult: 1, d: 'The trick of the century: hits one foe (200%), steals every buff it has and gains Strength.' },
+  wildride:    { n: 'Wild Ride', t: 'foes', cd: 5, st: [['stun', 1, 0.5], ['blind', 2]], self: [['evade', 1]], ult: 1, d: 'Takes every foe on a wild midnight ride: 50% chance to stun each and Blinds them for 2 turns; it dodges the next attack.' },
+  // Spirit Wolf
+  spiritfang:  { n: 'Spirit Fang', t: 'foe', pow: 1.1, st: [['weak', 1, 0.4]], d: 'A ghostly bite on one foe (110%), with a 40% chance to Weaken it.' },
+  phantomlunge:{ n: 'Phantom Lunge', t: 'foe', cd: 2, pow: 1.6, crit: 0.2, d: 'Lunges straight through walls at one foe (160%, +20% crit).' },
+  ghostveil:   { n: 'Ghost Veil', t: 'self', cd: 3, self: [['evade', 1], ['regen', 2]], d: 'Fades to a wisp: dodges the next attack and Regenerates for 2 turns.' },
+  spiritpack:  { n: 'Spirit Pack', t: 'rand', hits: 4, pow: 0.8, cd: 4, ult: 1, d: '4 spirit wolves leap from the mist at random foes (80% each).' },
+  soulhowl:    { n: 'Soul Howl', t: 'foes', cd: 5, st: [['weak', 2], ['blind', 1, 0.5]], allySt: [['str', 2]], ult: 1, d: 'A howl from beyond: every foe is Weakened for 2 turns (50% chance to be Blinded), and every ally gains Strength for 2.' },
+  spectralguard:{ n: 'Spectral Guardian', t: 'allies', cd: 5, shieldOf: 0.2, allySt: [['evade', 1]], ult: 1, d: 'A spirit guards your team: every ally is shielded for 20% of the Wolf\'s max HP and dodges the next attack.' },
+  // Lake Wyrm (its Wyrmling, once you beat it)
+  tidebite:    { n: 'Tide Bite', t: 'foe', pow: 1.1, st: [['stun', 1, 0.15]], d: 'Snaps at one foe like a breaking wave (110%). 15% chance to stun it.' },
+  whirlpool:   { n: 'Whirlpool', t: 'foes', cd: 3, pow: 0.6, st: [['weak', 1]], d: 'A whirlpool drags at every foe (60%) and Weakens them for 1 turn.' },
+  lilyveil:    { n: 'Lily Veil', t: 'allies', cd: 4, heal: 0.8, allySt: [['evade', 1]], d: 'Lily pads and mist hide your team: heal every ally (80%), and each dodges the next attack.' },
+  moonflood:   { n: 'Moonlit Flood', t: 'foes', cd: 5, pow: 1.6, st: [['stun', 1, 0.4]], ult: 1, d: 'The lake rises: every foe takes 160%, with a 40% chance to be stunned.' },
+  faetide:     { n: 'Fae Tide', t: 'allies', cd: 5, heal: 1.5, cleanse: 1, allySt: [['regen', 2]], ult: 1, d: 'Enchanted water washes over your team: heal every ally (150%), cure their curses and give Regen for 2 turns.' },
+  drowningcoil:{ n: 'Drowning Coil', t: 'foe', cd: 4, pow: 2.4, st: [['stun', 1, 0.7]], drain: 0.3, ult: 1, d: 'Coils around one foe and drags it under (240%): 70% chance to stun it, and heals for 30% of the damage.' },
   // ----- bosses -----
+  wyrmcoil:    { n: 'Coiling Crush', t: 'foe', pow: 1.4, st: [['stun', 1, 0.25]], d: 'Coils around one pet; may stun it.' },
+  tidalwave:   { n: 'Tidal Wave', t: 'foes', cd: 2, pow: 0.85, st: [['weak', 1]], d: 'A wave crashes over every pet and Weakens them.' },
+  glamourmist: { n: 'Glamour Mist', t: 'foes', cd: 3, st: [['blind', 2, 0.6], ['mark', 1]], d: 'A shimmering mist: may Blind every pet, and Marks them.' },
+  lilyrest:    { n: 'Lily Rest', t: 'self', cd: 4, healPct: 0.06, self: [['regen', 2]], d: 'Sinks under the lily pads to recover.' },
+  moontide:    { n: 'Moon Tide', t: 'rand', hits: 6, pow: 0.75, cd: 3, st: [['weak', 1]], d: 'ENRAGED: the moonlit lake surges at the pets.' },
   shadowclaw:  { n: 'Shadow Claw', t: 'foe', pow: 1.3, st: [['bleed', 2]], d: 'Slashes one pet and makes it bleed.' },
   dreadhowl:   { n: 'Dread Howl', t: 'foes', cd: 3, st: [['weak', 2], ['blind', 1, 0.5]], d: 'Weakens every pet; may blind them.' },
   umbralveil:  { n: 'Umbral Veil', t: 'self', cd: 4, self: [['evade', 2], ['str', 2]], d: 'Vanishes into shadow: dodges 2 attacks and gains Strength.' },
@@ -2903,6 +3212,106 @@ const PET_TREES = {
       [KEY('mo_moon', 'Moonlit', { evade: 0.12, regen: 0.03 }, () => '12% chance to dodge attacks and regenerates 3% max HP per turn')],
       [T_TDEF('mo_cocoon', 'Cocoon'), S('mo_light', 'Soft Light', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('mo_lunar', 'lunarglow')]]),
   ],
+  // ===== Act III: the fey creatures =====
+  mossbear: [
+    tree('Grove', '#90caf9', [[T_HP('mb_moss', 'Thick Moss')], [T_TDEF('mb_bark', 'Bark Wall'), T_GUARD('mb_cover', 'Big Shoulders')],
+      [KEY('mb_root', 'Deep Roots', { def: 3, tauntStart: 1 }, () => 'starts every battle taunting, and +3 defense')],
+      [UP('mb_armor', 'Thicker Moss', 'mossarmor', 'shield', 0.1, r => `Moss Armor shields +${10 * r}% more`), T_REGEN('mb_sap', 'Sap')], [ULT('mb_grove', 'ancientgrove')]]),
+    tree('Slumber', '#a5d6a7', [[T_REGEN('mb_nap', 'Napper')], [T_THP('mb_den', 'Cozy Den'), UP('mb_shelter', 'Wide Shelter', 'forestshelter', 'shield', 0.08, r => `Forest Shelter shields +${8 * r}% more`)],
+      [KEY('mb_spring', 'Spring Thaw', listFx('teamStartSt', [['regen', 2]]), () => 'every battle starts with your whole team Regenerating for 2 turns')],
+      [T_CD('mb_quick', 'Light Sleeper', 'forestshelter'), S('mb_mend', 'Mossy Mend', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('mb_hib', 'hibernate')]]),
+    tree('Wrath', '#a1887f', [[T_ATK('mb_paws', 'Heavy Paws')], [T_STUN('mb_maul', 'Stunning Maul'), T_THORNS('mb_thorns', 'Bramble Fur')],
+      [KEY('mb_angry', 'Mama Bear', { atk: 0.25, thorns: 0.2 }, () => '+25% attack, and attackers take 20% of the damage back')],
+      [T_POW('mb_bark2', 'Bark Mastery', 'barkmaul', 0.3), T_CMUL('mb_crush', 'Crush')], [ULT('mb_shake', 'earthshaker')]]),
+  ],
+  fairydragon: [
+    tree('Dreams', '#b39ddb', [[T_STUN('fd_dust', 'Sleepy Dust')], [T_TURNS('fd_long', 'Long Dreams', 'glamour'), T_CD('fd_yawn', 'Big Yawn', 'sleepdust')],
+      [KEY('fd_nap', 'Nap Time', listFx('foeStartSt', [['weak', 1]]), () => 'every battle starts with all foes Weakened for 1 turn')],
+      [UP('fd_deep', 'Deep Sleep', 'sleepdust', 'ch', 0.1, r => `Sleep Dust is ${10 * r}% more likely to put foes to sleep`), S('fd_weave', 'Dream Weave', 'dur', 1, () => 'curses it applies last +1 turn', 1)], [ULT('fd_lull', 'lullaby')]]),
+    tree('Glitter', '#f48fb1', [[S('fd_glit', 'Glitter', 'blindOn', 0.1, r => `${10 * r}% chance for its hits to Blind`)], [T_POW('fd_breath', 'Sparkling Breath', 'pixiebreath', 0.25), T_CRIT('fd_shine', 'Shine')],
+      [KEY('fd_eye', 'Fairy Eye', { markOn: 1 }, () => 'every damaging hit Marks the foe for 1 turn')],
+      [T_ATK('fd_bright', 'Bright Scales'), S('fd_hex', 'Wonder Hex', 'markAmp', 0.07, r => `its Marks make foes take +${7 * r}% more`)], [ULT('fd_prism', 'prismbolt')]]),
+    tree('Wild Magic', '#80deea', [[T_DODGE('fd_flit', 'Flit')], [T_HP('fd_scales', 'Soft Scales'), T_TCRIT('fd_luck', 'Lucky Charm')],
+      [KEY('fd_wonder', 'Wonder', { evade: 0.12, crit: 0.1 }, () => '12% chance to dodge attacks and +10% crit')],
+      [T_DOUBLE('fd_twin', 'Twinkle'), T_REGEN('fd_dew', 'Morning Dew')], [ULT('fd_wdust', 'wonderdust')]]),
+  ],
+  wolpertinger: [
+    tree('Antlers', '#bcaaa4', [[T_ATK('wp_horn', 'Sharp Antlers')], [T_POW('wp_jab', 'Jab Mastery', 'antlerjab', 0.15), T_CRIT('wp_point', 'Point')],
+      [KEY('wp_flurry', 'Flurry', { double: 0.3 }, () => '30% chance to strike a single foe twice')],
+      [T_CMUL('wp_gore', 'Gore'), T_BLEED('wp_rip', 'Rip')], [ULT('wp_storm', 'antlerstorm')]]),
+    tree('Wings', '#fff59d', [[T_DODGE('wp_wing', 'Little Wings')], [T_TURNS('wp_feather', 'Featherlight', 'featherdodge'), T_FIRST('wp_hop', 'First Hop')],
+      [KEY('wp_flight', 'Short Flight', { evade: 0.12, firstStrike: 0.3 }, () => '12% chance to dodge attacks and +30% damage on the first turn')],
+      [T_CD('wp_quick', 'Quick Hops', 'hopstrike'), UP('wp_more', 'More Hops', 'hopstrike', 'hits', 1, r => `Hop Strike hits ${r} more time${r > 1 ? 's' : ''}`, 2)], [ULT('wp_moon', 'moonhop')]]),
+    tree('Frenzy', '#ef9a9a', [[T_KILLHEAL('wp_snack', 'Snack')], [T_EXEC('wp_finish', 'Finishing Kick'), T_TATK('wp_warren', 'Warren')],
+      [KEY('wp_mad', 'March Madness', { killExtra: 1 }, () => 'once per battle, defeating a foe lets it act again right away')],
+      [T_ATK('wp_legs', 'Strong Legs'), T_THP('wp_burrow', 'Burrow')], [ULT('wp_frenzy', 'harefrenzy')]]),
+  ],
+  moonstag: [
+    tree('Moonlight', '#b3e5fc', [[UP('ms_silver', 'Silver Glow', 'silverlight', 'heal', 0.3, r => `Silver Light heals +${30 * r}%`)], [S('ms_glow', 'Moonglow', 'heal', 0.1, r => `all its healing and shields +${10 * r}%`), T_CD('ms_bless', 'Waxing Moon', 'lunarblessing')],
+      [KEY('ms_night', 'Night Watch', listFx('teamStartSt', [['regen', 2]]), () => 'every battle starts with your whole team Regenerating for 2 turns')],
+      [UP('ms_lunar', 'Lunar Grace', 'lunarblessing', 'heal', 0.25, r => `Lunar Blessing heals +${25 * r}%`), S('ms_mend', 'Moon Mend', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('ms_full', 'fullmoon')]]),
+    tree('Antlers', '#ffe082', [[T_THP('ms_herd', 'Herd')], [T_TDEF('ms_crown', 'Antler Crown'), T_GUARD('ms_shield', 'Shield the Herd')],
+      [KEY('ms_halo', 'Halo', listFx('teamStartSt', [['guard', 1]]), () => 'your whole team starts every battle Guarded for 1 turn (40% less damage)')],
+      [T_HP('ms_hide', 'Silver Hide'), T_REGEN('ms_dew', 'Moondew')], [ULT('ms_ahalo', 'antlerhalo')]]),
+    tree('Moonfall', '#9fa8da', [[T_ATK('ms_beam', 'Bright Beam')], [T_POW('ms_focus', 'Focused Beam', 'moonbeam', 0.25), S('ms_blind', 'Glare', 'blindOn', 0.1, r => `${10 * r}% chance for its hits to Blind`)],
+      [KEY('ms_lunacy', 'Lunacy', listFx('foeStartSt', [['blind', 1]]), () => 'every battle starts with all foes Blinded for 1 turn')],
+      [T_CRIT('ms_star', 'Starlit'), T_TCRIT('ms_omen', 'Moon Omen')], [ULT('ms_fall', 'moonfall')]]),
+  ],
+  viper: [
+    tree('Venom', '#9ccc65', [[S('vp_venom', 'Thorn Venom', 'dot', 0.15, r => `its poison deals +${15 * r}%`)], [T_TURNS('vp_fang', 'Deep Fangs', 'thornfang'), T_CD('vp_burst', 'Quick Burst', 'brambleburst')],
+      [KEY('vp_toxin', 'Toxic Thorns', { poisonOn: 1 }, () => 'every damaging hit Poisons the foe for 2 turns')],
+      [T_POW('vp_bloom', 'Bloom', 'brambleburst', 0.3), S('vp_rot', 'Rot', 'poisonAmp', 0.05, r => `your whole team deals +${5 * r}% damage to poisoned foes`)], [ULT('vp_bloomult', 'venombloom')]]),
+    tree('Vines', '#558b2f', [[T_STUN('vp_wrap', 'Wrap')], [T_TURNS('vp_ent', 'Tight Vines', 'entangle'), UP('vp_grip', 'Iron Grip', 'entangle', 'ch', 0.1, r => `Entangle is ${10 * r}% more likely to stun`)],
+      [KEY('vp_snare', 'Snare', listFx('foeStartSt', [['weak', 1]]), () => 'every battle starts with all foes Weakened for 1 turn')],
+      [T_ATK('vp_coil', 'Coil'), T_BLEED('vp_barb', 'Barbs')], [ULT('vp_strangle', 'strangle')]]),
+    tree('Slither', '#a1887f', [[T_DODGE('vp_slip', 'Slippery')], [T_HP('vp_scales', 'Bark Scales'), T_THORNS('vp_spines', 'Spines')],
+      [KEY('vp_molt', 'Molting', { regen: 0.04, evade: 0.08 }, () => 'regenerates 4% max HP per turn and 8% chance to dodge attacks')],
+      [T_DEF('vp_hide', 'Hide'), T_REGEN('vp_sun', 'Sunbathing')], [ULT('vp_shed', 'shedskin')]]),
+  ],
+  cusith: [
+    tree('Hound', '#66bb6a', [[T_ATK('cs_jaws', 'Fey Jaws')], [T_BLEED('cs_tear', 'Tear'), T_CRIT('cs_nose', 'Keen Nose')],
+      [KEY('cs_hunter', 'Born Hunter', { firstStrike: 0.5 }, () => '+50% damage on the first turn of a battle')],
+      [T_POW('cs_hunt', 'Silent Paws', 'silenthunt', 0.25), T_CMUL('cs_maul', 'Maul')], [ULT('cs_moor', 'moormaul')]]),
+    tree('Baying', '#cfd8dc', [[S('cs_dread', 'Dread', 'stunAmp', 0.05, r => `your whole team deals +${5 * r}% damage to stunned or Weakened foes`)], [T_TURNS('cs_long', 'Long Bay', 'baying'), T_CD('cs_bay', 'Bay Again', 'baying')],
+      [KEY('cs_fear', 'Fear', listFx('foeStartSt', [['weak', 1]]), () => 'every battle starts with all foes Weakened for 1 turn')],
+      [T_STUN('cs_freeze', 'Freeze'), T_TDEF('cs_guard', 'Mound Guard')], [ULT('cs_third', 'thirdbay')]]),
+    tree('Wild Hunt', '#7986cb', [[T_TATK('cs_pack', 'Pack')], [T_DOUBLE('cs_double', 'Two Bites'), T_KILLHEAL('cs_feast', 'Feast')],
+      [KEY('cs_hunt2', 'The Hunt Rides', { killExtra: 1 }, () => 'once per battle, defeating a foe lets it act again right away')],
+      [T_EXEC('cs_exec', 'Run Down'), T_TCRIT('cs_horn', 'Hunting Horn')], [ULT('cs_wild', 'wildhunt')]]),
+  ],
+  puca: [
+    tree('Trickery', '#ffd54f', [[T_CRIT('pc_luck', "Puca's Luck")], [T_CD('pc_swap', 'Sleight of Hoof', 'swaptrick'), T_DODGE('pc_slip', 'Slip Away')],
+      [KEY('pc_thief', 'Born Thief', { lifesteal: 0.12, crit: 0.08 }, () => 'heals for 12% of the damage it deals, and +8% crit')],
+      [T_POW('pc_trick', 'Big Trick', 'swaptrick', 0.3), T_TCRIT('pc_charm', 'Lucky Charm')], [ULT('pc_heist', 'grandheist')]]),
+    tree('Glamour', '#ce93d8', [[S('pc_mark', 'Trick Mark', 'markAmp', 0.07, r => `its Marks make foes take +${7 * r}% more`)], [T_TURNS('pc_prank', 'Long Prank', 'prankhorn'), S('pc_weave', 'Glamour Weave', 'dur', 1, () => 'curses it applies last +1 turn', 1)],
+      [KEY('pc_fool', 'Fooled You', { markOn: 1 }, () => 'every damaging hit Marks the foe for 1 turn')],
+      [T_ATK('pc_horns', 'Twisted Horns'), S('pc_jinx', 'Jinx', 'weakOn', 1, () => 'every damaging hit Weakens the foe for 1 turn', 1)], [ULT('pc_gold', 'foolsgold')]]),
+    tree('Wild Shapes', '#80cbc4', [[T_HP('pc_coat', 'Shaggy Coat')], [T_TURNS('pc_shape', 'Long Shape', 'shapeshift'), T_REGEN('pc_graze', 'Grazing')],
+      [KEY('pc_horse', 'Horse Shape', { evade: 0.1, def: 2 }, () => '10% chance to dodge attacks and +2 defense')],
+      [T_FIRST('pc_bolt', 'Bolt'), T_THP('pc_herd', 'Herd')], [ULT('pc_ride', 'wildride')]]),
+  ],
+  spiritwolf: [
+    tree('Spirit', '#b3e5fc', [[T_DODGE('sp_mist', 'Misty')], [T_TURNS('sp_veil', 'Long Veil', 'ghostveil'), T_REGEN('sp_ether', 'Ether')],
+      [KEY('sp_ghost', 'Ghost Form', { evade: 0.15 }, () => '15% chance to dodge attacks')],
+      [T_HP('sp_soul', 'Old Soul'), T_TDEF('sp_ward', 'Spirit Ward')], [ULT('sp_guard', 'spectralguard')]]),
+    tree('Phantom', '#9575cd', [[T_ATK('sp_fang', 'Phantom Fangs')], [T_POW('sp_lunge', 'Long Lunge', 'phantomlunge', 0.25), T_CRIT('sp_eyes', 'Glowing Eyes')],
+      [KEY('sp_through', 'Through Walls', { firstStrike: 0.5, crit: 0.05 }, () => '+50% damage on the first turn of a battle, and +5% crit')],
+      [T_CMUL('sp_rend', 'Soul Rend'), T_EXEC('sp_claim', 'Claim')], [ULT('sp_pack', 'spiritpack')]]),
+    tree('Pack Spirit', '#cfd8dc', [[T_TATK('sp_bond', 'Spirit Bond')], [T_CD('sp_quick', 'Swift Spirit', 'phantomlunge'), T_TCRIT('sp_call', 'Call of the Pack')],
+      [KEY('sp_ancestors', 'Ancestors', listFx('teamStartSt', [['str', 1]]), () => 'your whole team starts every battle with Strength for 1 turn')],
+      [T_THP('sp_den', 'Spirit Den'), T_KILLHEAL('sp_feed', 'Soul Feast')], [ULT('sp_howl', 'soulhowl')]]),
+  ],
+  lakewyrm: [
+    tree('Tide', '#4fc3f7', [[T_ATK('lw_tide', 'High Tide')], [T_POW('lw_pool', 'Deep Pool', 'whirlpool', 0.25), T_CD('lw_spin', 'Fast Current', 'whirlpool')],
+      [KEY('lw_undertow', 'Undertow', { weakOn: 1 }, () => 'every damaging hit Weakens the foe for 1 turn')],
+      [T_STUN('lw_crash', 'Crashing Wave'), T_TATK('lw_swell', 'Swell')], [ULT('lw_flood', 'moonflood')]]),
+    tree('Lilies', '#a5d6a7', [[UP('lw_lily', 'Lily Bloom', 'lilyveil', 'heal', 0.25, r => `Lily Veil heals +${25 * r}%`)], [S('lw_glow', 'Fae Water', 'heal', 0.1, r => `all its healing and shields +${10 * r}%`), T_REGEN('lw_spring', 'Spring')],
+      [KEY('lw_mist', 'Lake Mist', listFx('teamStartSt', [['guard', 1]]), () => 'your whole team starts every battle Guarded for 1 turn (40% less damage)')],
+      [T_THP('lw_shore', 'Shore'), S('lw_mend', 'Healing Waters', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('lw_tideult', 'faetide')]]),
+    tree('Depths', '#3949ab', [[T_HP('lw_scales', 'Pearl Scales')], [T_DEF('lw_shell', 'Riverstone'), T_KILLHEAL('lw_drink', 'Deep Drink')],
+      [KEY('lw_ancient', 'Ancient Waters', { regen: 0.04, def: 2 }, () => 'regenerates 4% max HP per turn and +2 defense')],
+      [T_CMUL('lw_jaws', 'Drowning Jaws'), T_THORNS('lw_coral', 'Coral Hide')], [ULT('lw_coil', 'drowningcoil')]]),
+  ],
   elder: [
     tree('Cataclysm', '#ff7043', [[S('el_flame', 'Ancient Flame', 'dot', 0.15, r => `its burns deal +${15 * r}%`)], [T_POW('el_storm', 'Firestorm Mastery', 'firestorm', 0.15), T_TURNS('el_claw', 'Ember Claws', 'emberclaw')],
       [KEY('el_living', 'Living Fire', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
@@ -2922,6 +3331,9 @@ const SYNERGIES = [
   { id: 'wildfire', name: 'Wildfire',  pets: ['dragon', 'toad'],       icon: '🔥', txt: 'Foes that are both burning and poisoned take double damage from both.' },
   { id: 'hellfire', name: 'Hellfire',  pets: ['hellhound', 'phoenix'],  icon: '🔥', txt: 'The Hellhound and the Phoenix deal +25% damage to burning foes.' },
   { id: 'pride',    name: 'Pride',     pets: ['lion', 'chimera'],       icon: '🦁', txt: 'The Lion and the Chimera get +15% max HP and +10% attack.' },
+  { id: 'huntpack', name: 'The Wild Hunt', pets: ['cusith', 'spiritwolf'], icon: '🐺', txt: 'The Cu Sith and the Spirit Wolf get +10% attack and +10% crit.' },
+  { id: 'fairyring', name: 'Fairy Ring', pets: ['fairydragon', 'puca'], icon: '🍄', txt: "The Fairy Dragon's and the Puca's curses last 1 turn longer." },
+  { id: 'oldgrowth', name: 'Old Growth', pets: ['mossbear', 'viper'], icon: '🌿', txt: 'The Moss Bear and the Bramble Viper send 20% of the damage they take back at attackers.' },
   { id: 'magmaflow', name: 'Magma Flow', pets: ['salamander', 'tortoise'], icon: '🌋', txt: 'The Salamander and the Tortoise regenerate 4% of their max HP every turn.' },
 ];
 const syn = id => !!(G && G.syn && G.syn[id]);
@@ -2941,6 +3353,9 @@ function petMods(it) {
   if ((it.def.pet === 'catgray' || it.def.pet === 'catcalico') && G && syn('clowder')) M.crit = (M.crit || 0) + 0.15;
   if ((it.def.pet === 'lion' || it.def.pet === 'chimera') && G && syn('pride')) { M.hp = (M.hp || 0) + 0.15; M.atk = (M.atk || 0) + 0.1; }
   if ((it.def.pet === 'salamander' || it.def.pet === 'tortoise') && G && syn('magmaflow')) M.regen = (M.regen || 0) + 0.04;
+  if ((it.def.pet === 'cusith' || it.def.pet === 'spiritwolf') && G && syn('huntpack')) { M.atk = (M.atk || 0) + 0.1; M.crit = (M.crit || 0) + 0.1; }
+  if ((it.def.pet === 'fairydragon' || it.def.pet === 'puca') && G && syn('fairyring')) M.dur = (M.dur || 0) + 1;
+  if ((it.def.pet === 'mossbear' || it.def.pet === 'viper') && G && syn('oldgrowth')) M.thorns = (M.thorns || 0) + 0.2;
   it._M = M; it._Mv = it.talV || 0; return M;
 }
 // talents that help the whole team (summed over every pet in the team)
@@ -3019,7 +3434,7 @@ function walkableBetween(x0, x1, footY) {   // flat, safe floor all the way (no 
   const ty = Math.floor((footY + 2) / TILE), a = Math.floor(Math.min(x0, x1) / TILE), b = Math.floor(Math.max(x0, x1) / TILE);
   for (let tx = a; tx <= b; tx++) {
     const g = tileAt(tx, ty), above = tileAt(tx, ty - 1);
-    if (!(isSolidT(g) || g === ONEWAY) || g === PHASE || isSolidT(above) || above === SPIKES || above === LAVA) return false;
+    if (!(isSolidT(g) || g === ONEWAY) || g === PHASE || isSolidT(above) || above === SPIKES || above === LAVA || above === THORN) return false;
   }
   return true;
 }
@@ -3028,14 +3443,14 @@ function edgeAhead(p, dir) {
   const ftx = Math.floor((dir > 0 ? p.x + p.w + 3 : p.x - 3) / TILE), fty = Math.floor((p.y + p.h + 2) / TILE), R = G.room;
   const g = tileAt(ftx, fty); if (isSolidT(g) || g === ONEWAY) return null;
   for (let ty = fty; ty < R.rows; ty++) {          // a drop: fine to step off if it lands on safe ground
-    const t = tileAt(ftx, ty); if (t === SPIKES || t === LAVA) break;
+    const t = tileAt(ftx, ty); if (t === SPIKES || t === LAVA || t === THORN) break;
     if (isSolidT(t) || t === ONEWAY) return { gap: false };
   }
   for (let k = 1; k <= 11; k++) {                  // a pit: where does the floor pick up again?
     const tx = ftx + dir * k;
     for (const ty of [fty, fty - 1, fty + 1, fty - 2]) {
       const t = tileAt(tx, ty), up = tileAt(tx, ty - 1);
-      if ((isSolidT(t) || t === ONEWAY) && !isSolidT(up) && up !== SPIKES && up !== LAVA && t !== PHASE)
+      if ((isSolidT(t) || t === ONEWAY) && !isSolidT(up) && up !== SPIKES && up !== LAVA && up !== THORN && t !== PHASE)
         return { gap: true, landX: (tx + 0.5) * TILE + dir * 10, landY: ty * TILE };
     }
   }
@@ -3086,7 +3501,7 @@ function recordTrail(dt) {
     else if (d < 0.5) return;              // standing still: the trail's clock pauses, so pets never replay your waiting
     else { T.clock += dt; T.s += d; }
   }
-  T.pts.push({ x: fx, y: fy, t: T.clock, s: T.s, g: P.onGround });
+  T.pts.push({ x: fx, y: fy, t: T.clock, s: T.s, g: P.onGround || !!P.climbing });
   if (T.pts.length > TRAIL_MAX) T.pts.shift();
 }
 function trailSearch(a, key, v) { let lo = 0, hi = a.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (a[m][key] <= v) lo = m; else hi = m; } return lo; }
@@ -3283,7 +3698,7 @@ function placeWild(R, cells, etx, ety) {
   G.wild = [];
   const ft = R.floorTop * TILE;
   if (R.type === 'boss') {
-    const boss = R.n % 20 === 10 ? 'shadow' : 'elder', k = boss === 'shadow' ? 'shadowwolf' : 'elder';
+    const boss = R.boss || BOSS_OF(R.n), k = BOSS_INFO[boss].k;
     const e = wildEntity(k, (R.cols - 16) * TILE, ft, { boss }); e.face = -1; if (e.fly) e.y = ft - e.h - 40;
     G.wild.push(e); return;
   }
@@ -3313,7 +3728,7 @@ function updateWild(dt) {
       const want = near ? Math.sign(P.x + P.w / 2 - (e.x + e.w / 2)) * 85 : e.dir * 40;
       const dir = Math.sign(want), fx = dir > 0 ? e.x + e.w + 2 : e.x - 2, fy = Math.floor((e.y + e.h + 4) / TILE);
       const ledge = !isSolidT(tileAt(Math.floor(fx / TILE), fy)) && tileAt(Math.floor(fx / TILE), fy) !== ONEWAY;
-      const hazard = [SPIKES, LAVA].includes(tileAt(Math.floor(fx / TILE), fy - 1)) || [SPIKES, LAVA].includes(tileAt(Math.floor(fx / TILE), fy));
+      const hazard = [SPIKES, LAVA, THORN].includes(tileAt(Math.floor(fx / TILE), fy - 1)) || [SPIKES, LAVA, THORN].includes(tileAt(Math.floor(fx / TILE), fy));
       e.vx = e.onGround && (ledge || hazard) ? 0 : want;
       if (e.onGround && (ledge || hazard || e.hitWall) && !near) e.dir = -e.dir;
       moveBody(e, dt);
@@ -3340,9 +3755,9 @@ function drawWild() {
     if (!drawAnim(sheet, e.fly ? 'fly' : moving ? 'run' : 'idle', e.t * (moving ? 10 : 5), cx, e.fly ? e.y + e.h / 2 : e.y + e.h + 1, e.face, o)) { ctx.fillStyle = PETS[e.k].color; rr(e.x, e.y, e.w, e.h, 6); ctx.fill(); }
     ctx.filter = 'none';
     // what you'll face: species, level and how many
-    const n = petSlots.filter(Boolean).length, L = e.boss ? wildLevel(e.boss === 'shadow' ? 10 : 20) + 2 : wildLevel(G.room.n);
+    const n = petSlots.filter(Boolean).length, L = e.boss ? wildLevel(BOSS_INFO[e.boss].floor) + 2 : wildLevel(G.room.n);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `bold ${e.boss ? 13 : 11}px ${UI}`;
-    const label = e.boss ? (e.boss === 'shadow' ? 'THE SHADOW WOLF' : 'THE ELDER DRAGON') : `Wild ${PETS[e.k].name}${n > 1 ? ' group' : ''} · Lv ${L}`;
+    const label = e.boss ? BOSS_INFO[e.boss].name.toUpperCase() : `Wild ${e.k === 'elder' ? 'Elder Dragon' : PETS[e.k].name}${n > 1 ? ' group' : ''} · Lv ${L}`;
     const tw = ctx.measureText(label).width + 12, ly = e.y - 12 + Math.sin(e.t * 3) * 1.5;
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; rr(cx - tw / 2, ly - 9, tw, 17, 5); ctx.fill();
     ctx.fillStyle = e.boss ? '#ff8a80' : PAL.gold; ctx.fillText(label, cx, ly);
@@ -3450,16 +3865,20 @@ function foeUnit(k, L, opt = {}) {
 }
 
 // ---------- wild compositions: as many foes as you have pets ----------
-const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (11-20): only the mythical beasts
+const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (11-20): only the mythical beasts · Act III (21-30): the fey
   hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad'],
   forge: ['dragon', 'hellhound', 'salamander', 'tortoise', 'lion', 'phoenix'], hollow: ['shadowwolf', 'moth', 'chimera', 'salamander', 'tortoise', 'hellhound'],
   sanctum: ['qilin', 'phoenix', 'lion', 'chimera', 'dragon', 'moth', 'shadowwolf'],
+  // Act III (21-30): only the fey creatures — and the Elder Dragon now roams wild
+  thornwood: ['mossbear', 'viper', 'wolpertinger', 'cusith', 'puca', 'elder'], glade: ['fairydragon', 'wolpertinger', 'moonstag', 'puca', 'spiritwolf', 'mossbear'],
+  lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder'],
 };
 const ACT_ROLES = [
   { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
   { tank: ['tortoise', 'lion'], dps: ['hellhound', 'lion', 'dragon', 'chimera', 'shadowwolf'], heal: ['phoenix', 'qilin'], hex: ['chimera', 'moth', 'shadowwolf'], venom: ['salamander', 'dragon'] },
+  { tank: ['mossbear', 'puca'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
 ];
-const ROLE_OF = new Proxy({}, { get: (_, role) => ACT_ROLES[G && G.room && G.room.n > 10 ? 1 : 0][role] });
+const ROLE_OF = new Proxy({}, { get: (_, role) => ACT_ROLES[G && G.room && G.room.n ? Math.min(ACT_ROLES.length, actOf(G.room.n)) - 1 : 0][role] });
 const COMPS = {
   pack:   { n: 'Pack',          pick: (lead, i, pool) => lead },
   mixed:  { n: 'Mixed',         pick: (lead, i, pool) => i ? pick(pool) : lead },
@@ -3468,7 +3887,7 @@ const COMPS = {
   hex:    { n: 'Hexers',        pick: (lead, i) => i % 2 ? pick(ROLE_OF.dps) : pick(ROLE_OF.hex) },
   venom:  { n: 'Venom',         pick: (lead, i) => pick(ROLE_OF.venom) },
 };
-const wildLevel = n => Math.max(1, Math.round(1 + (n - 1) * 1.15 + (n > 10 ? 2 : 0)));
+const wildLevel = n => Math.max(1, Math.round(n <= 20 ? 1 + (n - 1) * 1.15 + (n > 10 ? 2 : 0) : 24.85 + (n - 20) * 0.8));   // past floor 20 it climbs more gently (pets top out at 30)
 function rollComp(R) {
   const n = R.n, opts = [['pack', 3], ['mixed', 4]];
   if (n >= 3) opts.push(['wall', 2], ['hex', 2]);
@@ -3477,7 +3896,7 @@ function rollComp(R) {
   return wpick(opts);
 }
 function buildFoes(ent, count) {
-  const R = G.room, n = R.n, pool = THEME_POOL[R.type] || PET_IDS.filter(k => BS[k] && !['shadowwolf', 'elder', 'unicorn'].includes(k)), out = [];
+  const R = G.room, n = R.n, pool = THEME_POOL[R.type] || PET_IDS.filter(k => BS[k] && !['shadowwolf', 'elder', 'unicorn', 'lakewyrm'].includes(k)), out = [];
   if (ent.boss === 'shadow') {
     out.push(foeUnit('shadowwolf', wildLevel(10) + 2, { boss: 'shadow', name: 'The Shadow Wolf', acts: 2, scale: 1.7, mul: { hp: 4.6, atk: 1.25, def: 2 },
       abil: ['shadowclaw', 'dreadhowl', 'umbralveil', 'devourweak', 'callshades'] }));
@@ -3490,10 +3909,17 @@ function buildFoes(ent, count) {
     for (let i = 1; i < count; i++) out.push(foeUnit('dragon', wildLevel(20) - 2, { name: 'Whelp', scale: 0.8 }));
     return out;
   }
+  if (ent.boss === 'wyrm') {   // the final boss, with a fey court at its side
+    out.push(foeUnit('lakewyrm', wildLevel(30) + 2, { boss: 'wyrm', name: 'The Lake Wyrm', acts: 2, scale: 1.9, mul: { hp: 7.0, atk: 1.2, def: 3 },
+      abil: ['wyrmcoil', 'tidalwave', 'glamourmist', 'lilyrest'] }));
+    for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'fairydragon' : 'spiritwolf', wildLevel(30) - 2, { scale: 0.85 }));
+    return out;
+  }
   const L = wildLevel(n), C = COMPS[ent.comp] || COMPS.mixed;
   for (let i = 0; i < count; i++) {
     const k = i === 0 ? ent.k : C.pick(ent.k, i, pool), elite = i === 0 && n >= 6 && Math.random() < 0.12 + n * 0.01;
-    const u = foeUnit(k, L + (Math.random() < 0.35 ? 1 : 0), elite ? { elite: true, name: 'Alpha ' + PETS[k].name, mul: { hp: 1.5, atk: 1.25, def: 1 }, scale: 1.15 } : {});
+    const nm = k === 'elder' ? 'Elder Dragon' : PETS[k].name;   // a wild Elder Drake is a full-grown Elder Dragon
+    const u = foeUnit(k, L + (Math.random() < 0.35 ? 1 : 0), elite ? { elite: true, name: 'Alpha ' + nm, mul: { hp: 1.5, atk: 1.25, def: 1 }, scale: 1.15 } : k === 'elder' ? { name: nm, scale: 1.2 } : {});
     if (elite || n >= 12) u.abil.push(pick(BS[k].ult));   // alphas (and Act II animals) know an ultimate
     out.push(u);
   }
@@ -3739,6 +4165,7 @@ function summonShade(u) {
 function aiChoose(u) {
   const ready = u.abil.filter(a => !(u.cd[a] > 0) && (ABIL[a].n));
   const friends = sameSide(u).filter(o => !o.fainted), hurt = friends.filter(o => o.hp < o.maxHp * 0.5);
+  if (u.boss === 'wyrm' && u.hp < u.maxHp * 0.5 && !u.enraged) { u.enraged = true; u.abil.push('moontide'); addSt(u, 'str', 99); bLog('The Lake Wyrm calls up the moon tide!'); bText(u, 'MOON TIDE', '#80deea', 20); }
   if (u.boss === 'elder' && u.hp < u.maxHp * 0.5 && !u.enraged) { u.enraged = true; u.abil.push('meteorrain'); addSt(u, 'str', 99); bLog('The Elder Dragon is ENRAGED!'); bText(u, 'ENRAGED', '#ff5252', 20); }
   const opts = [];
   for (const a of ready) {
@@ -3878,7 +4305,7 @@ function winBattle() {
     RUN.petHp[u.k] = ups.length ? 1 : u.hp / u.maxHp;   // a level-up heals fully
   }
   // offspring: a sure thing from animals you don't own yet; sometimes from ones you do
-  const kinds = [...new Set(B.foes.filter(f => !f.boss && !f.summoned && f.k !== 'shade' && BS[f.k].off).map(f => f.k))];
+  const kinds = [...new Set(B.foes.filter(f => !f.boss && !f.summoned && f.k !== 'shade' && f.k !== 'elder' && BS[f.k].off).map(f => f.k))];   // the Elder Egg stays the floor-20 achievement
   for (const k of kinds) {
     const pending = pack.some(it => it.def.egg === k) || (PK && PK.staging.some(it => it.def.egg === k));
     if (!owned(k) && !pending) giveOffspring(k, R);
@@ -3891,6 +4318,10 @@ function winBattle() {
   }
   if (B.boss === 'elder') {
     if (B.faints === 0) { R.ach.push('Defeat the Elder Dragon without a single pet fainting'); SAVE.ach.elder = true; if (!owned('elder') && !pack.some(it => it.def.egg === 'elder')) giveOffspring('elder', R); }
+  }
+  if (B.boss === 'wyrm') {   // the final boss: its Wyrmling joins you on the spot (the run ends here, so no egg to carry)
+    R.ach.push('Defeat the Lake Wyrm'); SAVE.ach.wyrm = true;
+    if (!owned('lakewyrm')) { unlockPet('lakewyrm', newcomerLevel()); R.offspring.push('lakewyrm'); }
   }
   if (B.turn <= 1) {   // a whole enemy team beaten on the first turn
     R.ach.push('Defeat an enemy team on the first turn of battle'); SAVE.ach.first = true;
@@ -3924,7 +4355,7 @@ function endBattle() {
   burst(ent.x + ent.w / 2, ent.y + ent.h / 2, '#ffd54f', 18, 200);
   syncPets();
   const won = G.wild.filter(w => w.beaten).length, total = G.wild.length;
-  if (ent.boss) showMsg(ent.boss === 'shadow' ? 'The Shadow Wolf falls! The way down is open.' : 'The Elder Dragon is defeated!', 3);
+  if (ent.boss) showMsg({ shadow: 'The Shadow Wolf falls! The way down is open.', elder: 'The Elder Dragon is defeated! The way down is open.', wyrm: 'The Lake Wyrm sinks beneath the water! The Wilds are free.' }[ent.boss], 3);
   else if (won === total) showMsg('Every wild group on this floor is beaten! Grab the chest.', 3);
   else if (won === exitNeed()) showMsg('The exit is open! (green on the map)', 2.4);
   if (R && R.eggs.length) openPack(R.eggs);
@@ -4020,7 +4451,10 @@ function battleClick(btn) {
 // until their own art exists, the Shadow Wolf (and its shades) and the Elder Dragon borrow the Shepherd's and the Dragon's
 const STAND_IN = { phoenix: 'hue-rotate(-25deg) saturate(2.4) brightness(1.05)', hellhound: 'sepia(1) hue-rotate(-30deg) saturate(3) brightness(0.55)',
   salamander: 'hue-rotate(-90deg) saturate(2.5)', tortoise: 'sepia(0.8) hue-rotate(-20deg) saturate(1.6) brightness(0.7)', qilin: 'sepia(0.9) saturate(2.2) hue-rotate(-10deg)',
-  chimera: 'sepia(0.6) saturate(1.4) brightness(0.85)', lion: 'sepia(1) saturate(2.6) brightness(1.1)', moth: 'sepia(1) hue-rotate(-15deg) saturate(3) brightness(1.1)' };
+  chimera: 'sepia(0.6) saturate(1.4) brightness(0.85)', lion: 'sepia(1) saturate(2.6) brightness(1.1)', moth: 'sepia(1) hue-rotate(-15deg) saturate(3) brightness(1.1)',
+  mossbear: 'sepia(0.5) hue-rotate(50deg) saturate(1.8) brightness(0.8)', fairydragon: 'hue-rotate(280deg) saturate(1.6) brightness(1.2)', wolpertinger: 'sepia(0.6) saturate(0.6) brightness(1.05)',
+  moonstag: 'hue-rotate(170deg) saturate(0.6) brightness(1.05)', viper: 'hue-rotate(60deg) saturate(1.4) brightness(0.75)', cusith: 'sepia(1) hue-rotate(60deg) saturate(2.2) brightness(0.6)',
+  puca: 'brightness(0.35) saturate(0.4)', spiritwolf: 'invert(0.9) hue-rotate(170deg) brightness(1.1) saturate(0.7)', lakewyrm: 'hue-rotate(170deg) saturate(1.3)' };
 function standInTint(k, sheet) {
   if (STAND_IN[k] && sheet !== PETS[k].anim) return STAND_IN[k];
   if ((k === 'shadowwolf' || k === 'shade') && sheet !== 'shadowwolf') return 'brightness(0.32) saturate(0.3) contrast(1.2)';
@@ -4033,7 +4467,7 @@ const unitScale = u => 4.1 * (u.boss ? 0.78 : 1) * (u.scale || 1) * (PETS[u.k] &
 const unitFly = u => !!(PETS[u.k] && PETS[u.k].fly);
 const unitAnchorY = u => (unitFly(u) ? BX.ground - 100 : BX.ground);
 function unitFrame(u) { const sh = unitSheet(u), fr = animFrames(sh, unitFly(u) ? 'fly' : 'idle') || animFrames(sh, 'idle') || animFrames(sh, 'fly'); return fr ? fr[0] : [0, 0, 26, 22, 13, unitFly(u) ? 11 : 22]; }
-function unitRect(u) { const s = unitScale(u), f = unitFrame(u), y = unitAnchorY(u); return { x: u.x - f[2] * s / 2, y: y - f[5] * s, w: f[2] * s, h: f[3] * s }; }
+function unitRect(u) { const s = unitScale(u) * (ANIM_SCALE[unitSheet(u)] || 1), f = unitFrame(u), y = unitAnchorY(u); return { x: u.x - f[2] * s / 2, y: y - f[5] * s, w: f[2] * s, h: f[3] * s }; }
 function unitTop(u) { return unitRect(u).y; }
 // =====================================================================
 //  ABILITY ANIMATIONS — effect sprites (assets/vfx, made with ChatGPT; sheets vfx1-3 via tools/pixelate.py vfx)
@@ -4044,7 +4478,8 @@ function unitTop(u) { return unitRect(u).y; }
 const VFX_COL = { star: '#fff59d', fireball: '#ff7043', flame: '#ff9800', spark: '#ffd54f', meteor: '#ff5722', sun: '#ffeb3b', moon: '#e1f5fe', feather: '#fffde7',
   note: '#fff176', wave: '#e0e0e0', plus: '#69f0ae', bubble: '#81d4fa', claw: '#ffffff', bite: '#eeeeee', impact: '#fff3e0', poison: '#9ccc65', acid: '#c6ff00',
   skull: '#e0e0e0', wisp: '#9575cd', rune: '#ce93d8', eye: '#ba68c8', drop: '#e53935', stars: '#ffeb3b', lava: '#ff6d00', rock: '#8d6e63', dust: '#bcaaa4',
-  coin: '#ffd54f', swirl: '#b2ebf2', tongue: '#f48fb1', shard: '#e1bee7', rainbow: '#f8bbd0', orb: '#fff9c4', crack: '#6d4c41', heart: '#f06292', ray: '#fffde7', leaf: '#81c784' };
+  coin: '#ffd54f', swirl: '#b2ebf2', tongue: '#f48fb1', shard: '#e1bee7', rainbow: '#f8bbd0', orb: '#fff9c4', crack: '#6d4c41', heart: '#f06292', ray: '#fffde7', leaf: '#81c784',
+  vine: '#558b2f', thorn: '#8d6e63', petal: '#f8bbd0', lily: '#a5d6a7', splash: '#81d4fa', whirl: '#4fc3f7', spore: '#ce93d8', pixie: '#f48fb1', antler: '#d7ccc8', paw: '#b3e5fc', mist: '#cfd8dc', acorn: '#a1887f' };
 function vfxP(spr, x, y, o = {}) {   // one effect particle
   const p = Object.assign({ spr, x, y, vx: 0, vy: 0, ax: 0, ay: 0, rot: 0, vr: 0, s: 1, s1: null, a: 1, a1: 0, life: 0.5, face: 1 }, o);
   p.t = -(o.d || 0); if (p.s1 === null || p.s1 === undefined) p.s1 = p.s;
@@ -4306,7 +4741,76 @@ const FXR = {
   sparkswarm: [0.4, c => c.H.forEach((t, i) => c.shot('spark', t, { d: i * 0.07, arc: rand(-60, 100), trail: 'spark', add: true, hit: 'flame', hn: 3 }))],
   lunarglow: [0.4, c => { c.above('moon', { s: 2.4, add: true }); c.each(c.A, (t, d) => { c.rise('orb', t, { d: 0.2 + d, add: true }); c.rise('plus', t, { d: 0.3 + d }); }); }],
   mesmerize: [0.4, c => c.each(c.T, (t, d) => { c.swirl('swirl', t, { d, spin: 5, s: 2 }); c.orbit('orb', t, { d, n: 4, add: true }); })],
+  // ===== Act III: the fey creatures =====
+  // ----- Moss Bear -----
+  barkmaul: [0.2, c => c.each(c.T, t => { c.slash(t, { n: 2, s: 1.6 }); c.pop('impact', t, { d: 0.12, s: 1.8 }); c.hit('leaf', t, { d: 0.12, n: 5 }); })],
+  mossarmor: [0.25, c => { c.hit('leaf', c.u, { n: 10, spd: 0.6 }); c.aura('bubble', c.u, { s: 3 }); }],
+  forestshelter: [0.3, c => c.each(c.A, (t, d) => { c.ground('vine', t, { d, s: 1.6 }); c.rise('leaf', t, { d: d + 0.1, n: 4 }); c.aura('bubble', t, { d: d + 0.15, s: 2.2 }); })],
+  ancientgrove: [0.45, c => { c.shake(4, 0.4); c.each(c.A, (t, d) => { c.ground('vine', t, { d, s: 2.6 }); c.rise('leaf', t, { d: d + 0.1, n: 6 }); c.aura('bubble', t, { d: d + 0.3, s: 2.6 }); }); }],
+  hibernate: [0.3, c => { c.pop('moon', c.u, { oy: -40, s: 1.6, life: 0.7 }); c.rise('leaf', c.u, { n: 6 }); c.aura('bubble', c.u, { d: 0.2, s: 3.2 }); }],
+  earthshaker: [0.45, c => { c.shake(9, 0.5, 0.35); c.each(c.T, (t, d) => { c.ground('crack', t, { d: 0.3 + d, s: 2.4 }); c.hit('rock', t, { d: 0.35 + d, n: 6, up: 140, grav: 600 }); }, 0.06); }],
+  // ----- Fairy Dragon -----
+  pixiebreath: [0.3, c => { c.breath('pixie', { n: 16, s1: 1.4, spread: 30 }); c.each(c.T, t => c.hit('spark', t, { d: 0.28, n: 6, add: true })); }],
+  sleepdust: [0.4, c => c.each(c.T, (t, d) => { c.rain('pixie', t, { n: 5, d, s: 0.6, spread: 30, slant: 20, spin: 2, add: true }); c.pop('moon', t, { d: 0.35 + d, oy: -30, s: 1, life: 0.6 }); })],
+  glamour: [0.3, c => c.each(c.T, t => { c.shot('pixie', t, { trail: 'pixie', add: true, s: 0.8 }); c.swirl('swirl', t, { d: 0.25, s: 1.8, spin: 6 }); })],
+  wonderdust: [0.45, c => { c.flash('#f8bbd0', 0.25, 0.3); c.each(c.T, (t, d) => { c.rain('pixie', t, { n: 6, d, s: 0.7, add: true }); c.pop('rainbow', t, { d: 0.35 + d, s: 2 }); }); }],
+  lullaby: [0.45, c => { c.waves('note', { n: 5, s: 0.8, s1: 1.4, spd: 260 }); c.each(c.T, (t, d) => c.pop('moon', t, { d: 0.4 + d, oy: -30, s: 1.1, life: 0.7 })); }],
+  prismbolt: [0.35, c => c.each(c.T, t => { c.shot('rainbow', t, { dur: 0.3, aim: 1, trail: 'pixie', s: 1.2, add: true }); c.pop('impact', t, { d: 0.3, s: 2.2 }); c.hit('stars', t, { d: 0.3, n: 6, add: true }); })],
+  // ----- Wolpertinger -----
+  antlerjab: [0.15, c => c.H.forEach((t, i) => { c.pop('antler', t, { d: i * 0.12, s0: 1.4, s: 1, life: 0.22, rot: 0, face: -c.dir }); c.pop('impact', t, { d: i * 0.12 + 0.08, s: 1.2, life: 0.2 }); })],
+  hopstrike: [0.2, c => c.H.forEach((t, i) => { c.pop('paw', t, { d: i * 0.13, oy: 10, s: 1.1, life: 0.3 }); c.pop('impact', t, { d: i * 0.13 + 0.05, s: 1.2, life: 0.2 }); })],
+  featherdodge: [0.15, c => { c.hit('feather', c.u, { n: 8, spd: 0.8 }); c.pop('swirl', c.u, { s: 1.6 }); }],
+  antlerstorm: [0.3, c => { c.swirl('whirl', c.u, { s: 2, spin: 14 }); c.H.forEach((t, i) => { c.pop('antler', t, { d: 0.15 + i * 0.08, s0: 1.4, s: 1, life: 0.2, rot: 0, face: -c.dir }); c.hit('feather', t, { d: 0.15 + i * 0.08, n: 2 }); }); }],
+  harefrenzy: [0.2, c => c.H.forEach((t, i) => { c.pop('paw', t, { d: i * 0.09, ox: rand(-12, 12), oy: rand(-12, 12), s: 1.2, life: 0.22 }); c.pop('impact', t, { d: i * 0.09 + 0.04, s: 1.3, life: 0.18 }); })],
+  moonhop: [0.45, c => c.each(c.T, t => { c.pop('moon', t, { oy: -110, s: 1.6, life: 0.4 }); c.rain('antler', t, { n: 1, d: 0.1, s: 1.6, spin: 0, dur: 0.3 }); c.pop('impact', t, { d: 0.4, s: 2.6 }); c.shake(6, 0.25, 0.4); })],
+  // ----- Moon Stag -----
+  moonbeam: [0.25, c => c.each(c.T, t => { c.beam('ray', t, { life: 0.5 }); c.hit('stars', t, { d: 0.2, n: 5, add: true }); })],
+  silverlight: [0.3, c => c.each(c.A, t => { c.beam('ray', t, { life: 0.6, s: 1.3 }); c.rise('moon', t, { d: 0.1, n: 2, s: 0.5, add: true }); })],
+  lunarblessing: [0.35, c => { c.above('moon', { s: 2, add: true }); c.each(c.A, (t, d) => c.rise('stars', t, { d: 0.2 + d, n: 4, s: 0.5, add: true })); }],
+  fullmoon: [0.5, c => { c.above('moon', { s: 3.6, add: true, life: 0.9 }); c.flash('#e1f5fe', 0.35, 0.35); c.each(c.A, (t, d) => { c.beam('ray', t, { d: 0.3 + d }); c.rise('stars', t, { d: 0.4 + d, n: 5, add: true }); }); }],
+  antlerhalo: [0.35, c => c.each(c.A, (t, d) => { c.orbit('stars', t, { d, n: 5, add: true }); c.aura('bubble', t, { d: d + 0.2, s: 2.6 }); })],
+  moonfall: [0.5, c => { c.above('moon', { s: 3, add: true }); c.each(c.T, (t, d) => { c.rain('moon', t, { n: 1, d: 0.2 + d, s: 1.2, trail: 'stars', add: true, hit: 'stars' }); c.pop('impact', t, { d: 0.5 + d, s: 2 }); }); c.shake(5, 0.3, 0.5); }],
+  // ----- Bramble Viper -----
+  thornfang: [0.15, c => c.each(c.T, t => { c.bite(t); c.hit('thorn', t, { d: 0.1, n: 4 }); })],
+  entangle: [0.3, c => c.each(c.T, t => { c.ground('vine', t, { s: 2 }); c.orbit('vine', t, { d: 0.1, n: 4, y: 'mid', r: 24, life: 0.8 }); })],
+  brambleburst: [0.35, c => c.each(c.T, (t, d) => { c.ground('thorn', t, { d, s: 2 }); c.hit('thorn', t, { d: 0.2 + d, n: 6, up: 120, grav: 500 }); }, 0.07)],
+  venombloom: [0.45, c => c.each(c.T, (t, d) => { c.ground('petal', t, { d, s: 2.4 }); c.rise('spore', t, { d: 0.15 + d, n: 6 }); c.rise('poison', t, { d: 0.3 + d, n: 4 }); }, 0.08)],
+  strangle: [0.4, c => c.each(c.T, t => { c.orbit('vine', t, { n: 6, y: 'mid', r: 26, w: 9, life: 0.9 }); c.pop('impact', t, { d: 0.35, s: 2 }); c.shake(4, 0.2, 0.35); })],
+  shedskin: [0.25, c => { c.pop('swirl', c.u, { s: 2.4, life: 0.5 }); c.hit('leaf', c.u, { n: 8 }); c.rise('plus', c.u, { d: 0.15, n: 4 }); }],
+  // ----- Cu Sith -----
+  feybite: [0.15, c => c.each(c.T, t => { c.bite(t); c.hit('leaf', t, { d: 0.12, n: 3 }); })],
+  baying: [0.35, c => { c.waves('wave', { n: 3, gap: 0.25, s1: 2.6 }); c.shake(3, 0.3, 0.2); }],
+  silenthunt: [0.3, c => c.each(c.T, t => { c.shot('mist', t, { dur: 0.25, s: 1.2 }); c.slash(t, { d: 0.25, n: 2, s: 1.6 }); c.pop('impact', t, { d: 0.27, s: 1.8 }); })],
+  thirdbay: [0.9, c => { c.waves('wave', { n: 3, gap: 0.35, s1: 3 }); c.waves('mist', { d: 0.7, n: 4, s1: 3 }); c.shake(7, 0.4, 0.85); }],
+  wildhunt: [0.45, c => { c.waves('mist', { n: 3 }); c.H.forEach((t, i) => { c.shot('paw', t, { d: 0.2 + i * 0.08, arc: rand(-40, 60), s: 0.9 }); c.bite(t, { d: 0.35 + i * 0.08, s: 0.9 }); }); }],
+  moormaul: [0.3, c => c.each(c.T, t => { c.slash(t, { d: 0.15, n: 3, s: 2 }); c.bite(t, { d: 0.25, s: 1.6 }); c.shake(5, 0.25, 0.3); })],
+  // ----- Puca -----
+  prankhorn: [0.18, c => c.each(c.T, t => { c.pop('impact', t, { d: 0.12, s: 1.6 }); c.hit('stars', t, { d: 0.12, n: 3 }); })],
+  swaptrick: [0.3, c => c.each(c.T, t => { c.swirl('swirl', t, { s: 1.6 }); c.toMe('coin', t, { d: 0.2, n: 4 }); })],
+  shapeshift: [0.2, c => { c.pop('mist', c.u, { s: 3, life: 0.5 }); c.hit('leaf', c.u, { n: 6 }); }],
+  foolsgold: [0.4, c => c.each(c.T, (t, d) => { c.rain('coin', t, { n: 4, d, s: 0.7, spin: 8 }); c.pop('swirl', t, { d: 0.35 + d, s: 1.6 }); })],
+  grandheist: [0.3, c => c.each(c.T, t => { c.slash(t, { n: 2, s: 1.6 }); c.toMe('coin', t, { d: 0.25, n: 7 }); })],
+  wildride: [0.4, c => { c.flash('#263238', 0.3, 0.1); c.each(c.T, (t, d) => { c.pop('mist', t, { d: 0.2 + d, s: 2.2 }); c.orbit('stars', t, { d: 0.3 + d, n: 3 }); }); c.shake(5, 0.4, 0.3); }],
+  // ----- Spirit Wolf -----
+  spiritfang: [0.15, c => c.each(c.T, t => { c.bite(t); c.hit('wisp', t, { d: 0.1, n: 5, add: true }); })],
+  phantomlunge: [0.25, c => c.each(c.T, t => { c.shot('wisp', t, { dur: 0.22, s: 1.6, trail: 'mist', add: true }); c.slash(t, { d: 0.22, n: 2, s: 1.6 }); })],
+  ghostveil: [0.2, c => { c.pop('mist', c.u, { s: 3.4, life: 0.6 }); c.hit('wisp', c.u, { n: 10, add: true }); }],
+  spiritpack: [0.35, c => c.H.forEach((t, i) => { c.shot('wisp', t, { d: i * 0.1, trail: 'mist', s: 1.3, add: true }); c.bite(t, { d: 0.3 + i * 0.1, s: 0.8 }); })],
+  soulhowl: [0.45, c => { c.waves('wisp', { n: 6, add: true, s1: 3 }); c.waves('wave', { n: 3, d: 0.1 }); c.each(c.A, (t, d) => c.rise('spark', t, { d: 0.3 + d, n: 3, add: true })); }],
+  spectralguard: [0.35, c => c.each(c.A, (t, d) => { c.orbit('wisp', t, { d, n: 4, add: true }); c.aura('bubble', t, { d: 0.2 + d, s: 2.4 }); })],
+  // ----- Lake Wyrm -----
+  tidebite: [0.18, c => c.each(c.T, t => { c.bite(t); c.hit('splash', t, { d: 0.12, n: 5, up: 80, grav: 400 }); })],
+  whirlpool: [0.35, c => c.each(c.T, (t, d) => { c.swirl('whirl', t, { d, s: 2, spin: 9 }); c.hit('splash', t, { d: 0.25 + d, n: 4 }); })],
+  lilyveil: [0.3, c => c.each(c.A, (t, d) => { c.ground('lily', t, { d, s: 1.8 }); c.pop('mist', t, { d: 0.15 + d, s: 2.2, life: 0.5 }); })],
+  moonflood: [0.5, c => { c.above('moon', { s: 2.4, add: true }); c.waves('wave', { n: 5, d: 0.2, s1: 3, spd: 360 }); c.each(c.T, (t, d) => c.hit('splash', t, { d: 0.45 + d, n: 8, up: 120, grav: 500 })); c.shake(6, 0.4, 0.45); }],
+  faetide: [0.4, c => c.each(c.A, (t, d) => { c.ground('lily', t, { d, s: 2 }); c.rise('bubble', t, { d: 0.1 + d, n: 5, add: true }); c.rise('petal', t, { d: 0.2 + d, n: 3 }); })],
+  drowningcoil: [0.4, c => c.each(c.T, t => { c.orbit('whirl', t, { n: 3, y: 'mid', r: 28, life: 0.8 }); c.hit('bubble', t, { d: 0.3, n: 8, up: 100 }); c.pop('impact', t, { d: 0.35, s: 2 }); })],
   // ----- bosses -----
+  wyrmcoil: [0.3, c => c.each(c.T, t => { c.orbit('whirl', t, { n: 3, y: 'mid', r: 30, life: 0.7 }); c.pop('impact', t, { d: 0.25, s: 2.2 }); })],
+  tidalwave: [0.5, c => { c.waves('wave', { n: 6, s1: 3.4, spd: 380 }); c.each(c.T, (t, d) => c.hit('splash', t, { d: 0.45 + d, n: 8, up: 120, grav: 500 })); c.shake(7, 0.4, 0.45); }],
+  glamourmist: [0.4, c => { c.waves('mist', { n: 5, s1: 3 }); c.each(c.T, (t, d) => c.swirl('swirl', t, { d: 0.35 + d, s: 1.6 })); }],
+  lilyrest: [0.3, c => { c.ground('lily', c.u, { s: 3 }); c.rise('bubble', c.u, { n: 8, add: true }); }],
+  moontide: [0.6, c => { c.above('moon', { s: 3.4, add: true }); c.H.forEach((t, i) => c.rain('splash', t, { n: 1, d: 0.2 + i * 0.12, s: 1.4, hit: 'bubble', hn: 6 })); c.shake(8, 0.9, 0.4); }],
   shadowclaw: [0.2, c => c.each(c.T, t => c.slash(t, { n: 3, s: 1.8 }))],
   dreadhowl: [0.4, c => { c.waves('wave', { n: 6, s1: 3.2 }); c.waves('wisp', { n: 5, add: true }); c.shake(4, 0.4); }],
   umbralveil: [0.2, c => { c.pop('wisp', c.u, { s: 4, life: 0.6, add: true }); c.hit('wisp', c.u, { n: 12, add: true }); }],
@@ -4372,7 +4876,7 @@ function drawBattle() {
   if (boss) {
     panel(W / 2 - 228, 44, 456, 34, 'dark');
     meter(W / 2 - 212, 63, 424, 8, boss.hp / boss.maxHp, boss.enraged ? '#e0503a' : '#9d6fd6', { ticks: 10 });
-    ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#f2c3a8'; ctx.fillText(boss.name.toUpperCase() + (boss.boss === 'shadow' ? `   ·   Achievement: win by the end of turn 3 (${B.turn <= 3 ? 'still possible' : 'missed'})` : `   ·   Achievement: no pet faints (${B.faints ? 'missed' : 'still possible'})`), W / 2, 53);
+    ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#f2c3a8'; ctx.fillText(boss.name.toUpperCase() + (boss.boss === 'shadow' ? `   ·   Achievement: win by the end of turn 3 (${B.turn <= 3 ? 'still possible' : 'missed'})` : boss.boss === 'wyrm' ? '   ·   The final battle: beat it and its Wyrmling joins you' : `   ·   Achievement: no pet faints (${B.faints ? 'missed' : 'still possible'})`), W / 2, 53);
   }
   ctx.textAlign = 'left'; ctx.font = `13px ${UI}`;
   B.log.forEach((t, i) => { ctx.globalAlpha = 0.35 + 0.65 * (i + 1) / B.log.length; ctx.fillStyle = PAL.cream; ctx.fillText(t, 14, 84 + i * 16); });
@@ -4776,6 +5280,26 @@ function drawWorldDynamic(R) {
       ctx.fillStyle = gl; ctx.fillRect(d.x - 50, d.y - 70, 100, 100);
       const cn = art('props/candle');
       if (cn) drawSprite(cn, d.x, d.y + 2, 1, { sy: 1 + f * 0.015 });
+    }
+  }
+  // fairy lights: drifting glows in the Glimmer Glade and over the Moonlit Lake
+  for (const d of R.decor) if (d.kind === 'fairy' && inView(d.x, d.y, 80)) {
+    const fx = d.x + Math.sin(TIME * 0.7 + d.ph) * 14, fy = d.y + Math.sin(TIME * 1.3 + d.ph * 2) * 8, a = 0.55 + 0.45 * Math.sin(TIME * 3 + d.ph);
+    const gl = ctx.createRadialGradient(fx, fy, 0, fx, fy, 16); gl.addColorStop(0, d.c); gl.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.35 + 0.35 * a; ctx.fillStyle = gl; ctx.fillRect(fx - 16, fy - 16, 32, 32);
+    ctx.globalAlpha = 0.7 + 0.3 * a; ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(fx) - 1, Math.round(fy) - 1, 3, 3); ctx.globalAlpha = 1;
+  }
+  // bounce mushrooms: glow, and squash when you land on them
+  for (const m of R.shrooms || []) {
+    const X = (m.tx + 0.5) * TILE, Y = (m.ty + 1) * TILE; if (!inView(X, Y, 60)) continue;
+    const sq = m.sq > 0 ? Math.sin((1 - m.sq / 0.35) * Math.PI) * 0.35 : 0, img = art('props/shroom');
+    const gl = ctx.createRadialGradient(X, Y - 14, 2, X, Y - 14, 34); gl.addColorStop(0, 'rgba(244,143,177,0.35)'); gl.addColorStop(1, 'rgba(244,143,177,0)');
+    ctx.fillStyle = gl; ctx.fillRect(X - 34, Y - 48, 68, 60);
+    if (img) drawSprite(img, X, Y + 1, 1, { sy: 1 - sq, sx: 1 + sq * 0.6 });
+    else {
+      ctx.fillStyle = '#efe6d8'; ctx.fillRect(X - 4, Y - 12 * (1 - sq), 8, 12 * (1 - sq));
+      ctx.fillStyle = '#ec407a'; ctx.beginPath(); ctx.ellipse(X, Y - 12 * (1 - sq), 15 * (1 + sq * 0.6), 9 * (1 - sq * 0.5), 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = '#fce4ec'; ctx.fillRect(X - 8, Y - 17 * (1 - sq), 3, 3); ctx.fillRect(X + 4, Y - 15 * (1 - sq), 3, 3);
     }
   }
   // lava pools
