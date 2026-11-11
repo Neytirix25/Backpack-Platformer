@@ -48,8 +48,13 @@ let TIME = 0;
 // =====================================================================
 const PX = 2;  // world sprites are drawn at 2x
 const ART = {};
+// ability effect sprites (assets/vfx): three ChatGPT sheets cut by tools/pixelate.py vfx
+const VFX_SPR = ['star', 'fireball', 'flame', 'spark', 'meteor', 'sun', 'moon', 'feather', 'note', 'wave', 'plus', 'bubble',
+  'claw', 'bite', 'impact', 'poison', 'acid', 'skull', 'wisp', 'rune', 'eye', 'drop', 'stars', 'lava',
+  'rock', 'dust', 'coin', 'swirl', 'tongue', 'shard', 'rainbow', 'orb', 'crack', 'heart', 'ray', 'leaf'];
 const ART_FILES = {
-  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder'],
+  vfx: VFX_SPR,
+  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub'],
@@ -400,6 +405,289 @@ const SFX = (() => {
   const notes = (seq, type, vol, step, len, start = 0) => seq.forEach((f, i) => tone({ type, f0: f, dur: len, vol, delay: start + i * step }));
   const v = () => 0.93 + Math.random() * 0.14; // small random pitch change so repeats don't sound robotic
 
+  // ---- ANIMAL VOICES: an oscillator shaped by a pitch contour, vocal-tract formant filters, roughness (fast
+  // tremolo = growl/croak rasp) and breath noise. pts / formant sweeps are [[time 0..1 of dur, Hz], ...].
+  let distC = null;
+  function distCurve() {
+    if (!distC) { distC = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 511.5 - 1; distC[i] = Math.tanh(x * 3); } }
+    return distC;
+  }
+  function sweep(param, pts, t, dur, expo) {
+    param.setValueAtTime(pts[0][1], t);
+    for (let i = 1; i < pts.length; i++) {
+      const at = t + Math.max(0.001, pts[i][0]) * dur, f = Math.max(20, pts[i][1]);
+      if (expo) param.exponentialRampToValueAtTime(f, at); else param.linearRampToValueAtTime(f, at);
+    }
+  }
+  function voice({ type = 'sawtooth', pts, dur, vol = 0.15, attack = 0.02, hold = 0.6, delay = 0, form = null, lp = 0,
+    vib = 0, vibAmt = 0.02, rough = 0, roughAmt = 0.7, breath = 0, bf = 0, dist = 0 }) {
+    const t = ac.currentTime + delay, end = t + dur + 0.05, osc = ac.createOscillator(), g = ac.createGain();
+    osc.type = type; sweep(osc.frequency, pts, t, dur, true);
+    if (vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = vib; lg.gain.value = pts[0][1] * vibAmt; l.connect(lg); lg.connect(osc.frequency); l.start(t); l.stop(end); }
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + attack);
+    g.gain.setValueAtTime(vol, t + Math.max(attack + 0.001, dur * hold)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    let src = osc;
+    if (dist) { const ws = ac.createWaveShaper(); ws.curve = distCurve(); src.connect(ws); src = ws; }
+    if (rough) {
+      const am = ac.createGain(), l = ac.createOscillator(), lg = ac.createGain();
+      am.gain.value = 1 - roughAmt / 2; l.frequency.value = rough; lg.gain.value = roughAmt / 2;
+      l.connect(lg); lg.connect(am.gain); src.connect(am); src = am; l.start(t); l.stop(end);
+    }
+    if (form) {
+      for (const [f, q, gain] of form) {
+        const bp = ac.createBiquadFilter(), fg = ac.createGain(); bp.type = 'bandpass'; bp.Q.value = q;
+        if (Array.isArray(f)) sweep(bp.frequency, f, t, dur, false); else bp.frequency.value = f;
+        fg.gain.value = gain; src.connect(bp); bp.connect(fg); fg.connect(g);
+      }
+    } else if (lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; src.connect(f); f.connect(g); }
+    else src.connect(g);
+    g.connect(out); osc.start(t); osc.stop(end);
+    if (breath) noise({ dur, vol: vol * breath, f0: bf || (form ? (Array.isArray(form[0][0]) ? form[0][0][0][1] : form[0][0]) : 900), q: 1, delay, attack });
+  }
+  // building blocks: (delay, volume, pitch)
+  const V = {
+    howl: (d = 0, m = 1, p = 1, len = 1.3) => voice({ type: 'triangle', pts: [[0, 330 * p], [0.2, 520 * p], [0.72, 560 * p], [1, 290 * p]], dur: len, vol: 0.2 * m, attack: 0.14, hold: 0.7, vib: 5, vibAmt: 0.012, lp: 1700, breath: 0.12, bf: 600, delay: d }),
+    darkHowl: (d = 0, m = 1, p = 1, len = 1.6) => {
+      for (let i = 0; i < 3; i++) {   // the howl plus two fading echoes off the cavern walls
+        const dd = d + i * 0.32, mm = m * [1, 0.35, 0.15][i];
+        V.howl(dd, mm, p * 0.72, len); voice({ type: 'sawtooth', pts: [[0, 238 * p], [0.2, 395 * p], [0.72, 410 * p], [1, 200 * p]], dur: len, vol: 0.06 * mm, attack: 0.2, hold: 0.7, vib: 4, lp: 700, delay: dd });
+      }
+    },
+    growl: (d = 0, m = 1, p = 1, len = 0.5) => voice({ type: 'sawtooth', pts: [[0, 72 * p], [0.3, 95 * p], [1, 68 * p]], dur: len, vol: 0.24 * m, attack: 0.05, hold: 0.7, rough: 31, roughAmt: 0.9, form: [[350, 3, 3], [850, 4, 2]], breath: 0.45, bf: 380, delay: d }),
+    snarl: (d = 0, m = 1, p = 1, len = 0.55) => { V.growl(d, m, p, len); voice({ type: 'sawtooth', pts: [[0, 160 * p], [0.25, 260 * p], [1, 140 * p]], dur: len, vol: 0.1 * m, attack: 0.04, hold: 0.6, rough: 47, roughAmt: 1, form: [[900, 3, 3], [1900, 4, 1.5]], delay: d }); },
+    snap: (d = 0, m = 1) => { noise({ dur: 0.04, vol: 0.3 * m, f0: 2600, q: 2, delay: d }); noise({ dur: 0.05, vol: 0.26 * m, f0: 1700, q: 2, delay: d + 0.06 }); tone({ type: 'sine', f0: 190, f1: 60, dur: 0.09, vol: 0.22 * m, delay: d + 0.06 }); },
+    bark: (d = 0, m = 1, p = 1) => voice({ type: 'sawtooth', pts: [[0, 300 * p], [0.3, 520 * p], [1, 250 * p]], dur: 0.15, vol: 0.24 * m, attack: 0.005, hold: 0.3, form: [[700, 3, 3], [1500, 4, 2]], rough: 50, roughAmt: 0.5, breath: 0.5, delay: d }),
+    yip: (d = 0, m = 1, p = 1) => voice({ type: 'sawtooth', pts: [[0, 850 * p], [0.35, 1350 * p], [1, 700 * p]], dur: 0.1, vol: 0.17 * m, attack: 0.004, hold: 0.3, form: [[1300, 3, 3], [2600, 4, 2]], breath: 0.3, delay: d }),
+    foxScream: (d = 0, m = 1, p = 1, len = 0.55) => voice({ type: 'sawtooth', pts: [[0, 1000 * p], [0.2, 1500 * p], [0.6, 1400 * p], [1, 800 * p]], dur: len, vol: 0.15 * m, attack: 0.02, hold: 0.5, rough: 62, roughAmt: 0.8, vib: 7, vibAmt: 0.03, form: [[[[0, 1200], [0.3, 1700], [1, 1100]], 3, 3], [2900, 4, 2]], breath: 0.35, delay: d }),
+    gekker: (d = 0, m = 1, p = 1, n = 6) => { for (let i = 0; i < n; i++) voice({ type: 'sawtooth', pts: [[0, 700 * p], [1, 520 * p]], dur: 0.045, vol: 0.13 * m, attack: 0.003, hold: 0.3, form: [[1100, 3, 3]], rough: 80, delay: d + i * 0.055 }); },
+    squawk: (d = 0, m = 1, p = 1, len = 0.22) => voice({ type: 'sawtooth', pts: [[0, 1100 * p], [0.25, 1750 * p], [1, 1150 * p]], dur: len, vol: 0.17 * m, attack: 0.008, hold: 0.4, form: [[1800, 3, 3], [3300, 5, 2]], rough: 70, roughAmt: 0.85, breath: 0.3, delay: d }),
+    whistle: (d = 0, m = 1, p = 1, notes = [1568, 2093], step = 0.12) => {
+      const pts = [], n = notes.length;
+      notes.forEach((f, i) => { pts.push([i / n + 0.002, f * p]); pts.push([(i + 0.72) / n, f * p]); });
+      voice({ type: 'sine', pts, dur: step * n, vol: 0.14 * m, attack: 0.02, hold: 0.86, vib: 7, vibAmt: 0.01, delay: d });
+      voice({ type: 'triangle', pts: pts.map(([t, f]) => [t, f * 2]), dur: step * n, vol: 0.025 * m, attack: 0.02, hold: 0.86, delay: d });
+    },
+    meow: (d = 0, m = 1, p = 1, len = 0.45, up = 1.35) => voice({ type: 'sawtooth', pts: [[0, 500 * p], [0.35, 500 * up * p], [1, 430 * p]], dur: len, vol: 0.17 * m, attack: 0.03, hold: 0.55, vib: 6, vibAmt: 0.015,
+      form: [[[[0, 450], [0.35, 1100], [1, 650]], 4, 3], [[[0, 1900], [0.4, 1500], [1, 1200]], 5, 2]], breath: 0.15, delay: d }),
+    yowl: (d = 0, m = 1, p = 1, len = 0.8) => voice({ type: 'sawtooth', pts: [[0, 420 * p], [0.3, 700 * p], [0.6, 560 * p], [0.8, 680 * p], [1, 380 * p]], dur: len, vol: 0.17 * m, attack: 0.06, hold: 0.7, vib: 9, vibAmt: 0.04, rough: 40, roughAmt: 0.4,
+      form: [[[[0, 500], [0.3, 1000], [0.6, 800], [0.8, 1000], [1, 600]], 4, 3], [2000, 5, 2]], delay: d }),
+    hiss: (d = 0, m = 1, len = 0.4) => noise({ dur: len, vol: 0.2 * m, f0: 5200, f1: 3600, filter: 'highpass', attack: 0.03, delay: d }),
+    rake: (d = 0, m = 1, n = 3) => { for (let i = 0; i < n; i++) noise({ dur: 0.07, vol: 0.2 * m, f0: 1800 + i * 300, f1: 6000, q: 2, attack: 0.01, delay: d + i * 0.05 }); },
+    purr: (d = 0, m = 1, len = 0.8) => voice({ type: 'sawtooth', pts: [[0, 26], [0.5, 23], [1, 27]], dur: len, vol: 0.42 * m, attack: 0.12, hold: 0.7, lp: 420, rough: 2.4, roughAmt: 0.7, delay: d }),
+    lick: (d = 0, m = 1, n = 3) => { for (let i = 0; i < n; i++) noise({ dur: 0.06, vol: 0.12 * m, f0: 1300, f1: 2600, q: 2.5, attack: 0.015, delay: d + i * 0.16 }); },
+    hoot: (d = 0, m = 1, p = 1, len = 0.3) => voice({ type: 'sine', pts: [[0, 360 * p], [0.2, 410 * p], [1, 330 * p]], dur: len, vol: 0.24 * m, attack: 0.05, hold: 0.5, breath: 0.25, bf: 420, delay: d }),
+    screech: (d = 0, m = 1, p = 1, len = 0.6) => {
+      noise({ dur: len, vol: 0.16 * m, f0: 3300 * p, f1: 2400 * p, q: 4, attack: 0.05, delay: d });
+      voice({ type: 'sawtooth', pts: [[0, 1500 * p], [0.3, 1900 * p], [1, 1300 * p]], dur: len, vol: 0.08 * m, attack: 0.05, hold: 0.6, rough: 90, roughAmt: 1, form: [[2800, 4, 3]], delay: d });
+    },
+    dook: (d = 0, m = 1, p = 1, n = 3, gap = 0.075) => { for (let i = 0; i < n; i++) voice({ type: 'square', pts: [[0, 640 * p * (0.95 + Math.random() * 0.1)], [1, 470 * p]], dur: 0.05, vol: 0.13 * m, attack: 0.004, hold: 0.3, form: [[900, 3, 3], [1900, 4, 1]], delay: d + i * gap }); },
+    grunt: (d = 0, m = 1, p = 1, len = 0.18) => voice({ type: 'sawtooth', pts: [[0, 105 * p], [0.4, 130 * p], [1, 88 * p]], dur: len, vol: 0.26 * m, attack: 0.01, hold: 0.4, rough: 38, roughAmt: 0.9, form: [[300, 3, 3], [750, 4, 2]], breath: 0.4, bf: 500, delay: d }),
+    oink: (d = 0, m = 1, p = 1) => { V.grunt(d, m, p * 1.4, 0.13); V.grunt(d + 0.17, m * 0.9, p * 1.5, 0.15); },
+    squeal: (d = 0, m = 1, p = 1, len = 0.5) => voice({ type: 'sawtooth', pts: [[0, 800 * p], [0.25, 1400 * p], [0.7, 1300 * p], [1, 900 * p]], dur: len, vol: 0.15 * m, attack: 0.02, hold: 0.6, vib: 9, vibAmt: 0.04, rough: 45, roughAmt: 0.5, form: [[1400, 4, 3], [2600, 5, 2]], delay: d }),
+    snort: (d = 0, m = 1) => { noise({ dur: 0.12, vol: 0.26 * m, f0: 500, f1: 1100, q: 1.5, attack: 0.01, delay: d }); noise({ dur: 0.1, vol: 0.2 * m, f0: 450, f1: 900, q: 1.5, delay: d + 0.15 }); },
+    croak: (d = 0, m = 1, p = 1, len = 0.3) => voice({ type: 'sawtooth', pts: [[0, 88 * p], [0.5, 110 * p], [1, 78 * p]], dur: len, vol: 0.28 * m, attack: 0.02, hold: 0.6, rough: 22, roughAmt: 1, form: [[450, 4, 3], [1200, 5, 2]], delay: d }),
+    ribbit: (d = 0, m = 1, p = 1) => { V.croak(d, m, p * 1.15, 0.12); V.croak(d + 0.16, m, p, 0.26); },
+    roar: (d = 0, m = 1, p = 1, len = 1.0) => {
+      voice({ type: 'sawtooth', pts: [[0, 85 * p], [0.2, 150 * p], [0.6, 128 * p], [1, 65 * p]], dur: len, vol: 0.24 * m, attack: 0.08, hold: 0.55, rough: 29, roughAmt: 0.7, dist: 1, form: [[500, 2, 3], [1150, 3, 2]], breath: 0.6, bf: 700, delay: d });
+      noise({ dur: len, vol: 0.16 * m, f0: 420, f1: 140, filter: 'lowpass', attack: 0.1, delay: d });
+    },
+    whinny: (d = 0, m = 1, p = 1, len = 0.9) => voice({ type: 'sawtooth', pts: [[0, 700 * p], [0.15, 1300 * p], [1, 560 * p]], dur: len, vol: 0.14 * m, attack: 0.04, hold: 0.5, vib: 11, vibAmt: 0.08, form: [[1200, 4, 3], [2400, 5, 2]], breath: 0.2, delay: d }),
+    hooves: (d = 0, m = 1, n = 6) => { for (let i = 0; i < n; i++) { const at = d + Math.floor(i / 3) * 0.32 + (i % 3) * 0.08; tone({ type: 'sine', f0: 210, f1: 70, dur: 0.07, vol: 0.26 * m, delay: at }); noise({ dur: 0.03, vol: 0.12 * m, f0: 1500, q: 1, delay: at }); } },
+    fire: (d = 0, m = 1, len = 0.5) => {
+      noise({ dur: len, vol: 0.22 * m, f0: 500, f1: 1800, q: 0.7, attack: 0.05, delay: d });
+      for (let i = 0; i < 5; i++) noise({ dur: 0.025, vol: 0.12 * m, f0: 3000 + Math.random() * 3000, q: 6, delay: d + Math.random() * len });
+    },
+    boom: (d = 0, m = 1) => { tone({ type: 'sine', f0: 120, f1: 35, dur: 0.35, vol: 0.35 * m, delay: d }); noise({ dur: 0.45, vol: 0.3 * m, f0: 1200, f1: 80, filter: 'lowpass', delay: d }); },
+    thud: (d = 0, m = 1) => { tone({ type: 'sine', f0: 130, f1: 45, dur: 0.18, vol: 0.32 * m, delay: d }); noise({ dur: 0.12, vol: 0.18 * m, f0: 400, f1: 80, filter: 'lowpass', delay: d }); },
+    slash: (d = 0, m = 1, p = 1) => noise({ dur: 0.12, vol: 0.24 * m, f0: 800 * p, f1: 4200 * p, q: 1.5, attack: 0.015, delay: d }),
+    wind: (d = 0, m = 1, len = 0.8) => { noise({ dur: len, vol: 0.2 * m, f0: 300, f1: 2200, q: 3, attack: len * 0.45, delay: d }); noise({ dur: len, vol: 0.1 * m, f0: 2000, f1: 500, q: 4, attack: len * 0.3, delay: d + 0.1 }); },
+    whoosh: (d = 0, m = 1, len = 0.4) => noise({ dur: len, vol: 0.18 * m, f0: 1600, f1: 300, q: 2, attack: len * 0.5, delay: d }),
+    flaps: (d = 0, m = 1, n = 3, gap = 0.16, p = 1) => { for (let i = 0; i < n; i++) { noise({ dur: 0.1, vol: 0.18 * m, f0: 1100 * p, f1: 450 * p, q: 1, delay: d + i * gap }); noise({ dur: 0.07, vol: 0.1 * m, f0: 800 * p, q: 1, delay: d + i * gap + 0.06 }); } },
+    gulp: (d = 0, m = 1) => { voice({ type: 'sine', pts: [[0, 330], [1, 85]], dur: 0.2, vol: 0.32 * m, attack: 0.01, hold: 0.3, delay: d }); tone({ type: 'sine', f0: 90, f1: 40, dur: 0.15, vol: 0.22 * m, delay: d + 0.17 }); },
+    bubbles: (d = 0, m = 1, n = 6, lo = 300) => { for (let i = 0; i < n; i++) { const f = lo + Math.random() * lo * 1.3; tone({ type: 'sine', f0: f, f1: f * 1.9, dur: 0.05, vol: 0.13 * m, delay: d + i * 0.07 + Math.random() * 0.03 }); } },
+    tongue: (d = 0, m = 1) => { tone({ type: 'sine', f0: 250, f1: 1900, dur: 0.07, vol: 0.2 * m, delay: d }); tone({ type: 'sine', f0: 1900, f1: 280, dur: 0.09, vol: 0.16 * m, delay: d + 0.07 }); noise({ dur: 0.03, vol: 0.14 * m, f0: 3000, q: 2, delay: d + 0.07 }); },
+    dig: (d = 0, m = 1, n = 5) => { for (let i = 0; i < n; i++) noise({ dur: 0.07, vol: 0.24 * m, f0: 1000, f1: 200, filter: 'lowpass', delay: d + i * 0.085 + Math.random() * 0.02 }); },
+    coins: (d = 0, m = 1) => { [1976, 2637, 2349, 3136].forEach((f, i) => tone({ type: 'square', f0: f, dur: 0.07, vol: 0.045 * m, delay: d + i * 0.055 })); },
+    sparkle: (d = 0, m = 1, notes = [1047, 1319, 1568, 2093], step = 0.06) => { notes.forEach((f, i) => tone({ type: 'triangle', f0: f, dur: 0.28, vol: 0.09 * m, delay: d + i * step })); noise({ dur: 0.3, vol: 0.05 * m, f0: 7000, filter: 'highpass', delay: d + notes.length * step * 0.5 }); },
+    chord: (d = 0, m = 1, notes = [523, 659, 784], len = 0.9) => { for (const f of notes) voice({ type: 'sine', pts: [[0, f], [1, f]], dur: len, vol: 0.07 * m, attack: len * 0.3, hold: 0.6, vib: 5, vibAmt: 0.006, delay: d }); },
+    shield: (d = 0, m = 1) => { noise({ dur: 0.07, vol: 0.12 * m, f0: 2500, f1: 1200, q: 2, delay: d }); tone({ type: 'triangle', f0: 880, f1: 1320, dur: 0.25, vol: 0.08 * m, delay: d + 0.03 }); tone({ type: 'triangle', f0: 1320, dur: 0.3, vol: 0.06 * m, delay: d + 0.12 }); },
+    eerie: (d = 0, m = 1, p = 1, len = 0.8) => { voice({ type: 'sine', pts: [[0, 620 * p], [1, 300 * p]], dur: len, vol: 0.08 * m, attack: len * 0.3, hold: 0.5, vib: 6, vibAmt: 0.03, delay: d }); voice({ type: 'sine', pts: [[0, 655 * p], [1, 318 * p]], dur: len, vol: 0.06 * m, attack: len * 0.3, hold: 0.5, vib: 4.5, vibAmt: 0.03, delay: d }); },
+    rumble: (d = 0, m = 1, len = 0.8) => { noise({ dur: len, vol: 0.3 * m, f0: 260, f1: 90, filter: 'lowpass', attack: len * 0.25, delay: d }); tone({ type: 'sine', f0: 55, f1: 38, dur: len, vol: 0.2 * m, attack: len * 0.25, delay: d }); },
+    fall: (d = 0, m = 1) => { tone({ type: 'sine', f0: 2600, f1: 500, dur: 0.38, vol: 0.07 * m, delay: d }); V.boom(d + 0.36, m * 0.55); },
+    peckTick: (d = 0, m = 1, n = 2) => { for (let i = 0; i < n; i++) noise({ dur: 0.025, vol: 0.22 * m, f0: 3200, q: 4, delay: d + i * 0.07 }); },
+    lionRoar: (d = 0, m = 1, p = 1, len = 1.1) => {   // a big cat's roar: a low open-mouthed bellow that swells then grunts out
+      voice({ type: 'sawtooth', pts: [[0, 70 * p], [0.25, 120 * p], [0.55, 105 * p], [1, 55 * p]], dur: len, vol: 0.26 * m, attack: 0.12, hold: 0.55, rough: 24, roughAmt: 0.6, dist: 1, form: [[[[0, 350], [0.3, 750], [1, 400]], 2.5, 3], [1400, 3, 1.5]], breath: 0.7, bf: 500, delay: d });
+      noise({ dur: len * 0.9, vol: 0.12 * m, f0: 600, f1: 200, filter: 'lowpass', attack: 0.15, delay: d });
+    },
+    bleat: (d = 0, m = 1, p = 1, len = 0.45) => voice({ type: 'sawtooth', pts: [[0, 330 * p], [0.3, 380 * p], [1, 300 * p]], dur: len, vol: 0.16 * m, attack: 0.02, hold: 0.6, rough: 9, roughAmt: 0.9, form: [[[[0, 600], [0.3, 1000], [1, 700]], 4, 3], [2200, 5, 1.5]], breath: 0.15, delay: d }),
+    flutter: (d = 0, m = 1, n = 8, gap = 0.04) => { for (let i = 0; i < n; i++) noise({ dur: 0.035, vol: 0.12 * m, f0: 2400, f1: 1200, q: 1.5, delay: d + i * gap }); },
+    sizzle: (d = 0, m = 1, len = 0.5) => { noise({ dur: len, vol: 0.14 * m, f0: 6000, f1: 4000, filter: 'highpass', attack: 0.02, delay: d }); for (let i = 0; i < 6; i++) noise({ dur: 0.02, vol: 0.1 * m, f0: 4000 + Math.random() * 4000, q: 8, delay: d + Math.random() * len }); },
+    stone: (d = 0, m = 1) => { tone({ type: 'sine', f0: 150, f1: 55, dur: 0.2, vol: 0.32 * m, delay: d }); for (let i = 0; i < 3; i++) noise({ dur: 0.05, vol: 0.14 * m, f0: 900 + i * 350, q: 3, delay: d + 0.03 + i * 0.05 }); },
+    hiss2: (d = 0, m = 1, len = 0.35) => noise({ dur: len, vol: 0.18 * m, f0: 3800, f1: 2600, q: 1.2, attack: 0.03, delay: d }),
+    phoenixCry: (d = 0, m = 1, p = 1, len = 0.6) => voice({ type: 'sawtooth', pts: [[0, 1400 * p], [0.3, 2100 * p], [1, 1500 * p]], dur: len, vol: 0.12 * m, attack: 0.03, hold: 0.5, vib: 8, vibAmt: 0.03, form: [[2200, 4, 3], [3600, 5, 1.5]], delay: d }),
+  };
+  // one sound per battle ability (S['ab_' + id]); p = pitch (bosses and big foes sound lower)
+  const AB = {
+    // Shepherd
+    bite: p => { V.growl(0, 0.8, p, 0.3); V.snap(0.24); },
+    guard: p => { V.bark(0, 1, p * 0.85); V.bark(0.2, 0.9, p * 0.8); V.shield(0.36); },
+    howl: p => V.howl(0, 1, p, 1.35),
+    bulwark: p => { V.bark(0, 1, p * 0.8); V.howl(0.18, 0.7, p * 0.9, 0.8); V.shield(0.45, 1.3); V.chord(0.45, 0.8, [392, 494, 587], 0.7); },
+    packleader: p => { V.howl(0, 1, p, 1.5); V.howl(0.25, 0.6, p * 1.26, 1.3); V.howl(0.5, 0.5, p * 0.84, 1.2); },
+    feral: p => { V.snarl(0, 1.1, p * 0.9, 0.45); V.snap(0.36, 1.3); V.slash(0.4, 0.9, 0.8); V.growl(0.55, 0.6, p * 0.85, 0.35); },
+    // Gray Cat
+    scratch: p => { V.hiss(0, 1.1, 0.15); V.rake(0.05, 2.5); },
+    pounce: p => { V.meow(0, 0.8, p * 1.15, 0.17, 1.2); V.thud(0.2, 0.6); V.rake(0.24); },
+    lick: p => { V.lick(0); V.purr(0.4, 1, 0.75); },
+    shadowstrike: p => { V.yowl(0, 0.9, p * 0.8, 0.45); V.whoosh(0.25, 1.6, 0.3); V.slash(0.5, 2.2, 0.8); },
+    ninthlife: p => { V.meow(0, 1, p * 1.2, 0.5, 1.5); V.sparkle(0.35, 1, [784, 988, 1319, 1568, 1976]); V.purr(0.4, 0.6, 0.6); },
+    flurry: p => { V.hiss(0, 1.4, 0.2); for (let i = 0; i < 5; i++) V.rake(0.12 + i * 0.09, 2.4, 1); },
+    // Calico Cat
+    hexclaw: p => { V.hiss(0, 0.9, 0.12); V.rake(0.04, 2.2); V.eerie(0.1, 1.2, p * 1.2, 0.45); },
+    jinx: p => { V.meow(0, 0.9, p * 1.1, 0.4, 0.8); V.eerie(0.15, 1, p, 0.6); },
+    fortune: p => { V.meow(0, 0.9, p * 1.25, 0.35, 1.5); V.sparkle(0.25, 1, [1047, 1319, 1568]); },
+    calamity: p => { V.yowl(0, 1, p, 0.8); V.rumble(0.35, 0.8, 0.7); V.boom(0.55, 0.5); },
+    ladyluck: p => { V.purr(0, 0.8, 0.6); V.sparkle(0.2, 1.1, [988, 1175, 1319, 1568, 1976, 2349]); },
+    chaos: p => { for (let i = 0; i < 4; i++) V.meow(i * 0.13, 0.6, p * (0.8 + Math.random() * 0.7), 0.16, 0.7 + Math.random()); V.eerie(0.3, 0.8, p * 1.3, 0.5); },
+    // Cockatiel
+    peck: p => { V.squawk(0, 1, p, 0.17); V.peckTick(0.16); },
+    song: p => V.whistle(0, 1.5, p, [1568, 1760, 2093, 1760, 2349], 0.11),
+    chorus: p => { V.whistle(0, 0.9, p, [1319, 1568, 1760, 2093], 0.12); V.whistle(0.06, 0.5, p * 1.5, [1319, 1568, 1760, 2093], 0.12); V.sparkle(0.45, 0.7); },
+    anthem: p => { V.whistle(0, 1, p, [1175, 1568, 1760, 2093, 2349, 2093, 2637], 0.11); V.chord(0.4, 0.9, [784, 988, 1175], 0.8); V.sparkle(0.75, 0.8, [1568, 2093, 2637, 3136]); },
+    cyclone: p => { V.flaps(0, 1, 4, 0.12); V.wind(0, 1.2, 0.9); V.squawk(0.35, 1, p, 0.25); },
+    aegis: p => { V.whistle(0, 1.4, p, [1760, 2349], 0.1); V.shield(0.2, 1.8); V.chord(0.2, 1, [880, 1109, 1319], 0.6); },
+    // Dragon
+    fireball: p => { V.roar(0, 0.6, p * 1.7, 0.3); V.fire(0.15, 1, 0.4); },
+    flamebreath: p => { V.roar(0, 0.7, p * 1.55, 0.4); V.fire(0.2, 1.3, 0.8); },
+    emberscales: p => { V.growl(0, 0.7, p * 1.3, 0.35); V.fire(0.1, 0.6, 0.35); V.shield(0.3); },
+    inferno: p => { V.roar(0, 1, p * 1.35, 0.7); V.fire(0.3, 1.6, 1.1); V.boom(0.5, 0.6); },
+    wyrmhide: p => { V.growl(0, 1, p * 1.1, 0.6); V.rumble(0.1, 0.5, 0.5); V.shield(0.4, 1.2); },
+    starfall: p => { V.roar(0, 0.5, p * 1.6, 0.3); for (let i = 0; i < 5; i++) V.fall(0.2 + i * 0.13, 0.8); },
+    // Fox
+    quickbite: p => { V.yip(0, 1, p); V.snap(0.1, 0.9); },
+    feint: p => { V.gekker(0, 2, p, 5); V.whoosh(0.25, 1.6, 0.25); },
+    ambush: p => { V.foxScream(0, 1, p, 0.4); V.slash(0.36, 1.3); V.snap(0.4, 0.8); },
+    foxfire: p => { V.foxScream(0, 0.7, p, 0.6); V.whoosh(0.1, 1, 0.5); V.fire(0.3, 0.9, 0.6); V.sparkle(0.4, 0.6, [1319, 1661, 1976]); },
+    whirlwind: p => { V.yip(0, 1.2, p); V.wind(0.05, 2.4, 0.6); V.slash(0.2, 2); V.slash(0.45, 2); },
+    ninetails: p => { V.yip(0, 1, p * 1.1); V.sparkle(0.1, 2, [1175, 1319, 1568, 1760, 2093, 2349, 2637, 3136, 3520], 0.05); },
+    // Owl
+    talons: p => { V.screech(0, 1.6, p, 0.25); V.rake(0.2, 2.6); },
+    shriek: p => V.screech(0, 3.2, p, 0.85),
+    insight: p => { V.hoot(0, 1, p); V.hoot(0.36, 1, p * 0.94, 0.4); V.sparkle(0.6, 0.6, [1319, 1760]); },
+    eternalnight: p => { V.hoot(0, 1, p * 0.75, 0.4); V.hoot(0.45, 1, p * 0.72, 0.4); V.eerie(0.3, 1.2, p * 0.6, 1.0); },
+    deathspiral: p => { tone({ type: 'sine', f0: 1900 * p, f1: 420 * p, dur: 0.55, vol: 0.09, vib: 0 }); V.wind(0, 0.8, 0.55); V.screech(0.3, 0.8, p, 0.3); V.thud(0.6, 1.2); },
+    elderwisdom: p => { V.hoot(0, 1, p * 0.8, 0.45); V.hoot(0.5, 1, p * 0.75, 0.55); V.chord(0.3, 1, [392, 494, 587, 784], 1.0); },
+    // Ferret
+    nip: p => { V.dook(0, 1, p, 2); V.snap(0.16, 0.6); },
+    pilfer: p => { V.dook(0, 1, p, 3); V.coins(0.25); },
+    burrow: p => { V.dig(0, 1.6, 6); V.dook(0.55, 1, p, 2); },
+    heist: p => { V.dook(0, 1, p, 6, 0.06); V.coins(0.3); V.coins(0.5, 0.7); },
+    frenzy: p => { V.dook(0, 1, p * 1.1, 4, 0.05); for (let i = 0; i < 4; i++) V.snap(0.2 + i * 0.1, 0.7); },
+    sinkhole: p => { V.dig(0, 0.8, 4); V.rumble(0.25, 1, 0.8); V.boom(0.55, 0.7); },
+    // Boar
+    tusk: p => { V.grunt(0, 1, p); V.slash(0.12, 1, 0.7); V.thud(0.15, 0.7); },
+    charge: p => { V.snort(0); V.hooves(0.3, 0.9, 4); V.thud(0.75, 1.2); V.grunt(0.75, 0.8, p); },
+    wallow: p => { V.bubbles(0, 0.8, 5, 140); noise({ dur: 0.3, vol: 0.2, f0: 500, f1: 200, filter: 'lowpass', attack: 0.05 }); V.oink(0.3, 1, p); },
+    juggernaut: p => { V.squeal(0, 1, p, 0.45); V.hooves(0.3, 1, 9); V.boom(0.9, 0.8); },
+    unbreakable: p => { V.grunt(0, 1.2, p * 0.8, 0.3); V.shield(0.25, 1.2); V.grunt(0.45, 0.8, p * 0.75, 0.25); },
+    warpig: p => { V.squeal(0, 1.2, p, 0.6); V.boom(0.5); V.grunt(0.6, 0.9, p); },
+    // Toad
+    tongue: p => { V.croak(0, 0.8, p, 0.2); V.tongue(0.22); },
+    spit: p => { V.croak(0, 1, p * 1.1, 0.15); noise({ dur: 0.08, vol: 0.4, f0: 1200, q: 1, delay: 0.17 }); tone({ type: 'sine', f0: 600, f1: 200, dur: 0.06, vol: 0.2, delay: 0.17 }); noise({ dur: 0.45, vol: 0.16, f0: 5000, filter: 'highpass', attack: 0.05, delay: 0.3 }); },
+    bogskin: p => { V.croak(0, 1, p * 0.9, 0.45); V.bubbles(0.35, 0.8, 5, 220); },
+    plague: p => { V.ribbit(0, 1, p * 0.8); V.bubbles(0.35, 0.9, 7, 160); V.eerie(0.3, 0.7, p * 0.7, 0.7); },
+    devour: p => { V.tongue(0); V.gulp(0.24); V.croak(0.6, 0.9, p * 0.9, 0.3); },
+    toadking: p => { V.croak(0, 1.2, p * 0.7, 0.35); V.croak(0.42, 1.2, p * 0.65, 0.5); V.chord(0.4, 0.8, [262, 330, 392], 0.8); },
+    // Shadow Wolf (pup) and its shades
+    shadowbite: p => { V.snarl(0, 0.8, p * 0.85, 0.3); V.snap(0.25, 1); V.whoosh(0.2, 0.4, 0.25); },
+    darkhowl: p => V.darkHowl(0, 1, p, 1.4),
+    fade: p => { V.whoosh(0, 1.8, 0.6); V.eerie(0.05, 1.3, p * 0.8, 0.6); },
+    eclipsefang: p => { V.snarl(0, 1.2, p * 0.8, 0.5); V.snap(0.4, 1.4); V.boom(0.45, 0.5); },
+    shades: p => { for (let i = 0; i < 4; i++) { V.howl(i * 0.16, 0.35, p * (0.75 + i * 0.06), 0.6); V.snap(0.5 + i * 0.12, 0.7); } V.whoosh(0, 0.8, 0.5); },
+    nightmare: p => { V.darkHowl(0, 0.8, p * 0.85, 1.1); V.howl(0, 0.3, p * 0.67, 1.1); V.rumble(0.3, 0.8, 0.9); },
+    // Elder Drake (pet)
+    emberclaw: p => { V.growl(0, 0.9, p * 1.2, 0.3); V.slash(0.2, 1.1); V.fire(0.25, 0.5, 0.3); },
+    firestorm: p => { V.roar(0, 0.8, p * 1.2, 0.6); V.fire(0.25, 1.5, 0.9); },
+    ancientroar: p => V.roar(0, 1.2, p * 0.9, 1.3),
+    cataclysm: p => { V.roar(0, 1, p, 0.8); V.fire(0.3, 1.5, 1.0); V.boom(0.45, 0.8); V.boom(0.8, 0.7); },
+    phoenixheart: p => { voice({ type: 'sawtooth', pts: [[0, 1400 * p], [0.3, 2100 * p], [1, 1500 * p]], dur: 0.6, vol: 0.12, attack: 0.03, hold: 0.5, vib: 8, vibAmt: 0.03, form: [[2200, 4, 3], [3600, 5, 1.5]] }); V.fire(0.2, 0.9, 0.7); V.sparkle(0.45, 1.1, [523, 784, 1047, 1568, 2093]); },
+    dragonrage: p => { V.roar(0, 1.1, p * 1.05, 0.6); V.boom(0.45, 1.1); },
+    // Unicorn
+    hornstrike: p => { V.snort(0, 1.6); V.slash(0.18, 2); tone({ type: 'triangle', f0: 2093, dur: 0.4, vol: 0.22, delay: 0.22 }); tone({ type: 'sine', f0: 3136, dur: 0.3, vol: 0.1, delay: 0.24 }); },
+    rainbowmane: p => { V.whinny(0, 0.6, p * 1.1, 0.5); V.sparkle(0.15, 1.1, [1047, 1175, 1319, 1397, 1568, 1760, 1976]); },
+    lightcharge: p => { V.hooves(0, 1, 6); V.whoosh(0.1, 0.8, 0.5); V.sparkle(0.5, 0.7, [1568, 2093, 2637]); V.whinny(0.25, 0.6, p, 0.5); },
+    prismatic: p => { V.whinny(0, 1, p, 0.7); V.sparkle(0.35, 1.3, [784, 1047, 1319, 1568, 2093, 2637]); V.boom(0.5, 0.5); },
+    sanctify: p => { V.chord(0, 1.2, [523, 659, 784, 1047], 1.1); V.shield(0.3, 1.1); V.whinny(0.1, 0.4, p * 1.1, 0.5); },
+    starlight: p => { V.whinny(0, 0.9, p, 0.8); V.sparkle(0.3, 1.2, [3136, 2637, 2349, 2093, 1568, 1319, 1047], 0.07); V.chord(0.5, 1, [523, 659, 784], 0.9); },
+    // Phoenix
+    emberpeck: p => { V.phoenixCry(0, 0.6, p * 1.1, 0.2); V.peckTick(0.16, 1.2); V.fire(0.18, 0.5, 0.3); },
+    kindlesong: p => { V.whistle(0, 1.3, p * 0.9, [1319, 1568, 1976, 1760, 2349], 0.11); V.fire(0.2, 0.3, 0.5); },
+    ashveil: p => { V.phoenixCry(0, 0.7, p, 0.35); V.whoosh(0.15, 1.2, 0.5); V.shield(0.45, 1.5); },
+    rebirth: p => { V.fire(0, 1.2, 0.9); V.phoenixCry(0.35, 1.1, p, 0.8); V.sparkle(0.6, 1.3, [523, 784, 1047, 1568, 2093, 2637]); },
+    sunflare: p => { V.phoenixCry(0, 1, p, 0.5); V.fire(0.2, 1.5, 0.9); V.boom(0.45, 0.6); V.sparkle(0.45, 0.8, [2093, 2637, 3136]); },
+    eternalflame: p => { V.chord(0, 1.2, [523, 659, 784, 1047], 1.0); V.fire(0.1, 0.8, 0.9); V.whistle(0.3, 0.8, p, [1568, 2093, 2637], 0.14); },
+    // Hellhound
+    hellfang: p => { V.snarl(0, 0.9, p * 0.75, 0.3); V.snap(0.24, 1.1); V.sizzle(0.28, 0.8, 0.3); },
+    brimstone: p => { V.howl(0, 0.8, p * 0.7, 1.1); V.growl(0, 0.5, p * 0.7, 1.0); V.fire(0.3, 0.9, 0.7); },
+    blazerush: p => { V.growl(0, 0.7, p * 0.8, 0.2); V.whoosh(0.1, 1.6, 0.3); V.fire(0.15, 1, 0.4); V.snap(0.35, 1); },
+    cerberus: p => { for (let i = 0; i < 3; i++) { V.snarl(i * 0.2, 0.6, p * (0.7 + i * 0.08), 0.2); V.snap(0.15 + i * 0.2, 1.1); } },
+    hellgate: p => { V.rumble(0, 1.2, 0.8); V.howl(0.1, 0.6, p * 0.6, 1.0); V.fire(0.35, 1.8, 1.0); V.boom(0.4, 0.9); },
+    soulreap: p => { V.snarl(0, 1.1, p * 0.7, 0.4); V.snap(0.35, 1.3); V.eerie(0.4, 1, p * 0.7, 0.6); },
+    // Salamander
+    cinderlash: p => { V.hiss2(0, 0.7, 0.2); V.tongue(0.15, 1.2); V.sizzle(0.25, 1, 0.4); },
+    magmaspit: p => { V.hiss2(0, 0.6, 0.15); noise({ dur: 0.08, vol: 0.4, f0: 900, q: 1, delay: 0.15 }); V.bubbles(0.2, 1, 6, 150); V.sizzle(0.3, 1.1, 0.5); },
+    flameskin: p => { V.fire(0, 1, 0.7); V.hiss2(0.1, 0.5, 0.4); V.shield(0.4, 1.3); },
+    lavaflood: p => { V.rumble(0, 1, 0.9); V.bubbles(0.2, 1.3, 9, 110); V.sizzle(0.3, 1.4, 0.9); },
+    regrowtail: p => { V.hiss2(0, 0.5, 0.2); V.sparkle(0.2, 1.1, [523, 659, 784, 1047, 1319]); V.fire(0.2, 0.5, 0.4); },
+    firewhirl: p => { V.wind(0, 1.4, 0.8); V.fire(0.1, 1.2, 0.8); V.hiss2(0.2, 0.5, 0.3); },
+    // Magma Tortoise
+    shellbash: p => { V.grunt(0, 0.8, p * 0.7, 0.2); V.stone(0.15, 1.3); },
+    moltenshell: p => { V.stone(0, 1); V.sizzle(0.1, 0.8, 0.5); V.shield(0.3, 1.5); },
+    lavaward: p => { V.bubbles(0, 1, 5, 130); V.shield(0.25, 1.6); V.chord(0.25, 0.8, [262, 330, 392], 0.6); },
+    eruption: p => { V.rumble(0, 1.2, 0.6); V.boom(0.4, 1.2); V.fire(0.45, 1.6, 0.8); V.stone(0.6, 0.9); },
+    obsidian: p => { V.grunt(0, 1.1, p * 0.6, 0.35); V.stone(0.25, 1.2); V.stone(0.45, 1); V.shield(0.55, 1.6); },
+    quake: p => { V.stone(0, 1.2); V.rumble(0.05, 1.5, 0.9); V.boom(0.2, 1); },
+    // Qilin
+    blazehoof: p => { V.snort(0, 1.2); V.hooves(0.15, 1.2, 2); V.fire(0.3, 0.7, 0.3); },
+    blessing: p => { V.whinny(0, 0.5, p * 0.85, 0.5); V.chord(0.1, 1.2, [659, 831, 988], 0.7); V.sparkle(0.3, 1, [1319, 1568, 1976]); },
+    purify: p => { V.fire(0, 0.6, 0.6); V.chord(0, 1.2, [523, 659, 784, 1047], 0.9); V.sparkle(0.4, 1, [1047, 1319, 1568, 2093]); },
+    omen: p => { V.whinny(0, 1, p * 0.85, 0.8); V.chord(0.3, 1.3, [392, 494, 587, 784, 988], 1.0); },
+    judgment: p => { tone({ type: 'sine', f0: 2600, f1: 500, dur: 0.45, vol: 0.14 }); V.boom(0.42, 1.3); V.fire(0.45, 1.2, 0.6); V.chord(0, 0.7, [523, 784, 1047], 0.5); },
+    celestial: p => { V.whinny(0, 0.8, p * 0.85, 0.6); V.fire(0.25, 1.4, 0.9); V.chord(0.3, 1, [523, 659, 784], 0.9); },
+    // Chimera
+    lionmaw: p => { V.lionRoar(0, 0.5, p * 1.1, 0.35); V.snap(0.3, 1.2); },
+    goatcurse: p => { V.bleat(0, 1, p); V.eerie(0.2, 1.1, p, 0.6); },
+    serpentfang: p => { V.hiss(0, 0.9, 0.35); V.snap(0.3, 0.8); V.bubbles(0.35, 0.6, 3, 300); },
+    threefold: p => { V.lionRoar(0, 0.8, p, 0.6); V.bleat(0.1, 0.6, p * 0.9, 0.5); V.hiss(0.2, 0.8, 0.5); V.fire(0.35, 1.5, 0.8); },
+    serpentcoil: p => { V.hiss(0, 1.2, 0.6); for (let i = 0; i < 3; i++) noise({ dur: 0.15, vol: 0.18, f0: 400, f1: 900, q: 2, delay: 0.3 + i * 0.12 }); V.snap(0.7, 1); },
+    hexstorm: p => { V.bleat(0, 1, p * 0.8, 0.6); V.eerie(0.1, 1.4, p * 0.8, 1.0); V.wind(0.2, 1, 0.8); },
+    // Sunmane Lion
+    sunclaw: p => { V.growl(0, 0.6, p * 1.3, 0.2); V.rake(0.15, 2); V.fire(0.2, 0.4, 0.3); },
+    blazeroar: p => V.lionRoar(0, 1.1, p, 1.2),
+    solarpounce: p => { V.lionRoar(0, 0.5, p * 1.2, 0.3); V.thud(0.3, 1.2); V.fire(0.32, 0.9, 0.4); },
+    kingbeasts: p => { V.lionRoar(0, 1.3, p * 0.9, 1.4); V.chord(0.5, 0.9, [392, 494, 587], 0.8); },
+    solarflare: p => { V.lionRoar(0, 0.7, p, 0.6); V.boom(0.35, 0.8); V.sparkle(0.35, 1.2, [1568, 2093, 2637, 3136]); V.fire(0.4, 1.2, 0.7); },
+    pridehunt: p => { V.growl(0, 1, p * 1.1, 0.4); V.whoosh(0.3, 1.2, 0.25); V.lionRoar(0.45, 0.6, p * 1.2, 0.35); V.slash(0.5, 2.2, 0.8); },
+    // Ember Moth
+    sparkdust: p => { V.flutter(0, 1.2, 6); V.sparkle(0.2, 0.8, [2637, 3136, 3520]); V.sizzle(0.25, 0.6, 0.3); },
+    dazzle: p => { V.flutter(0, 1.2, 8); V.sparkle(0.15, 1.3, [1568, 2093, 2637, 3136, 3520]); },
+    flutter: p => { V.flutter(0, 1.5, 10, 0.035); V.whoosh(0.15, 0.8, 0.3); },
+    sparkswarm: p => { V.flutter(0, 1.3, 12, 0.03); for (let i = 0; i < 6; i++) noise({ dur: 0.04, vol: 0.2, f0: 3000 + Math.random() * 3000, q: 4, delay: 0.25 + i * 0.08 }); V.fire(0.3, 0.8, 0.6); },
+    lunarglow: p => { V.flutter(0, 0.9, 6); V.chord(0.1, 1.1, [440, 554, 659, 880], 1.0); V.sparkle(0.4, 0.9, [1760, 1319, 1109, 880], 0.08); },
+    mesmerize: p => { V.flutter(0, 0.8, 6); V.eerie(0.1, 1.3, p * 1.4, 0.9); V.chord(0.2, 0.8, [415, 440], 0.8); },
+    // ----- bosses -----
+    shadowclaw: p => { V.snarl(0, 1, p * 0.7, 0.4); V.slash(0.32, 1.4, 0.7); },
+    dreadhowl: p => V.darkHowl(0, 1.2, p * 0.85, 1.7),
+    umbralveil: p => { V.whoosh(0, 1.2, 0.7); V.eerie(0.1, 1, p * 0.6, 0.8); V.growl(0.2, 0.6, p * 0.7, 0.5); },
+    devourweak: p => { V.snarl(0, 1.1, p * 0.7, 0.4); V.snap(0.35, 1.3); V.snap(0.52, 1); V.gulp(0.7, 0.8); },
+    callshades: p => { V.howl(0, 1, p * 0.8, 1.0); V.howl(0.35, 0.4, p * 0.95, 0.8); V.whoosh(0.5, 1, 0.5); V.eerie(0.5, 0.7, p, 0.6); },
+    elderclaw: p => { V.growl(0, 1.2, p * 0.75, 0.4); V.rake(0.3, 1.4); },
+    elderbreath: p => { V.roar(0, 1.2, p * 0.8, 0.8); V.fire(0.35, 1.8, 1.1); },
+    tailsweep: p => { V.wind(0, 1, 0.4); V.thud(0.35, 1.3); V.thud(0.45, 0.9); },
+    wingguard: p => { V.flaps(0, 3.5, 3, 0.25, 0.55); V.shield(0.6, 1.8); },
+    meteorrain: p => { V.roar(0, 1.2, p * 0.85, 0.7); for (let i = 0; i < 6; i++) V.fall(0.4 + i * 0.14, 0.8); },
+  };
+
   const S = {
     // --- player ---
     swing: heavy => { const p = v() * (heavy ? 0.65 : 1); noise({ dur: heavy ? 0.18 : 0.13, vol: 0.22, f0: 450 * p, f1: 2600 * p, q: 1.3, attack: 0.02 }); },
@@ -473,6 +761,13 @@ const SFX = (() => {
     start: () => notes([392, 523, 659, 784], 'square', 0.07, 0.06, 0.12),
     pause: () => tone({ type: 'square', f0: 660, dur: 0.06, vol: 0.05 }),
   };
+  const VOX_VOL = 0.6;   // ability sounds vs the rest of the effects
+  let vox = null;
+  for (const k in AB) S['ab_' + k] = p => {
+    if (!vox) { vox = ac.createGain(); vox.gain.value = VOX_VOL; vox.connect(out); }
+    const main = out; out = vox;   // every voice/tone/noise scheduled below lands on the ability bus
+    try { AB[k](p || 1); } finally { out = main; }
+  };
   // minimum seconds between repeats of the same sound (stops stacking when lots happen at once)
   const GAP = { hit: 0.035, crit: 0.05, slimeHop: 0.15, spawn: 0.1, clank: 0.1, ghostAppear: 0.3, rattle: 0.15, enemyBow: 0.08, land: 0.1 };
   function play(name, arg) {
@@ -488,7 +783,7 @@ const SFX = (() => {
     if (out) out.gain.value = muted ? 0 : VOL;
     return muted;
   }
-  return { init, play, toggleMute, get muted() { return muted; }, get ac() { return ac; }, get out() { return out; }, get noise() { return noiseBuf; } };
+  return { init, play, has: n => !!S[n], toggleMute, get muted() { return muted; }, get ac() { return ac; }, get out() { return out; }, get noise() { return noiseBuf; } };
 })();
 
 // =====================================================================
@@ -811,34 +1106,47 @@ const RARITY = {
 //                  drake (Dragon, Elder Drake) · amphibian (Toad) · critter (Ferret, Boar)
 const ITEMS = {
   // ----- for every pet -----
-  collar:    { name: 'Leather Collar',  icon: '⭕', shape: [[1]],             color: '#6a4a2a', rarity: 'common',    tags: [], hp: 0.12, desc: 'All pets +12% max HP.' },
+  collar:    { name: 'Leather Collar',  icon: '⭕', shape: [[1, 1], [1, 0], [1, 1]],             color: '#6a4a2a', rarity: 'common',    tags: [], hp: 0.12, desc: 'All pets +12% max HP.' },
   chewbone:  { name: 'Chew Bone',       icon: '🦴', shape: [[1, 1]],          color: '#7a6a4a', rarity: 'common',    tags: [], atk: 0.1, desc: 'All pets +10% attack.' },
-  clawfile:  { name: 'Claw File',       icon: '🪮', shape: [[1]],             color: '#5a5a62', rarity: 'common',    tags: [], crit: 0.06, desc: 'All pets +6% critical hit chance.' },
+  clawfile:  { name: 'Claw File',       icon: '🪮', shape: [[1], [1], [1]],             color: '#5a5a62', rarity: 'common',    tags: [], crit: 0.06, desc: 'All pets +6% critical hit chance.' },
   vest:      { name: 'Padded Vest',     icon: '🦺', shape: [[1, 1], [1, 1]],  color: '#4a5a6a', rarity: 'common',    tags: [], def: 2, desc: 'All pets +2 defense.' },
-  treats:    { name: 'Pet Treats',      icon: '🍪', shape: [[1]],             color: '#8a6a3a', rarity: 'common',    tags: [], xp: 0.25, desc: 'Pets earn 25% more experience.' },
+  treats:    { name: 'Pet Treats',      icon: '🍪', shape: [[1, 0], [1, 1]],             color: '#8a6a3a', rarity: 'common',    tags: [], xp: 0.25, desc: 'Pets earn 25% more experience.' },
   blanket:   { name: 'Cozy Blanket',    icon: '🧣', shape: [[1, 1, 1]],       color: '#6a3a4a', rarity: 'uncommon',  tags: [], regen: 0.04, desc: 'All pets regenerate 4% of their max HP every turn.' },
-  spikes:    { name: 'Spiked Collar',   icon: '🦔', shape: [[1]],          color: '#5a3a3a', rarity: 'uncommon',  tags: [], thorns: 0.2, desc: 'Foes that hit a pet take 20% of the damage back.' },
-  whistle:   { name: 'Rally Whistle',   icon: '📯', shape: [[1]],             color: '#7a6020', rarity: 'uncommon',  tags: [], rally: 1, desc: 'Every battle starts with all pets Strengthened (+30% attack) for 1 turn.' },
+  spikes:    { name: 'Spiked Collar',   icon: '🦔', shape: [[1, 1, 1], [1, 0, 1]],          color: '#5a3a3a', rarity: 'uncommon',  tags: [], thorns: 0.2, desc: 'Foes that hit a pet take 20% of the damage back.' },
+  whistle:   { name: 'Rally Whistle',   icon: '📯', shape: [[1, 1, 1], [0, 0, 1]],             color: '#7a6020', rarity: 'uncommon',  tags: [], rally: 1, desc: 'Every battle starts with all pets Strengthened (+30% attack) for 1 turn.' },
   clover:    { name: 'Lucky Clover',    icon: '🍀', shape: [[0, 1, 0], [1, 1, 1], [0, 1, 0]], color: '#2d6638', rarity: 'rare', tags: [], crit: 0.1, luck: 1, offspring: 0.1, desc: '+10% crit for all pets, rarer loot, and +10% offspring chance.' },
   phoenix:   { name: 'Phoenix Feather', icon: '🪶', shape: [[1], [1]],        color: '#7a2a10', rarity: 'rare',      tags: [], revive: 0.3, desc: 'Once per battle, the first pet to faint rises again with 30% HP.' },
   incubator: { name: 'Warm Incubator',  icon: '🧺', shape: [[1, 1], [1, 1]],  color: '#7a5a3a', rarity: 'uncommon',  tags: [], incubator: 1, desc: 'Eggs hatch after 1 win instead of 2, and hatchlings start 2 levels higher.' },
   // ----- positions (front = the pet nearest the foes) -----
   harness:   { name: 'Iron Harness',    icon: '⛓️', shape: [[1, 1], [1, 1]],  color: '#566070', rarity: 'uncommon',  tags: [], frontDR: 0.2, desc: 'Your FRONT pet takes 20% less damage.' },
-  bell:      { name: 'Guardian Bell',   icon: '🔔', shape: [[1]],             color: '#2c4a76', rarity: 'rare',      tags: [], frontShield: 0.2, frontTaunt: 1, desc: 'Your FRONT pet starts every battle with a shield (20% of its max HP) and taunts for 1 turn.' },
-  huntmark:  { name: "Hunter's Charm",  icon: '🎯', shape: [[1]],             color: '#5a4a2a', rarity: 'uncommon',  tags: [], backAtk: 0.25, desc: 'Your BACK pet deals 25% more damage.' },
+  bell:      { name: 'Guardian Bell',   icon: '🔔', shape: [[0, 1, 0], [1, 1, 1]],             color: '#2c4a76', rarity: 'rare',      tags: [], frontShield: 0.2, frontTaunt: 1, desc: 'Your FRONT pet starts every battle with a shield (20% of its max HP) and taunts for 1 turn.' },
+  huntmark:  { name: "Hunter's Charm",  icon: '🎯', shape: [[0, 1], [1, 1], [1, 0]],             color: '#5a4a2a', rarity: 'uncommon',  tags: [], backAtk: 0.25, desc: 'Your BACK pet deals 25% more damage.' },
   // ----- animal families -----
-  squeaky:   { name: 'Squeaky Bone',    icon: '🐕', shape: [[1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['canine'], fam: 'canine', famAtk: 0.2, famCrit: 0.05, desc: 'Canines (Shepherd, Fox, Shadow Wolf) +20% attack and +5% crit.' },
+  squeaky:   { name: 'Squeaky Bone',    icon: '🐕', shape: [[1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['canine'], fam: 'canine', famAtk: 0.2, famCrit: 0.05, desc: 'Canines (Shepherd, Fox, Shadow Wolf, Hellhound) +20% attack and +5% crit.' },
   catnip:    { name: 'Catnip Pouch',    icon: '🌿', shape: [[1]],             color: '#4a6a3a', rarity: 'uncommon',  tags: ['feline'], fam: 'feline', famCrit: 0.12, famCritMul: 0.3, desc: 'Cats +12% crit, and their crits hit 30% harder.' },
-  cuttlebone:{ name: 'Cuttlebone',      icon: '🐚', shape: [[1], [1]],        color: '#8a8a7a', rarity: 'uncommon',  tags: ['bird'], fam: 'bird', famHeal: 0.35, famDef: 2, desc: 'Birds (Cockatiel, Owl) heal 35% more and get +2 defense.' },
+  cuttlebone:{ name: 'Cuttlebone',      icon: '🐚', shape: [[1], [1]],        color: '#8a8a7a', rarity: 'uncommon',  tags: ['bird'], fam: 'bird', famHeal: 0.35, famDef: 2, desc: 'Birds (Cockatiel, Owl, Phoenix) heal 35% more and get +2 defense.' },
   heatrock:  { name: 'Heat Rock',       icon: '🔥', shape: [[1, 1]],          color: '#7a3a1a', rarity: 'uncommon',  tags: ['drake'], fam: 'drake', famAtk: 0.15, famDot: 0.5, desc: 'Drakes (Dragon, Elder Drake) +15% attack, and their burns deal 50% more.' },
-  bogmoss:   { name: 'Bog Moss',        icon: '🍃', shape: [[1]],             color: '#3a5a2a', rarity: 'uncommon',  tags: ['amphibian'], fam: 'amphibian', famDot: 0.5, famRegen: 0.05, desc: 'Toads: poison deals 50% more and they regenerate 5% max HP per turn.' },
-  truffle:   { name: 'Truffle',         icon: '🍄', shape: [[1]],             color: '#5a4030', rarity: 'uncommon',  tags: ['critter'], fam: 'critter', famHp: 0.25, famDef: 2, desc: 'Critters (Ferret, Boar) +25% max HP and +2 defense.' },
+  bogmoss:   { name: 'Bog Moss',        icon: '🍃', shape: [[1, 1, 0], [0, 1, 1]],             color: '#3a5a2a', rarity: 'uncommon',  tags: ['amphibian'], fam: 'amphibian', famDot: 0.5, famRegen: 0.05, desc: 'Toads and Salamanders: poison deals 50% more and they regenerate 5% max HP per turn.' },
+  truffle:   { name: 'Truffle',         icon: '🍄', shape: [[1, 1], [1, 0]],             color: '#5a4030', rarity: 'uncommon',  tags: ['critter'], fam: 'critter', famHp: 0.25, famDef: 2, desc: 'Critters (Ferret, Boar, Magma Tortoise) +25% max HP and +2 defense.' },
   // ----- powerful -----
-  nightshade:{ name: 'Nightshade Vial', icon: '🧪', shape: [[1]],             color: '#3a2a5a', rarity: 'rare',      tags: [], dot: 0.4, desc: 'Burn, poison and bleed from your pets deal 40% more.' },
-  hexcharm:  { name: 'Hex Charm',       icon: '🧿', shape: [[1]],             color: '#4a2a5a', rarity: 'rare',      tags: [], dur: 1, desc: 'Curses your pets put on foes (stun aside) last 1 turn longer.' },
+  nightshade:{ name: 'Nightshade Vial', icon: '🧪', shape: [[1], [1]],             color: '#3a2a5a', rarity: 'rare',      tags: [], dot: 0.4, desc: 'Burn, poison and bleed from your pets deal 40% more.' },
+  hexcharm:  { name: 'Hex Charm',       icon: '🧿', shape: [[1, 0, 1], [0, 1, 0], [1, 0, 1]],             color: '#4a2a5a', rarity: 'rare',      tags: [], dur: 1, desc: 'Curses your pets put on foes (stun aside) last 1 turn longer.' },
   healbell:  { name: "Healer's Bell",   icon: '🛎️', shape: [[1], [1]],        color: '#3a6a5a', rarity: 'rare',      tags: [], heal: 0.3, desc: 'All healing and shields from your pets are 30% stronger.' },
   dragonheart:{ name: 'Dragon Heart',   icon: '❤️‍🔥', shape: [[1, 1], [1, 1]], color: '#7a1a2a', rarity: 'legendary', tags: [], hp: 0.25, atk: 0.25, desc: 'LEGENDARY. All pets +25% max HP and +25% attack.' },
-  alphafang: { name: 'Alpha Fang',      icon: '🦷', shape: [[1]],             color: '#571d29', rarity: 'legendary', tags: [], crit: 0.1, critMul: 0.7, desc: 'LEGENDARY. All pets +10% crit, and crits deal x2.2 instead of x1.5.' },
+  alphafang: { name: 'Alpha Fang',      icon: '🦷', shape: [[1, 1], [1, 0], [1, 0]],             color: '#571d29', rarity: 'legendary', tags: [], crit: 0.1, critMul: 0.7, desc: 'LEGENDARY. All pets +10% crit, and crits deal x2.2 instead of x1.5.' },
+  // ----- awkward shapes: strong for their size, hard to fit -----
+  horseshoe:   { name: 'Lucky Horseshoe', icon: '🧲', shape: [[1, 0, 1], [1, 1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['equine'], fam: 'equine', famHeal: 0.3, famAtk: 0.12, desc: 'Hooved beasts (Unicorn, Qilin) heal 30% more and get +12% attack.' },
+  glownectar:  { name: 'Glow Nectar',     icon: '🍯', shape: [[1, 0], [1, 1]],                color: '#8a6a1a', rarity: 'uncommon',  tags: ['insect'], fam: 'insect', famCrit: 0.1, famDot: 0.4, desc: 'Moths get +10% crit, and their burns deal 40% more.' },
+  embertotem:  { name: 'Ember Totem',     icon: '🗿', shape: [[1, 1, 1], [0, 1, 0]],          color: '#7a3a1a', rarity: 'rare',      tags: [], dot: 0.3, crit: 0.04, desc: 'Burn, poison and bleed from your pets deal 30% more, and +4% crit.' },
+  boneflute:   { name: 'Bone Flute',      icon: '🪈', shape: [[1, 1, 1, 1]],                  color: '#8a8070', rarity: 'uncommon',  tags: [], hp: 0.08, atk: 0.08, desc: 'All pets +8% max HP and +8% attack.' },
+  serpenttorc: { name: 'Serpent Torc',    icon: '🐍', shape: [[0, 1, 1], [1, 1, 0]],          color: '#3a5a3a', rarity: 'rare',      tags: [], crit: 0.06, critMul: 0.2, desc: 'All pets +6% crit, and crits deal x1.7 instead of x1.5.' },
+  antlercrown: { name: 'Antler Crown',    icon: '🦌', shape: [[1, 1, 0], [0, 1, 1]],          color: '#6a5040', rarity: 'uncommon',  tags: [], def: 2, hp: 0.12, desc: 'All pets +2 defense and +12% max HP.' },
+  saddlebag:   { name: 'Saddlebag',       icon: '👜', shape: [[1, 1], [1, 1], [1, 0]],        color: '#6a4a2a', rarity: 'common',    tags: [], regen: 0.03, hp: 0.06, desc: 'All pets regenerate 3% of their max HP every turn and get +6% max HP.' },
+  buckler:     { name: 'Shell Buckler',   icon: '🛡️', shape: [[0, 1, 0], [1, 1, 1], [1, 1, 1]], color: '#4a3a2a', rarity: 'rare',     tags: [], frontDR: 0.25, def: 2, desc: 'Your FRONT pet takes 25% less damage, and all pets +2 defense.' },
+  windchimes:  { name: 'Wind Chimes',     icon: '🎐', shape: [[1, 1, 1], [1, 1, 1], [1, 0, 1]], color: '#3a6a6a', rarity: 'rare',     tags: [], heal: 0.25, regen: 0.02, desc: 'Healing and shields from your pets are 25% stronger, and all pets regenerate 2% per turn.' },
+  huntinghorn: { name: 'Hunting Horn',    icon: '📯', shape: [[1, 0, 0], [1, 1, 1]],          color: '#7a5a2a', rarity: 'uncommon',  tags: [], backAtk: 0.3, crit: 0.03, desc: 'Your BACK pet deals 30% more damage, and all pets +3% crit.' },
+  emberring:   { name: 'Ring of Embers',  icon: '💍', shape: [[1, 1, 1], [1, 0, 1], [1, 1, 1]], color: '#8a2a10', rarity: 'legendary', tags: [], atk: 0.2, dot: 0.4, desc: 'LEGENDARY. All pets +20% attack, and burn, poison and bleed deal 40% more.' },
+  wishbone:    { name: 'Wishbone',        icon: '🦴', shape: [[1, 0, 1], [1, 1, 1], [0, 1, 0]],          color: '#8a8060', rarity: 'rare',      tags: [], luck: 1, offspring: 0.15, crit: 0.04, desc: 'Rarer loot, +15% offspring chance from species you own, and +4% crit for all pets.' },
   // ----- consumables (the hero uses them in battle) -----
   salve:     { name: 'Healing Salve',   icon: '🩹', shape: [[1]],             color: '#8a2c3c', rarity: 'common',    tags: ['consumable'], use: 'salve', w: 2, desc: 'Battle: heal one pet for 35% of its max HP. Used up.' },
   herb:      { name: 'Revival Herb',    icon: '🌱', shape: [[1]],             color: '#2a6a3a', rarity: 'uncommon',  tags: ['consumable'], use: 'revive', w: 1.2, desc: 'Battle: bring a fainted pet back with 40% HP. Used up.' },
@@ -852,6 +1160,10 @@ const ITEMS = {
   egg_toad:      { name: 'Toad Spawn',    icon: '🫧', shape: [[1]],            color: '#4a6a3a', rarity: 'uncommon',  tags: ['egg'], egg: 'toad', noDrop: true, desc: 'Hatches into a little Toad after you win 2 fights carrying it.' },
   egg_dragon:    { name: 'Dragon Egg',    icon: '🥚', shape: [[1, 1], [1, 1]], color: '#6a2a1e', rarity: 'legendary', tags: ['egg'], egg: 'dragon', noDrop: true, desc: 'Hatches into a Dragon whelp after you win 2 fights carrying it.' },
   egg_elder:     { name: 'Elder Egg',     icon: '🥚', shape: [[1, 1], [1, 1]], color: '#4a1a3a', rarity: 'legendary', tags: ['egg'], egg: 'elder', noDrop: true, desc: 'The Elder Dragon\'s egg. Hatches into an Elder Drake after you win 2 fights carrying it.' },
+  egg_phoenix:    { name: 'Phoenix Egg',      icon: '🥚', shape: [[1], [1]],          color: '#8a3a10', rarity: 'legendary', tags: ['egg'], egg: 'phoenix', noDrop: true, desc: 'Warm to the touch. Hatches into a Phoenix chick after you win 2 fights carrying it.' },
+  egg_salamander: { name: 'Salamander Eggs',  icon: '🫧', shape: [[1, 1, 1]],         color: '#7a3a1a', rarity: 'rare',      tags: ['egg'], egg: 'salamander', noDrop: true, desc: 'A string of glowing eggs. Hatches into a Salamander after you win 2 fights carrying it.' },
+  egg_tortoise:   { name: 'Tortoise Egg',     icon: '🥚', shape: [[1, 1], [1, 1]],    color: '#5a3a2a', rarity: 'rare',      tags: ['egg'], egg: 'tortoise', noDrop: true, desc: 'Heavy as a stone. Hatches into a Magma Tortoise after you win 2 fights carrying it.' },
+  egg_moth:       { name: 'Ember Cocoon',     icon: '🥚', shape: [[1], [1], [1]],     color: '#7a5a2a', rarity: 'rare',      tags: ['egg'], egg: 'moth', noDrop: true, desc: 'It glows from inside. Hatches into an Ember Moth after you win 2 fights carrying it.' },
   // ----- your pets (kept in the pet slots, never in chests) -----
   pet_dog:        { name: 'Loyal Shepherd', icon: '🐕', shape: [[1, 1], [1, 1]], color: '#5a5a62', rarity: 'common',    tags: ['pet'], pet: 'dog', noDrop: true, desc: 'A tough Guardian: bites that stun, taunts that protect.' },
   pet_catgray:    { name: 'Gray Cat',       icon: '🐈', shape: [[1, 1], [1, 1]], color: '#50545c', rarity: 'common',    tags: ['pet'], pet: 'catgray', noDrop: true, desc: 'A Hunter that finishes off wounded foes.' },
@@ -866,6 +1178,14 @@ const ITEMS = {
   pet_shadowwolf: { name: 'Shadow Wolf',    icon: '🐺', shape: [[1, 1], [1, 1]], color: '#2a2a3a', rarity: 'legendary', tags: ['pet'], pet: 'shadowwolf', noDrop: true, desc: 'The Shadow Wolf\'s pup: a deadly hunter of the dark.' },
   pet_unicorn:    { name: 'Unicorn',        icon: '🦄', shape: [[1, 1], [1, 1]], color: '#7a5a7a', rarity: 'legendary', tags: ['pet'], pet: 'unicorn', noDrop: true, desc: 'It found you formidable in battle and joined your Sanctuary: a radiant horn and a healing mane.' },
   pet_elder:      { name: 'Elder Drake',    icon: '🐲', shape: [[1, 1], [1, 1]], color: '#4a1a3a', rarity: 'legendary', tags: ['pet'], pet: 'elder', noDrop: true, desc: 'Hatched from the Elder Dragon\'s egg: ancient fire.' },
+  pet_phoenix:    { name: 'Phoenix',        icon: '🔥', shape: [[1, 1], [1, 1]], color: '#8a3a10', rarity: 'legendary', tags: ['pet'], pet: 'phoenix', noDrop: true, desc: 'A Healer of living flame that rises from its own ashes.' },
+  pet_hellhound:  { name: 'Hellhound',      icon: '🐕', shape: [[1, 1], [1, 1]], color: '#5a1a10', rarity: 'legendary', tags: ['pet'], pet: 'hellhound', noDrop: true, desc: 'A Hunter with burning jaws.' },
+  pet_salamander: { name: 'Salamander',     icon: '🦎', shape: [[1, 1], [1, 1]], color: '#7a3a1a', rarity: 'rare',      tags: ['pet'], pet: 'salamander', noDrop: true, desc: 'A Burner that sets everything alight and regrows its tail.' },
+  pet_tortoise:   { name: 'Magma Tortoise', icon: '🐢', shape: [[1, 1], [1, 1]], color: '#4a3020', rarity: 'rare',      tags: ['pet'], pet: 'tortoise', noDrop: true, desc: 'A Guardian with a shell of cooling lava.' },
+  pet_qilin:      { name: 'Qilin',          icon: '🦌', shape: [[1, 1], [1, 1]], color: '#7a5a2a', rarity: 'legendary', tags: ['pet'], pet: 'qilin', noDrop: true, desc: 'A sacred Support that blesses its friends and burns away curses.' },
+  pet_chimera:    { name: 'Chimera',        icon: '🦁', shape: [[1, 1], [1, 1]], color: '#5a4a3a', rarity: 'legendary', tags: ['pet'], pet: 'chimera', noDrop: true, desc: 'A Hexer with three heads: lion, goat and serpent.' },
+  pet_lion:       { name: 'Sunmane Lion',   icon: '🦁', shape: [[1, 1], [1, 1]], color: '#8a6a1a', rarity: 'rare',      tags: ['pet'], pet: 'lion', noDrop: true, desc: 'A proud Hunter whose mane blazes like the sun.' },
+  pet_moth:       { name: 'Ember Moth',     icon: '🦋', shape: [[1, 1], [1, 1]], color: '#7a4a1a', rarity: 'rare',      tags: ['pet'], pet: 'moth', noDrop: true, desc: 'A Trickster that blinds foes with glowing dust.' },
 };
 
 let uid = 1;
@@ -878,7 +1198,7 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
 const LVL_COLOR = ['', '#ffffff', '#a5d6a7', '#81d4fa', '#ce93d8', '#ffd54f'];
 const lvlMult = it => LVL_MULT[Math.min(MAX_LVL, it.lvl || 1) - 1];
 function itemAllowed(id, cls = G && G.cls) { const d = ITEMS[id]; return !(d.only && d.only !== cls) && !(d.not && d.not.includes(cls)); }
-const FAM_NAME = { canine: 'canines', feline: 'cats', bird: 'birds', drake: 'drakes', amphibian: 'toads', critter: 'critters' };
+const FAM_NAME = { canine: 'canines', feline: 'cats', bird: 'birds', drake: 'drakes', amphibian: 'toads and salamanders', critter: 'critters', equine: 'hooved beasts', insect: 'moths' };
 // consumable strength by item level
 const useMult = it => 1 + 0.35 * ((it.lvl || 1) - 1);
 // human-readable bonuses for a levelled item
@@ -1071,7 +1391,7 @@ function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
 //  THE SANCTUARY — the hub between runs: walk around as your hero, switch class and look,
 //  read your records, visit (and pet!) every animal you've ever rescued, then take the gate down.
 // =====================================================================
-const HUB_COLS = 46;
+const HUB_COLS = 56;
 const HUB_SPOTS = {   // tile x of each station
   board: 4, banners: { warrior: 9, archer: 12, rogue: 15, beastmaster: 18 }, mirror: 22, fire: 26, beds: 28.5,
 };
@@ -2099,10 +2419,20 @@ const PETS = {
   shadowwolf: { role: 'Hunter', ability: 'Bleed',   name: 'Shadow Wolf', anim: 'shadowwolf', fallback: 'pet_dog',  fly: false, w: 32, h: 26, hp: 30, dmg: 3, cd: 0.8, speed: 300, reach: 36, kb: 200, color: '#37474f' },
   unicorn:    { role: 'Paladin', ability: 'Radiance', name: 'Unicorn', anim: 'unicorn', fallback: 'pet_dog', fly: false, w: 32, h: 28, hp: 40, dmg: 3, cd: 0.9, speed: 290, reach: 34, kb: 200, color: '#f8bbd0' },
   elder:      { role: 'Mystic', ability: 'Burn',    name: 'Elder Drake', anim: 'elderdragon', fallback: 'pet_dragon', fly: true, w: 36, h: 30, hp: 50, dmg: 4, cd: 1.2, speed: 240, ranged: 300, kb: 160, color: '#8e24aa' },
+  // mythical fire beasts (their own art: pet_<k>; until it exists they borrow a look-alike's sheet, tinted by standInTint)
+  phoenix:    { role: 'Healer',   ability: 'Rebirth',  name: 'Phoenix',      anim: 'pet_phoenix',    fallback: 'pet_cockatiel', fly: true,  w: 24, h: 20, hp: 20, dmg: 2, cd: 0.8, speed: 280, reach: 24, kb: 80,  color: '#ff8f00' },
+  hellhound:  { role: 'Hunter',   ability: 'Burn',     name: 'Hellhound',    anim: 'pet_hellhound',  fallback: 'pet_dog',       fly: false, w: 30, h: 26, hp: 30, dmg: 3, cd: 0.8, speed: 310, reach: 36, kb: 200, color: '#bf360c' },
+  salamander: { role: 'Burner',   ability: 'Burn',     name: 'Salamander',   anim: 'pet_salamander', fallback: 'pet_toad',      fly: false, w: 28, h: 14, hp: 22, dmg: 1, cd: 0.9, speed: 240, reach: 60, kb: 60,  color: '#ff7043' },
+  tortoise:   { role: 'Guardian', ability: 'Shell',    name: 'Magma Tortoise', anim: 'pet_tortoise', fallback: 'pet_boar',      fly: false, w: 34, h: 22, hp: 45, dmg: 3, cd: 1.1, speed: 190, reach: 34, kb: 300, color: '#6d4c41' },
+  qilin:      { role: 'Support',  ability: 'Blessing', name: 'Qilin',        anim: 'pet_qilin',      fallback: 'unicorn',       fly: false, w: 32, h: 28, hp: 40, dmg: 3, cd: 0.9, speed: 290, reach: 34, kb: 200, color: '#ffb74d' },
+  chimera:    { role: 'Hexer',    ability: 'Curse',    name: 'Chimera',      anim: 'pet_chimera',    fallback: 'pet_catcalico', fly: false, w: 32, h: 26, hp: 36, dmg: 3, cd: 0.9, speed: 290, reach: 34, kb: 200, color: '#a1887f' },
+  lion:       { role: 'Hunter',   ability: 'Roar',     name: 'Sunmane Lion', anim: 'pet_lion',       fallback: 'pet_catgray',   fly: false, w: 32, h: 26, hp: 40, dmg: 3, cd: 0.9, speed: 300, reach: 34, kb: 220, color: '#ffca28' },
+  moth:       { role: 'Trickster', ability: 'Blind',   name: 'Ember Moth',   anim: 'pet_moth',       fallback: 'pet_owl',       fly: true,  w: 22, h: 18, hp: 18, dmg: 2, cd: 0.8, speed: 280, reach: 24, kb: 60,  color: '#ffab40' },
 };
 // ---- battle data: stats, abilities and statuses of every species (see BATTLES below) ----
 const FAMILY = { dog: 'canine', fox: 'canine', shadowwolf: 'canine', catgray: 'feline', catcalico: 'feline', cockatiel: 'bird', owl: 'bird',
-                 dragon: 'drake', elder: 'drake', toad: 'amphibian', ferret: 'critter', boar: 'critter', shade: 'canine', unicorn: 'equine' };
+                 dragon: 'drake', elder: 'drake', toad: 'amphibian', ferret: 'critter', boar: 'critter', shade: 'canine', unicorn: 'equine',
+                 phoenix: 'bird', hellhound: 'canine', salamander: 'amphibian', tortoise: 'critter', qilin: 'equine', chimera: 'feline', lion: 'feline', moth: 'insect' };
 // battle stats at level 1 · base abilities · the ultimate each talent tree unlocks · what its offspring is
 const BS = {
   dog:        { hp: 46, atk: 9,  def: 4, crit: 0,    abil: ['bite', 'guard', 'howl'],          ult: ['bulwark', 'packleader', 'feral'],        off: 'baby', baby: 'Shepherd Pup' },
@@ -2118,6 +2448,15 @@ const BS = {
   shadowwolf: { hp: 46, atk: 11, def: 3, crit: 0.1,  abil: ['shadowbite', 'darkhowl', 'fade'], ult: ['eclipsefang', 'shades', 'nightmare'],   off: 'baby', baby: 'Shadow Pup' },
   elder:      { hp: 52, atk: 12, def: 4, crit: 0,    abil: ['emberclaw', 'firestorm', 'ancientroar'], ult: ['cataclysm', 'phoenixheart', 'dragonrage'], off: 'egg', baby: 'Elder Drake hatchling' },
   unicorn:    { hp: 48, atk: 11, def: 4, crit: 0.1,  abil: ['hornstrike', 'rainbowmane', 'lightcharge'], ult: ['prismatic', 'sanctify', 'starlight'], off: 'special', baby: 'Unicorn' },
+  // mythical fire beasts: wild only on floors 11-20
+  phoenix:    { hp: 36, atk: 9,  def: 2, crit: 0.05, abil: ['emberpeck', 'kindlesong', 'ashveil'], ult: ['rebirth', 'sunflare', 'eternalflame'], off: 'egg', baby: 'Phoenix Chick', myth: 1 },
+  hellhound:  { hp: 42, atk: 11, def: 3, crit: 0.1,  abil: ['hellfang', 'brimstone', 'blazerush'], ult: ['cerberus', 'hellgate', 'soulreap'],    off: 'baby', baby: 'Hellhound Pup', myth: 1 },
+  salamander: { hp: 40, atk: 9,  def: 3, crit: 0,    abil: ['cinderlash', 'magmaspit', 'flameskin'], ult: ['lavaflood', 'regrowtail', 'firewhirl'], off: 'egg', baby: 'Salamander Hatchling', myth: 1 },
+  tortoise:   { hp: 56, atk: 8,  def: 5, crit: 0,    abil: ['shellbash', 'moltenshell', 'lavaward'], ult: ['eruption', 'obsidian', 'quake'],    off: 'egg',  baby: 'Tortoise Hatchling', myth: 1 },
+  qilin:      { hp: 44, atk: 10, def: 4, crit: 0.05, abil: ['blazehoof', 'blessing', 'purify'],    ult: ['omen', 'judgment', 'celestial'],      off: 'baby', baby: 'Qilin Foal', myth: 1 },
+  chimera:    { hp: 42, atk: 10, def: 3, crit: 0.05, abil: ['lionmaw', 'goatcurse', 'serpentfang'], ult: ['threefold', 'serpentcoil', 'hexstorm'], off: 'baby', baby: 'Chimera Cub', myth: 1 },
+  lion:       { hp: 48, atk: 10, def: 4, crit: 0.05, abil: ['sunclaw', 'blazeroar', 'solarpounce'], ult: ['kingbeasts', 'solarflare', 'pridehunt'], off: 'baby', baby: 'Lion Cub', myth: 1 },
+  moth:       { hp: 32, atk: 9,  def: 2, crit: 0.05, abil: ['sparkdust', 'dazzle', 'flutter'],     ult: ['sparkswarm', 'lunarglow', 'mesmerize'], off: 'egg', baby: 'Ember Mothling', myth: 1 },
   shade:      { hp: 22, atk: 8,  def: 1, crit: 0.05, abil: ['shadowbite', 'fade'], ult: [] },
 };
 const STARTERS = ['dog', 'fox', 'cockatiel'];
@@ -2214,6 +2553,63 @@ const ABIL = {
   prismatic:   { n: 'Prismatic Burst', t: 'foes', cd: 5, pow: 1.7, chaos: 1, ult: 1, d: 'A rainbow blast on every foe (170%), each also hit with a random curse.' },
   sanctify:    { n: 'Sanctify', t: 'allies', cd: 5, shieldOf: 0.3, cleanse: 1, allySt: [['regen', 3]], ult: 1, d: 'Shield every ally for 30% of the Unicorn\'s max HP, cure their curses and give Regen for 3 turns.' },
   starlight:   { n: 'Starlight', t: 'allies', cd: 6, heal: 1.6, reviveAll: 0.4, allySt: [['str', 2]], ult: 1, d: 'Heal every ally (160%), bring fainted ones back with 40% HP, and give everyone Strength for 2 turns.' },
+  // ===== Act II: the mythical fire beasts (floors 11-20) =====
+  // Phoenix
+  emberpeck:   { n: 'Ember Peck', t: 'foe', pow: 1.0, st: [['burn', 2]], d: 'Peck one foe with a burning beak (100%) and Burn it for 2 turns.' },
+  kindlesong:  { n: 'Kindling Song', t: 'ally', heal: 2.0, allySt: [['str', 1]], d: 'Heal one ally (200% of the Phoenix\'s attack) and give it Strength for 1 turn.' },
+  ashveil:     { n: 'Ash Veil', t: 'allies', cd: 3, shieldAtk: 1.4, d: 'Shield every ally for 140% of the Phoenix\'s attack.' },
+  rebirth:     { n: 'Rebirth', t: 'allies', cd: 6, heal: 1.2, reviveAll: 0.6, ult: 1, d: 'Bring fainted allies back from the ashes with 60% HP and heal everyone (120%).' },
+  sunflare:    { n: 'Sunflare', t: 'foes', cd: 5, pow: 1.4, st: [['burn', 3], ['blind', 1, 0.5]], ult: 1, d: 'Every foe takes 140% and Burns for 3 turns, with a 50% chance to be Blinded.' },
+  eternalflame:{ n: 'Eternal Flame', t: 'allies', cd: 5, cleanse: 1, allySt: [['regen', 3], ['str', 2]], ult: 1, d: 'Cure every ally\'s curses; they Regenerate for 3 turns and gain Strength for 2.' },
+  // Hellhound
+  hellfang:    { n: 'Hellfang', t: 'foe', pow: 1.1, st: [['burn', 2, 0.6]], d: 'Bite one foe (110%). 60% chance to Burn it for 2 turns.' },
+  brimstone:   { n: 'Brimstone Howl', t: 'foes', cd: 3, st: [['weak', 2], ['burn', 1]], d: 'Weaken every foe for 2 turns and Burn them for 1.' },
+  blazerush:   { n: 'Blaze Rush', t: 'foe', cd: 2, pow: 1.6, crit: 0.3, d: 'Rush through one foe in a trail of fire (160%, +30% crit).' },
+  cerberus:    { n: 'Three Heads', t: 'foe', cd: 4, hits: 3, pow: 0.95, st: [['bleed', 2]], ult: 1, d: 'Three savage bites on one foe (95% each), each making it Bleed.' },
+  hellgate:    { n: 'Hellgate', t: 'foes', cd: 5, pow: 1.3, st: [['burn', 3]], ult: 1, d: 'The ground splits open: every foe takes 130% and Burns for 3 turns.' },
+  soulreap:    { n: 'Soul Reap', t: 'foe', cd: 4, pow: 2.4, drain: 0.5, ult: 1, d: 'Tear into one foe (240%) and heal for half the damage.' },
+  // Salamander
+  cinderlash:  { n: 'Cinder Lash', t: 'foe', pow: 0.8, st: [['burn', 3]], d: 'Lash one foe with a fiery tongue (80%) and Burn it for 3 turns.' },
+  magmaspit:   { n: 'Magma Spit', t: 'foes', cd: 3, pow: 0.3, st: [['burn', 2]], d: 'Spit magma on every foe (30%) and Burn them for 2 turns.' },
+  flameskin:   { n: 'Flame Skin', t: 'self', cd: 3, self: [['guard', 2], ['regen', 2]], d: 'Guard and Regenerate for 2 turns.' },
+  lavaflood:   { n: 'Lava Flood', t: 'foes', cd: 5, pow: 0.7, st: [['burn', 4]], ult: 1, d: 'Lava pours over every foe: 70% damage and a Burn that lasts 4 turns.' },
+  regrowtail:  { n: 'Regrow Tail', t: 'self', cd: 5, healPct: 0.5, self: [['undying', 1], ['str', 2]], ult: 1, d: 'Heal 50% of its max HP, can\'t drop below 1 HP for a turn, and gains Strength for 2 turns.' },
+  firewhirl:   { n: 'Fire Whirl', t: 'rand', hits: 5, pow: 0.6, cd: 4, st: [['burn', 1]], ult: 1, d: '5 whirling flames at random foes (60% each), each Burns.' },
+  // Magma Tortoise
+  shellbash:   { n: 'Shell Bash', t: 'foe', pow: 1.0, st: [['stun', 1, 0.2]], d: 'Bash one foe with its shell (100%). 20% chance to stun it.' },
+  moltenshell: { n: 'Molten Shell', t: 'self', cd: 3, shieldPct: 0.2, self: [['taunt', 2], ['guard', 1]], d: 'Taunt for 2 turns, Guard for 1, and shield itself for 20% of its max HP.' },
+  lavaward:    { n: 'Lava Ward', t: 'allies', cd: 4, shieldOf: 0.18, d: 'Shield every ally for 18% of the Tortoise\'s max HP.' },
+  eruption:    { n: 'Eruption', t: 'foes', cd: 5, pow: 1.4, st: [['burn', 2], ['stun', 1, 0.4]], ult: 1, d: 'Its shell erupts: every foe takes 140% and Burns for 2 turns, with a 40% chance to be stunned.' },
+  obsidian:    { n: 'Obsidian Fortress', t: 'self', cd: 5, shieldPct: 0.25, self: [['taunt', 2], ['guard', 3], ['regen', 3]], ult: 1, d: 'Taunt for 2 turns, Guard and Regen for 3, and a shield of 25% max HP.' },
+  quake:       { n: 'Quake', t: 'foes', cd: 5, pow: 1.0, st: [['stun', 1, 0.6], ['weak', 2]], ult: 1, d: 'Stomp the ground: every foe takes 100%, 60% chance to stun, and is Weakened for 2 turns.' },
+  // Qilin
+  blazehoof:   { n: 'Blazing Hoof', t: 'foe', pow: 1.1, st: [['burn', 1]], d: 'Strike one foe with a burning hoof (110%) and Burn it.' },
+  blessing:    { n: 'Sacred Blessing', t: 'ally', cd: 2, allySt: [['str', 2], ['lucky', 2]], d: 'One ally gains Strength and Luck for 2 turns.' },
+  purify:      { n: 'Purifying Flame', t: 'allies', cd: 3, heal: 0.8, cleanse: 1, d: 'Heal every ally (80% of its attack) and burn away their curses.' },
+  omen:        { n: 'Auspicious Omen', t: 'allies', cd: 5, allySt: [['str', 3], ['lucky', 3], ['guard', 1]], ult: 1, d: 'Every ally gains Strength and Luck for 3 turns and Guard for 1.' },
+  judgment:    { n: "Heaven's Judgment", t: 'strongest', cd: 4, pow: 3.0, st: [['burn', 2]], ult: 1, d: 'Holy fire falls on the foe with the most HP (300%) and Burns it.' },
+  celestial:   { n: 'Celestial Fire', t: 'foes', cd: 5, pow: 1.2, st: [['burn', 2]], allySt: [['regen', 2]], ult: 1, d: 'Every foe takes 120% and Burns; every ally Regenerates for 2 turns.' },
+  // Chimera
+  lionmaw:     { n: 'Lion Maw', t: 'foe', pow: 1.1, d: 'The lion head bites one foe (110%).' },
+  goatcurse:   { n: "Goat's Curse", t: 'foe', cd: 2, st: [['weak', 2], ['mark', 2]], d: 'The goat head curses one foe: Weakened and Marked for 2 turns.' },
+  serpentfang: { n: 'Serpent Fang', t: 'foe', cd: 2, pow: 0.8, st: [['poison', 3]], d: 'The serpent tail strikes one foe (80%) and Poisons it for 3 turns.' },
+  threefold:   { n: 'Threefold Breath', t: 'foes', cd: 5, pow: 1.0, chaos: 1, st: [['burn', 2]], ult: 1, d: 'All three heads breathe: every foe takes 100%, Burns, and gets a random curse.' },
+  serpentcoil: { n: "Serpent's Coil", t: 'foe', cd: 4, pow: 1.8, st: [['stun', 1, 0.7], ['poison', 2]], ult: 1, d: 'Coil around one foe (180%): 70% chance to stun it, and Poison for 2 turns.' },
+  hexstorm:    { n: 'Hex Storm', t: 'foes', cd: 5, st: [['weak', 3], ['blind', 2], ['mark', 2]], ult: 1, d: 'Weaken every foe for 3 turns, and Blind and Mark them for 2.' },
+  // Sunmane Lion
+  sunclaw:     { n: 'Sun Claw', t: 'foe', pow: 1.1, st: [['burn', 1, 0.5]], d: 'Claw one foe (110%). 50% chance to Burn it.' },
+  blazeroar:   { n: 'Blazing Roar', t: 'foes', cd: 3, st: [['weak', 2]], self: [['str', 1]], d: 'Weaken every foe for 2 turns and gain Strength.' },
+  solarpounce: { n: 'Solar Pounce', t: 'foe', cd: 2, pow: 1.7, st: [['burn', 2]], d: 'Pounce on one foe (170%) and Burn it for 2 turns.' },
+  kingbeasts:  { n: 'King of Beasts', t: 'allies', cd: 5, allySt: [['str', 3]], self: [['taunt', 2], ['guard', 2]], ult: 1, d: 'Every ally gains Strength for 3 turns; the Lion taunts and Guards for 2.' },
+  solarflare:  { n: 'Solar Flare', t: 'foes', cd: 5, pow: 1.5, st: [['blind', 1], ['burn', 2]], ult: 1, d: 'A blinding flare: every foe takes 150%, is Blinded for 1 turn and Burns for 2.' },
+  pridehunt:   { n: 'Pride Hunt', t: 'foe', cd: 4, pow: 2.4, alwaysCrit: 1, ult: 1, d: 'Hunt down one foe (240%). Always a critical hit.' },
+  // Ember Moth
+  sparkdust:   { n: 'Spark Dust', t: 'foe', pow: 0.9, st: [['burn', 1], ['blind', 1, 0.4]], d: 'Shake glowing dust on one foe (90%): it Burns, with a 40% chance to be Blinded.' },
+  dazzle:      { n: 'Dazzle', t: 'foes', cd: 3, st: [['blind', 2]], d: 'Flash its glowing wings: Blind every foe for 2 turns.' },
+  flutter:     { n: 'Flutter', t: 'self', cd: 2, self: [['evade', 1], ['lucky', 2]], d: 'Flutter out of reach: dodge the next attack and gain Luck for 2 turns.' },
+  sparkswarm:  { n: 'Spark Swarm', t: 'rand', hits: 6, pow: 0.55, cd: 4, st: [['burn', 1]], ult: 1, d: '6 sparks at random foes (55% each), each Burns.' },
+  lunarglow:   { n: 'Lunar Glow', t: 'allies', cd: 5, heal: 1.0, allySt: [['regen', 2], ['evade', 1]], ult: 1, d: 'Heal every ally (100%), give them Regen for 2 turns, and each dodges the next attack.' },
+  mesmerize:   { n: 'Mesmerize', t: 'foes', cd: 5, st: [['stun', 1, 0.6], ['mark', 2]], ult: 1, d: 'A hypnotic glow: 60% chance to stun each foe, and Mark them all for 2 turns.' },
   // ----- bosses -----
   shadowclaw:  { n: 'Shadow Claw', t: 'foe', pow: 1.3, st: [['bleed', 2]], d: 'Slashes one pet and makes it bleed.' },
   dreadhowl:   { n: 'Dread Howl', t: 'foes', cd: 3, st: [['weak', 2], ['blind', 1, 0.5]], d: 'Weakens every pet; may blind them.' },
@@ -2419,6 +2815,94 @@ const PET_TREES = {
       [KEY('un_wish', 'Wish', listFx('startSt', [['undying', 2]]), () => 'starts every battle Undying for 2 turns')],
       [T_TCRIT('un_lucky', 'Lucky Star'), T_TDEF('un_ward', 'Starward')], [ULT('un_star', 'starlight')]]),
   ],
+  phoenix: [
+    tree('Pyre', '#ffb74d', [[UP('ph_song', 'Warm Song', 'kindlesong', 'heal', 0.4, r => `Kindling Song heals +${40 * r}%`)], [T_CD('ph_quick', 'Quick Kindling', 'ashveil'), S('ph_glow', 'Afterglow', 'heal', 0.1, r => `all its healing and shields +${10 * r}%`)],
+      [KEY('ph_ashes', 'From the Ashes', listFx('teamStartSt', [['regen', 2]]), () => 'every battle starts with your whole team Regenerating for 2 turns')],
+      [T_THP('ph_hearth', 'Hearth'), UP('ph_veil', 'Thick Ash', 'ashveil', 'shield', 0.3, r => `Ash Veil shields +${30 * r}%`)], [ULT('ph_rebirth', 'rebirth')]]),
+    tree('Sun', '#ff7043', [[T_ATK('ph_beak', 'Molten Beak')], [S('ph_sear', 'Searing', 'dot', 0.15, r => `its burns deal +${15 * r}%`), T_TURNS('ph_kindle', 'Long Burn', 'emberpeck')],
+      [KEY('ph_corona', 'Corona', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
+      [T_CRIT('ph_flash', 'Flash'), T_POW('ph_peck', 'Blazing Peck', 'emberpeck', 0.25)], [ULT('ph_sun', 'sunflare')]]),
+    tree('Immortal', '#fff176', [[T_HP('ph_plume', 'Fire Plumage')], [T_REGEN('ph_renew', 'Renewal'), T_DODGE('ph_wisp', 'Wisp')],
+      [KEY('ph_undying', 'Undying Flame', listFx('startSt', [['undying', 2]]), () => 'starts every battle Undying for 2 turns (it can\'t drop below 1 HP)')],
+      [S('ph_mend', 'Ember Mend', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`), T_TDEF('ph_ward', 'Fire Ward')], [ULT('ph_eternal', 'eternalflame')]]),
+  ],
+  hellhound: [
+    tree('Hellfire', '#ff5722', [[S('hh_brim', 'Brimstone', 'dot', 0.15, r => `its burns deal +${15 * r}%`)], [T_TURNS('hh_smoulder', 'Smoulder', 'hellfang'), T_CD('hh_bay', 'Baying', 'brimstone')],
+      [KEY('hh_coals', 'Hot Coals', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
+      [T_POW('hh_fang', 'Hellfang Mastery', 'hellfang', 0.25), T_ATK('hh_rage', 'Infernal Rage')], [ULT('hh_gate', 'hellgate')]]),
+    tree('Three Heads', '#ef9a9a', [[T_ATK('hh_jaws', 'Iron Jaws')], [T_BLEED('hh_tear', 'Tear'), T_DOUBLE('hh_heads', 'Extra Head')],
+      [KEY('hh_minds', 'Three Minds', { teamCrit: 0.06 }, () => '+6% crit for every pet in your team')],
+      [T_CRIT('hh_savage', 'Savage'), T_CMUL('hh_maul', 'Maul')], [ULT('hh_cerb', 'cerberus')]]),
+    tree('Reaper', '#7e57c2', [[T_HP('hh_hide', 'Charred Hide')], [T_KILLHEAL('hh_feast', 'Feast'), T_EXEC('hh_reap', 'Reap')],
+      [KEY('hh_hunger', 'Endless Hunger', { killExtra: 1 }, () => 'once per battle, defeating a foe lets it act again right away')],
+      [T_THORNS('hh_coat', 'Ember Coat'), T_FIRST('hh_rush', 'Ambush Rush')], [ULT('hh_soul', 'soulreap')]]),
+  ],
+  salamander: [
+    tree('Magma', '#ff7043', [[S('sl_heat', 'White Heat', 'dot', 0.15, r => `its burns deal +${15 * r}%`)], [T_TURNS('sl_lash', 'Long Lash', 'cinderlash'), T_CD('sl_spit', 'Quick Spit', 'magmaspit')],
+      [KEY('sl_spread', 'Spreading Magma', M => upAb(M, 'magmaspit', 'pow', 0.5), () => 'Magma Spit deals +50% damage')],
+      [T_POW('sl_tongue', 'Lava Tongue', 'cinderlash', 0.25), S('sl_kindle', 'Kindling', 'dot', 0.1, r => `its burns deal +${10 * r}%`)], [ULT('sl_flood', 'lavaflood')]]),
+    tree('Regrowth', '#a5d6a7', [[T_HP('sl_skin', 'Slick Skin')], [T_REGEN('sl_regrow', 'Regrowth'), T_DEF('sl_scales', 'Ash Scales')],
+      [KEY('sl_heart', 'Heart of Fire', { regen: 0.04, def: 2 }, () => 'regenerates 4% max HP per turn and +2 defense')],
+      [T_TURNS('sl_flame', 'Lasting Flame Skin', 'flameskin'), T_THORNS('sl_burnskin', 'Burning Skin')], [ULT('sl_tail', 'regrowtail')]]),
+    tree('Wildfire', '#ffca28', [[T_ATK('sl_bite', 'Hot Bite')], [T_DODGE('sl_slip', 'Slippery'), T_CRIT('sl_spark', 'Spark')],
+      [KEY('sl_dance', 'Fire Dance', { double: 0.3 }, () => '30% chance to strike a single foe twice')],
+      [T_FIRST('sl_dart', 'Dart'), T_TATK('sl_warm', 'Warm Up')], [ULT('sl_whirl', 'firewhirl')]]),
+  ],
+  tortoise: [
+    tree('Bastion', '#90caf9', [[T_HP('mt_shell', 'Thick Shell')], [T_TDEF('mt_wall', 'Living Wall'), T_GUARD('mt_cover', 'Cover')],
+      [KEY('mt_fort', 'Fortify', { def: 3, tauntStart: 1 }, () => 'starts every battle taunting, and +3 defense')],
+      [UP('mt_plate', 'Molten Plating', 'moltenshell', 'shield', 0.1, r => `Molten Shell shields +${10 * r}% more`), T_REGEN('mt_slow', 'Slow and Steady')], [ULT('mt_obs', 'obsidian')]]),
+    tree('Volcano', '#ff7043', [[T_ATK('mt_heat', 'Inner Heat')], [S('mt_magma', 'Magma Blood', 'dot', 0.15, r => `its burns deal +${15 * r}%`), T_STUN('mt_bash', 'Heavy Bash')],
+      [KEY('mt_vent', 'Vents', { thorns: 0.3, burnOn: 1 }, () => 'attackers take 30% of the damage back, and its hits Burn')],
+      [T_POW('mt_press', 'Pressure', 'shellbash', 0.3), T_THORNS('mt_spikes', 'Lava Spikes')], [ULT('mt_erupt', 'eruption')]]),
+    tree('Ancient', '#a5d6a7', [[T_THP('mt_elder', 'Elder Wisdom')], [T_CD('mt_ward', 'Quick Ward', 'lavaward'), UP('mt_wide', 'Wide Ward', 'lavaward', 'shield', 0.08, r => `Lava Ward shields +${8 * r}% more`)],
+      [KEY('mt_shelter', 'Shelter', listFx('teamStartSt', [['guard', 1]]), () => 'your whole team starts every battle Guarded for 1 turn (40% less damage)')],
+      [T_TDEF('mt_moss', 'Mossy Back'), S('mt_calm', 'Calm', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('mt_quake', 'quake')]]),
+  ],
+  qilin: [
+    tree('Blessing', '#ffd54f', [[T_TATK('ql_grace', 'Grace')], [T_CD('ql_bless', 'Ready Blessing', 'blessing'), T_TCRIT('ql_luck', 'Fortune')],
+      [KEY('ql_omen', 'Good Omen', listFx('teamStartSt', [['lucky', 2]]), () => 'your whole team starts every battle with Luck for 2 turns')],
+      [T_THP('ql_vigor', 'Vigor'), T_TDEF('ql_halo', 'Halo')], [ULT('ql_auspice', 'omen')]]),
+    tree('Purity', '#a5d6a7', [[UP('ql_pure', 'Pure Flame', 'purify', 'heal', 0.25, r => `Purifying Flame heals +${25 * r}%`)], [S('ql_glow', 'Radiance', 'heal', 0.1, r => `all its healing and shields +${10 * r}%`), T_REGEN('ql_spring', 'Spring')],
+      [KEY('ql_sanct', 'Sacred Ground', listFx('teamStartSt', [['regen', 2]]), () => 'every battle starts with your whole team Regenerating for 2 turns')],
+      [T_CD('ql_purge', 'Swift Purge', 'purify'), S('ql_mend', 'Mend', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('ql_cele', 'celestial')]]),
+    tree('Judgment', '#ff7043', [[T_ATK('ql_hoof', 'Hard Hooves')], [T_POW('ql_blaze', 'Blaze', 'blazehoof', 0.25), T_CRIT('ql_eye', 'Keen Eye')],
+      [KEY('ql_holy', 'Holy Fire', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
+      [T_CMUL('ql_smite', 'Smite'), T_FIRST('ql_charge', 'Charge')], [ULT('ql_judge', 'judgment')]]),
+  ],
+  chimera: [
+    tree('Lion Head', '#ffca28', [[T_ATK('ch_maw', 'Great Maw')], [T_CRIT('ch_mane', 'Mane'), T_DOUBLE('ch_frenzy', 'Frenzy')],
+      [KEY('ch_roar', 'Roar', { firstStrike: 0.5 }, () => '+50% damage on the first turn of a battle')],
+      [T_CMUL('ch_rend', 'Rend'), T_KILLHEAL('ch_feast', 'Feast')], [ULT('ch_breath', 'threefold')]]),
+    tree('Goat Head', '#ce93d8', [[S('ch_hex', 'Old Hex', 'markAmp', 0.07, r => `its Marks make foes take +${7 * r}% more`)], [T_TURNS('ch_curse', 'Lasting Curse', 'goatcurse'), T_CD('ch_bleat', 'Bleat', 'goatcurse')],
+      [KEY('ch_evil', 'Evil Eye', { markOn: 1 }, () => 'every damaging hit Marks the foe for 1 turn')],
+      [S('ch_weave', 'Hexweaver', 'dur', 1, () => 'curses it applies last +1 turn', 1), T_TDEF('ch_horns', 'Horns')], [ULT('ch_storm', 'hexstorm')]]),
+    tree('Serpent Tail', '#9ccc65', [[S('ch_venom', 'Venom', 'dot', 0.15, r => `its poison deals +${15 * r}%`)], [T_TURNS('ch_fang', 'Deep Fang', 'serpentfang'), T_DODGE('ch_slither', 'Slither')],
+      [KEY('ch_toxin', 'Toxin', { poisonOn: 1 }, () => 'every damaging hit Poisons the foe for 2 turns')],
+      [T_POW('ch_strike', 'Strike', 'serpentfang', 0.3), T_STUN('ch_constrict', 'Constrict')], [ULT('ch_coil', 'serpentcoil')]]),
+  ],
+  lion: [
+    tree('Pride', '#ffd54f', [[T_TATK('ln_pride', 'Pride')], [T_THP('ln_mane', 'Great Mane'), T_TDEF('ln_guard', 'Guardian')],
+      [KEY('ln_king', 'Royal Presence', listFx('foeStartSt', [['weak', 1]]), () => 'every battle starts with all foes Weakened for 1 turn')],
+      [T_CD('ln_roar', 'Mighty Roar', 'blazeroar'), T_GUARD('ln_protect', 'Protector')], [ULT('ln_kingult', 'kingbeasts')]]),
+    tree('Sun', '#ff7043', [[S('ln_burn', 'Sunfire', 'dot', 0.15, r => `its burns deal +${15 * r}%`)], [T_POW('ln_leap', 'Solar Leap', 'solarpounce', 0.25), T_TURNS('ln_heat', 'Heatwave', 'solarpounce')],
+      [KEY('ln_corona', 'Corona', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
+      [T_ATK('ln_blaze', 'Blaze'), T_CRIT('ln_glare', 'Glare')], [ULT('ln_flare', 'solarflare')]]),
+    tree('Hunter', '#ef9a9a', [[T_ATK('ln_claws', 'Great Claws')], [T_CRIT('ln_stalk', 'Stalk'), T_FIRST('ln_ambush', 'Ambush')],
+      [KEY('ln_apex', 'Apex', { double: 0.3 }, () => '30% chance to strike a single foe twice')],
+      [T_CMUL('ln_maul', 'Maul'), T_EXEC('ln_kill', 'Killing Bite')], [ULT('ln_hunt', 'pridehunt')]]),
+  ],
+  moth: [
+    tree('Glow', '#fff59d', [[S('mo_dust', 'Bright Dust', 'blindOn', 0.1, r => `${10 * r}% chance for its hits to Blind`)], [T_TURNS('mo_dazzle', 'Long Dazzle', 'dazzle'), T_CD('mo_flash', 'Flash', 'dazzle')],
+      [KEY('mo_lure', 'Lure', listFx('foeStartSt', [['blind', 1]]), () => 'every battle starts with all foes Blinded for 1 turn')],
+      [T_STUN('mo_hypno', 'Hypnotic'), S('mo_weave', 'Dream Weave', 'dur', 1, () => 'curses it applies last +1 turn', 1)], [ULT('mo_mesm', 'mesmerize')]]),
+    tree('Spark', '#ff7043', [[T_ATK('mo_spark', 'Hot Sparks')], [S('mo_burn', 'Kindling', 'dot', 0.15, r => `its burns deal +${15 * r}%`), T_POW('mo_thick', 'Thick Dust', 'sparkdust', 0.25)],
+      [KEY('mo_fire', 'Firefly', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
+      [T_DOUBLE('mo_flit', 'Flit'), T_CRIT('mo_glint', 'Glint')], [ULT('mo_swarm', 'sparkswarm')]]),
+    tree('Moonlight', '#b39ddb', [[T_DODGE('mo_wings', 'Soft Wings')], [T_HP('mo_fuzz', 'Fuzzy'), T_REGEN('mo_night', 'Night Rest')],
+      [KEY('mo_moon', 'Moonlit', { evade: 0.12, regen: 0.03 }, () => '12% chance to dodge attacks and regenerates 3% max HP per turn')],
+      [T_TDEF('mo_cocoon', 'Cocoon'), S('mo_light', 'Soft Light', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('mo_lunar', 'lunarglow')]]),
+  ],
   elder: [
     tree('Cataclysm', '#ff7043', [[S('el_flame', 'Ancient Flame', 'dot', 0.15, r => `its burns deal +${15 * r}%`)], [T_POW('el_storm', 'Firestorm Mastery', 'firestorm', 0.15), T_TURNS('el_claw', 'Ember Claws', 'emberclaw')],
       [KEY('el_living', 'Living Fire', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
@@ -2436,6 +2920,9 @@ const SYNERGIES = [
   { id: 'clowder',  name: 'Clowder',   pets: ['catgray', 'catcalico'], icon: '🐈', txt: 'Both cats get +15% crit chance.' },
   { id: 'packhunt', name: 'Pack Hunt', pets: ['dog', 'fox'],           icon: '🐺', txt: 'The Fox always crits stunned foes.' },
   { id: 'wildfire', name: 'Wildfire',  pets: ['dragon', 'toad'],       icon: '🔥', txt: 'Foes that are both burning and poisoned take double damage from both.' },
+  { id: 'hellfire', name: 'Hellfire',  pets: ['hellhound', 'phoenix'],  icon: '🔥', txt: 'The Hellhound and the Phoenix deal +25% damage to burning foes.' },
+  { id: 'pride',    name: 'Pride',     pets: ['lion', 'chimera'],       icon: '🦁', txt: 'The Lion and the Chimera get +15% max HP and +10% attack.' },
+  { id: 'magmaflow', name: 'Magma Flow', pets: ['salamander', 'tortoise'], icon: '🌋', txt: 'The Salamander and the Tortoise regenerate 4% of their max HP every turn.' },
 ];
 const syn = id => !!(G && G.syn && G.syn[id]);
 const petLvl = it => it.plvl || 1;
@@ -2452,6 +2939,8 @@ function petMods(it) {
     if (typeof n.fx === 'function') n.fx(M, r); else for (const k in n.fx) M[k] = (M[k] || 0) + n.fx[k] * r;
   }
   if ((it.def.pet === 'catgray' || it.def.pet === 'catcalico') && G && syn('clowder')) M.crit = (M.crit || 0) + 0.15;
+  if ((it.def.pet === 'lion' || it.def.pet === 'chimera') && G && syn('pride')) { M.hp = (M.hp || 0) + 0.15; M.atk = (M.atk || 0) + 0.1; }
+  if ((it.def.pet === 'salamander' || it.def.pet === 'tortoise') && G && syn('magmaflow')) M.regen = (M.regen || 0) + 0.04;
   it._M = M; it._Mv = it.talV || 0; return M;
 }
 // talents that help the whole team (summed over every pet in the team)
@@ -2759,7 +3248,7 @@ function drawPets() {
     const k = p.kind || (p.item && p.item.def.pet);
     let anim, i, sheet = speciesSheet(k);
     if (p.ko > 0) { anim = 'ko'; i = Math.min(3, Math.floor((6 - p.ko) / 0.12)); }
-    else if (p.resting && animFrames(sheet + '_rest', 'rest')) { sheet = sheet + '_rest'; anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }
+    else if (p.resting && (animFrames(sheet + '_rest', 'rest') || animFrames(sheet, 'rest'))) { if (!animFrames(sheet, 'rest')) sheet = sheet + '_rest'; anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }   // the fire beasts keep their resting pose on their main sheet
     else if (p.d.fly) { anim = 'fly'; i = Math.floor(TIME * 12 + p.phase); }
     else if (!p.onGround && p.airT > 0.08) { anim = 'run'; i = 2; }
     else if (p.moving) { anim = 'run'; i = Math.floor(p.runF || 0); }
@@ -2961,16 +3450,21 @@ function foeUnit(k, L, opt = {}) {
 }
 
 // ---------- wild compositions: as many foes as you have pets ----------
-const THEME_POOL = {
-  hall: ['dog', 'fox', 'boar', 'ferret', 'catgray'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog'],
-  forge: ['dragon', 'boar', 'toad', 'fox', 'dog'], hollow: ['toad', 'owl', 'ferret', 'catcalico', 'cockatiel'], sanctum: ['catcalico', 'owl', 'dragon', 'dog', 'catgray'],
+const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (11-20): only the mythical beasts
+  hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad'],
+  forge: ['dragon', 'hellhound', 'salamander', 'tortoise', 'lion', 'phoenix'], hollow: ['shadowwolf', 'moth', 'chimera', 'salamander', 'tortoise', 'hellhound'],
+  sanctum: ['qilin', 'phoenix', 'lion', 'chimera', 'dragon', 'moth', 'shadowwolf'],
 };
-const ROLE_OF = { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'dragon', 'boar'], heal: ['cockatiel'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad', 'dragon'] };
+const ACT_ROLES = [
+  { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
+  { tank: ['tortoise', 'lion'], dps: ['hellhound', 'lion', 'dragon', 'chimera', 'shadowwolf'], heal: ['phoenix', 'qilin'], hex: ['chimera', 'moth', 'shadowwolf'], venom: ['salamander', 'dragon'] },
+];
+const ROLE_OF = new Proxy({}, { get: (_, role) => ACT_ROLES[G && G.room && G.room.n > 10 ? 1 : 0][role] });
 const COMPS = {
   pack:   { n: 'Pack',          pick: (lead, i, pool) => lead },
   mixed:  { n: 'Mixed',         pick: (lead, i, pool) => i ? pick(pool) : lead },
   wall:   { n: 'Shield wall',   pick: (lead, i) => i === 0 ? pick(ROLE_OF.tank) : pick(ROLE_OF.dps) },
-  healer: { n: 'Healer-backed', pick: (lead, i) => i === 1 || (i === 0 && Math.random() < 0.3) ? 'cockatiel' : pick(ROLE_OF.dps) },
+  healer: { n: 'Healer-backed', pick: (lead, i) => i === 1 || (i === 0 && Math.random() < 0.3) ? pick(ROLE_OF.heal) : pick(ROLE_OF.dps) },
   hex:    { n: 'Hexers',        pick: (lead, i) => i % 2 ? pick(ROLE_OF.dps) : pick(ROLE_OF.hex) },
   venom:  { n: 'Venom',         pick: (lead, i) => pick(ROLE_OF.venom) },
 };
@@ -3018,7 +3512,7 @@ function startBattle(ent) {
   const foes = buildFoes(ent, team.length);
   foes.forEach((u, i) => { u.slot = i; u.x = u.boss ? 845 : BX.foe[i]; u.face = -1; });
   if (foes.length > 1 && foes[0].boss) { foes[1].x = 605; if (foes[2]) foes[2].x = 705; }   // the boss looms at the back, its minions in front
-  B = { ent, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], log: [], heroUses: 0, queue: [], faints: 0,
+  B = { ent, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
         boss: foes[0].boss, rewards: null, reviveUsed: false, t: 0 };
   // battle-start effects: Rally Whistle, Guardian Bell, Warrior's front shield, talents
   const front = allies.find(u => !u.fainted);
@@ -3046,7 +3540,7 @@ const bAlive = side => (side === 'ally' ? B.allies : B.foes).filter(u => !u.fain
 const otherSide = u => (u.side === 'ally' ? B.foes : B.allies);
 const sameSide = u => (u.side === 'ally' ? B.allies : B.foes);
 function bLog(t) { B.log.push(t); if (B.log.length > 4) B.log.shift(); B.logT = 3; }
-function bText(u, txt, color, size = 18) { B.fx.push({ x: u.x + rand(-10, 10), y: unitTop(u) - 6, txt, color, size, t: 1.1 }); }
+function bText(u, txt, color, size = 18) { B.fx.push({ x: u.x + rand(-10, 10), y: unitTop(u) - 6, txt, color, size, t: 1.1, wait: B.wait || 0 }); }
 function addSt(u, k, turns, v) {
   if (u.fainted) return;
   if (k === 'stun' && u.boss) { if (u.st.stunImm > 0) { bText(u, 'RESISTED', '#ffeb3b', 14); return; } turns = 1; u.st.stunImm = 3; }
@@ -3059,6 +3553,7 @@ function addShield(u, amt) { amt = Math.round(amt); if (amt <= 0 || u.fainted) r
 function healUnit(u, amt, src) {
   if (u.fainted || amt <= 0) return 0;
   amt = Math.round(amt * (src ? src.heal : 1)); const b = u.hp; u.hp = Math.min(u.maxHp, u.hp + amt);
+  if (u.hp > b && B && B.healed) B.healed.add(u);
   if (u.hp > b) bText(u, '+' + (u.hp - b), '#69f0ae', 16);
   return u.hp - b;
 }
@@ -3076,6 +3571,7 @@ function dealDamage(src, tgt, pow, opt = {}) {
   let crit = false;
   if (!opt.dot && opt.flat === undefined) {
     if (opt.finisher && tgt.hp < tgt.maxHp * (0.5 + (src.M.finPct || 0))) { d *= 2 + (src.M.finMul || 0); bText(tgt, 'FINISHER', '#cfd8dc', 13); }
+    if (tgt.st.burn && src.side === 'ally' && (src.k === 'hellhound' || src.k === 'phoenix') && syn('hellfire')) d *= 1.25;
     const ch = src.crit + (src.st.lucky ? 0.3 : 0) + (opt.crit || 0) + (syn('packhunt') && src.k === 'fox' && tgt.st.stun ? 1 : 0);
     if (opt.alwaysCrit || Math.random() < ch) { crit = true; d *= src.critMul; }
     if (src.M.execute && !tgt.boss && tgt.hp - d < tgt.maxHp * src.M.execute) d = tgt.hp + (tgt.st.shield ? tgt.st.shield.v : 0);
@@ -3108,14 +3604,15 @@ function applyDamage(u, d, src, crit, quiet) {
   const sh = u.st.shield;
   if (sh) { const a = Math.min(sh.v, d); sh.v -= a; d -= a; if (sh.v <= 0) delete u.st.shield; if (a) bText(u, '(' + a + ')', '#81d4fa', 13); }
   if (d <= 0) return;
-  u.hp -= d; u.hurtT = 0.3;
+  u.hp -= d; u.hurtT = 0.3; u.hurtWait = B.wait || 0;
   if (u.st.undying && u.hp < 1) u.hp = 1;
   bText(u, (crit ? 'CRIT ' : '') + d, crit ? '#ffd54f' : u.side === 'ally' ? '#ff8a80' : '#ffffff', crit ? 22 : quiet ? 14 : 18);
-  if (!quiet) SFX.play(crit ? 'crit' : 'hit');
+  if (!quiet && (crit || !(B && B.voiced))) SFX.play(crit ? 'crit' : 'hit');
   if (u.hp <= 0) faint(u, src);
 }
 function faint(u, src) {
   if (u.fainted) return;
+  u.faintWait = B.wait || 0; u.faintT = 0;
   if (u.side === 'ally' && stats.revive && !B.reviveUsed) {   // Phoenix Feather
     B.reviveUsed = true; u.hp = Math.max(1, Math.round(u.maxHp * stats.revive)); bText(u, 'PHOENIX!', '#ff7043', 18); SFX.play('phoenix'); return;
   }
@@ -3148,6 +3645,11 @@ function act(u, ab, tgt) {
   const pow = (A.pow || 0) + (up.pow || 0), dur = u.side === 'ally' ? stats.dur + (G.cls === 'rogue' ? 1 : 0) + (M.dur || 0) : 0;
   u.cd[ab] = (A.cd || 0) > 0 ? Math.max(1, A.cd - (up.cd || 0)) + 1 : 0;
   u.atkT = 0.4; u.killed = false;
+  // every ability has its own animal sound (howls, growls, squawks...); it carries its own impact, so the plain hit thud stays quiet
+  B.voiced = SFX.has('ab_' + ab);
+  if (B.voiced) SFX.play('ab_' + ab, (u.boss ? 0.88 : 1) * (0.96 + Math.random() * 0.08));
+  const FX = FXR[ab] || fxDefault(A), hp0 = new Map([...B.allies, ...B.foes].map(x => [x, x.hp]));
+  B.wait = FX[0]; B.hits = []; B.healed = new Set();
   bLog(`${u.name}: ${A.n}`);
   const foes = otherSide(u), friends = sameSide(u), sts = (A.st || []).concat(up.stx || []);
   const curse = (t, sts) => { for (const [k, turns, ch] of sts || []) if (!t.fainted && (ch === undefined || Math.random() < ch + (up.ch || 0))) {
@@ -3168,6 +3670,7 @@ function act(u, ab, tgt) {
     if (M.blindOn && Math.random() < M.blindOn) curse(t, [['blind', 1]]);
   };
   const strike = (t, p) => {
+    B.hits.push(t);
     const d = dealDamage(u, t, p, { finisher: A.finisher, crit: (A.crit || 0) + (up.crit || 0), alwaysCrit: A.alwaysCrit, drain: A.drain });
     if (d > 0) { curse(t, sts); onHitExtras(t); if (M.cleave && A.t === 'foe') for (const o of foes) if (o !== t && !o.fainted) dealDamage(u, o, p * M.cleave); }
     return d;
@@ -3178,9 +3681,9 @@ function act(u, ab, tgt) {
     if (A.t === 'strongest') t = foes.filter(o => !o.fainted).sort((a, b) => b.hp - a.hp)[0];
     if (!t || t.fainted) t = pickTarget(u, foes);
     if (t) {
-      if (A.devour && !t.boss && t.hp < t.maxHp * A.devour) { bText(t, 'DEVOURED', '#f48fb1', 18); t.hp = 0; faint(t, u); for (const f of friends) healUnit(f, f.maxHp * 0.15, u); }
-      else if (pow) { strike(t, pow); if (M.double && Math.random() < M.double && !t.fainted) strike(t, pow * 0.6); }
-      else curse(t, sts);
+      if (A.devour && !t.boss && t.hp < t.maxHp * A.devour) { B.hits.push(t); bText(t, 'DEVOURED', '#f48fb1', 18); t.hp = 0; faint(t, u); for (const f of friends) healUnit(f, f.maxHp * 0.15, u); }
+      else if (pow) { for (let hN = 0; hN < (A.hits || 1) && !t.fainted; hN++) strike(t, pow); if (M.double && Math.random() < M.double && !t.fainted) strike(t, pow * 0.6); }
+      else { B.hits.push(t); curse(t, sts); }
       if (A.steal && !t.fainted) {   // Pilfer: the foe's buffs move over to the thief
         const took = [];
         for (const k of Object.keys(t.st)) if (STATUS[k] && !STATUS[k].bad) {
@@ -3193,7 +3696,7 @@ function act(u, ab, tgt) {
     }
   } else if (A.t === 'foes') {
     for (let r = 0; r < (A.repeat || 1); r++) for (const t of foes.filter(o => !o.fainted)) {
-      if (pow) strike(t, pow); else curse(t, sts);
+      if (pow) strike(t, pow); else { B.hits.push(t); curse(t, sts); }
       if (A.chaos && !t.fainted) curse(t, [pick([['stun', 1], ['blind', 2], ['burn', 2], ['poison', 2], ['weak', 2], ['mark', 2]])]);
     }
   } else if (A.t === 'rand') {
@@ -3209,7 +3712,7 @@ function act(u, ab, tgt) {
     if (A.cleanse) cleanse(t);
     for (const [k, turns] of A.allySt || []) addSt(t, k, turns + (up.turns || 0) + 1, k === 'regen' ? Math.round(t.maxHp * 0.08 * u.heal) : k === 'evade' ? turns : undefined);
   }
-  if (A.t === 'allies' && A.reviveAll) for (const t of friends.filter(o => o.fainted)) { t.fainted = false; t.hp = Math.round(t.maxHp * A.reviveAll); bText(t, 'REVIVED', '#69f0ae', 18); }
+  if (A.t === 'allies' && A.reviveAll) for (const t of friends.filter(o => o.fainted)) { t.fainted = false; t.faintT = 0; t.hp = Math.round(t.maxHp * A.reviveAll); bText(t, 'REVIVED', '#69f0ae', 18); }
   if (A.t === 'foes' && A.allySt) for (const t of friends.filter(o => !o.fainted)) for (const [k, turns] of A.allySt) addSt(t, k, turns + 1);
   if (A.healPct) healUnit(u, u.maxHp * (A.healPct + (up.heal || 0)), u);
   if (A.shieldPct) addShield(u, u.maxHp * (A.shieldPct + (up.shield || 0)) * u.heal);
@@ -3217,7 +3720,14 @@ function act(u, ab, tgt) {
   if (A.summon) summonShade(u);
   if (A.again && u.killed && bAlive(u.side === 'ally' ? 'foe' : 'ally').length) { u.again = true; bText(u, 'AGAIN!', '#ffab40', 16); }
   if (M.killExtra && u.killed && !u.usedExtra) { u.again = true; u.usedExtra = true; }
-  SFX.play(A.pow ? 'swing' : heal || A.shieldOf || A.shieldAtk ? 'chirp' : 'pick');
+  if (!B.voiced) SFX.play(A.pow ? 'swing' : heal || A.shieldOf || A.shieldAtk ? 'chirp' : 'pick');
+  // the ability's animation, then the little status cues; HP bars hold until the impact
+  const helped = allyTargets.length ? allyTargets : A.t === 'foes' && A.allySt ? friends.filter(o => !o.fainted) : (A.self || A.healPct || A.shieldPct || A.t === 'self') ? [u] : [];
+  if (A.reviveAll) for (const t of friends) if (!helped.includes(t)) helped.push(t);
+  try { const c = fxCtx(u, [...new Set(B.hits)], B.hits.slice(), helped); FX[1](c); fxCues(c, A, B.healed, B.wait); } catch (e) { console.warn('fx', ab, e); }
+  for (const [x, v] of hp0) if (x.hp !== v) x.hpWait = B.wait;
+  B.fxEnd = B.wait + 0.4; B.wait = 0;
+  B.voiced = false;
 }
 function summonShade(u) {
   if (B.foes.filter(o => !o.fainted).length >= 3) { const dead = B.foes.find(o => o.fainted && !o.boss); if (!dead) return; B.foes.splice(B.foes.indexOf(dead), 1); }
@@ -3302,16 +3812,22 @@ function checkEnd() {
 // the player picks an ability for the current pet (and a target if it needs one)
 function playerAct(ab, tgt) {
   const u = B.allies[B.cur];
-  act(u, ab, tgt); B.pick = null; B.lock = 0.55;
+  act(u, ab, tgt); B.pick = null; B.lock = Math.max(0.55, B.fxEnd || 0);
   if (checkEnd()) return;
   if (u.again && !u.fainted) { u.again = false; return; }   // Feral Maul and friends: same pet goes again
   if (!nextAlly()) endPlayerTurn();
 }
 function updateBattle(dt) {
   B.t += dt; B.logT = (B.logT || 0) - dt;
-  for (const f of B.fx) { f.t -= dt; f.y -= 30 * dt; }
+  for (const f of B.fx) { if (f.wait > 0) { f.wait -= dt; continue; } f.t -= dt; f.y -= 30 * dt; }
+  updateVfx(dt);
   B.fx = B.fx.filter(f => f.t > 0);
-  for (const u of [...B.allies, ...B.foes]) { u.atkT = Math.max(0, (u.atkT || 0) - dt); u.hurtT = Math.max(0, (u.hurtT || 0) - dt); if (u.fainted) u.faintT = (u.faintT || 0) + dt; }
+  for (const u of [...B.allies, ...B.foes]) {
+    u.atkT = Math.max(0, (u.atkT || 0) - dt);
+    if (u.hurtWait > 0) u.hurtWait -= dt; else u.hurtT = Math.max(0, (u.hurtT || 0) - dt);
+    if (u.faintWait > 0) u.faintWait -= dt; else if (u.fainted) u.faintT = (u.faintT || 0) + dt;
+    if (u.hpWait > 0) u.hpWait -= dt; else { const sh = u.showHp ?? u.hp; u.showHp = Math.abs(u.hp - sh) < 0.5 ? u.hp : sh + (u.hp - sh) * Math.min(1, dt * 10); }
+  }
   if (B.lock > 0) { B.lock -= dt; return; }
   if (B.phase === 'start') { beginPlayerTurn(); return; }
   if (B.phase === 'foe') {
@@ -3319,7 +3835,7 @@ function updateBattle(dt) {
     const u = B.queue.shift();
     if (!u) { expireSide('foe'); if (!checkEnd()) beginPlayerTurn(); return; }
     if (u.st.stun) { bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); if (u.boss) delete u.st.stun; B.lock = 0.5; return; }
-    const [ab, tgt] = aiChoose(u); act(u, ab, tgt); B.lock = 0.7;
+    const [ab, tgt] = aiChoose(u); act(u, ab, tgt); B.lock = Math.max(0.7, (B.fxEnd || 0) + 0.15);
     checkEnd();
     return;
   }
@@ -3502,7 +4018,11 @@ function battleClick(btn) {
 }
 // ---------- drawing ----------
 // until their own art exists, the Shadow Wolf (and its shades) and the Elder Dragon borrow the Shepherd's and the Dragon's
+const STAND_IN = { phoenix: 'hue-rotate(-25deg) saturate(2.4) brightness(1.05)', hellhound: 'sepia(1) hue-rotate(-30deg) saturate(3) brightness(0.55)',
+  salamander: 'hue-rotate(-90deg) saturate(2.5)', tortoise: 'sepia(0.8) hue-rotate(-20deg) saturate(1.6) brightness(0.7)', qilin: 'sepia(0.9) saturate(2.2) hue-rotate(-10deg)',
+  chimera: 'sepia(0.6) saturate(1.4) brightness(0.85)', lion: 'sepia(1) saturate(2.6) brightness(1.1)', moth: 'sepia(1) hue-rotate(-15deg) saturate(3) brightness(1.1)' };
 function standInTint(k, sheet) {
+  if (STAND_IN[k] && sheet !== PETS[k].anim) return STAND_IN[k];
   if ((k === 'shadowwolf' || k === 'shade') && sheet !== 'shadowwolf') return 'brightness(0.32) saturate(0.3) contrast(1.2)';
   if (k === 'elder' && sheet !== 'elderdragon') return 'hue-rotate(260deg) saturate(1.3) brightness(0.75)';
   return 'none';
@@ -3515,22 +4035,306 @@ const unitAnchorY = u => (unitFly(u) ? BX.ground - 100 : BX.ground);
 function unitFrame(u) { const sh = unitSheet(u), fr = animFrames(sh, unitFly(u) ? 'fly' : 'idle') || animFrames(sh, 'idle') || animFrames(sh, 'fly'); return fr ? fr[0] : [0, 0, 26, 22, 13, unitFly(u) ? 11 : 22]; }
 function unitRect(u) { const s = unitScale(u), f = unitFrame(u), y = unitAnchorY(u); return { x: u.x - f[2] * s / 2, y: y - f[5] * s, w: f[2] * s, h: f[3] * s }; }
 function unitTop(u) { return unitRect(u).y; }
+// =====================================================================
+//  ABILITY ANIMATIONS — effect sprites (assets/vfx, made with ChatGPT; sheets vfx1-3 via tools/pixelate.py vfx)
+//  are flown, rained, spun, orbited and burst by code. Every ability has a recipe in FXR: [impact time, c => emitters].
+//  Damage numbers, hit flashes, HP bars and faints wait for the impact, so a fireball lands before its number pops.
+//  A missing sprite falls back to a soft glow in its colour, so nothing breaks while art is still being made.
+// =====================================================================
+const VFX_COL = { star: '#fff59d', fireball: '#ff7043', flame: '#ff9800', spark: '#ffd54f', meteor: '#ff5722', sun: '#ffeb3b', moon: '#e1f5fe', feather: '#fffde7',
+  note: '#fff176', wave: '#e0e0e0', plus: '#69f0ae', bubble: '#81d4fa', claw: '#ffffff', bite: '#eeeeee', impact: '#fff3e0', poison: '#9ccc65', acid: '#c6ff00',
+  skull: '#e0e0e0', wisp: '#9575cd', rune: '#ce93d8', eye: '#ba68c8', drop: '#e53935', stars: '#ffeb3b', lava: '#ff6d00', rock: '#8d6e63', dust: '#bcaaa4',
+  coin: '#ffd54f', swirl: '#b2ebf2', tongue: '#f48fb1', shard: '#e1bee7', rainbow: '#f8bbd0', orb: '#fff9c4', crack: '#6d4c41', heart: '#f06292', ray: '#fffde7', leaf: '#81c784' };
+function vfxP(spr, x, y, o = {}) {   // one effect particle
+  const p = Object.assign({ spr, x, y, vx: 0, vy: 0, ax: 0, ay: 0, rot: 0, vr: 0, s: 1, s1: null, a: 1, a1: 0, life: 0.5, face: 1 }, o);
+  p.t = -(o.d || 0); if (p.s1 === null || p.s1 === undefined) p.s1 = p.s;
+  if (p.to) { p.fx = p.fx ?? x; p.fy = p.fy ?? y; }
+  B.vfx.push(p); return p;
+}
+function updateVfx(dt) {
+  for (const p of B.vfx) {
+    p.t += dt; if (p.t < 0) continue;
+    const k = Math.min(1, p.t / p.life), px = p.x, py = p.y;
+    if (p.to) { const e = p.ease === 'in' ? k * k : k; p.x = p.fx + (p.to.x - p.fx) * e; p.y = p.fy + (p.to.y - p.fy) * e - (p.arc || 0) * Math.sin(Math.PI * k); }
+    else if (p.orbit) { const o = p.orbit, a = o.a + o.w * p.t; p.x = o.x + Math.cos(a) * o.r; p.y = o.y + Math.sin(a) * o.r * 0.45; }
+    else { p.vx += p.ax * dt; p.vy += p.ay * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+    if (p.aim && (p.x !== px || p.y !== py)) p.rot = Math.atan2(p.y - py, (p.x - px) * p.face); else p.rot += p.vr * dt;
+    if (p.trail && ((p.tt = (p.tt || 0) - dt) <= 0)) { p.tt = 0.03; vfxP(p.trail, p.x, p.y, { life: 0.3, s: p.s * 0.6, s1: p.s * 0.15, a: 0.8, vr: rand(-4, 4), add: p.add }); }
+    if (p.t >= p.life && p.end) { const f = p.end; p.end = null; f(p); }
+  }
+  B.vfx = B.vfx.filter(p => p.t < p.life);
+  B.flashT = Math.max(0, (B.flashT || 0) - dt); B.shakeT = Math.max(0, (B.shakeT || 0) - dt);
+}
+function drawVfx() {
+  for (const p of B.vfx) {
+    if (p.t < 0 || !p.spr) continue;
+    const k = Math.min(1, p.t / p.life), s = (p.s + (p.s1 - p.s) * k) * 2.5, al = Math.min(1, p.t / 0.05) * (p.a + (p.a1 - p.a) * k);
+    if (al <= 0.01) continue;
+    const img = art('vfx/' + p.spr);
+    ctx.save(); ctx.globalAlpha = Math.min(1, al); if (p.add) ctx.globalCompositeOperation = 'lighter';
+    ctx.translate(Math.round(p.x), Math.round(p.y)); ctx.scale(p.face * (p.sx || 1), p.sy || 1); ctx.rotate(p.rot);
+    if (img) { ctx.imageSmoothingEnabled = false; ctx.drawImage(img, -img.width * s / 2, -img.height * s / 2, img.width * s, img.height * s); }
+    else { const r = 8 * s, g = ctx.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, VFX_COL[p.spr] || '#ffffff'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); }
+    ctx.restore();
+  }
+}
+function drawVfxFlash() { if (B.flashT > 0) { ctx.globalAlpha = Math.min(1, B.flashT / (B.flashLen || 0.3)) * 0.5; ctx.fillStyle = B.flashCol || '#fff'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; } }
+const uC = u => { const r = unitRect(u); return { x: r.x + r.w / 2, y: r.y + r.h / 2, top: r.y, w: r.w, h: r.h }; };
+// the emitters every recipe is built from. c.T = foes it struck (unique), c.H = every hit in order, c.A = allies it helped
+function fxCtx(u, T, H, A) {
+  const me = uC(u), dir = u.side === 'ally' ? 1 : -1, mouth = { x: me.x + dir * me.w * 0.3, y: me.y - me.h * 0.1 };
+  const c = { u, T, H, A, dir, me,
+    each(list, fn, gap = 0.08) { list.forEach((t, i) => fn(t, i * gap, i)); },
+    later(d, fn) { vfxP(null, 0, 0, { d, life: 0.001, end: fn }); },
+    flash(col = '#ffffff', len = 0.25, d = 0) { c.later(d, () => { B.flashT = len; B.flashLen = len; B.flashCol = col; }); },
+    shake(a = 5, len = 0.3, d = 0) { c.later(d, () => { B.shakeT = len; B.shakeA = a; }); },
+    shot(spr, t, o = {}) {
+      const to = t.x !== undefined && !t.side ? t : uC(t), from = o.from || mouth;
+      vfxP(spr, from.x, from.y, { d: o.d || 0, to: { x: to.x, y: to.y }, life: o.dur || 0.3, arc: o.arc || 0, s: o.s || 1, s1: o.s1, vr: o.spin || 0, face: o.face || dir, aim: o.aim, trail: o.trail, add: o.add, a1: 1,
+        end: () => { if (o.hit) c.burstAt(o.hit, to.x, to.y, { n: o.hn || 6, s: o.hs || 0.7, add: o.add }); } });
+    },
+    toMe(spr, t, o = {}) { const f = uC(t), n = o.n || 4; for (let i = 0; i < n; i++) c.shot(spr, { x: me.x, y: me.y }, { from: { x: f.x + rand(-12, 12), y: f.y + rand(-12, 12) }, d: (o.d || 0) + i * 0.06, arc: rand(20, 70), spin: 8, s: o.s || 0.6, add: o.add }); },
+    rain(spr, t, o = {}) {
+      const to = uC(t), n = o.n || 3;
+      for (let i = 0; i < n; i++) {
+        const x = to.x + rand(-1, 1) * (o.spread ?? 26), sx = x - (o.slant ?? 70) * dir;
+        vfxP(spr, sx, -40, { d: (o.d || 0) + i * (o.gap ?? 0.08), to: { x, y: to.y + rand(-8, 8) }, life: o.dur || 0.35, ease: 'in', s: o.s || 1, vr: o.spin ?? 3, aim: o.aim, trail: o.trail, add: o.add, a1: 1,
+          end: p => { if (o.hit) c.burstAt(o.hit, p.x, p.y, { n: o.hn || 5, s: o.hs || 0.6, add: o.add }); } });
+      }
+    },
+    hit(spr, t, o = {}) { const to = uC(t); c.burstAt(spr, to.x, to.y, o); },
+    burstAt(spr, x, y, o = {}) {
+      const n = o.n || 6;
+      for (let i = 0; i < n; i++) { const a = rand(0, 6.28), v = rand(60, 160) * (o.spd || 1);
+        vfxP(spr, x, y, { d: o.d || 0, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (o.up || 0), ay: o.grav || 0, life: o.life || 0.45, s: o.s || 0.6, s1: (o.s || 0.6) * 0.35, vr: rand(-6, 6), add: o.add }); }
+    },
+    pop(spr, t, o = {}) { const to = uC(t); return vfxP(spr, to.x + (o.ox || 0), to.y + (o.oy || 0), { d: o.d || 0, life: o.life || 0.35, s: o.s0 ?? 0.4, s1: o.s || 1.4, a: 1, a1: o.a1 ?? 0, rot: o.rot ?? rand(-0.3, 0.3), face: o.face || 1, vr: o.spin || 0, add: o.add }); },
+    slash(t, o = {}) { for (let i = 0; i < (o.n || 1); i++) c.pop(o.spr || 'claw', t, { d: (o.d || 0) + i * 0.08, s0: 0.8, s: o.s || 1.3, life: 0.25, rot: rand(-0.4, 0.4) + (i % 2 ? 0.7 : 0), ox: rand(-10, 10), oy: rand(-10, 10), face: -dir }); },
+    bite(t, o = {}) { c.pop('bite', t, { d: o.d || 0, s0: (o.s || 1) * 1.6, s: o.s || 1, life: 0.25, a1: 0.3, rot: 0, face: -dir }); c.hit('impact', t, { d: (o.d || 0) + 0.12, n: 3, s: 0.5 }); },
+    rise(spr, t, o = {}) {
+      const to = uC(t), n = o.n || 4;
+      for (let i = 0; i < n; i++) vfxP(spr, to.x + rand(-to.w * 0.4, to.w * 0.4), to.y + rand(0, to.h * 0.4), { d: (o.d || 0) + i * (o.gap ?? 0.07), vy: -(o.spd || 70), vx: rand(-10, 10), life: o.life || 0.8, s: o.s || 0.6, s1: (o.s || 0.6) * 0.8, a1: 0, add: o.add });
+    },
+    fall(spr, t, o = {}) { const to = uC(t), n = o.n || 4; for (let i = 0; i < n; i++) vfxP(spr, to.x + rand(-15, 15), to.y, { d: (o.d || 0) + i * 0.08, vy: 40, ay: 300, life: 0.6, s: o.s || 0.5, a1: 0 }); },
+    orbit(spr, t, o = {}) {
+      const to = uC(t), n = o.n || 3;
+      for (let i = 0; i < n; i++) vfxP(spr, to.x, to.top, { d: o.d || 0, orbit: { x: to.x, y: o.y === 'mid' ? to.y : to.top + 4, r: o.r || 26, w: o.w || 6, a: i * 6.28 / n }, life: o.life || 0.9, s: o.s || 0.5, a: 1, a1: 0.1, add: o.add });
+    },
+    aura(spr, t, o = {}) { return c.pop(spr, t, Object.assign({ s0: 0.6, s: 2.2, life: 0.6, a1: 0, rot: 0 }, o)); },
+    beam(spr, t, o = {}) { const to = uC(t); vfxP(spr, to.x, to.y - 120, { d: o.d || 0, life: o.life || 0.55, s: o.s || 1.6, sy: 5, a: 1, a1: 0, add: true }); },
+    waves(spr, o = {}) {
+      for (let i = 0; i < (o.n || 4); i++) vfxP(spr, mouth.x, mouth.y, { d: (o.d || 0) + i * (o.gap || 0.12), vx: dir * (o.spd || 420), life: o.life || 0.6, s: o.s || 0.6, s1: o.s1 || 2.0, a: 0.95, a1: 0, face: dir, add: o.add });
+    },
+    breath(spr, o = {}) {
+      const tx = c.T.length ? c.T.reduce((s, t) => s + uC(t).x, 0) / c.T.length : mouth.x + dir * 300;
+      for (let i = 0; i < (o.n || 14); i++) vfxP(spr, mouth.x, mouth.y, { d: (o.d || 0) + i * (o.gap || 0.025), to: { x: tx + rand(-70, 70), y: mouth.y + rand(-1, 1) * (o.spread ?? 50) + 20 }, life: o.dur || 0.35, s: o.s || 0.5, s1: o.s1 || 1.5, vr: rand(-3, 3), a: 1, a1: 0.15, add: o.add ?? true });
+    },
+    swirl(spr, t, o = {}) { const p = c.pop(spr, t, { d: o.d || 0, s0: 0.6, s: o.s || 1.8, life: o.life || 0.6, a1: 0, rot: 0 }); p.vr = o.spin || 10; },
+    ground(spr, t, o = {}) { vfxP(spr, uC(t).x, BX.ground - 4, { d: o.d || 0, life: o.life || 0.7, s: o.s0 || 0.5, s1: o.s || 1.6, a: 1, a1: 0, add: o.add }); },
+    above(spr, o = {}) { return vfxP(spr, me.x, me.top - (o.h || 40), { d: o.d || 0, life: o.life || 0.6, s: o.s0 || 0.5, s1: o.s || 2.6, a: 1, a1: 0, add: o.add }); },
+  };
+  return c;
+}
+// status cues: every curse, buff, heal and shield an ability lands gets its own little effect
+const CUE = {
+  burn: (c, t, d) => c.rise('flame', t, { d, n: 3, s: 0.5, add: true }), poison: (c, t, d) => c.rise('poison', t, { d, n: 3, s: 0.45 }),
+  bleed: (c, t, d) => c.fall('drop', t, { d, n: 3 }), blind: (c, t, d) => c.pop('eye', t, { d, oy: -20, s: 1, life: 0.5 }),
+  weak: (c, t, d) => c.pop('skull', t, { d, oy: -20, s: 0.9, life: 0.5 }), mark: (c, t, d) => c.pop('rune', t, { d, s: 1.2, life: 0.5, spin: 3 }),
+  stun: (c, t, d) => c.orbit('stars', t, { d, n: 3, s: 0.45, life: 0.9 }), str: (c, t, d) => c.rise('spark', t, { d, n: 3, s: 0.45, add: true }),
+  regen: (c, t, d) => c.rise('plus', t, { d, n: 3, s: 0.45 }), guard: (c, t, d) => c.aura('bubble', t, { d, s: 1.8, life: 0.45 }),
+  lucky: (c, t, d) => c.rise('coin', t, { d, n: 2, s: 0.45 }), evade: (c, t, d) => c.rise('feather', t, { d, n: 2, s: 0.45 }),
+  taunt: (c, t, d) => c.pop('impact', t, { d, oy: -24, s: 0.8, life: 0.3 }), undying: (c, t, d) => c.pop('heart', t, { d, s: 1.2, life: 0.5 }),
+};
+function fxCues(c, A, healed, d) {
+  for (const t of c.T) for (const [k] of A.st || []) if (t.st[k] && CUE[k]) CUE[k](c, t, d);
+  for (const t of c.A) {
+    for (const [k] of (A.allySt || []).concat(t === c.u ? A.self || [] : [])) if (CUE[k]) CUE[k](c, t, d + 0.08);
+    if (healed.has(t)) c.rise('plus', t, { d: d + 0.05, n: 3, s: 0.5 });
+  }
+}
+// default look for anything without a recipe of its own
+function fxDefault(A) {
+  if (A.t === 'foe' || A.t === 'weakest' || A.t === 'strongest') return [0.15, c => c.each(c.T, t => A.pow ? c.slash(t) : c.shot('rune', t))];
+  if (A.t === 'foes' || A.t === 'rand') return [0.3, c => c.waves('wave')];
+  return [0.25, c => c.each(c.A, t => c.aura('bubble', t))];
+}
+const FXR = {
+  // ----- Shepherd -----
+  bite: [0.15, c => c.each(c.T, t => c.bite(t))],
+  guard: [0.2, c => { c.waves('wave', { n: 2, s1: 1.2 }); c.aura('bubble', c.u, { d: 0.15 }); }],
+  howl: [0.35, c => c.waves('wave', { n: 5, gap: 0.1, s: 0.5, s1: 2.6 })],
+  bulwark: [0.3, c => { c.waves('wave', { n: 2 }); c.each(c.A, (t, d) => c.aura('bubble', t, { d: 0.15 + d, s: 2.6 })); }],
+  packleader: [0.4, c => { c.waves('wave', { n: 7, gap: 0.08, s1: 3 }); c.each(c.T, (t, d) => c.orbit('stars', t, { d: 0.3 + d, n: 2 })); }],
+  feral: [0.25, c => c.each(c.T, t => { c.slash(t, { n: 3 }); c.bite(t, { d: 0.2, s: 1.3 }); c.shake(5, 0.25, 0.25); })],
+  // ----- Gray Cat -----
+  scratch: [0.12, c => c.each(c.T, t => c.slash(t, { n: 2 }))],
+  pounce: [0.25, c => c.each(c.T, t => { c.hit('dust', c.u, { n: 5, up: 40 }); c.slash(t, { d: 0.2, n: 3, s: 1.5 }); })],
+  lick: [0.2, c => { c.rise('heart', c.u, { n: 3 }); c.rise('plus', c.u, { d: 0.15, n: 3 }); }],
+  shadowstrike: [0.3, c => c.each(c.T, t => { c.shot('wisp', t, { dur: 0.25, trail: 'wisp', add: true }); c.slash(t, { d: 0.25, n: 2, s: 2 }); c.flash('#311b92', 0.2, 0.25); })],
+  ninthlife: [0.2, c => { c.aura('heart', c.u, { s: 2.4 }); c.orbit('star', c.u, { n: 9, r: 40, life: 1.1, y: 'mid' }); }],
+  flurry: [0.35, c => c.H.forEach((t, i) => c.slash(t, { d: i * 0.08, s: 1.2 }))],
+  // ----- Calico Cat -----
+  hexclaw: [0.15, c => c.each(c.T, t => { c.slash(t); c.pop('rune', t, { d: 0.1, s: 1.4, life: 0.6, spin: 3 }); })],
+  jinx: [0.3, c => c.each(c.T, t => { c.shot('eye', t, { s: 0.8 }); c.pop('eye', t, { d: 0.3, s: 1.6, life: 0.6 }); })],
+  fortune: [0.3, c => c.each(c.A, t => { c.shot('coin', t, { arc: 70, spin: 10 }); c.rise('coin', t, { d: 0.3, n: 5 }); })],
+  calamity: [0.4, c => { c.flash('#4a148c', 0.3); c.each(c.T, (t, d) => { c.rain('rune', t, { n: 1, d, s: 1.4, spin: 6 }); c.hit('impact', t, { d: 0.35 + d }); }); }],
+  ladyluck: [0.35, c => c.each(c.A, (t, d) => c.rain('coin', t, { n: 4, d, spin: 12, s: 0.7, slant: 0 }))],
+  chaos: [0.35, c => c.each(c.T, (t, d) => c.shot(pick(['rune', 'eye', 'skull', 'poison', 'flame', 'stars']), t, { d, arc: rand(-80, 80), spin: 8 }))],
+  // ----- Cockatiel -----
+  peck: [0.15, c => c.each(c.T, t => { c.hit('feather', t, { n: 4, s: 0.6, grav: 200 }); c.pop('impact', t, { s: 1, life: 0.2 }); })],
+  song: [0.4, c => c.each(c.A, t => { for (let i = 0; i < 4; i++) c.shot('note', t, { d: i * 0.1, arc: 40 + i * 15, dur: 0.4, s: 0.6 }); })],
+  chorus: [0.45, c => c.each(c.A, (t, d) => { for (let i = 0; i < 3; i++) c.shot('note', t, { d: d + i * 0.1, arc: 50 + i * 20, dur: 0.4, s: 0.6 }); })],
+  anthem: [0.5, c => { c.above('note', { s: 2 }); c.each(c.A, (t, d) => { for (let i = 0; i < 3; i++) c.shot('note', t, { d: d + i * 0.08, arc: 70 + i * 15, dur: 0.4, s: 0.7 }); c.rise('star', t, { d: 0.4 + d }); }); }],
+  cyclone: [0.4, c => c.each(c.T, (t, d) => { c.swirl('swirl', t, { d, s: 2.2, spin: 14, life: 0.7 }); c.hit('feather', t, { d: d + 0.2, n: 5 }); })],
+  aegis: [0.35, c => c.each(c.A, (t, d) => { c.shot('feather', t, { d, arc: 50, spin: 6 }); c.aura('bubble', t, { d: d + 0.3, s: 2.6 }); })],
+  // ----- Dragon -----
+  fireball: [0.3, c => c.each(c.T, t => c.shot('fireball', t, { aim: 1, trail: 'flame', hit: 'flame', add: true }))],
+  flamebreath: [0.35, c => c.breath('flame', { n: 16 })],
+  emberscales: [0.2, c => { c.aura('bubble', c.u); c.rise('flame', c.u, { n: 5, add: true }); }],
+  inferno: [0.45, c => { c.breath('flame', { n: 26, s1: 2 }); c.each(c.T, (t, d) => c.hit('fireball', t, { d: 0.35 + d, n: 6, add: true })); c.shake(4, 0.3, 0.35); }],
+  wyrmhide: [0.2, c => { c.aura('bubble', c.u, { s: 2.8 }); c.waves('wave', { n: 2 }); }],
+  starfall: [0.45, c => c.H.forEach((t, i) => c.rain('star', t, { n: 1, d: i * 0.12, spread: 18, s: 1.3, trail: 'spark', hit: 'spark', add: true }))],
+  // ----- Fox -----
+  quickbite: [0.12, c => c.each(c.T, t => c.bite(t, { s: 0.8 }))],
+  feint: [0.15, c => { c.hit('dust', c.u, { n: 6 }); c.pop('wisp', c.u, { s: 2, life: 0.4, add: true }); }],
+  ambush: [0.25, c => c.each(c.T, t => { c.shot('wisp', t, { dur: 0.2, add: true }); c.slash(t, { d: 0.2, n: 2, s: 1.6 }); c.pop('impact', t, { d: 0.22, s: 1.8 }); })],
+  foxfire: [0.4, c => c.each(c.T, (t, d) => c.shot('wisp', t, { d, arc: 90, trail: 'wisp', add: true, hit: 'flame' }))],
+  whirlwind: [0.35, c => c.each(c.T, (t, d) => { c.swirl('swirl', t, { d, spin: 16 }); c.slash(t, { d: d + 0.15 }); c.slash(t, { d: d + 0.3 }); }, 0.1)],
+  ninetails: [0.4, c => { c.orbit('wisp', c.u, { n: 9, r: 50, life: 0.9, y: 'mid', add: true }); c.each(c.A, (t, d) => c.rise('star', t, { d: 0.3 + d })); }],
+  // ----- Owl -----
+  talons: [0.18, c => c.each(c.T, t => c.slash(t, { n: 3, s: 1.2 }))],
+  shriek: [0.3, c => c.waves('wave', { n: 6, gap: 0.06, spd: 600, s1: 2.4 })],
+  insight: [0.3, c => c.each(c.A, t => { c.pop('eye', t, { s: 1.4, life: 0.5 }); c.rise('star', t, { d: 0.2 }); })],
+  eternalnight: [0.4, c => { c.flash('#0d1b4a', 0.5); c.each(c.T, (t, d) => c.pop('moon', t, { d, s: 1.8, life: 0.8 })); }],
+  deathspiral: [0.4, c => c.each(c.T, t => { c.shot('feather', t, { dur: 0.4, arc: -120, spin: 14, trail: 'feather' }); c.pop('impact', t, { d: 0.4, s: 2 }); c.shake(5, 0.2, 0.4); })],
+  elderwisdom: [0.35, c => c.each(c.A, (t, d) => { c.beam('ray', t, { d }); c.rise('star', t, { d: d + 0.1 }); })],
+  // ----- Ferret -----
+  nip: [0.12, c => c.each(c.T, t => c.bite(t, { s: 0.6 }))],
+  pilfer: [0.25, c => c.each(c.T, t => { c.slash(t, { s: 0.9 }); c.toMe('coin', t, { d: 0.15, n: 3 }); })],
+  burrow: [0.2, c => { c.hit('dust', c.u, { n: 10, up: 120, grav: 400 }); c.hit('rock', c.u, { n: 4, up: 100, grav: 500, s: 0.5 }); }],
+  heist: [0.35, c => c.each(c.T, (t, d) => { c.pop('skull', t, { d, s: 1.2 }); c.toMe('coin', t, { d: d + 0.15, n: 3 }); })],
+  frenzy: [0.3, c => c.H.forEach((t, i) => c.bite(t, { d: i * 0.08, s: 0.7 }))],
+  sinkhole: [0.35, c => { c.each(c.T, (t, d) => { c.ground('crack', t, { d, s: 2.2 }); c.hit('rock', t, { d: d + 0.15, n: 5, up: 160, grav: 600 }); }); c.shake(6, 0.4, 0.2); }],
+  // ----- Boar -----
+  tusk: [0.15, c => c.each(c.T, t => { c.slash(t, { s: 1.4 }); c.pop('impact', t, { s: 1.4 }); })],
+  charge: [0.3, c => c.each(c.T, t => { c.hit('dust', c.u, { n: 6, up: 30 }); c.pop('impact', t, { d: 0.25, s: 2 }); c.shake(5, 0.2, 0.28); })],
+  wallow: [0.25, c => { c.hit('dust', c.u, { n: 8, grav: 400, up: 80 }); c.aura('bubble', c.u, { d: 0.15 }); }],
+  juggernaut: [0.4, c => { c.each(c.T, (t, d) => { c.pop('impact', t, { d: 0.15 + d, s: 2 }); c.hit('dust', t, { d: 0.15 + d, n: 6 }); }, 0.1); c.shake(7, 0.5, 0.15); }],
+  unbreakable: [0.25, c => { c.aura('bubble', c.u, { s: 3 }); c.pop('heart', c.u, { d: 0.2, s: 1.6 }); }],
+  warpig: [0.3, c => c.each(c.T, t => { c.pop('impact', t, { d: 0.25, s: 2.8 }); c.hit('rock', t, { d: 0.25, n: 6, up: 150, grav: 600 }); c.shake(8, 0.3, 0.27); })],
+  // ----- Toad -----
+  tongue: [0.2, c => c.each(c.T, t => { c.shot('tongue', t, { dur: 0.15, aim: 1, s: 1.2 }); c.hit('poison', t, { d: 0.15, n: 4 }); })],
+  spit: [0.35, c => c.each(c.T, (t, d) => c.shot('acid', t, { d, arc: 80, spin: 6, hit: 'poison' }))],
+  bogskin: [0.2, c => { c.aura('bubble', c.u); c.rise('poison', c.u, { n: 6 }); }],
+  plague: [0.4, c => { c.flash('#33691e', 0.3); c.each(c.T, (t, d) => c.rain('acid', t, { n: 3, d, spin: 4, hit: 'poison', slant: 0 })); }],
+  devour: [0.3, c => c.each(c.T, t => { c.shot('tongue', t, { dur: 0.15, aim: 1, s: 1.3 }); c.bite(t, { d: 0.2, s: 1.6 }); })],
+  toadking: [0.25, c => { c.aura('bubble', c.u, { s: 2.8 }); c.rise('spark', c.u, { n: 6, add: true }); c.waves('wave', { n: 2 }); }],
+  // ----- Shadow Wolf (pup) and shades -----
+  shadowbite: [0.15, c => c.each(c.T, t => { c.pop('wisp', t, { s: 1.6, life: 0.4, add: true }); c.bite(t, { d: 0.05 }); })],
+  darkhowl: [0.35, c => { c.waves('wave', { n: 5, gap: 0.1, s1: 2.6 }); c.waves('wisp', { n: 4, gap: 0.12, d: 0.05, s1: 2, add: true }); }],
+  fade: [0.15, c => { c.pop('wisp', c.u, { s: 3, life: 0.5, add: true }); c.hit('wisp', c.u, { n: 8, add: true }); }],
+  eclipsefang: [0.35, c => { c.flash('#000000', 0.35); c.each(c.T, t => { c.pop('moon', t, { s: 2, life: 0.5 }); c.bite(t, { d: 0.25, s: 1.6 }); }); }],
+  shades: [0.35, c => c.H.forEach((t, i) => { c.shot('wisp', t, { d: i * 0.1, trail: 'wisp', s: 1.2, add: true }); c.bite(t, { d: 0.3 + i * 0.1, s: 0.8 }); })],
+  nightmare: [0.4, c => { c.flash('#1a0033', 0.5); c.each(c.T, (t, d) => { c.pop('eye', t, { d, s: 2, life: 0.7 }); c.pop('skull', t, { d: d + 0.2, s: 1.4 }); }); }],
+  // ----- Elder Drake -----
+  emberclaw: [0.15, c => c.each(c.T, t => { c.slash(t, { n: 3 }); c.hit('flame', t, { d: 0.1, n: 4, add: true }); })],
+  firestorm: [0.4, c => c.each(c.T, (t, d) => c.rain('fireball', t, { n: 3, d, aim: 1, hit: 'flame', trail: 'flame', add: true }))],
+  ancientroar: [0.35, c => { c.waves('wave', { n: 4, s1: 3, gap: 0.12 }); c.shake(5, 0.4); }],
+  cataclysm: [0.5, c => { c.flash('#ff6d00', 0.35, 0.4); c.each(c.T, (t, d) => c.rain('meteor', t, { n: 2, d, s: 1.6, aim: 1, trail: 'flame', hit: 'flame', hn: 10, add: true })); c.shake(9, 0.5, 0.45); }],
+  phoenixheart: [0.45, c => c.each(c.A, (t, d) => { c.beam('ray', t, { d }); c.rise('feather', t, { d: d + 0.1, n: 5 }); c.rise('flame', t, { d: d + 0.1, n: 4, add: true }); })],
+  dragonrage: [0.3, c => c.each(c.T, t => { c.pop('impact', t, { d: 0.2, s: 3 }); c.hit('flame', t, { d: 0.2, n: 8, add: true }); c.shake(8, 0.3, 0.22); })],
+  // ----- Unicorn -----
+  hornstrike: [0.2, c => c.each(c.T, t => { c.shot('shard', t, { dur: 0.2, aim: 1 }); c.pop('star', t, { d: 0.2, s: 1.6 }); })],
+  rainbowmane: [0.4, c => c.each(c.A, (t, d) => { c.shot('rainbow', t, { d, arc: 80, s: 0.8 }); c.rise('star', t, { d: d + 0.35 }); })],
+  lightcharge: [0.35, c => { c.hit('dust', c.u, { n: 5 }); c.each(c.T, (t, d) => { c.pop('shard', t, { d: 0.2 + d, s: 1.6 }); c.hit('star', t, { d: 0.2 + d, n: 5 }); }); }],
+  prismatic: [0.45, c => { c.flash('#f8bbd0', 0.3, 0.35); c.each(c.T, (t, d) => { c.shot('rainbow', t, { d, arc: 100, s: 1.2 }); c.hit('shard', t, { d: d + 0.35, n: 8 }); }); }],
+  sanctify: [0.35, c => c.each(c.A, (t, d) => { c.beam('ray', t, { d }); c.aura('bubble', t, { d: d + 0.2, s: 2.6 }); })],
+  starlight: [0.45, c => c.each(c.A, (t, d) => { c.rain('star', t, { n: 3, d, hit: 'spark', s: 0.9, slant: 0, add: true }); c.rise('heart', t, { d: 0.4 + d }); })],
+  // ----- Phoenix -----
+  emberpeck: [0.18, c => c.each(c.T, t => { c.shot('flame', t, { dur: 0.15, aim: 1, add: true }); c.hit('feather', t, { d: 0.15, n: 3 }); c.hit('spark', t, { d: 0.15, n: 4, add: true }); })],
+  kindlesong: [0.4, c => c.each(c.A, t => { for (let i = 0; i < 4; i++) c.shot('note', t, { d: i * 0.08, arc: 50 + i * 15, trail: 'spark', s: 0.6 }); c.rise('flame', t, { d: 0.35, add: true }); })],
+  ashveil: [0.35, c => c.each(c.A, (t, d) => { c.shot('feather', t, { d, arc: 60, trail: 'dust' }); c.aura('bubble', t, { d: d + 0.3, s: 2.6 }); })],
+  rebirth: [0.5, c => { c.flash('#ffab00', 0.4, 0.4); c.each(c.A, (t, d) => { c.beam('ray', t, { d }); c.rise('feather', t, { d, n: 6 }); c.rise('flame', t, { d: d + 0.1, n: 6, add: true }); }); }],
+  sunflare: [0.45, c => { c.above('sun', { s: 3, add: true }); c.flash('#fff8e1', 0.3, 0.4); c.each(c.T, (t, d) => c.shot('fireball', t, { d: 0.25 + d, trail: 'spark', hit: 'flame', add: true, from: { x: c.me.x, y: c.me.top - 40 } })); }],
+  eternalflame: [0.4, c => c.each(c.A, (t, d) => { c.orbit('flame', t, { d, n: 5, r: 34, y: 'mid', life: 1, add: true }); c.rise('plus', t, { d: d + 0.2 }); })],
+  // ----- Hellhound -----
+  hellfang: [0.15, c => c.each(c.T, t => { c.bite(t); c.hit('flame', t, { d: 0.12, n: 5, add: true }); })],
+  brimstone: [0.4, c => { c.waves('wave', { n: 4, s1: 2.4 }); c.each(c.T, (t, d) => c.hit('flame', t, { d: 0.35 + d, n: 6, up: 60, add: true })); }],
+  blazerush: [0.25, c => c.each(c.T, t => { c.shot('fireball', t, { dur: 0.22, aim: 1, trail: 'flame', s: 1.3, add: true }); c.pop('impact', t, { d: 0.22, s: 1.8 }); })],
+  cerberus: [0.4, c => c.each(c.T, t => { for (let i = 0; i < 3; i++) c.bite(t, { d: i * 0.15, s: 1.1 + i * 0.15 }); })],
+  hellgate: [0.45, c => { c.flash('#b71c1c', 0.35, 0.3); c.each(c.T, (t, d) => { c.ground('crack', t, { d, s: 2.4 }); c.rise('flame', t, { d: d + 0.2, n: 8, spd: 140, s: 1, add: true }); }); c.shake(7, 0.4, 0.2); }],
+  soulreap: [0.35, c => c.each(c.T, t => { c.bite(t, { d: 0.1, s: 1.6 }); c.toMe('wisp', t, { d: 0.3, n: 5, add: true }); })],
+  // ----- Salamander -----
+  cinderlash: [0.2, c => c.each(c.T, t => { c.shot('tongue', t, { dur: 0.15, aim: 1 }); c.hit('flame', t, { d: 0.15, n: 5, add: true }); })],
+  magmaspit: [0.4, c => c.each(c.T, (t, d) => c.shot('lava', t, { d, arc: 90, spin: 5, hit: 'spark', add: true }))],
+  flameskin: [0.25, c => { c.orbit('flame', c.u, { n: 6, r: 36, y: 'mid', add: true }); c.aura('bubble', c.u, { d: 0.15 }); }],
+  lavaflood: [0.45, c => { c.each(c.T, (t, d) => { c.ground('lava', t, { d, s: 3 }); c.rise('flame', t, { d: d + 0.2, n: 5, add: true }); }); c.flash('#ff3d00', 0.25, 0.3); }],
+  regrowtail: [0.3, c => { c.rise('plus', c.u, { n: 6 }); c.pop('heart', c.u, { d: 0.2, s: 1.8 }); }],
+  firewhirl: [0.4, c => c.H.forEach((t, i) => { c.swirl('swirl', t, { d: i * 0.1, spin: 14, s: 1.4 }); c.hit('flame', t, { d: i * 0.1 + 0.1, n: 4, add: true }); })],
+  // ----- Magma Tortoise -----
+  shellbash: [0.2, c => c.each(c.T, t => { c.pop('impact', t, { d: 0.15, s: 1.8 }); c.hit('rock', t, { d: 0.15, n: 4, grav: 500, up: 120 }); })],
+  moltenshell: [0.25, c => { c.aura('bubble', c.u, { s: 2.8 }); c.rise('lava', c.u, { n: 4, d: 0.1 }); }],
+  lavaward: [0.35, c => c.each(c.A, (t, d) => { c.shot('lava', t, { d, arc: 60 }); c.aura('bubble', t, { d: d + 0.3 }); })],
+  eruption: [0.45, c => { c.hit('lava', c.u, { n: 10, up: 300, grav: 700, spd: 1.4 }); c.each(c.T, (t, d) => c.rain('rock', t, { n: 2, d: 0.2 + d, hit: 'flame', spin: 8, add: false })); c.shake(7, 0.4, 0.35); }],
+  obsidian: [0.3, c => { c.aura('bubble', c.u, { s: 3.4 }); c.orbit('rock', c.u, { n: 6, r: 44, y: 'mid', life: 1 }); }],
+  quake: [0.35, c => { c.each(c.T, (t, d) => { c.ground('crack', t, { d, s: 2.4 }); c.hit('rock', t, { d: d + 0.1, n: 5, up: 180, grav: 700 }); }); c.shake(10, 0.5, 0.1); }],
+  // ----- Qilin -----
+  blazehoof: [0.2, c => c.each(c.T, t => { c.pop('impact', t, { d: 0.12, s: 1.6 }); c.hit('flame', t, { d: 0.12, n: 5, add: true }); })],
+  blessing: [0.35, c => c.each(c.A, t => { c.beam('ray', t); c.rise('star', t, { d: 0.1 }); c.rise('coin', t, { d: 0.2, n: 3 }); })],
+  purify: [0.4, c => c.each(c.A, (t, d) => { c.orbit('flame', t, { d, n: 4, y: 'mid', add: true }); c.rise('plus', t, { d: d + 0.2 }); })],
+  omen: [0.45, c => { c.above('sun', { s: 2.6, add: true }); c.each(c.A, (t, d) => { c.beam('ray', t, { d: 0.2 + d }); c.rise('spark', t, { d: 0.3 + d, add: true }); }); }],
+  judgment: [0.45, c => c.each(c.T, t => { c.beam('ray', t, { s: 2.4 }); c.rain('fireball', t, { n: 1, d: 0.1, s: 2, slant: 0, spread: 0, hit: 'flame', hn: 10, aim: 1, add: true }); c.shake(7, 0.3, 0.45); })],
+  celestial: [0.45, c => { c.each(c.T, (t, d) => c.rain('flame', t, { n: 3, d, s: 1.2, hit: 'spark', add: true })); c.each(c.A, (t, d) => c.rise('plus', t, { d: 0.3 + d })); }],
+  // ----- Chimera -----
+  lionmaw: [0.15, c => c.each(c.T, t => c.bite(t, { s: 1.3 }))],
+  goatcurse: [0.3, c => c.each(c.T, t => { c.shot('rune', t, { spin: 6 }); c.pop('skull', t, { d: 0.3, s: 1.4 }); })],
+  serpentfang: [0.15, c => c.each(c.T, t => { c.bite(t, { s: 0.8 }); c.hit('poison', t, { d: 0.12, n: 5 }); })],
+  threefold: [0.45, c => { c.breath('flame', { n: 10 }); c.breath('poison', { n: 8, d: 0.05, add: false }); c.breath('wisp', { n: 8, d: 0.1 }); }],
+  serpentcoil: [0.35, c => c.each(c.T, t => { c.orbit('poison', t, { n: 6, r: 30, y: 'mid', w: 10, life: 0.7 }); c.pop('impact', t, { d: 0.3, s: 1.6 }); })],
+  hexstorm: [0.45, c => { c.flash('#4a148c', 0.3); c.each(c.T, (t, d) => { c.swirl('swirl', t, { d, spin: 12 }); c.orbit('rune', t, { d, n: 3 }); c.pop('eye', t, { d: d + 0.25, s: 1.4 }); }); }],
+  // ----- Sunmane Lion -----
+  sunclaw: [0.15, c => c.each(c.T, t => { c.slash(t, { n: 3, s: 1.4 }); c.hit('spark', t, { d: 0.1, add: true }); })],
+  blazeroar: [0.4, c => { c.waves('wave', { n: 6, s1: 3, gap: 0.08 }); c.shake(4, 0.35); }],
+  solarpounce: [0.3, c => c.each(c.T, t => { c.shot('sun', t, { dur: 0.25, arc: 80, s: 0.6, add: true }); c.slash(t, { d: 0.25, n: 2, s: 1.8 }); c.hit('flame', t, { d: 0.25, add: true }); })],
+  kingbeasts: [0.4, c => { c.waves('wave', { n: 5, s1: 3 }); c.aura('bubble', c.u, { d: 0.2 }); }],
+  solarflare: [0.45, c => { c.above('sun', { s: 3.4, add: true }); c.flash('#fffde7', 0.35, 0.35); c.each(c.T, (t, d) => c.hit('flame', t, { d: 0.35 + d, n: 7, add: true })); }],
+  pridehunt: [0.3, c => c.each(c.T, t => { c.slash(t, { d: 0.2, n: 4, s: 2 }); c.pop('impact', t, { d: 0.25, s: 2.4 }); c.shake(6, 0.25, 0.25); })],
+  // ----- Ember Moth -----
+  sparkdust: [0.3, c => c.each(c.T, t => { for (let i = 0; i < 8; i++) c.shot('spark', t, { d: i * 0.02, arc: rand(-40, 60), s: 0.4, add: true }); })],
+  dazzle: [0.3, c => { c.flash('#fff9c4', 0.3, 0.2); c.waves('orb', { n: 4, add: true, s1: 2.2 }); }],
+  flutter: [0.15, c => { c.hit('spark', c.u, { n: 8, add: true }); c.pop('orb', c.u, { s: 2, add: true }); }],
+  sparkswarm: [0.4, c => c.H.forEach((t, i) => c.shot('spark', t, { d: i * 0.07, arc: rand(-60, 100), trail: 'spark', add: true, hit: 'flame', hn: 3 }))],
+  lunarglow: [0.4, c => { c.above('moon', { s: 2.4, add: true }); c.each(c.A, (t, d) => { c.rise('orb', t, { d: 0.2 + d, add: true }); c.rise('plus', t, { d: 0.3 + d }); }); }],
+  mesmerize: [0.4, c => c.each(c.T, (t, d) => { c.swirl('swirl', t, { d, spin: 5, s: 2 }); c.orbit('orb', t, { d, n: 4, add: true }); })],
+  // ----- bosses -----
+  shadowclaw: [0.2, c => c.each(c.T, t => c.slash(t, { n: 3, s: 1.8 }))],
+  dreadhowl: [0.4, c => { c.waves('wave', { n: 6, s1: 3.2 }); c.waves('wisp', { n: 5, add: true }); c.shake(4, 0.4); }],
+  umbralveil: [0.2, c => { c.pop('wisp', c.u, { s: 4, life: 0.6, add: true }); c.hit('wisp', c.u, { n: 12, add: true }); }],
+  devourweak: [0.3, c => c.each(c.T, t => { c.bite(t, { d: 0.15, s: 2 }); c.fall('drop', t, { d: 0.3, n: 6 }); })],
+  callshades: [0.4, c => { c.waves('wisp', { n: 4, add: true }); c.hit('wisp', c.u, { d: 0.3, n: 10, add: true }); }],
+  elderclaw: [0.2, c => c.each(c.T, t => c.slash(t, { n: 3, s: 2 }))],
+  elderbreath: [0.45, c => { c.breath('flame', { n: 34, s1: 2.2, spread: 80 }); c.shake(5, 0.4, 0.3); }],
+  tailsweep: [0.3, c => { c.each(c.T, (t, d) => { c.pop('impact', t, { d: 0.2 + d, s: 2 }); c.hit('dust', t, { d: 0.2 + d, n: 5 }); }, 0.07); c.shake(6, 0.3, 0.2); }],
+  wingguard: [0.3, c => { c.hit('dust', c.u, { n: 10, spd: 1.6 }); c.aura('bubble', c.u, { s: 4 }); }],
+  meteorrain: [0.6, c => { c.H.forEach((t, i) => c.rain('meteor', t, { n: 1, d: i * 0.12, s: 1.5, aim: 1, trail: 'flame', hit: 'flame', hn: 8, add: true })); c.shake(8, 1.0, 0.4); }],
+};
 function drawBattleUnit(u) {
   const sheet = unitSheet(u), s = unitScale(u), fly = unitFly(u);
+  const down = u.fainted && !(u.faintWait > 0), hurt = u.hurtT > 0 && !(u.hurtWait > 0);
   const lunge = u.atkT > 0 ? Math.sin((0.4 - u.atkT) / 0.4 * Math.PI) * 26 * (u.side === 'ally' ? 1 : -1) : 0;
-  const shake = u.hurtT > 0 ? Math.sin(u.hurtT * 60) * 4 : 0;
+  const shake = hurt ? Math.sin(u.hurtT * 60) * 4 : 0;
   const x = u.x + lunge + shake, y = unitAnchorY(u) + (fly ? Math.sin(B.t * 3 + u.x) * 6 : 0);
   const o = { scale: s };
-  if (u.fainted) o.alpha = Math.max(0.25, 1 - u.faintT * 2);
-  if (u.hurtT > 0) o.flash = true;
+  if (down) o.alpha = Math.max(0.25, 1 - u.faintT * 2);
+  if (hurt) o.flash = true;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, BX.ground + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
   ctx.filter = standInTint(u.k, sheet);
-  const anim = u.fainted ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = u.fainted ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
+  const anim = down ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = down ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
   if (!drawAnim(sheet, anim, fr, x, y, u.face, o) && !drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
     ctx.fillStyle = (PETS[u.k] || {}).color || '#888'; rr(x - 14 * s, y - 24 * s, 28 * s, 24 * s, 6); ctx.fill();
   }
   ctx.filter = 'none';
-  if (u.fainted) return;
+  if (down) return;
   // name, HP bar and statuses
   const top = unitTop(u) - 8, bw = Math.max(70, 26 * s);
   const cur = B.phase === 'player' && B.allies[B.cur] === u, tgtOk = B.pick && pickValid(u), over = inRect(mouse, unitRect(u));
@@ -3539,9 +4343,9 @@ function drawBattleUnit(u) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold ${u.boss ? 14 : 12}px ${UI}`; ctx.fillStyle = u.boss ? '#ff8a80' : u.elite ? PAL.gold : u.side === 'ally' ? PAL.good : PAL.gold;
   ctx.fillText(`${u.name}  Lv${u.lvl}`, u.x, top - 24);
-  const pct = Math.max(0, u.hp / u.maxHp); meter(u.x - bw / 2, top - 12, bw, 13, pct, hpColor(pct));
+  const shown = u.showHp ?? u.hp, pct = Math.max(0, shown / u.maxHp); meter(u.x - bw / 2, top - 12, bw, 13, pct, hpColor(pct));
   if (u.st.shield) { ctx.fillStyle = 'rgba(129,212,250,0.85)'; ctx.fillRect(u.x - bw / 2, top + 1, bw * Math.min(1, u.st.shield.v / u.maxHp), 3); }
-  ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.cream; ctx.fillText(`${Math.ceil(u.hp)}/${u.maxHp}`, u.x, top - 5);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.cream; ctx.fillText(`${Math.max(0, Math.ceil(shown))}/${u.maxHp}`, u.x, top - 5);
   const sts = Object.keys(u.st).filter(k => STATUS[k]); let sx = u.x - sts.length * 23 / 2;
   for (const k of sts) {
     const t = k === 'shield' ? '' : u.st[k].t;
@@ -3558,8 +4362,10 @@ function drawBattle() {
   const hs = heroSheet(G.cls);
   drawAnim(hs, 'idle', B.t * 5, BX.hero + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 });
   B.heroAnim = Math.max(0, (B.heroAnim || 0) - 1 / 60);
+  ctx.save(); if (B.shakeT > 0) ctx.translate(rand(-1, 1) * (B.shakeA || 4), rand(-1, 1) * (B.shakeA || 4) * 0.6);
   for (const u of [...B.allies, ...B.foes]) drawBattleUnit(u);
-  for (const f of B.fx) { ctx.globalAlpha = Math.min(1, f.t * 2); ctx.font = `bold ${f.size}px ${UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(f.txt, f.x + 1, f.y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, f.y); ctx.globalAlpha = 1; }
+  drawVfx(); ctx.restore(); drawVfxFlash();
+  for (const f of B.fx) { if (f.wait > 0) continue; ctx.globalAlpha = Math.min(1, f.t * 2); ctx.font = `bold ${f.size}px ${UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(f.txt, f.x + 1, f.y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, f.y); ctx.globalAlpha = 1; }
   // top bar: turn, boss bar, log
   banner(B.phase === 'foe' ? `Turn ${B.turn} — the foes act...` : B.phase === 'player' ? `Turn ${B.turn} — your move` : B.phase === 'won' ? 'Victory!' : B.phase === 'lost' ? 'Defeat...' : 'Battle!', W / 2, 24, { plain: true, size: 18, h: 38, pad: 100, minW: 300 });
   const boss = B.foes.find(u => u.boss);
@@ -3873,6 +4679,14 @@ function iconCell(sh) {
   sh.forEach((row, r) => row.forEach((v, c) => { if (!v) return; const d = (c + 0.5 - w / 2) ** 2 + (r + 0.5 - h / 2) ** 2; if (d < bd) { bd = d; best = [c, r]; } }));
   return best;
 }
+function drawPetIcon(k, x, y, w, h) {
+  const sheet = speciesSheet(k), fr = animFrames(sheet, 'idle') || animFrames(sheet, 'fly'), img = art('anim/' + sheet);
+  if (!fr || !img) return false;
+  const [fx, fy, fw, fh] = fr[0], s = Math.min(w / fw, h / fh) * 0.85;
+  ctx.save(); ctx.imageSmoothingEnabled = false; ctx.filter = standInTint(k, sheet);
+  ctx.drawImage(img, fx, fy, fw, fh, Math.round(x + (w - fw * s) / 2), Math.round(y + (h - fh * s) / 2), fw * s, fh * s);
+  ctx.restore(); return true;
+}
 function drawItem(it, x, y, cs, alpha = 1) {
   const sh = it.shape, d = it.def, rc = RARITY[d.rarity].c;
   ctx.save(); ctx.globalAlpha = alpha;
@@ -3908,6 +4722,8 @@ function drawItem(it, x, y, cs, alpha = 1) {
     ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowOffsetY = 2;
     ctx.drawImage(ia, -ia.width * k / 2, -ia.height * k / 2, ia.width * k, ia.height * k);
     ctx.restore();
+  } else if (d.pet && drawPetIcon(d.pet, x, y, sh[0].length * cs, sh.length * cs)) {
+    // pets without an icon of their own show the first frame of their animation
   } else {
     const [ic, ir] = iconCell(sh);
     ctx.font = `${Math.floor(cs * 0.58)}px ${EMOJI}`;
