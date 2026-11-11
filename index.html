@@ -186,6 +186,7 @@ cv.addEventListener('mousemove', e => {
 cv.addEventListener('mousedown', e => { SFX.init(); mpos(e); onMouseDown(e.button); e.preventDefault(); });
 addEventListener('mouseup', e => { mpos(e); onMouseUp(e.button); });
 cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => { if (rosterOpen()) { scrollRoster(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } }, { passive: false });
 
 // =====================================================================
 //  UI STYLE — the look of every menu: an adventurer's leather backpack (stitched leather, brass, parchment,
@@ -834,6 +835,12 @@ const SFX = (() => {
     error: () => { tone({ type: 'square', f0: 140, dur: 0.07, vol: 0.07 }); tone({ type: 'square', f0: 110, dur: 0.1, vol: 0.07, delay: 0.08 }); },
     start: () => notes([392, 523, 659, 784], 'square', 0.07, 0.06, 0.12),
     pause: () => tone({ type: 'square', f0: 660, dur: 0.06, vol: 0.05 }),
+    // ----- into battle: the '!' sting, the act-themed wipes, the VS slam -----
+    alert: () => { tone({ type: 'square', f0: 880, f1: 1320, dur: 0.07, vol: 0.09 }); tone({ type: 'square', f0: 1320, f1: 1760, dur: 0.1, vol: 0.09, delay: 0.08 }); noise({ dur: 0.12, vol: 0.14, f0: 3000, f1: 1200, q: 1.2, delay: 0.06 }); },
+    wipe1: () => { V.stone(0, 1.3); V.rumble(0.3, 1.2, 0.9); for (let i = 0; i < 6; i++) V.thud(0.45 + i * 0.08, 0.7 - i * 0.06); },
+    wipe2: () => { V.whoosh(0, 1.3, 0.7); V.fire(0.05, 1.8, 1.0); V.boom(0.12, 0.45); },
+    wipe3: () => { V.whoosh(0, 1.1, 0.35); V.dig(0.05, 0.45, 6); V.sparkle(0.45, 1, [1319, 1568, 2093, 2637], 0.06); V.wind(0.55, 0.8, 0.6); },
+    vs: () => { V.boom(0, 1.1); tone({ type: 'square', f0: 330, f1: 110, dur: 0.22, vol: 0.09 }); noise({ dur: 0.3, vol: 0.18, f0: 5000, f1: 1500, filter: 'highpass' }); },
   };
   const VOX_VOL = 0.6;   // ability sounds vs the rest of the effects
   let vox = null;
@@ -942,6 +949,108 @@ const SONGS = {
       'E5 - - - G5 - - - B5 - - - E6 - - -', 'C6 - - - - - - - B5 - A5 - E5 - - -',
       'D#5 - - - - - - - F#5 - - - B5 - - -', 'A5 - - - - - - - F#5 - - - D#5 - - -'] },
   ] },
+  // ----- battle music: one theme per act -----
+  battle1: { title: 'Clash in the Dark', bpm: 140, chords: ['Dm', 'Dm', 'Bb', 'C', 'Dm', 'Dm', 'Gm', 'A'], parts: [
+    { inst: 'pad', vol: 0.5, dark: true },
+    { inst: 'pluck', arp: '0 1 2 1 0 1 2 1 0 1 2 1 3 2 1 2', vol: 0.4 },
+    { inst: 'bass', pat: 'r . r r . r r . r . r r o . f .', saw: true },
+    { inst: 'drums', kick: 'x . . x . . x . x . . x . . x .', snare: '. . . . x . . . . . . . x . . x', hat: 'x x x x x x x x x x x x x x x x', fill: true },
+    { inst: 'lead', mel: [
+      'D5 - - . D5 . E5 . F5 - - . E5 . D5 .', 'A5 - - - - - . . G5 . F5 . E5 - - .',
+      'F5 - - . F5 . G5 . Bb5 - - . A5 . G5 .', 'G5 - - - E5 - - - C5 - - - E5 - G5 -',
+      'D5 - - . D5 . E5 . F5 - - . A5 . D6 .', 'C6 - - - A5 - - - F5 - - - A5 - - -',
+      'Bb5 - - . A5 . G5 . D5 - - . G5 - Bb5 -', 'A5 - - - C#6 - - - E6 - - - C#6 - A5 -'] },
+  ] },
+  battle2: { title: 'Fire and Fang', bpm: 152, chords: ['Em', 'F', 'Em', 'D', 'C', 'B', 'Em', 'F'], parts: [
+    { inst: 'pad', vol: 0.6, dark: true },
+    { inst: 'pluck', arp: '0 1 2 3 2 1 0 1 0 1 2 3 2 1 0 1', vol: 0.4 },
+    { inst: 'bass', pat: 'r r . r r . r r r r . r o . r .', saw: true, vol: 1.1 },
+    { inst: 'drums', kick: 'x . x . x . x . x . x . x . x .', snare: '. . . . x . . . . . . . x . x x', hat: '. x . x . x . x . x . x . x . x', fill: true },
+    { inst: 'lead', mel: [
+      'E5 - - F5 E5 - D5 - E5 - - - B4 - - -', 'F5 - - G5 F5 - E5 - C5 - - - A4 - - -',
+      'E5 - G5 - B5 - - - A5 - G5 - F5 - E5 -', 'F#5 - - - D5 - - - A4 - - - D5 - F#5 -',
+      'G5 - - - E5 - C5 - G5 - - - E5 - C5 -', 'D#5 - - - F#5 - - - B5 - - - A5 - F#5 -',
+      'E5 - - . E5 . F5 . G5 - - . F5 . E5 .', 'F5 - - - - - - - E5 - - - - - - -'] },
+  ] },
+  battle3: { title: 'Glamour and Thorns', bpm: 146, chords: ['Am', 'F', 'G', 'E', 'Am', 'F', 'D', 'E'], parts: [
+    { inst: 'pad', vol: 0.6 },
+    { inst: 'bell', arp: '0 2 3 2 0 2 3 2 1 2 3 2 1 2 3 2', vol: 0.45 },
+    { inst: 'bass', pat: 'r . . r . . r . r . . r . . o .', vol: 0.9 },
+    { inst: 'drums', kick: 'x . . . x . . . x . . . x . . .', snare: '. . . . x . . x . . . . x . . .', hat: 'x . x x x . x x x . x x x . x x', fill: true },
+    { inst: 'flute', mel: [
+      'A5 - E5 - C5 - E5 - A5 - B5 - C6 - B5 -', 'A5 - - - F5 - - - C5 - - - F5 - A5 -',
+      'B5 - G5 - D5 - G5 - B5 - C6 - D6 - B5 -', 'G#5 - - - E5 - - - B4 - - - E5 - G#5 -',
+      'C6 - B5 - A5 - E5 - C6 - B5 - A5 - E5 -', 'F5 - A5 - C6 - A5 - F5 - - - E5 - F5 -',
+      'F#5 - - - A5 - - - D6 - - - C6 - A5 -', 'G#5 - - - B5 - - - E6 - - - - - - -'] },
+  ] },
+  // ----- the bosses: each its own theme, and a second, wilder half when it's down to half health -----
+  boss_shadow: { title: 'The Shadow Wolf', bpm: 144, chords: ['F#m', 'F#m', 'D', 'E', 'F#m', 'Bm', 'C#', 'C#'], parts: [
+    { inst: 'pad', vol: 0.7, dark: true },
+    { inst: 'pluck', arp: '0 1 2 1 0 1 2 1 0 1 2 1 0 1 2 1', vol: 0.35 },
+    { inst: 'bass', pat: 'r . r . r . r . r . r . o . f .', saw: true, vol: 1.1 },
+    { inst: 'drums', kick: 'x . . x x . . x x . . x x . x .', snare: '. . . . x . . . . . . . x . . .', hat: 'x . x . x . x . x . x . x . x .', fill: true },
+    { inst: 'lead', mel: [
+      'F#5 - - - C#6 - - - A5 - G#5 - F#5 - - -', 'E5 - F#5 - A5 - - - G#5 - - - E5 - - -',
+      'F#5 - - - D6 - - - C#6 - B5 - A5 - - -', 'G#5 - - - B5 - - - E5 - - - G#5 - B5 -',
+      'A5 - - - F#5 - - - C#6 - - - F#6 - - -', 'E6 - - - D6 - C#6 - B5 - - - F#5 - - -',
+      'G#5 - - - F5 - - - C#5 - - - F5 - G#5 -', 'C#6 - - - - - - - B5 - A5 - G#5 - F5 -'] },
+  ] },
+  boss_elder: { title: 'The Elder Dragon', bpm: 126, chords: ['Cm', 'Cm', 'Ab', 'Bb', 'Cm', 'Fm', 'G', 'G'], parts: [
+    { inst: 'pad', vol: 0.8, dark: true },
+    { inst: 'pluck', arp: '0 . 1 . 2 . 3 . 2 . 1 . 0 . 1 .', vol: 0.45 },
+    { inst: 'bass', pat: 'r - - r - - r - r - - r - - o -', saw: true, vol: 1.1 },
+    { inst: 'drums', kick: 'x . . . . . x . x . . . . . . .', snare: '. . . . x . . . . . . . x . . .', hat: 'x . x . x . x . x . x . x . x .', fill: true },
+    { inst: 'lead', mel: [
+      'C5 - - - G5 - - - Eb5 - - - D5 - C5 -', 'G4 - - - C5 - Eb5 - G5 - - - - - - -',
+      'Ab5 - - - G5 - - - F5 - - - Eb5 - C5 -', 'D5 - - - Bb4 - - - F5 - - - D5 - - -',
+      'C5 - - - Eb5 - - - G5 - - - C6 - - -', 'Ab5 - - - G5 - F5 - C5 - - - F5 - Ab5 -',
+      'G5 - - - - - - - D5 - - - B4 - - -', 'D5 - B4 - G4 - B4 - D5 - F5 - G5 - - -'] },
+  ] },
+  boss_elder2: { title: "The Elder Dragon's Rage", bpm: 160, chords: ['Cm', 'Ab', 'Bb', 'G', 'Cm', 'Ab', 'Fm', 'G'], parts: [
+    { inst: 'pad', vol: 0.6, dark: true },
+    { inst: 'pluck', arp: '0 1 2 3 2 1 0 1 0 1 2 3 2 1 0 1', vol: 0.4 },
+    { inst: 'bass', pat: 'r r r r r r o o r r r r f f o o', saw: true, vol: 1.1 },
+    { inst: 'drums', kick: 'x . x . x . x . x . x . x . x x', snare: '. . . . x . . . . . . . x . x x', hat: 'x x x x x x x x x x x x x x x x', fill: true },
+    { inst: 'lead', mel: [
+      'C6 - B5 - C6 - G5 - Eb5 - G5 - C6 - - -', 'Ab5 - G5 - Ab5 - Eb5 - C5 - Eb5 - Ab5 - - -',
+      'Bb5 - A5 - Bb5 - F5 - D5 - F5 - Bb5 - - -', 'B5 - - - G5 - - - D5 - - - G5 - B5 -',
+      'C6 - - - Eb6 - - - D6 - C6 - G5 - - -', 'Ab5 - - - C6 - - - Eb6 - D6 - C6 - - -',
+      'F5 - Ab5 - C6 - Ab5 - F5 - Ab5 - C6 - F6 -', 'G5 - - - B5 - - - D6 - - - G6 - - -'] },
+  ] },
+  boss_wyrm: { title: 'The Lake Wyrm', bpm: 116, chords: ['Em', 'C', 'D', 'B', 'Em', 'Am', 'C', 'B'], parts: [
+    { inst: 'pad', vol: 0.9 },
+    { inst: 'bell', arp: '0 . . 2 . . 3 . . 2 . . 1 . 2 .', vol: 0.55 },
+    { inst: 'bass', pat: 'r - - - r - - - f - - - r - o -', vol: 0.9 },
+    { inst: 'drums', kick: 'x . . . . . x . . . x . . . . .', snare: '. . . . . . . . x . . . . . . .', hat: '. . x . . x . . x . . x . . x .', fill: true },
+    { inst: 'flute', mel: [
+      'B4 - - - E5 - - - G5 - F#5 - E5 - - -', 'G5 - - - - - - - E5 - - - C5 - - -',
+      'D5 - - - F#5 - - - A5 - - - D6 - - -', 'D#6 - - - - - - - B5 - - - F#5 - - -',
+      'E5 - - - G5 - - - B5 - - - E6 - - -', 'C6 - - - B5 - A5 - E5 - - - A5 - - -',
+      'G5 - - - E5 - - - C6 - - - G5 - - -', 'F#5 - - - D#5 - - - B4 - - - D#5 - F#5 -'] },
+  ] },
+  boss_wyrm2: { title: 'Moon Tide', bpm: 152, chords: ['Em', 'C', 'D', 'B', 'Em', 'Am', 'C', 'B'], parts: [
+    { inst: 'pad', vol: 0.6, dark: true },
+    { inst: 'bell', arp: '0 2 3 2 0 2 3 2 0 2 3 2 1 2 3 2', vol: 0.45 },
+    { inst: 'bass', pat: 'r . r r . r r . r . r r o . f .', saw: true },
+    { inst: 'drums', kick: 'x . . x . . x . x . . x . . x .', snare: '. . . . x . . . . . . . x . x x', hat: 'x x x x x x x x x x x x x x x x', fill: true },
+    { inst: 'lead', mel: [
+      'E5 - B5 - E6 - B5 - G5 - B5 - E6 - D6 -', 'C6 - G5 - E5 - G5 - C6 - - - E6 - - -',
+      'D6 - A5 - F#5 - A5 - D6 - - - F#6 - - -', 'D#6 - - - B5 - - - F#5 - - - B5 - D#6 -',
+      'E6 - - - D6 - B5 - G5 - - - B5 - E6 -', 'C6 - - - E6 - - - A5 - - - C6 - E6 -',
+      'G5 - C6 - E6 - C6 - G5 - C6 - E6 - G6 -', 'F#6 - - - D#6 - - - B5 - - - F#5 - - -'] },
+  ] },
+  // ----- after a battle: a short fanfare, or a sad sting -----
+  bwin: { bpm: 156, once: true, chords: ['C', 'C'], parts: [
+    { inst: 'pad', vol: 0.7 },
+    { inst: 'bass', pat: 'r . . . . . . . r - - - . . . .' },
+    { inst: 'drums', kick: 'x . . . x . . . x . . . . . . .', snare: '. . . . . . . . x . . . . . . .', hat: 'x . x . x . x . x . . . . . . .' },
+    { inst: 'lead', mel: ['C5 . E5 . G5 . C6 - - - . . G5 . C6 -', 'E6 - - - - - - - . . . . . . . .'] },
+  ] },
+  blose: { bpm: 84, once: true, chords: ['Am', 'E'], parts: [
+    { inst: 'pad', vol: 0.8, dark: true },
+    { inst: 'bass', pat: 'r - - - - - - - r - - - - - - -' },
+    { inst: 'bell', mel: ['E5 - - - D5 - - - C5 - - - B4 - - -', 'A4 - - - - - - - . . . . . . . .'] },
+  ] },
   // ----- level rotation: five more pieces (each floor picks one at random, never the last two played) -----
   halls: { title: 'Torchlit Halls', bpm: 92, chords: ['Gm', 'Eb', 'F', 'D', 'Gm', 'Cm', 'D', 'D'], parts: [
     { inst: 'pad', vol: 0.7 },
@@ -1044,6 +1153,14 @@ const SONGS = {
   ] },
 };
 
+function transposeSong(S, n, extra = {}) {
+  const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'], NI = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const acc = a => (a === '#' ? 1 : a === 'b' ? -1 : 0);
+  const tn = s => s.replace(/([A-G])(#|b)?(-?\d)/g, (_, l, a, o) => { const m = 12 * (+o + 1) + NI[l] + acc(a) + n; return NAMES[m % 12] + (Math.floor(m / 12) - 1); });
+  const tc = c => { const m = /^([A-G])(#|b)?(m?)$/.exec(c); return NAMES[(NI[m[1]] + acc(m[2]) + n + 24) % 12] + m[3]; };
+  return Object.assign({}, S, extra, { chords: S.chords.map(tc), parts: S.parts.map(p => (p.mel ? Object.assign({}, p, { mel: p.mel.map(tn) }) : p)) });
+}
+SONGS.boss_shadow2 = transposeSong(SONGS.boss_shadow, 2, { bpm: 158, title: 'The Shadow Wolf (unleashed)' });
 const MUSIC_VOL = 0.24;   // music sits under the sound effects
 const Music = (() => {
   let on = true, bus = null, cur = null, nextT = 0, step = 0, intensity = 0, duck = 1, timer = null;
@@ -1177,6 +1294,14 @@ function pickLevelSong(R) {
   SONG_HISTORY.push(k); if (SONG_HISTORY.length > 6) SONG_HISTORY.shift();
   G.levelSong = k; G.levelSongRoom = R; G.songBanner = { name: SONGS[k].title, t: 4 };
 }
+// the music for the fight you're in: the act's battle theme, or the boss's (its second half once it's down to half health)
+function battleSong() {
+  if (B && B.phase === 'won') return 'bwin';
+  if (B && B.phase === 'lost') return 'blose';
+  const boss = (B && B.boss) || (G.enc && G.enc.e.boss);
+  if (boss && SONGS['boss_' + boss]) { const u = B && B.foes.find(f => f.boss); return 'boss_' + boss + (u && (u.enraged || u.hp < u.maxHp * 0.5) ? '2' : ''); }
+  return 'battle' + clamp((G.room && G.room.act) || 1, 1, 3);
+}
 // picks the song for what's happening and feeds the "danger" level to the drums
 function musicDirector(dt) {
   if (!SFX.ac) return;
@@ -1185,6 +1310,7 @@ function musicDirector(dt) {
     const R = G.room;
     if (G.mode === 'dead') want = 'death';
     else if (G.mode === 'won') want = 'victory';
+    else if (G.mode === 'battle' || G.mode === 'encounter' || (G.mode === 'pause' && G.pauseFrom === 'battle')) want = battleSong();
     else if (R.type === 'camp' || R.type === 'hub') want = 'camp';
     else if (R.type === 'boss') want = G.enemies.some(e => e.type === 'boss') ? 'boss' : 'camp';
     else {   // regular floors: a random track from the act's pool, rotated after two loops, never one of the last two played
@@ -1500,7 +1626,7 @@ const hash2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453
 
 let G = null;
 
-function newGame(cls = selClass) {
+function newGame(cls = selClass, startAct = 1) {
   selClass = cls; try { localStorage.setItem(sk('packrat_class'), cls); } catch (e) {}
   pack = startItems(cls); loadPets(); stats = null; RUN = { buffs: {}, petHp: {} };
   G = {
@@ -1509,7 +1635,7 @@ function newGame(cls = selClass) {
               dropT: 0, walk: 0, dashT: 0, dashCd: 0, dashDir: 1, airDashed: false, trail: [] },
     enemies: [], proj: [], parts: [], texts: [], corpses: [], pets: [], wolves: [], room: null, cam: { x: 0, y: 0 },
   };
-  G.cls = cls; G.wild = [];
+  G.cls = cls; G.wild = []; G.startAct = startAct; G.roomNum = (startAct - 1) * 10;   // Act II starts on floor 11, Act III on 21
   stats = computeStats(); G.team = teamMods();
   nextRoom();
   SFX.play('start');
@@ -1638,20 +1764,61 @@ function hubInteract() {
     SAVE.skin[G.cls] = SAVE.skin[G.cls] === 'f' ? 'm' : 'f'; saveData();
     burst(P.x + P.w / 2, P.y + P.h / 2, '#e1bee7', 22, 180); SFX.play('merge');
   } else if (s.kind === 'board') { G.panel = G.panel === 'records' ? null : 'records'; SFX.play('pick'); }
-  else if (s.kind === 'team') { G.panel = 'team'; rosterSel = 0; SFX.play('pick'); }
+  else if (s.kind === 'team') { G.panel = 'team'; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
   else if (s.kind === 'pet') {
     const p = s.pet; p.happyT = 2.4; p.wander = null; p.face = Math.sign(P.x + P.w / 2 - (p.x + p.w / 2)) || p.face;
     for (let k = 0; k < 4; k++) addText(p.x + p.w / 2 + rand(-14, 14), p.y - 4 - k * 9, '❤', '#ff80ab', 13 + k * 2);
     SFX.play(p.kind === 'dog' ? 'bark' : p.d.fly ? 'chirp' : p.d.charge ? 'growl' : p.d.poison ? 'slimeHop' : 'meow');
   }
 }
-function startRunFromHub() {
+// ---------- where a run starts: an act opens once any run has reached its first floor ----------
+const ACT_INFO = [null,
+  { name: 'Act I', sub: 'The Dungeon', floors: 'Floors 1-10', bg: 'hall', col: '#e0c890', need: 0 },
+  { name: 'Act II', sub: 'The Burning Depths', floors: 'Floors 11-20', bg: 'forge', col: '#ff8a50', need: 11 },
+  { name: 'Act III', sub: 'The Fey Wilds', floors: 'Floors 21-30', bg: 'glade', col: '#9ad06a', need: 21 }];
+const bestFloorEver = () => Math.max(SAVE.rec.bestFloor || 0, BEST || 0);
+const actsOpen = () => ACT_INFO.filter(a => a && bestFloorEver() >= a.need).length;
+const ACT_CARD = a => ({ x: W / 2 - 444 + (a - 1) * 300, y: 136, w: 288, h: 292 });
+function drawActSelect() {
+  ctx.fillStyle = 'rgba(8,5,3,0.75)'; ctx.fillRect(0, 0, W, H);
+  banner('Where to?', W / 2, 62, { size: 38, h: 56, pad: 130 });
+  label('Your pets keep every level · every act starts with just your class kit', W / 2, 108, { align: 'center', size: 14, color: PAL.dim });
+  const fl = G.actFlash && G.actFlash.t > 0 ? G.actFlash : null;
+  for (let a = 1; a <= 3; a++) {
+    const r = ACT_CARD(a), I = ACT_INFO[a], open = a <= actsOpen(), over = open && inRect(mouse, r);
+    panel(r.x, r.y, r.w, r.h, 'leather');
+    const img = art('bg/' + I.bg), ix = r.x + 14, iy = r.y + 14, iw = r.w - 28, ih = 142;
+    ctx.save(); rr(ix, iy, iw, ih, 6); ctx.clip();
+    if (img) { const sh = Math.min(img.height, BG_CROP[I.bg] || img.height), sw = Math.min(img.width, sh * iw / ih); ctx.drawImage(img, (img.width - sw) / 2, 0, sw, sh, ix, iy, iw, ih); }
+    else { ctx.fillStyle = I.col; ctx.fillRect(ix, iy, iw, ih); }
+    if (!open) { ctx.fillStyle = 'rgba(0,0,0,0.74)'; ctx.fillRect(ix, iy, iw, ih); label('LOCKED', r.x + r.w / 2, iy + ih / 2, { align: 'center', title: true, size: 30, color: '#8a7a68' }); }
+    ctx.restore();
+    if (over) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 3; rr(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 10); ctx.stroke(); }
+    if (fl && fl.a === a) { ctx.globalAlpha = Math.min(1, fl.t * 2); ctx.strokeStyle = '#e05038'; ctx.lineWidth = 3; rr(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 10); ctx.stroke(); ctx.globalAlpha = 1; }
+    label(I.name, r.x + r.w / 2, r.y + 182, { align: 'center', title: true, size: 32, color: open ? I.col : '#7a6a58' });
+    label(I.sub, r.x + r.w / 2, r.y + 214, { align: 'center', size: 16, bold: true, color: open ? PAL.cream : '#8a7a68' });
+    label(I.floors, r.x + r.w / 2, r.y + 236, { align: 'center', size: 13, color: PAL.dim });
+    label(open ? `[${a}]  ${a === 1 ? 'Start from the top' : 'Start here'}` : `Reach floor ${I.need} in a run to unlock`, r.x + r.w / 2, r.y + 266,
+      { align: 'center', size: 14, bold: true, color: open ? PAL.good : fl && fl.a === a ? '#ff8a70' : '#b08060' });
+  }
+  label('Click an act or press 1-3  ·  Esc to stay in the Sanctuary', W / 2, 466, { align: 'center', size: 13, color: PAL.dim });
+}
+function actSelectClick() {
+  for (let a = 1; a <= 3; a++) if (inRect(mouse, ACT_CARD(a))) {
+    if (a <= actsOpen()) startRunFromHub(a); else { SFX.play('error'); G.actFlash = { a, t: 1.2 }; }
+    return;
+  }
+  G.panel = null;
+}
+function startRunFromHub(act) {
   if (!petSlots.some(Boolean)) { if (!(G.gateHintT > 0)) { G.gateHintT = 2; showMsg(ownedIds().length ? 'Choose your team at the pet beds first.' : 'Choose your first companion first!', 2); if (!ownedIds().length) G.panel = 'starter'; } return; }
-  G.panel = null; PK = null; SFX.play('door'); newGame(selClass); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1;
+  if (!act && actsOpen() > 1) { if (G.panel !== 'acts') { G.panel = 'acts'; SFX.play('pick'); } return; }   // later acts are open: ask where to go
+  G.panel = null; PK = null; SFX.play('door'); newGame(selClass, act || 1); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1;
 }
 function hubPanelClick(btn = 0) {
   if (PK && PK.talent != null) { if (btn === 0) talentClick(); else PK.talent = null; if (PK && PK.talent == null) PK = null; return; }
   if (G.panel === 'starter') starterClick();
+  else if (G.panel === 'acts') actSelectClick();
   else if (G.panel === 'team') { const r = rosterClick(btn); if (r === 'close') { G.panel = null; SFX.play('pick'); } else if (r) PK = { talent: r, hub: true, staging: [] }; }
   else if (G.panel === 'records') G.panel = null;
 }
@@ -1704,7 +1871,7 @@ function drawHubHUD() {
   label('A / D move  ·  W jump  ·  E use / pet  ·  pet beds: choose your team  ·  walk through the gate to start a run  ·  Esc title screen', W / 2, H - 12, { align: 'center', size: 12, color: PAL.cream });
   ctx.globalAlpha = 1;
   if (G.panel === 'records') {
-    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`],
+    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`],
       ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
     const bw = 400, bh = 96 + rows.length * 27, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10;
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
@@ -1720,6 +1887,7 @@ function drawHubHUD() {
   }
   if (G.panel === 'team') drawRoster();
   if (G.panel === 'starter') drawStarter();
+  if (G.panel === 'acts') { if (G.actFlash) G.actFlash.t -= 1 / 60; drawActSelect(); }
   if (PK && PK.talent != null) drawTalents();
   drawHUDMessageOnly();
 }
@@ -1760,6 +1928,7 @@ function nextRoom() {
   P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vx = P.vy = P.kb = 0; P.trail = []; P.dashT = 0; P.onGround = true;
   syncPets(); petsEnterRoom();
   snapCamera();
+  if (n > (SAVE.rec.bestFloor || 0)) { SAVE.rec.bestFloor = n; saveData(); }
   const where = `Floor ${n}${n <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''} — ${R.theme.name}`;
   if (n === 11) showMsg('ACT II — The Burning Depths. Wilder animals and deadly hazards await...', 4);
   else if (n === 21) showMsg('ACT III — The Fey Wilds. Bewitched beasts, thorns and strange magic await...', 4);
@@ -3735,7 +3904,7 @@ function updateWild(dt) {
       if (Math.abs(e.vx) > 5) e.face = Math.sign(e.vx);
       if (e.y > R.hpx) { e.x = e.homeX; e.y = e.homeY; e.vy = 0; }
     }
-    if (G.mode === 'play' && !(G.graceT > 0) && overlap(P, e) && teamAlive().length) { startBattle(e); return; }
+    if (G.mode === 'play' && !(G.graceT > 0) && overlap(P, e) && teamAlive().length) { startEncounter(e); return; }
   }
   // all groups beaten: the floor's treasure chest appears where you are
   if (!R.cleared && (G.wild || []).length && G.wild.every(w => w.beaten) && G.mode === 'play') {
@@ -3959,7 +4128,7 @@ function startBattle(ent) {
     for (const u of allies) if (!u.fainted) { if (k === 'ember') addSt(u, 'str', 3); if (k === 'stone') addShield(u, u.maxHp * 0.2); if (k === 'catnip') addSt(u, 'lucky', 3); }
     RUN.buffs[k]--;
   }
-  G.mode = 'battle'; G.battleT = 0; SFX.play('door');
+  G.mode = 'battle'; G.battleT = 0;
   bLog(ent.boss ? `${foes[0].name} blocks your way!` : `Wild ${foes.map(u => u.name).join(', ')} appear${foes.length > 1 ? '' : 's'}!`);
 }
 const bAlive = side => (side === 'ally' ? B.allies : B.foes).filter(u => !u.fainted);
@@ -4255,6 +4424,7 @@ function updateBattle(dt) {
     if (u.faintWait > 0) u.faintWait -= dt; else if (u.fainted) u.faintT = (u.faintT || 0) + dt;
     if (u.hpWait > 0) u.hpWait -= dt; else { const sh = u.showHp ?? u.hp; u.showHp = Math.abs(u.hp - sh) < 0.5 ? u.hp : sh + (u.hp - sh) * Math.min(1, dt * 10); }
   }
+  if (B.intro) { updateIntro(dt); return; }
   if (B.lock > 0) { B.lock -= dt; return; }
   if (B.phase === 'start') { beginPlayerTurn(); return; }
   if (B.phase === 'foe') {
@@ -4419,6 +4589,252 @@ function pickValid(u) {
   if (P.item) { const k = USE_T[P.item.def.use]; if (k === 'ally') return u.side === 'ally' && !u.fainted; if (k === 'dead') return u.side === 'ally' && u.fainted; if (k === 'foe') return u.side === 'foe' && !u.fainted; return false; }
   return validTargets(B.allies[B.cur], P.ab).includes(u);
 }
+// =====================================================================
+//  INTO BATTLE — touch a wild animal: '!' pops up and the world freezes, then an act-themed wipe tears the frozen
+//  frame away to reveal the battlefield (Act I: cracks and falling stone blocks · II: a wall of flame burns it away
+//  · III: vine curtains whip shut, then part in a swirl of petals), then a VS card (or a boss's own cinematic).
+// =====================================================================
+const ease = k => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
+const easeOut = k => (k <= 0 ? 0 : k >= 1 ? 1 : 1 - (1 - k) * (1 - k) * (1 - k));
+const BOSS_CINE = { shadow: { epithet: 'Terror of the Dark Den', roar: 'dreadhowl', col: '#b39ddb' },
+                    elder: { epithet: 'Ancient Flame of the Roost', roar: 'ancientroar', col: '#ff8a50' },
+                    wyrm: { epithet: 'Sovereign of the Moonlit Lake', roar: 'tidalwave', col: '#80deea' } };
+function startEncounter(e) {
+  G.mode = 'encounter'; G.enc = { e, t: 0 }; G.player.vx = 0; SFX.play('alert');
+}
+function updateEncounter(dt) {
+  const E = G.enc; E.t += dt; updateFx(dt);
+  if (E.t < 0.62) return;
+  const snap = document.createElement('canvas'); snap.width = W; snap.height = H;   // the frozen frame the wipe tears away
+  try { snap.getContext('2d').drawImage(cv, 0, 0); } catch (err) {}
+  G.enc = null; startBattle(E.e);
+  if (B) beginIntro(snap, E.e); else G.mode = 'play';
+}
+function drawEncounterAlert() {   // in world coordinates: '!' over the hero and the animal
+  const E = G.enc; if (!E) return;
+  const P = G.player, k = Math.min(1, E.t / 0.16), s = k < 1 ? 0.4 + 0.9 * k : 1.3 - 0.3 * Math.min(1, (E.t - 0.16) / 0.12);
+  const bubble = (x, y, d) => {
+    const kk = Math.min(1, Math.max(0, (E.t - d) / 0.16)); if (kk <= 0) return;
+    const sc = (kk < 1 ? 0.4 + 0.9 * kk : s) * 1.1;
+    ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(sc, sc);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; rr(-13, -15, 28, 32, 8); ctx.fill();
+    ctx.fillStyle = '#fff8e1'; rr(-14, -18, 28, 32, 8); ctx.fill(); ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#fff8e1'; ctx.beginPath(); ctx.moveTo(-4, 13); ctx.lineTo(0, 22); ctx.lineTo(5, 13); ctx.fill();
+    ctx.fillStyle = '#e53935'; ctx.fillRect(-3, -12, 6, 14); ctx.fillRect(-3, 5, 6, 5);
+    ctx.restore();
+  };
+  bubble(P.x + P.w / 2, P.y - 26, 0);
+  const e = E.e; bubble(e.x + e.w / 2, e.y - 30, 0.08);
+  // a ring of speed lines around the animal
+  const cx = e.x + e.w / 2, cy = e.y + e.h / 2, a = Math.max(0, 1 - E.t / 0.6);
+  ctx.strokeStyle = `rgba(255,248,225,${0.6 * a})`; ctx.lineWidth = 2;
+  for (let i = 0; i < 14; i++) { const an = i / 14 * 6.283 + 0.2, r0 = 40 + E.t * 90, r1 = r0 + 22; ctx.beginPath(); ctx.moveTo(cx + Math.cos(an) * r0, cy + Math.sin(an) * r0 * 0.7); ctx.lineTo(cx + Math.cos(an) * r1, cy + Math.sin(an) * r1 * 0.7); ctx.stroke(); }
+}
+function beginIntro(snap, e) {
+  const act = clamp(G.room.act || 1, 1, 3), P = G.player;
+  const I = B.intro = { t: 0, act, snap, boss: e.boss || null, ent: e, end: e.boss ? 4.3 : 2.75, vsAt: 0.95, cineAt: 1.0, parts: [], slam: false, roared: false, shakeT: 0 };
+  I.ox = clamp(P.x + P.w / 2 - G.cam.x, 80, W - 80); I.oy = clamp(P.y + P.h / 2 - G.cam.y, 80, H - 80);   // where you ran into it
+  if (act === 1) {
+    // cracks race out from the impact, then the frame breaks into stone blocks that fall away, nearest first
+    I.cracks = [];
+    for (let i = 0; i < 10; i++) {
+      let x = I.ox, y = I.oy, an = i / 10 * 6.283 + rand(-0.2, 0.2); const pts = [[x, y]];
+      for (let s = 0; s < 16; s++) { an += rand(-0.5, 0.5); const l = rand(28, 60); x += Math.cos(an) * l; y += Math.sin(an) * l; pts.push([x, y]); if (x < -40 || x > W + 40 || y < -40 || y > H + 40) break; }
+      I.cracks.push(pts);
+    }
+    I.blocks = [];
+    const rh = 68;
+    for (let r = 0; r * rh < H; r++) for (let x = -(r % 2) * 55; x < W; x += 110) {
+      const bx = Math.max(0, x), bw = Math.min(W, x + 110) - bx, by = r * rh, bh = Math.min(rh, H - by), cx = bx + bw / 2, cy = by + bh / 2;
+      const d = Math.hypot(cx - I.ox, cy - I.oy);
+      I.blocks.push({ x: bx, y: by, w: bw, h: bh, d: 0.4 + d / 2200 + rand(0, 0.05), vx: (cx - I.ox) * 0.35 + rand(-40, 40), vy: rand(-160, -40), vr: rand(-2.2, 2.2), dust: false });
+    }
+  } else if (act === 3) {
+    I.curt = [0, 1].map(side => makeVineCurtain(side));
+    for (let i = 0; i < 70; i++) I.parts.push({ kind: 'petal', x: rand(-60, W + 60), y: rand(-40, H), vx: rand(-40, 40), vy: rand(20, 70), r: rand(0, 6.28), vr: rand(-6, 6), w: rand(0.6, 1.4), ph: rand(0, 6.28), d: rand(0, 0.5), life: rand(1.3, 2.0), c: pick(['#f8bbd0', '#f48fb1', '#fff3e0', '#e1bee7']) });
+  }
+  SFX.play('wipe' + act);
+}
+// a curtain of hanging vines, leaves and little glowing flowers (drawn once, then slid across the screen)
+function makeVineCurtain(side) {
+  const CW = W / 2 + 50, c = document.createElement('canvas'); c.width = CW; c.height = H;
+  const g = c.getContext('2d'); if (!g || !g.fillRect) return c;
+  const bg = g.createLinearGradient(0, 0, CW, 0); bg.addColorStop(0, '#0b2010'); bg.addColorStop(1, '#173d1c');
+  g.fillStyle = bg; g.fillRect(0, 0, CW - 36, H);
+  for (let i = 0; i < 16; i++) {
+    const x0 = 12 + i * (CW - 30) / 16 + rand(-6, 6), amp = rand(6, 14), ph = rand(0, 6.28);
+    g.strokeStyle = '#1f4a18'; g.lineWidth = 6; g.beginPath();
+    for (let y = -10; y <= H + 10; y += 10) { const x = x0 + Math.sin(y * 0.03 + ph) * amp; if (y < 0) g.moveTo(x, y); else g.lineTo(x, y); } g.stroke();
+    g.strokeStyle = '#4a8a2c'; g.lineWidth = 2; g.stroke();
+    for (let y = rand(0, 20); y < H; y += rand(18, 30)) {
+      const x = x0 + Math.sin(y * 0.03 + ph) * amp, dir = Math.random() < 0.5 ? -1 : 1;
+      g.fillStyle = pick(['#5c9a34', '#7cb342', '#4e8a2a']); g.beginPath(); g.ellipse(x + dir * 7, y, 8, 4, dir * 0.6, 0, 7); g.fill();
+      if (Math.random() < 0.08) { const fc = pick(['#f8bbd0', '#fff59d', '#b3e5fc']); g.fillStyle = fc + '55'; g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill(); g.fillStyle = fc; for (let p = 0; p < 5; p++) g.fillRect(Math.round(x + Math.cos(p * 1.26) * 3) - 1, Math.round(y + Math.sin(p * 1.26) * 3) - 1, 3, 3); g.fillStyle = '#ffeb3b'; g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2); }
+    }
+  }
+  for (let y = 0; y < H; y += 12) {   // the ragged leafy edge that leads the curtain
+    const x = CW - 40 + rand(-8, 10);
+    g.fillStyle = pick(['#5c9a34', '#7cb342', '#33691e']); g.beginPath(); g.ellipse(x + 12, y, 16, 6, rand(-0.6, 0.6), 0, 7); g.fill();
+  }
+  if (!side) return c;
+  const m = document.createElement('canvas'); m.width = CW; m.height = H; const mg = m.getContext('2d');   // the right curtain is the mirror image
+  mg.translate(CW, 0); mg.scale(-1, 1); mg.drawImage(c, 0, 0); return m;
+}
+function updateIntro(dt) {
+  const I = B.intro; I.t += dt; I.shakeT = Math.max(0, I.shakeT - dt);
+  if (I.act === 1 && I.blocks) for (const b of I.blocks) if (!b.dust && I.t > b.d) {   // a little rubble from each block as it breaks loose
+    b.dust = true; for (let k = 0; k < 2; k++) I.parts.push({ kind: 'dust', x: b.x + rand(0, b.w), y: b.y + b.h, vx: rand(-40, 40), vy: rand(-40, 30), life: 0.7, age: 0, s: rand(2, 5) });
+  }
+  if (I.act === 2 && I.t < 1.3) for (let k = 0; k < 4; k++) I.parts.push({ kind: 'ember', x: rand(0, W), y: fireFront(I.t) + rand(-10, 30), vx: rand(-30, 30), vy: rand(-260, -120), life: rand(0.5, 0.9), age: 0, s: rand(2, 4), c: pick(['#ffb74d', '#ffe082', '#ff7043']) });
+  for (const p of I.parts) { if (p.kind === 'petal') { if (I.t < p.d) continue; p.ph += dt * 3; p.x += (p.vx + Math.sin(p.ph) * 50) * dt; p.y += p.vy * dt; p.r += p.vr * dt; } else { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.kind === 'dust' ? 300 : -60) * dt; } }
+  I.parts = I.parts.filter(p => p.kind === 'petal' ? I.t < p.d + p.life : p.age < p.life);
+  if (!I.boss && !I.slam && I.t > I.vsAt + 0.3) { I.slam = true; I.shakeT = 0.25; SFX.play('vs'); }
+  if (I.boss && !I.roared && I.t > I.cineAt + 1.25) { I.roared = true; I.shakeT = 0.6; SFX.play('ab_' + BOSS_CINE[I.boss].roar, 0.85); }
+  if (I.t >= I.end || (I.t > 0.5 && (hit('Enter', ' ') || B.introSkip))) { B.intro = null; B.introSkip = false; B.lock = Math.max(B.lock, 0.2); }
+}
+const fireFront = t => H + 70 - (H + 260) * ease(t / 1.05);
+function drawIntro() {
+  const I = B.intro, t = I.t;
+  ctx.save();
+  if (I.shakeT > 0) ctx.translate(rand(-1, 1) * 9 * I.shakeT / 0.6, rand(-1, 1) * 6 * I.shakeT / 0.6);
+  // ----- the wipe -----
+  if (I.act === 1 && I.snap) {
+    const crackK = Math.min(1, t / 0.4);
+    for (const b of I.blocks) {
+      const tau = t - b.d; let x = b.x, y = b.y, r = 0;
+      if (tau > 0) { x += b.vx * tau; y += b.vy * tau + 1400 * tau * tau; r = b.vr * tau; }
+      if (y > H + 80) continue;
+      ctx.save(); ctx.translate(x + b.w / 2, y + b.h / 2); ctx.rotate(r);
+      ctx.drawImage(I.snap, b.x, b.y, b.w, b.h, -b.w / 2, -b.h / 2, b.w, b.h);
+      const edge = Math.min(1, Math.max(0, (t - 0.25) / 0.2));
+      if (edge > 0) { ctx.strokeStyle = `rgba(20,14,10,${0.85 * edge})`; ctx.lineWidth = 3; ctx.strokeRect(-b.w / 2 + 1, -b.h / 2 + 1, b.w - 2, b.h - 2); ctx.strokeStyle = `rgba(255,240,210,${0.18 * edge})`; ctx.lineWidth = 1; ctx.strokeRect(-b.w / 2 + 3, -b.h / 2 + 3, b.w - 6, b.h - 6); }
+      if (tau > 0) { ctx.fillStyle = `rgba(0,0,0,${Math.min(0.5, tau)})`; ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h); }
+      ctx.restore();
+    }
+    if (t < 0.6) {   // the cracks spreading from where you ran into it
+      ctx.globalAlpha = 1 - Math.max(0, (t - 0.42) / 0.18);
+      for (const pts of I.cracks) {
+        const n = Math.max(1, Math.floor(pts.length * crackK));
+        for (const [w, col] of [[4, '#140d08'], [1.5, '#fff3d6']]) { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i <= n && i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke(); }
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (t < 0.12) { ctx.fillStyle = `rgba(255,250,235,${0.6 * (1 - t / 0.12)})`; ctx.fillRect(0, 0, W, H); }
+  }
+  if (I.act === 2 && I.snap) {
+    const fy = fireFront(t);
+    if (fy > -120) {
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, Math.max(0, fy)); ctx.clip(); ctx.drawImage(I.snap, 0, 0);
+      const g = ctx.createLinearGradient(0, fy - 110, 0, fy); g.addColorStop(0, 'rgba(30,8,0,0)'); g.addColorStop(0.6, 'rgba(60,14,0,0.55)'); g.addColorStop(1, 'rgba(15,4,0,0.95)'); ctx.fillStyle = g; ctx.fillRect(0, fy - 110, W, 110);
+      ctx.restore();
+      const glow = ctx.createLinearGradient(0, fy, 0, fy + 90); glow.addColorStop(0, 'rgba(255,120,30,0.55)'); glow.addColorStop(1, 'rgba(255,120,30,0)'); ctx.fillStyle = glow; ctx.fillRect(0, fy, W, 90);
+      [['#6a1606', 86, 34], ['#e8401a', 66, 24], ['#ff9800', 44, 14], ['#ffe082', 22, 6]].forEach(([col, h, below], li) => {
+        ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, fy + below);
+        for (let x = 0; x <= W + 16; x += 16) { const n = 0.5 + 0.3 * Math.sin(x * 0.045 + t * 15 + li * 1.7) + 0.2 * Math.sin(x * 0.13 - t * 23 + li); ctx.lineTo(x, fy - h * n); }
+        ctx.lineTo(W, fy + below); ctx.closePath(); ctx.fill();
+      });
+    }
+  }
+  if (I.act === 3 && I.curt) {
+    const CW = W / 2 + 50, cover = t < 0.42 ? easeOut(t / 0.42) : t < 0.58 ? 1 : 1 - ease((t - 0.58) / 0.7);
+    if (t < 0.47 && I.snap) ctx.drawImage(I.snap, 0, 0);   // the frozen frame is still behind the curtains as they close
+    if (cover > 0) {
+      const ox = (CW - 10) * (1 - cover);
+      ctx.drawImage(I.curt[0], -ox - 50, 0); ctx.drawImage(I.curt[1], W / 2 + ox, 0);
+    }
+    for (const p of I.parts) if (p.kind === 'petal' && t >= p.d) {
+      const a = Math.min(1, (t - p.d) / 0.15) * Math.min(1, (p.d + p.life - t) / 0.3);
+      ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.translate(p.x, p.y); ctx.rotate(p.r); ctx.fillStyle = p.c;
+      ctx.beginPath(); ctx.ellipse(0, 0, 5 * p.w, 2.6 * p.w * (0.6 + 0.4 * Math.abs(Math.sin(p.ph))), 0, 0, 7); ctx.fill(); ctx.restore();
+    }
+  }
+  for (const p of I.parts) if (p.kind !== 'petal') { ctx.globalAlpha = Math.max(0, 1 - p.age / p.life); ctx.fillStyle = p.kind === 'dust' ? '#8d7b68' : p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s); }
+  ctx.globalAlpha = 1;
+  // ----- after the wipe: the VS card, or the boss's entrance -----
+  if (I.boss) drawBossCinematic(I); else drawVsCard(I);
+  ctx.restore();
+  if (t > 0.6) label('Enter / click to skip', W - 14, H - 14, { align: 'right', size: 11, color: 'rgba(255,240,210,0.55)' });
+}
+// a row of fighters for the VS card: sprite, name, level
+function drawVsRow(list, x0, face) {
+  list.forEach((u, i) => {
+    const cx = x0 + i * 112, sheet = unitSheet(u), fly = unitFly(u), fr = (animFrames(sheet, fly ? 'fly' : 'idle') || animFrames(sheet, 'idle') || [])[0], aS = ANIM_SCALE[sheet] || 1;
+    const sc = fr ? Math.min(2.6, 62 / (fr[3] * aS), 92 / (fr[2] * aS)) : 2.4;
+    ctx.filter = u.tint || standInTint(u.k, sheet);
+    drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 5 + i, cx, fly ? 238 : 268, face, { scale: sc });
+    ctx.filter = 'none';
+    label(fitText(u.name, 108), cx, 292, { align: 'center', size: 13, bold: true, color: u.side === 'ally' ? PAL.cream : u.elite ? '#ffb74d' : '#ffccbc' });
+    label('Lv ' + u.lvl, cx, 310, { align: 'center', size: 12, color: u.side === 'ally' ? PAL.good : '#ff8a80' });
+  });
+}
+function drawVsCard(I) {
+  const tau = I.t - I.vsAt; if (tau < 0) return;
+  const inK = easeOut(tau / 0.35), outK = ease((tau - 1.45) / 0.35), slide = inK * (1 - outK);
+  if (slide <= 0.001) return;
+  ctx.fillStyle = `rgba(8,5,3,${0.5 * slide})`; ctx.fillRect(0, 0, W, H);
+  const pw = 420, ph = 186, py = 168;
+  const lx = -pw + (40 + pw) * slide, rx = W - (40 + pw) * slide;
+  // your side
+  panel(lx, py, pw, ph, 'leather'); ctx.fillStyle = 'rgba(102,187,106,0.18)'; ctx.fillRect(lx + 10, py + 10, pw - 20, 26);
+  label('YOUR TEAM', lx + 22, py + 24, { size: 14, bold: true, color: PAL.good });
+  ctx.save(); ctx.beginPath(); ctx.rect(lx + 8, py + 36, pw - 16, ph - 44); ctx.clip(); drawVsRow(B.allies, lx + 92, 1); ctx.restore();
+  // their side
+  const elite = B.foes.some(u => u.elite);
+  panel(rx, py, pw, ph, 'leather'); ctx.fillStyle = 'rgba(229,57,53,0.2)'; ctx.fillRect(rx + 10, py + 10, pw - 20, 26);
+  label(elite ? 'AN ALPHA LEADS THEM!' : ({ pack: 'A WILD PACK', mixed: 'WILD ANIMALS', wall: 'A SHIELD WALL', healer: 'A HEALER-BACKED GROUP', hex: 'A COVEN OF HEXERS', venom: 'A VENOMOUS BUNCH' })[I.ent && I.ent.comp] || 'WILD ANIMALS', rx + pw - 22, py + 24, { align: 'right', size: 14, bold: true, color: elite ? '#ffb74d' : '#ff8a80' });
+  ctx.save(); ctx.beginPath(); ctx.rect(rx + 8, py + 36, pw - 16, ph - 44); ctx.clip(); drawVsRow(B.foes, rx + pw - 92 - (B.foes.length - 1) * 112, -1); ctx.restore();
+  // VS slams in between them
+  const sk = (tau - 0.3) / 0.16;
+  if (sk > 0) {
+    const s = 1 + 2.4 * (1 - easeOut(sk)), a = Math.min(1, sk * 2) * (1 - outK);
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, py + ph / 2); ctx.scale(s, s);
+    if (sk < 2.5) { ctx.strokeStyle = `rgba(255,213,107,${0.5 * Math.max(0, 1 - sk / 2.5)})`; ctx.lineWidth = 3; for (let i = 0; i < 16; i++) { const an = i / 16 * 6.283; ctx.beginPath(); ctx.moveTo(Math.cos(an) * 46, Math.sin(an) * 46); ctx.lineTo(Math.cos(an) * (70 + sk * 30), Math.sin(an) * (70 + sk * 30)); ctx.stroke(); } }
+    ctx.font = `bold 92px ${UI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#2a1408'; ctx.fillText('VS', 4, 6); ctx.fillStyle = PAL.gold; ctx.fillText('VS', 0, 0);
+    ctx.restore();
+  }
+}
+function drawBossCinematic(I) {
+  const tau = I.t - I.cineAt; if (tau < 0) return;
+  const C = BOSS_CINE[I.boss], info = BOSS_INFO[I.boss], u = B.foes.find(f => f.boss); if (!u) return;
+  const out = ease((tau - 2.85) / 0.4), dark = 0.9 * ease(tau / 0.5) * (1 - out);
+  ctx.fillStyle = `rgba(4,3,8,${dark})`; ctx.fillRect(0, 0, W, H);
+  // the boss looms in, big
+  const sheet = unitSheet(u), fly = unitFly(u), fr = (animFrames(sheet, fly ? 'fly' : 'idle') || [])[0], aS = ANIM_SCALE[sheet] || 1;
+  const sc = fr ? Math.min(10, 250 / (fr[3] * aS)) : 8, k = easeOut((tau - 0.15) / 1.0);
+  let x = W * 0.74, y = H * 0.66, alpha = (1 - out), filt = 'none';
+  if (I.boss === 'wyrm') { y = H + 300 - (H + 300 - H * 0.6) * k; }                                   // rises out of the lake
+  else if (I.boss === 'elder') { x = W + 260 - (W + 260 - W * 0.74) * k; y = -160 + (H * 0.6 + 160) * k; }  // swoops down
+  else { alpha *= Math.min(1, Math.max(0, tau - 0.1) / 1.2); filt = `brightness(${0.15 + 0.85 * ease((tau - 0.6) / 1.0)})`; } // emerges from the dark
+  if (alpha > 0.01) {
+    ctx.save(); ctx.globalAlpha = alpha; ctx.filter = filt;
+    drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 4, x, fly ? y - 40 : y + 60, -1, { scale: sc });
+    ctx.filter = 'none'; ctx.restore();
+  }
+  if (I.boss === 'wyrm' && tau > 0.2 && tau < 2.9) {   // ripples where it broke the surface
+    const wy = H * 0.86;
+    for (let i = 0; i < 4; i++) { const r = ((tau * 140 + i * 60) % 260); ctx.strokeStyle = `rgba(178,235,242,${0.5 * (1 - r / 260) * (1 - out)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(W * 0.74, wy, r, r * 0.18, 0, 0, 7); ctx.stroke(); }
+  }
+  if (I.boss === 'shadow' && tau > 1.1 && tau < 2.9) {   // its eyes catch the light
+    const gl = Math.sin(Math.min(1, (tau - 1.1) / 0.3) * Math.PI / 2) * (1 - out);
+    for (const dx of [-14, 14]) { const g = ctx.createRadialGradient(W * 0.6 + dx, H * 0.4, 0, W * 0.6 + dx, H * 0.4, 26); g.addColorStop(0, `rgba(255,80,80,${0.9 * gl})`); g.addColorStop(1, 'rgba(255,80,80,0)'); ctx.fillStyle = g; ctx.fillRect(W * 0.6 + dx - 26, H * 0.4 - 26, 52, 52); }
+  }
+  if (I.roared && tau < 1.6) { ctx.fillStyle = `rgba(255,255,255,${0.35 * (1 - (tau - 1.25) / 0.35)})`; if (tau < 1.6) ctx.fillRect(0, 0, W, H); }
+  // letterbox bars
+  const bar = 76 * ease(tau / 0.4) * (1 - out);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
+  // the title card
+  const tk = easeOut((tau - 1.3) / 0.45);
+  if (tk > 0) {
+    ctx.save(); ctx.globalAlpha = tk * (1 - out);
+    const tx = 70 - 60 * (1 - tk);
+    label(`FLOOR ${info.floor}  ·  BOSS`, tx, H * 0.38, { size: 15, bold: true, color: C.col });
+    ctx.font = `60px ${TITLE}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1a0e06'; ctx.fillText(info.name, tx + 4, H * 0.5 + 4); ctx.fillStyle = PAL.gold; ctx.fillText(info.name, tx, H * 0.5);
+    ctx.fillStyle = C.col; ctx.fillRect(tx, H * 0.5 + 38, 300 * tk, 3);
+    label(C.epithet, tx, H * 0.5 + 62, { size: 18, color: PAL.cream });
+    ctx.restore();
+  }
+}
 function battleInput() {
   const u = B.allies[B.cur]; if (!u) return;
   const keys = ['1', '2', '3', '4', '5', '6'];
@@ -4432,6 +4848,7 @@ function chooseAbility(u, ab) {
 }
 function battleClick(btn) {
   if (!B) return;
+  if (B.intro) { B.introSkip = true; return; }
   if (B.phase === 'won' || B.phase === 'lost') { if (B.t > 0.6) B.clicked = true; return; }
   if (B.phase !== 'player' || B.lock > 0) return;
   if (btn === 2) { B.pick = null; return; }
@@ -4953,14 +5370,24 @@ const ROSTER = { x: 70, y: 30, w: 820, h: 480 };
 const ROSTER_DONE = { x: ROSTER.x + ROSTER.w - 150, y: ROSTER.y + ROSTER.h - 46, w: 130, h: 34 };
 let rosterSel = 0;
 function rosterSlotRect(i) { return { x: ROSTER.x + 170 + i * 165, y: ROSTER.y + 56, w: 155, h: 110 }; }
-function rosterCardRect(i) { const c = i % 7, r = Math.floor(i / 7); return { x: ROSTER.x + 20 + c * 112, y: ROSTER.y + 214 + r * 112, w: 106, h: 104 }; }
+const ROSTER_GRID = { x: ROSTER.x + 14, y: ROSTER.y + 208, w: ROSTER.w - 42, h: ROSTER.h - 208 - 54 };   // the scrolling list of every pet you own
+let rosterScroll = 0, rosterDrag = null;
+const rosterMax = () => Math.max(0, Math.ceil(ownedIds().length / 7) * 112 + 6 - ROSTER_GRID.h);
+function rosterCardRect(i) { const c = i % 7, r = Math.floor(i / 7); return { x: ROSTER.x + 20 + c * 112, y: ROSTER_GRID.y + 4 + r * 112 - rosterScroll, w: 106, h: 104 }; }
+const ROSTER_BAR = () => ({ x: ROSTER_GRID.x + ROSTER_GRID.w + 6, y: ROSTER_GRID.y + 2, w: 8, h: ROSTER_GRID.h - 4 });
+function rosterThumb() { const b = ROSTER_BAR(), M = rosterMax(), th = Math.max(28, b.h * ROSTER_GRID.h / (ROSTER_GRID.h + M)); return { x: b.x, y: b.y + (M ? (b.h - th) * rosterScroll / M : 0), w: b.w, h: th }; }
+function scrollRoster(dy) { rosterScroll = clamp(rosterScroll + dy, 0, rosterMax()); }
+const rosterOpen = () => !!G && ((!!PK && PK.roster && PK.talent == null) || (G.hub && G.panel === 'team' && !(PK && PK.talent != null)));
 function drawPetCard(it, r, opt = {}) {
   const k = it.def.pet, d = PETS[k], hp = runHp(k) ?? 1, inTeam = petSlots.includes(it);
   panel(r.x, r.y, r.w, r.h, 'dark'); ctx.fillStyle = opt.sel ? 'rgba(255,211,107,0.16)' : opt.over ? 'rgba(255,230,180,0.08)' : 'rgba(0,0,0,0)'; rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.fill();
   ctx.strokeStyle = opt.sel ? PAL.gold : inTeam && !opt.slot ? PAL.good : 'rgba(255,255,255,0.15)'; ctx.lineWidth = opt.sel || (inTeam && !opt.slot) ? 2 : 1; ctx.stroke();
-  const sheet = speciesSheet(k); ctx.filter = standInTint(k, sheet);
-  drawAnim(sheet, d.fly ? 'fly' : 'idle', TIME * 5 + r.x, r.x + r.w / 2, d.fly ? r.y + r.h * 0.42 : r.y + r.h * 0.62, 1, { scale: PX * 1.15 * babyScale(it) });
-  ctx.filter = 'none';
+  // the pet's portrait: shrunk to fit the card if it's a big one, and never drawn past the card's edge
+  const sheet = speciesSheet(k), anim = d.fly ? 'fly' : 'idle', fr = (animFrames(sheet, anim) || [])[0], aS = ANIM_SCALE[sheet] || 1;
+  let sc = PX * 1.15 * babyScale(it); if (fr) sc = Math.min(sc, (r.w - 12) / (fr[2] * aS), (r.h - 40) / (fr[3] * aS));
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x + 3, r.y + 3, r.w - 6, r.h - 6); ctx.clip(); ctx.filter = standInTint(k, sheet);
+  drawAnim(sheet, anim, TIME * 5 + r.x, r.x + r.w / 2, d.fly ? r.y + r.h * 0.42 : r.y + r.h * 0.62, 1, { scale: sc });
+  ctx.filter = 'none'; ctx.restore();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = RARITY[it.def.rarity].c; ctx.fillText(fitText(it.def.name, r.w - 8), r.x + r.w / 2, r.y + r.h - 28);
   ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(fitText(`Lv${petLvl(it)} ${d.role}${talentPoints(it) > 0 ? ' ▲' : ''}`, r.w - 8), r.x + r.w / 2, r.y + r.h - 14);
@@ -4982,7 +5409,21 @@ function drawRoster() {
   const act = SYNERGIES.filter(sy => syn(sy.id));
   ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(act.length ? 'Synergies: ' + act.map(sy => `${sy.icon} ${sy.name} — ${sy.txt}`).join('   ') : '', ROSTER.x + 24, ROSTER.y + 186);
   ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(`All your pets (${ownedIds().length} of ${PET_IDS.length})`, ROSTER.x + 24, ROSTER.y + 202);
-  ownedIds().forEach((k, i) => { const r = rosterCardRect(i); drawPetCard(PET_ITEMS[k], r, { over: inRect(mouse, r) }); });
+  rosterScroll = clamp(rosterScroll, 0, rosterMax());
+  if (rosterDrag) { const b = ROSTER_BAR(), th = rosterThumb().h; rosterScroll = clamp((mouse.y - rosterDrag.off - b.y) / Math.max(1, b.h - th) * rosterMax(), 0, rosterMax()); }
+  const Gd = ROSTER_GRID, inGrid = inRect(mouse, Gd);
+  ctx.save(); ctx.beginPath(); ctx.rect(Gd.x, Gd.y, Gd.w, Gd.h); ctx.clip();
+  ownedIds().forEach((k, i) => { const r = rosterCardRect(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return; drawPetCard(PET_ITEMS[k], r, { over: inGrid && inRect(mouse, r) }); });
+  // soft shadows at the edges when more pets are hidden above or below
+  if (rosterScroll > 0) { const g = ctx.createLinearGradient(0, Gd.y, 0, Gd.y + 16); g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(Gd.x, Gd.y, Gd.w, 16); }
+  if (rosterScroll < rosterMax()) { const g = ctx.createLinearGradient(0, Gd.y + Gd.h - 16, 0, Gd.y + Gd.h); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = g; ctx.fillRect(Gd.x, Gd.y + Gd.h - 16, Gd.w, 16); }
+  ctx.restore();
+  if (rosterMax() > 0) {   // the scrollbar
+    const b = ROSTER_BAR(), t = rosterThumb(), hot = rosterDrag || inRect(mouse, { x: b.x - 4, y: b.y, w: b.w + 8, h: b.h });
+    ctx.fillStyle = 'rgba(12,7,4,0.7)'; rr(b.x, b.y, b.w, b.h, 4); ctx.fill();
+    ctx.fillStyle = hot ? PAL.gold : PAL.brass; rr(t.x + 1, t.y + 1, t.w - 2, t.h - 2, 3); ctx.fill();
+    label('scroll for more', ROSTER.x + 300, ROSTER.y + 202, { size: 12, color: PAL.dim });
+  }
   const over = inRect(mouse, ROSTER_DONE);
   button(ROSTER_DONE, 'Done', { hover: over, size: 16, color: PAL.gold });
 }
@@ -4997,7 +5438,11 @@ function placeInSlot(it, i) {
 // returns the pet to show talents for, if the click was a right-click on a pet
 function rosterClick(btn) {
   for (let i = 0; i < 3; i++) if (inRect(mouse, rosterSlotRect(i))) { if (btn === 2) return petSlots[i] || null; rosterSel = i; SFX.play('pick'); return null; }
-  for (const [i, k] of ownedIds().entries()) if (inRect(mouse, rosterCardRect(i))) { if (btn === 2) return PET_ITEMS[k]; placeInSlot(PET_ITEMS[k], rosterSel); return null; }
+  if (rosterMax() > 0 && btn === 0) {   // scrollbar: drag the thumb, or click the track to jump a page
+    const b = ROSTER_BAR(), t = rosterThumb();
+    if (inRect(mouse, { x: b.x - 6, y: b.y, w: b.w + 12, h: b.h })) { if (inRect(mouse, { x: t.x - 6, y: t.y, w: t.w + 12, h: t.h })) rosterDrag = { off: mouse.y - t.y }; else scrollRoster((mouse.y < t.y ? -1 : 1) * ROSTER_GRID.h * 0.8); return null; }
+  }
+  if (inRect(mouse, ROSTER_GRID)) for (const [i, k] of ownedIds().entries()) if (inRect(mouse, rosterCardRect(i))) { if (btn === 2) return PET_ITEMS[k]; placeInSlot(PET_ITEMS[k], rosterSel); return null; }
   if (btn === 0 && (inRect(mouse, ROSTER_DONE) || !inRect(mouse, ROSTER))) return 'close';
   return null;
 }
@@ -5047,7 +5492,7 @@ function openPack(newItems) {
 }
 function tryOpenPack() { openPack([]); }
 const PETS_BTN = { x: 486, y: 8, w: 84, h: 38 };
-function openPetsMenu() { openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; SFX.play('pick'); }
+function openPetsMenu() { openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
 function closeRoster() { PK.roster = false; SFX.play('pick'); if (PK.rosterOnly) closePack(); }
 function closePack() {
   if (PK.drag) return;
@@ -5084,6 +5529,7 @@ function onMouseDown(btn) {
     return;
   }
   if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
+  if (G.mode === 'pause') { if (btn === 0) pauseClick(); return; }
   if (G.mode === 'battle') { battleClick(btn); return; }
   if (G.mode === 'play' && !G.hub && btn === 0 && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { openPetsMenu(); return; }
   if (G.hub && (G.panel || (PK && PK.talent != null))) { hubPanelClick(btn); return; }
@@ -5126,6 +5572,7 @@ function mergeCheck(it) {
   return { t, ok: true, lvl: a + 1 };
 }
 function onMouseUp(btn) {
+  rosterDrag = null;
   if (btn !== 0 || !G || G.mode !== 'pack' || !PK || !PK.drag) return;
 
   if (petSlotAt(mouse) !== null) showMsg('Only pets fit in the pet slots.', 1.5);
@@ -5926,6 +6373,69 @@ function drawClassSelect() {
   if (BEST) { ctx.font = `13px ${UI}`; ctx.fillStyle = '#8d8d8d'; ctx.fillText(`Deepest floor reached: ${BEST}`, W / 2, 508); }
 }
 
+// ---------- the pause menu: resume, restart, back to the Sanctuary, title screen (run-ending choices ask first) ----------
+const PAUSE_BTN = i => ({ x: W / 2 - 150, y: 204 + i * 56, w: 300, h: 44 });
+const CONFIRM_BTN = i => ({ x: W / 2 - 150 + i * 160, y: 302, w: 140, h: 42 });
+const CONFIRM_TXT = { restart: 'Restart this run from the beginning?', hub: 'Leave this run and return to the Sanctuary?', title: 'Leave this run and go to the title screen?' };
+function pauseItems() { return G.hub ? [['resume', 'Resume'], ['title', 'Title screen']] : [['resume', 'Resume'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
+function openPause() { G.pauseFrom = G.mode; G.mode = 'pause'; G.pauseSel = 0; G.confirm = null; SFX.play('pause'); }
+function closePause() { G.mode = G.pauseFrom === 'battle' && B ? 'battle' : 'play'; G.confirm = null; SFX.play('pause'); }
+// leaving a run early: it counts as abandoned (not a defeat); pets keep every level, the run's items are lost
+function abandonRun() {
+  if (!G || G.hub) return;
+  B = null; PK = null;
+  const R = SAVE.rec; R.kills += G.kills - (G.loggedKills || 0); G.loggedKills = G.kills;
+  R.abandoned = (R.abandoned || 0) + 1; R.bestFloor = Math.max(R.bestFloor || 0, G.roomNum);
+  savePets(); saveData();
+}
+function pauseDo(k) {
+  if (k === 'resume') { closePause(); return; }
+  if (!G.confirm && !G.hub) { G.confirm = k; G.confirmSel = 1; SFX.play('pick'); return; }   // run-ending choices ask first ("No" picked)
+  G.confirm = null; SFX.play('pick');
+  if (k === 'title') { abandonRun(); G = null; B = null; PK = null; SCREEN = 'title'; return; }
+  if (k === 'hub') { abandonRun(); enterHub(); return; }
+  if (k === 'restart') { const cls = G.cls, act = G.startAct || 1; abandonRun(); newGame(cls, act); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1; }
+}
+function pauseClick() {
+  if (G.confirm) {
+    if (inRect(mouse, CONFIRM_BTN(0))) pauseDo(G.confirm); else if (inRect(mouse, CONFIRM_BTN(1))) { G.confirm = null; SFX.play('pick'); }
+    return;
+  }
+  const items = pauseItems();
+  for (let i = 0; i < items.length; i++) if (inRect(mouse, PAUSE_BTN(i))) { pauseDo(items[i][0]); return; }
+}
+function pauseKeys() {
+  const items = pauseItems();
+  if (G.confirm) {
+    if (hit('Escape', 'p', 'n')) { G.confirm = null; SFX.play('pick'); }
+    else if (hit('ArrowLeft', 'a', 'ArrowRight', 'd')) { G.confirmSel = 1 - (G.confirmSel || 0); SFX.play('rotate'); }
+    else if (hit('y')) pauseDo(G.confirm);
+    else if (hit('Enter', ' ')) { if (G.confirmSel === 0) pauseDo(G.confirm); else { G.confirm = null; SFX.play('pick'); } }
+    return;
+  }
+  if (hit('p', 'Escape')) { closePause(); return; }
+  if (hit('ArrowUp', 'w')) { G.pauseSel = (G.pauseSel + items.length - 1) % items.length; SFX.play('rotate'); }
+  if (hit('ArrowDown', 's')) { G.pauseSel = (G.pauseSel + 1) % items.length; SFX.play('rotate'); }
+  if (hit('Enter', ' ')) pauseDo(items[G.pauseSel][0]);
+}
+function drawPauseMenu() {
+  ctx.fillStyle = 'rgba(8,5,3,0.74)'; ctx.fillRect(0, 0, W, H);
+  if (G.confirm) {
+    banner('Are you sure?', W / 2, 188, { size: 38, h: 56, pad: 120 });
+    panel(W / 2 - 240, 226, 480, 136, 'parch');
+    label(CONFIRM_TXT[G.confirm], W / 2, 254, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
+    label(G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W / 2, 278, { align: 'center', size: 12, color: '#6b4a2a' });
+    ['Yes', 'No'].forEach((t, i) => button(CONFIRM_BTN(i), t, { hover: inRect(mouse, CONFIRM_BTN(i)) || (G.confirmSel === i && !inRect(mouse, CONFIRM_BTN(1 - i))), size: 17, color: i ? PAL.cream : '#ffb199' }));
+    label('Y / N  ·  or arrows + Enter', W / 2, 392, { align: 'center', size: 12, color: PAL.dim });
+    return;
+  }
+  const items = pauseItems();
+  banner('Paused', W / 2, 134, { size: 46, h: 66, pad: 130 });
+  if (!G.hub) label(`${CLASSES[G.cls].name}  ·  Floor ${G.roomNum}${G.roomNum <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''}  ·  ${G.battlesWon || 0} battles won`, W / 2, 180, { align: 'center', size: 14, color: PAL.dim });
+  let hov = -1; items.forEach((_, i) => { if (inRect(mouse, PAUSE_BTN(i))) hov = i; });
+  items.forEach(([k, t], i) => button(PAUSE_BTN(i), t, { hover: hov === i || (hov < 0 && G.pauseSel === i), size: 17, color: k === 'resume' ? PAL.gold : PAL.cream }));
+  label('P or Esc to resume  ·  W/S or arrows + Enter to choose', W / 2, PAUSE_BTN(items.length).y + 10, { align: 'center', size: 12, color: PAL.dim });
+}
 function drawOverlay(title, sub, sub2) {
   ctx.fillStyle = 'rgba(8,5,3,0.7)'; ctx.fillRect(0, 0, W, H);
   banner(title, W / 2, H / 2 - 60, { size: 46, h: 66, pad: 130 });
@@ -5939,7 +6449,7 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
   if (!G) { if (SCREEN === 'class') drawClassSelect(); else drawTitle(); return; }
-  if (G.mode === 'battle' && B) { drawBattle(); return; }
+  if ((G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle')) && B) { drawBattle(); if (B.intro) drawIntro(); if (G.mode === 'pause') drawPauseMenu(); return; }
   ctx.save();
   const shk = G.shake > 0.5 && G.mode === 'play' ? G.shake * 0.8 : 0;
   drawParallax(G.room);
@@ -5953,18 +6463,19 @@ function draw() {
   drawPets();
   drawPlayer();
   drawFx();
+  if (G.mode === 'encounter') drawEncounterAlert();
   if (G.hub) drawHubBubble();
   ctx.restore();
   drawVignette();
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
   if (G.hub) drawHubHUD(); else drawHUD();
   if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, W, H); }
-  if (G.mode === 'pause') drawOverlay('Paused', 'Press P or Esc to resume');
+  if (G.mode === 'pause') drawPauseMenu();
   if (G.mode === 'won') drawOverlay('VICTORY!', `The ${CLASSES[G.cls].name} and their pets conquered all ${FINAL_FLOOR} floors · ${G.battlesWon || 0} battles won`, G.wonT > 1 ? 'Enter: keep descending (endless)  ·  Esc: back to the Sanctuary' : '');
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('Your team fainted', `Floor ${G.roomNum} · ${G.battlesWon || 0} battles won · your pets keep every level they earned${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to return to the Sanctuary' : '');
 }
 function drawHUDMessageOnly() {
-  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter') return;   // full-screen panels cover the middle of the screen
+  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team') return;   // full-screen panels cover the middle of the screen
   if (G.msgT > 0 && G.msg) drawToast(G.msg, 86);
 }
 // a message on a slip of parchment
@@ -6007,27 +6518,32 @@ function update(dt) {
         G.gateHintT = (G.gateHintT || 0) - dt;
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
-        if (G.panel === 'team') { if (hit('Escape', 'e')) G.panel = null; break; }
+        if (G.panel === 'acts') { if (hit('Escape')) G.panel = null; else for (let a = 1; a <= actsOpen(); a++) if (hit(String(a))) { startRunFromHub(a); break; } break; }
+        if (G.panel === 'team') { if (hit('Escape', 'e')) G.panel = null; if (hit('ArrowDown', 'PageDown')) scrollRoster(112); if (hit('ArrowUp', 'PageUp')) scrollRoster(-112); break; }
         if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
-        if (hit('p')) { G.mode = 'pause'; SFX.play('pause'); break; }
+        if (hit('p')) { openPause(); break; }
         updateWorld(dt); break;
       }
-      if (hit('p', 'Escape')) { G.mode = 'pause'; SFX.play('pause'); break; }
+      if (hit('p', 'Escape')) { openPause(); break; }
       if (hit('b', 'i', 'Tab')) { tryOpenPack(); if (G.mode === 'pack') break; }
       if (hit('t')) { openPetsMenu(); break; }
       if (hit('n')) G.minimap = !G.minimap;
       updateWorld(dt);
       break;
+    case 'encounter':
+      updateEncounter(dt);
+      break;
     case 'pause':
-      if (hit('p', 'Escape')) { G.mode = 'play'; SFX.play('pause'); }
+      pauseKeys();
       break;
     case 'battle':
+      if (B && !B.intro && (hit('p') || (!B.pick && B.phase !== 'won' && B.phase !== 'lost' && hit('Escape')))) { openPause(); break; }
       if (B) updateBattle(dt); else G.mode = 'play';
       break;
     case 'pack':
       if (PK && PK.flash) PK.flash.t -= dt;
       if (PK && PK.talent != null) { if (hit('b', 'i', 'Tab', 'Escape')) PK.talent = null; }
-      else if (PK && PK.roster) { if (hit('b', 'i', 'Tab', 'Escape', 't')) closeRoster(); }
+      else if (PK && PK.roster) { if (hit('b', 'i', 'Tab', 'Escape', 't')) closeRoster(); if (hit('ArrowDown', 'PageDown')) scrollRoster(112); if (hit('ArrowUp', 'PageUp')) scrollRoster(-112); }
       else {
         if (hit('r')) { if (PK.drag) rotateDrag(); else rotateHovered(); }
         if (hit('b', 'i', 'Tab', 'Escape')) closePack();

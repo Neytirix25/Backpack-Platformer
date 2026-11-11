@@ -18,7 +18,7 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 | 1–6 / mouse | Battle: pick an ability, then click a target |
 | R / right-click | Rotate an item while packing · cancel a target in battle |
 | N | Toggle the minimap |
-| P | Pause |
+| P / Esc | Pause menu: resume, restart the run, return to the Sanctuary or the title screen |
 | M | Music off / all sound off / on |
 
 ## How it works
@@ -34,6 +34,9 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 - **Bosses:** the **Shadow Wolf** guards floor 10 (its shades vanish when it falls) the **Elder Dragon** floor 20, and the final boss, the **Lake Wyrm**, rises from the Moonlit Lake on floor 30 with its fey court. Beat the Shadow Wolf within three turns to earn the achievement and its pup; beat the Elder Dragon without a pet fainting to earn its egg; beat the Lake Wyrm and its Wyrmling joins your Sanctuary.
 - **The Unicorn:** defeat a whole enemy team on the first turn of a battle and a Unicorn, impressed by your strength, joins your Sanctuary.
 - **Clear tooltips:** hover any ability in battle to see exactly what it does with that pet's numbers: targets, damage, healing, every status with its chance and duration, and the cooldown.
+- **Pick your starting act:** once a run has reached floor 11 (or 21), the Sanctuary gate asks where to go: start from the top, or jump straight into Act II or Act III with your team (with just your class kit in the backpack).
+- **Into battle:** running into wild animals pops a '!' and freezes the world, then an act-themed wipe tears the screen away (crumbling stone in Act I, a wall of flame in Act II, vine curtains and petals in Act III) and a VS card shows both sides. Bosses get their own entrance with a title card and a roar. Press Enter or click to skip.
+- **Battle music:** each act has its own battle theme, each boss its own theme with a wilder second half at half health, plus a fanfare when you win and a sting when you lose.
 - **Classes shape your team:**
   - **Warrior (Vanguard):** your front pet has +30% HP and +2 defense and starts every battle shielded.
   - **Archer (Volley):** you open each battle with arrows that hit every foe, and pets get +8% crit.
