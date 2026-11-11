@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pack Rat Dungeon</title>
+<title>Backpack Sanctuary</title>
 <style>
   html,body{margin:0;height:100%;background:#0b0b10;overflow:hidden}
   body{display:flex;align-items:center;justify-content:center}
@@ -17,7 +17,7 @@
 <script>
 'use strict';
 // =====================================================================
-//  PACK RAT DUNGEON — a side-scrolling roguelike with backpack management
+//  BACKPACK SANCTUARY — a side-scrolling roguelike with backpack management
 // =====================================================================
 const W = 960, H = 540, GRAV = 1500; // W x H = the camera view
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -137,11 +137,16 @@ const SAVE_KEYS = ['packrat_best', 'packrat_coll', 'packrat_records', 'packrat_s
 const SAVE_DIR = (() => { try { return decodeURIComponent(location.pathname).replace(/\\/g, '/').replace(/[^\/]*$/, '').toLowerCase(); } catch (e) { return '/'; } })();
 const SLOT = (() => { let h = 2166136261; for (let i = 0; i < SAVE_DIR.length; i++) { h ^= SAVE_DIR.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); })();
 function sk(k) { return k + '@' + SLOT; }
-// the original development folder adopts the single shared save from before saves were split per copy
+// the development folder keeps its progress: 'backpack sanctuary' (renamed from 'pack-rat-dungeon') takes over the old
+// folder's save if one sits next to it, otherwise the single shared save from before saves were split per copy
 (() => { try {
-  if (SAVE_DIR.split('/').filter(Boolean).pop() !== 'pack-rat-dungeon') return;
+  const parts = SAVE_DIR.split('/').filter(Boolean), name = parts.pop();
+  if (name !== 'pack-rat-dungeon' && name !== 'backpack sanctuary') return;
   if (SAVE_KEYS.some(k => localStorage.getItem(sk(k)) !== null)) return;
-  for (const k of SAVE_KEYS) { const v = localStorage.getItem(k); if (v !== null) localStorage.setItem(sk(k), v); }
+  const oldDir = '/' + parts.join('/') + '/pack-rat-dungeon/';
+  let h = 2166136261; for (let i = 0; i < oldDir.length; i++) { h ^= oldDir.charCodeAt(i); h = Math.imul(h, 16777619); }
+  const oldSlot = (h >>> 0).toString(36), fromOld = name !== 'pack-rat-dungeon' && SAVE_KEYS.some(k => localStorage.getItem(k + '@' + oldSlot) !== null);
+  for (const k of SAVE_KEYS) { const v = localStorage.getItem(fromOld ? k + '@' + oldSlot : k); if (v !== null) localStorage.setItem(sk(k), v); }
 } catch (e) {} })();
 function loadBest() { try { return +localStorage.getItem(sk('packrat_best')) || 0; } catch (e) { return 0; } }
 function saveBest(v) { try { localStorage.setItem(sk('packrat_best'), String(v)); } catch (e) {} }
@@ -833,6 +838,11 @@ function computeStats(list = pack, cls = selClass) {
   s.speed = Math.min(s.speed, 0.8); s.jump = Math.min(s.jump, 0.4); s.reach = Math.min(s.reach, 90);
   s.cdMul = clamp(1 + s.cd, 0.45, 2);
   s.attackCd = 0.42 * s.cdMul;
+  if (list === pack) for (const it of petSlots) if (it) {   // pet talents that make you stronger
+    const M = petMods(it);
+    s.armor += M.pArmor || 0; s.maxHp += M.pMaxHp || 0; s.speed += M.pSpeed || 0; s.crit += (M.pCrit || 0) + (M.ladyLuck ? 0.15 : 0);
+    s.dodge += M.pDodge || 0; s.critMul += M.pCritMul || 0;
+  }
   s.moveSpeed = 230 * (1 + s.speed);
   s.jumpV = 600 * (1 + s.jump);
   s.reachPx = 44 + s.reach + (cls === 'beastmaster' ? 40 : 0);   // the Beastmaster's whip reaches farther
@@ -843,7 +853,6 @@ function computeStats(list = pack, cls = selClass) {
   s.crit = Math.min(0.6, s.crit);
   if (list === pack) {               // plant buffs picked up on the map
     s.pets = petSlots.filter(Boolean).length;
-    for (const it of petSlots) if (it && it.def.pet === 'dog') s.armor += tal(it, 'guard');
     const B = RUN.buffs;
     s.maxHp += RUN.permHp;
     if (B.ember > 0) s.dmg = Math.ceil(s.dmg * 1.5);
@@ -1486,7 +1495,7 @@ function flyToward(e, tx, ty, speed) {
 // ---------- enemies, loot and decorations ----------
 // ---- difficulty: enemies are tougher across the board, and grow with your animal team ----
 // 0 pets: a little harder than before. Every pet you bring makes the dungeon hit back harder; leveled pets add a bit more.
-const THREAT = { baseHp: 1.25, baseDmg: 1.05, petHp: 0.4, petDmg: 0.12, petLvlHp: 0.03, petCount: 0.12, petAgg: 0.05 };
+const THREAT = { baseHp: 1.25, baseDmg: 1.05, petHp: 0.4, petDmg: 0.12, petLvlHp: 0.012, petCount: 0.12, petAgg: 0.05 };
 function threat() {
   const its = typeof petSlots !== 'undefined' ? petSlots.filter(Boolean) : [], n = its.length, lv = its.reduce((a, it) => a + petLvl(it) - 1, 0);
   return { n, hp: THREAT.baseHp + THREAT.petHp * n + THREAT.petLvlHp * lv, dmg: THREAT.baseDmg + THREAT.petDmg * n,
@@ -1939,7 +1948,9 @@ function atkDmg() {
   const P = G.player; let d = stats.dmg;
   if (stats.rage && P.hp < stats.maxHp / 2) d += stats.rage;
   if (stats.packDmg) d += stats.packDmg * (G.pets || []).filter(p => p.ko <= 0).length;
-  return d;
+  if (TEAM().stealStr) d += Math.min(5, G.enemies.filter(e => !e.dead && e.weakenT > 0 && Math.hypot(e.x - P.x, e.y - P.y) < 400).length);   // Ferret: Steal Strength
+  const pct = TEAM().pDmgPct + (G.rallyT > 0 ? 0.4 : 0) + (G.eclipseT > 0 ? 0.3 : 0);   // Good Omen, Rally Cry, Pack Leader, Anthem, Eternal Night
+  return pct ? Math.round(d * (1 + pct)) : d;
 }
 // a hit from you (melee, arrow, knife, dash): backstab bonus + poison
 function playerHit(e, amt, kb, fromX = G.player.x + G.player.w / 2) {
@@ -1952,19 +1963,37 @@ function tickStatus(e, dt) {   // poison ticks + frost slow, returns the time sc
   if (e.poisonT > 0) {
     e.poisonT -= dt; e.poisonTick = (e.poisonTick || 0) + dt;
     if (Math.random() < dt * 6) G.parts.push({ x: e.x + rand(0, e.w), y: e.y + rand(0, e.h), vx: 0, vy: -30, life: 0.5, max: 0.5, color: '#9ccc65', size: 3, grav: -20 });
-    if (e.poisonTick >= 1) { e.poisonTick = 0; const pd = e.poisonDps * (syn('wildfire') && e.burnT > 0 ? 2 : 1); e.hp -= pd; addText(e.x + e.w / 2, e.y - 6, pd, '#9ccc65', 13); e.flash = 0.06; if (e.hp <= 0 && !e.dead) killEnemy(e); }
+    if (e.poisonTick >= 1) { e.poisonTick = 0; const pd = e.poisonDps * (syn('wildfire') && e.burnT > 0 ? 2 : 1); e.hp -= pd; addText(e.x + e.w / 2, e.y - 6, pd, '#9ccc65', 13); e.flash = 0.06;
+      if (e.poisonJump && Math.random() < e.poisonJump) {   // Toad: Virulence
+        const o = G.enemies.find(o => o !== e && attackable(o) && !(o.poisonT > 0) && Math.hypot(o.x - e.x, o.y - e.y) < 140);
+        if (o) { poisonEnemy(o, e.poisonDps, 3, e.toadCloud); o.poisonJump = e.poisonJump; o.poisonAmp = e.poisonAmp; o.poisonSlow = e.poisonSlow; burst(o.x + o.w / 2, o.y + o.h / 2, '#9ccc65', 6, 90, 2); }
+      }
+      if (e.hp <= 0 && !e.dead) killEnemy(e); }
   }
   if (e.burnT > 0) {
     e.burnT -= dt; e.burnTick = (e.burnTick || 0) + dt;
     if (Math.random() < dt * 14) G.parts.push({ x: e.x + rand(0, e.w), y: e.y + rand(0, e.h), vx: rand(-15, 15), vy: rand(-90, -40), life: 0.4, max: 0.4, color: pick(['#ff7a2a', '#ffcf5a', '#ff3d00']), size: rand(2, 4), grav: -40 });
     if (e.burnTick >= 0.75) { e.burnTick = 0; const bd = e.burnDps * (syn('wildfire') && e.poisonT > 0 ? 2 : 1); e.hp -= bd; addText(e.x + e.w / 2, e.y - 6, bd, '#ff9100', 13); e.flash = 0.06; if (e.hp <= 0 && !e.dead) { killEnemy(e); return 1; } }
   }
+  if (e.bleedT > 0) {   // pet talents: Rend, Shred, Gnaw...
+    e.bleedT -= dt; e.bleedTick = (e.bleedTick || 0) + dt;
+    if (Math.random() < dt * 5) G.parts.push({ x: e.x + rand(0, e.w), y: e.y + rand(e.h * 0.3, e.h), vx: 0, vy: 40, life: 0.4, max: 0.4, color: '#c62828', size: 3, grav: 200 });
+    if (e.bleedTick >= 1) { e.bleedTick = 0; e.hp -= e.bleedDps; addText(e.x + e.w / 2, e.y - 6, e.bleedDps, '#ef5350', 13); e.flash = 0.06; if (e.hp <= 0 && !e.dead) { killEnemy(e); return 1; } }
+  }
+  if (e.markT > 0 && e.markDot) {   // Calico: Doom
+    e.doomTick = (e.doomTick || 0) + dt;
+    if (e.doomTick >= 1) { e.doomTick = 0; e.hp -= e.markDot; addText(e.x + e.w / 2, e.y - 6, e.markDot, '#e040fb', 13); e.flash = 0.06; if (e.hp <= 0 && !e.dead) { killEnemy(e); return 1; } }
+  }
   if (e.stunImm > 0) e.stunImm -= dt;
   if (e.blindT > 0) e.blindT -= dt;
   if (e.weakenT > 0) e.weakenT -= dt;
   if (e.markT > 0) e.markT -= dt;
-  if (e.slowT > 0) { e.slowT -= dt; if (Math.random() < dt * 5) G.parts.push({ x: e.x + rand(0, e.w), y: e.y + rand(0, e.h), vx: 0, vy: 20, life: 0.5, max: 0.5, color: '#b3e5fc', size: 3, grav: 0 }); return 0.5; }
-  return 1;
+  let k = 1;   // how fast this enemy moves/attacks: frost, tangles, Jinx, Darkness, Neurotoxin
+  if (e.slowT > 0) { e.slowT -= dt; if (Math.random() < dt * 5) G.parts.push({ x: e.x + rand(0, e.w), y: e.y + rand(0, e.h), vx: 0, vy: 20, life: 0.5, max: 0.5, color: '#b3e5fc', size: 3, grav: 0 }); k = 0.5; }
+  if (e.markT > 0 && e.markSlow) k = Math.min(k, 1 - Math.min(0.6, e.markSlow));
+  if (e.blindT > 0 && e.blindSlow) k = Math.min(k, 1 - Math.min(0.6, e.blindSlow));
+  if (e.poisonT > 0 && e.poisonSlow) k = Math.min(k, 1 - Math.min(0.6, e.poisonSlow));
+  return k;
 }
 function damageEnemy(e, amt, { noCrit = false, kb = 0, fromX } = {}) {
   if (e.dead) return;
@@ -1975,10 +2004,9 @@ function damageEnemy(e, amt, { noCrit = false, kb = 0, fromX } = {}) {
     burst(e.x + e.w / 2 + e.face * 14, e.y + e.h / 2, '#eceff1', 6, 140, 2);
     return;
   }
-  if (e.markT > 0) amt = Math.ceil(amt * (1 + (e.markBonus || 0.25)));   // marked by the Calico
-  if (e.blindT > 0 && e.blindBonus) amt = Math.ceil(amt * (1 + e.blindBonus));   // Owl: Keen Sight
+  amt = Math.ceil(amt * statusAmp(e));   // marks, Keen Sight, Shake Down, Meltdown, Corrode...
   let crit = false;
-  if (!noCrit && Math.random() < stats.crit) { amt = Math.round(amt * (2 + stats.critMul)); crit = true; if (stats.critHeal) healPlayer(stats.critHeal); }
+  if (!noCrit && Math.random() < stats.crit) { amt = Math.round(amt * (2 + stats.critMul)); crit = true; if (stats.critHeal) healPlayer(stats.critHeal); petsOnPlayerCrit(e); }
   e.hp -= amt; e.flash = 0.12;
   if (kb) e.kbx += kb * (e.d.kbRes ?? 1);
   addText(e.x + e.w / 2, e.y - 6, (crit ? 'CRIT ' : '') + amt, crit ? '#ffd54f' : '#ffffff', crit ? 20 : 15);
@@ -2009,6 +2037,10 @@ function hurtPlayer(dmg, src, kb = 260) {
   const P = G.player;
   if (src && src.d) dmg = enemyOutDmg(src, dmg);   // blinded (Owl) / weakened (Ferret) enemies hit softer
   if (P.inv > 0 || P.dashT > 0 || G.mode !== 'play') return false; // dashing makes you untouchable
+  if (P.bubbleT > 0) return false;                                    // Cockatiel: Sanctuary bubble
+  if (src && src.blindT > 0 && src.blindMiss && Math.random() < src.blindMiss) {   // Owl: Terror
+    P.inv = 0.3; addText(P.x + P.w / 2, P.y - 8, 'MISS', '#b0bec5', 15); return false;
+  }
   if (P.blockT > 0 && (src || kb > 0)) {                                 // Warrior: Shield Block
     P.blockHitT = 0.2; P.inv = 0.35; addText(P.x + P.w / 2, P.y - 8, 'BLOCKED', '#cfd8dc', 16); SFX.play('block'); SFX.play('clank');
     burst(P.x + P.w / 2 + P.face * 16, P.y + 22, '#fff59d', 14, 220, 3); G.shake = Math.max(G.shake, 4);
@@ -2021,7 +2053,9 @@ function hurtPlayer(dmg, src, kb = 260) {
   if (stats.block && Math.random() < stats.block) {                    // Tower Shield
     P.inv = 0.5; addText(P.x + P.w / 2, P.y - 8, 'BLOCK', '#b0bec5', 15); SFX.play('block'); burst(P.x + P.w / 2 + P.face * 14, P.y + 20, '#eceff1', 6, 140, 2); return false;
   }
-  const dealt = Math.max(1, dmg - stats.armor);
+  let dealt = Math.max(1, dmg - stats.armor);
+  dealt = petsTakeHit(dealt, src);   // pets that guard you, your shield, Last Line
+  if (dealt <= 0) { P.inv = 0.6; return false; }
   P.hp -= dealt; P.inv = 0.8; P.hurtT = 0.22;
   const sx = src ? src.x + src.w / 2 : P.x + P.w / 2 - P.face;
   const dir = Math.sign(P.x + P.w / 2 - sx) || -P.face;
@@ -2033,6 +2067,9 @@ function hurtPlayer(dmg, src, kb = 260) {
   if (src && !src.dead && stats.thorns > 0) damageEnemy(src, stats.thorns, { noCrit: true, kb: -dir * 120 });
   if (stats.secondWind && P.hp > 0 && P.hp < stats.maxHp * 0.25 && !G.room.windUsed) {   // Lionheart Medal
     G.room.windUsed = true; healPlayer(Math.ceil(stats.maxHp * stats.secondWind)); ring(P.x + P.w / 2, P.y + P.h / 2, 90, '#ffd54f'); showMsg('Lionheart: second wind!', 1.6); SFX.play('rest');
+  }
+  if (TEAM().sanctuary && P.hp > 0 && P.hp < stats.maxHp * 0.4 && !G.room.sanctUsed) {   // Cockatiel: Sanctuary
+    G.room.sanctUsed = true; P.bubbleT = 3; ring(P.x + P.w / 2, P.y + P.h / 2, 70, '#b39ddb'); showMsg('Sanctuary!', 1.2); SFX.play('shieldUp');
   }
   if (P.hp <= 0) die();
   return true;
@@ -2568,10 +2605,7 @@ function updateProj(dt) {
     if (p.friendly) {
       for (const e of G.enemies) {
         if (!attackable(e) || !overlap(p, e) || (p.hitSet && p.hitSet.has(e))) continue;
-        if (p.kind === 'petfire') { damageEnemy(e, p.dmg, { kb: Math.sign(p.vx) * 90, fromX: cx - Math.sign(p.vx) * 60, noCrit: true }); if (e.dead && stats.petLifeKill) healPlayer(stats.petLifeKill);
-          const bdps = Math.max(1, Math.ceil(p.dmg / 2 * (p.burnMul || 1)));
-          if (!e.dead) burnEnemy(e, bdps, 3);   // Dragon: sets enemies on fire
-          if (p.inferno) { ring(cx, cy, 70, '#ff7043'); burst(cx, cy, '#ff9100', 16, 220, 4); for (const o of G.enemies) if (o !== e && attackable(o) && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) < 70) burnEnemy(o, bdps, 3); } }
+        if (p.kind === 'petfire') petFireHit(p, e, cx, cy);
         else playerHit(e, p.dmg, Math.sign(p.vx) * 90 * stats.kbMul, cx - Math.sign(p.vx) * 60);
         if (p.slow && !e.dead) e.slowT = p.slow;
         if (p.explode) {   // Blast Arrowheads
@@ -2631,7 +2665,7 @@ function updateWorld(dt) {
 
 // =====================================================================
 //  PETS — animals rescued from monster cages; up to 3 ride in your pet slots.
-//  Each levels up (1-10) from enemies killed while it's in a slot; every level = 1 talent point.
+//  Each levels up (1-30) from enemies killed while it's in a slot; every level = 1 point for its three talent trees.
 // =====================================================================
 const PETS = {
   dog:       { role: 'Guardian', ability: 'Stun',     stun: true,     name: 'Shepherd',  anim: 'pet_dog',       fly: false, w: 30, h: 26, hp: 30, dmg: 3, cd: 0.9,  speed: 270, reach: 36, kb: 260, color: '#eceff1' },
@@ -2645,78 +2679,335 @@ const PETS = {
   boar:      { role: 'Guardian', ability: 'Charge',   charge: true,   name: 'Boar',      anim: 'pet_boar',      fly: false, w: 34, h: 26, hp: 45, dmg: 3, cd: 1.1,  speed: 230, reach: 34, kb: 300, color: '#a1887f' },
   toad:      { role: 'Poisoner', ability: 'Poison',   poison: true,   name: 'Toad',      anim: 'pet_toad',      fly: false, w: 24, h: 18, hp: 22, dmg: 1, cd: 0.9,  speed: 220, reach: 70, kb: 60,  color: '#9ccc65' },
 };
-// ---- talents: tier 1 from the start, tier 2 at pet level 4, tier 3 (capstone) at level 7 ----
-const PET_MAX_LVL = 10, TIER_LVL = [0, 1, 4, 7];
-const petXpNeed = lvl => 3 + 2 * (lvl - 1);     // kills needed to go from this level to the next
-const T1 = (dmgName, hpName) => [
-  { id: 'dmg', tier: 1, max: 3, name: dmgName, txt: r => `+${15 * r}% damage` },
-  { id: 'hp',  tier: 1, max: 3, name: hpName,  txt: r => `+${20 * r}% health` }];
-const TALENTS = {
-  dog: [...T1('Strong Jaws', 'Thick Coat'),
-    { id: 'pin',   tier: 2, max: 3, name: 'Pin Down',    txt: r => `stuns last +${(0.25 * r).toFixed(2)} s` },
-    { id: 'guard', tier: 2, max: 3, name: 'Loyal Guard', txt: r => `+${r} armor for you` },
-    { id: 'howl',  tier: 3, max: 1, name: 'Alpha Howl',  txt: () => 'every 10 s, howls to stun all enemies near it' }],
-  catgray: [...T1('Needle Claws', 'Nine Lives'),
-    { id: 'instinct',  tier: 2, max: 3, name: 'Killer Instinct', txt: r => `finisher works below ${50 + 10 * r}% health` },
-    { id: 'quick',     tier: 2, max: 3, name: 'Quick Paws',      txt: r => `attacks ${12 * r}% faster` },
-    { id: 'bloodlust', tier: 3, max: 1, name: 'Bloodlust',       txt: () => 'after each kill, attacks 60% faster for 3 s' }],
-  catcalico: [...T1('Hex Claws', 'Nine Lives'),
-    { id: 'deepmark', tier: 2, max: 3, name: 'Deep Mark',     txt: r => `marked enemies take +${25 + 10 * r}% damage` },
-    { id: 'linger',   tier: 2, max: 3, name: 'Lingering Hex', txt: r => `marks last ${4 + 1.5 * r} s` },
-    { id: 'hexburst', tier: 3, max: 1, name: 'Hex Burst',     txt: () => 'marked enemies that die spread the mark to enemies nearby' }],
-  cockatiel: [...T1('Sharp Beak', 'Downy Feathers'),
-    { id: 'song',       tier: 2, max: 3, name: 'Soothing Song',   txt: r => `heals +${r} HP` },
-    { id: 'tempo',      tier: 2, max: 3, name: 'Quick Tempo',     txt: r => `heals every ${7 - r} s` },
-    { id: 'guardwings', tier: 3, max: 1, name: 'Guardian Wings',  txt: () => 'once per floor, a big heal (30% max HP) when you drop below 30% health' }],
-  dragon: [...T1('Ember Fangs', 'Scaled Hide'),
-    { id: 'sear',    tier: 2, max: 3, name: 'Searing Flames', txt: r => `burns deal +${50 * r}% damage` },
-    { id: 'rapid',   tier: 2, max: 3, name: 'Rapid Fire',     txt: r => `breathes fire ${12 * r}% faster` },
-    { id: 'inferno', tier: 3, max: 1, name: 'Inferno',        txt: () => 'fireballs explode, setting every enemy nearby on fire' }],
-  fox: [...T1('Sharp Fangs', 'Bushy Coat'),
-    { id: 'sly',    tier: 2, max: 3, name: 'Sly',    txt: r => `${30 + 10 * r}% chance to crit for triple damage` },
-    { id: 'swift',  tier: 2, max: 3, name: 'Swift',  txt: r => `moves and attacks ${12 * r}% faster` },
-    { id: 'ambush', tier: 3, max: 1, name: 'Ambush', txt: () => 'its first bite on each enemy always crits' }],
-  owl: [...T1('Razor Talons', 'Soft Plumage'),
-    { id: 'blindlong', tier: 2, max: 3, name: 'Blinding Talons', txt: r => `blinds last ${2 + r} s` },
-    { id: 'keen',      tier: 2, max: 3, name: 'Keen Sight',      txt: r => `blinded enemies take +${15 * r}% damage` },
-    { id: 'shriek',    tier: 3, max: 1, name: 'Night Shriek',    txt: () => 'every 12 s, shrieks to blind every enemy near it' }],
-  ferret: [...T1('Needle Teeth', 'Wiry Fur'),
-    { id: 'sap',        tier: 2, max: 3, name: 'Sap Strength', txt: r => `weakened enemies deal ${1 + r} less damage` },
-    { id: 'nimble',     tier: 2, max: 3, name: 'Nimble',       txt: r => `attacks ${12 * r}% faster` },
-    { id: 'pickpocket', tier: 3, max: 1, name: 'Pickpocket',   txt: () => 'weakened enemies heal you 2 HP when they die' }],
-  boar: [...T1('Tusks', 'Bristled Hide'),
-    { id: 'stampede', tier: 2, max: 3, name: 'Stampede',    txt: r => `charges every ${5 - r} s` },
-    { id: 'gore',     tier: 2, max: 3, name: 'Gore',        txt: r => `charges deal +${30 * r}% damage` },
-    { id: 'quake',    tier: 3, max: 1, name: 'Earthshaker', txt: () => 'charges end with a slam that stuns enemies nearby' }],
-  toad: [...T1('Sticky Tongue', 'Warty Skin'),
-    { id: 'venom',  tier: 2, max: 3, name: 'Venom Glands', txt: r => `poison deals +${r} damage per second` },
-    { id: 'tongue', tier: 2, max: 3, name: 'Long Tongue',  txt: r => `tongue reaches ${25 * r} px farther` },
-    { id: 'cloud',  tier: 3, max: 1, name: 'Toxic Cloud',  txt: () => 'poisoned enemies that die burst, poisoning enemies nearby' }],
+// ---- TALENT TREES (read top to bottom) ----
+// Every pet has three trees. Each tree has 5 tiers: tier 1 opens at pet level 1, tier 2 at 5, tier 3 (keystone) at 10,
+// tier 4 at 16 and tier 5 (ultimate) at 22. A talent needs at least one point in the tier just above it, in the same tree.
+// Pets earn 1 point per level (29 at level 30) and can be reset for free at any time.
+const PET_MAX_LVL = 30, TIER_LVL = [0, 1, 5, 10, 16, 22];
+const petXpNeed = lvl => 3 + Math.round(1.2 * (lvl - 1));     // kills needed to go from this level to the next
+const nd = (id, name, max, fx, txt) => ({ id, name, max, fx, txt });
+const tree = (name, color, tiers) => ({ name, color, tiers });
+// a timed skill: every `every` s (only while enemies are near) it goes off around the pet (or around you: center 'player')
+const pulse = (id, o) => (M, r) => { M.pulses[id] = Object.assign(M.pulses[id] || {}, typeof o === 'function' ? o(r) : o); };
+const ensurePulse = (M, id, base) => (M.pulses[id] = Object.assign({}, base, M.pulses[id] || {}));
+// common talents
+const DMG = (id, name) => nd(id, name, 3, { dmg: 0.2 }, r => `+${20 * r}% damage`);
+const HP = (id, name) => nd(id, name, 3, { hp: 0.25 }, r => `+${25 * r}% health`);
+const HASTE = (id, name) => nd(id, name, 3, { haste: 0.12 }, r => `attacks ${12 * r}% faster`);
+const SPEED = (id, name) => nd(id, name, 3, { speed: 0.15 }, r => `moves ${15 * r}% faster`);
+const DODGE = (id, name) => nd(id, name, 3, { dodge: 0.1 }, r => `${10 * r}% chance to dodge hits`);
+const TOUGH = (id, name) => nd(id, name, 3, { tough: 0.1 }, r => `takes ${10 * r}% less damage`);
+const BLEED = (id, name) => nd(id, name, 3, { bleed: 0.15 }, r => `hits make enemies bleed for ${15 * r}% of the hit every second for 3 s`);
+const LEECH = (id, name) => nd(id, name, 3, { lifesteal: 0.1 }, r => `heals for ${10 * r}% of the damage it deals`);
+const ARMOR = (id, name) => nd(id, name, 3, { pArmor: 1 }, r => `+${r} armor for you`);
+const GUARD = (id, name) => nd(id, name, 3, { guard: 0.1 }, r => `takes ${10 * r}% of the damage meant for you while it's near you`);
+const FRENZY_TXT = 'ULTIMATE: every kill sends it into a frenzy: double attack speed and +50% damage for 4 s';
+const HOWL = { every: 10, r: 150, stun: 1, color: '#fff59d', sfx: 'howl' };
+
+const PET_TREES = {
+  dog: [
+    tree('Guardian', '#90caf9', [
+      [HP('dg_coat', 'Thick Coat')],
+      [ARMOR('dg_loyal', 'Loyal Guard'), GUARD('dg_body', 'Bodyguard')],
+      [nd('dg_stand', 'Stand Fast', 1, { tough: 0.35, thorns: 0.6 }, () => 'takes 35% less damage, and enemies that hit it take 60% of its bite damage back')],
+      [nd('dg_rally', 'Rallying Bark', 3, pulse('bark', r => ({ every: 9, r: 220, center: 'player', shield: 2 * r, color: '#90caf9', sfx: 'bark' })), r => `every 9 s in a fight, barks to give you a ${2 * r} HP shield`),
+       nd('dg_will', 'Iron Will', 3, { recover: 0.2, lifesteal: 0.1 }, r => `gets up ${20 * r}% sooner after a knock-out and heals for ${10 * r}% of its bite damage`)],
+      [nd('dg_last', 'Last Line', 1, { lastLine: 1 }, () => 'ULTIMATE: once per floor, a hit that would kill you is taken by the Shepherd instead: you take nothing and are untouchable for 2 s')]]),
+    tree('Herder', '#fff59d', [
+      [nd('dg_pin', 'Pin Down', 3, { stunDur: 0.25 }, r => `stuns last ${(0.25 * r).toFixed(2)} s longer`)],
+      [nd('dg_howl', 'Alpha Howl', 3, pulse('howl', r => ({ ...HOWL, every: 12 - 2 * r })), r => `every ${12 - 2 * r} s howls, stunning every enemy near it`),
+       nd('dg_shove', 'Shove', 3, { kb: 0.5, slowCh: 0.15 }, r => `knocks enemies ${50 * r}% further and has a ${15 * r}% chance to slow them`)],
+      [nd('dg_round', 'Round Up', 1, M => { const h = ensurePulse(M, 'howl', HOWL); h.pull = 1; h.r += 50; }, () => 'howls reach 50 px further and drag enemies in to the Shepherd (it learns Alpha Howl if it hasn\'t)')],
+      [nd('dg_shake', 'Shake Down', 3, { stunAmp: 0.15 }, r => `stunned enemies take +${15 * r}% damage from everyone`),
+       nd('dg_leash', 'Short Leash', 3, { stunImmCut: 0.25 }, r => `enemies can be stunned again ${25 * r}% sooner`)],
+      [nd('dg_leader', 'Pack Leader', 1, M => { const h = ensurePulse(M, 'howl', HOWL); h.rally = 4; h.stun = 2; }, () => 'ULTIMATE: howls stun for 2 s and rally the team: you and all your pets deal +40% damage for 4 s')]]),
+    tree('Hunter', '#ef9a9a', [
+      [DMG('dg_jaws', 'Strong Jaws')],
+      [nd('dg_savage', 'Savage', 3, { crit: 0.1 }, r => `${10 * r}% chance to crit for double damage`),
+       nd('dg_lunge', 'Lunge', 3, { reach: 12, speed: 0.1 }, r => `bites reach ${12 * r} px further and it runs ${10 * r}% faster`)],
+      [nd('dg_rend', 'Rend', 1, { bleed: 0.4 }, () => 'bites make enemies bleed for 40% of the bite\'s damage every second for 3 s')],
+      [HASTE('dg_relent', 'Relentless'), nd('dg_throat', 'Go for the Throat', 3, { execute: 0.07 }, r => `instantly finishes off normal enemies below ${7 * r}% health`)],
+      [nd('dg_feral', 'Feral', 1, { killFrenzy: 1 }, () => FRENZY_TXT)]]),
+  ],
+  catgray: [
+    tree('Assassin', '#b0bec5', [
+      [DMG('cg_claws', 'Needle Claws')],
+      [nd('cg_instinct', 'Killer Instinct', 3, { finPct: 0.1 }, r => `finisher works on enemies below ${50 + 10 * r}% health`),
+       nd('cg_slit', 'Throat Slit', 3, { finMul: 0.5 }, r => `finishers deal x${2 + 0.5 * r} damage instead of x2`)],
+      [nd('cg_pounce', 'Pounce', 1, { ambush: 2, speed: 0.25 }, () => 'its first strike on each enemy deals triple damage, and it moves 25% faster')],
+      [nd('cg_exec', 'Execute', 3, { execute: 0.06 }, r => `instantly finishes off normal enemies below ${6 * r}% health`),
+       nd('cg_blood', 'Bloodlust', 3, { killHaste: 0.2 }, r => `after each kill, attacks ${20 * r}% faster for 3 s`)],
+      [nd('cg_shadow', 'Death From the Shadows', 1, { killBlink: 1 }, () => 'ULTIMATE: every kill resets its attack and it blinks straight to the next enemy within 260 px')]]),
+    tree('Nine Lives', '#a5d6a7', [
+      [HP('cg_lives', 'Nine Lives')],
+      [DODGE('cg_reflex', 'Cat Reflexes'), nd('cg_lick', 'Lick Wounds', 3, { lifesteal: 0.12 }, r => `heals for ${12 * r}% of the damage it deals`)],
+      [nd('cg_feet', 'Land on Its Feet', 1, { lastStand: 1 }, () => 'once per floor, a knock-out is shrugged off: it bounces back to full health instead')],
+      [nd('cg_scrap', 'Scrappy', 3, { thorns: 0.3 }, r => `enemies that hit it take ${30 * r}% of its damage back`),
+       nd('cg_purr', 'Purr', 3, { pRegen: 1 }, r => `you regenerate ${r} HP every 8 s`)],
+      [nd('cg_ninth', 'Ninth Life', 1, { ninthLife: 1 }, () => 'ULTIMATE: when it would be knocked out it turns untouchable for 4 s and attacks twice as fast instead (once every 20 s)')]]),
+    tree('Prowler', '#ce93d8', [
+      [nd('cg_step', 'Shadow Step', 3, { speed: 0.15, haste: 0.06 }, r => `moves ${15 * r}% faster and attacks ${6 * r}% faster`)],
+      [BLEED('cg_shred', 'Shred'), nd('cg_grace', 'Feline Grace', 3, { crit: 0.1 }, r => `${10 * r}% chance to crit for double damage`)],
+      [nd('cg_flurry', 'Flurry', 1, { double: 0.35 }, () => '35% chance to strike twice')],
+      [nd('cg_rake', 'Rake', 3, { cleave: 0.25 }, r => `claws also hit enemies next to its target for ${25 * r}% damage`),
+       nd('cg_eye', 'Cat\'s Eye', 3, { critMul: 0.5 }, r => `crits deal +${50 * r}% more damage`)],
+      [nd('cg_cuts', 'Thousand Cuts', 1, { cuts: 0.15 }, () => 'ULTIMATE: every hit on the same enemy deals 15% more than the last (up to +300%)')]]),
+  ],
+  catcalico: [
+    tree('Hex', '#ce93d8', [
+      [nd('cc_claw', 'Hex Claws', 3, { markPct: 0.1 }, r => `marked enemies take +${25 + 10 * r}% damage`)],
+      [nd('cc_linger', 'Lingering Hex', 3, { markDur: 1.5 }, r => `marks last ${4 + 1.5 * r} s`),
+       nd('cc_jinx', 'Jinx', 3, { markSlow: 0.15 }, r => `marked enemies move and attack ${15 * r}% slower`)],
+      [nd('cc_burst', 'Hex Burst', 1, { spreadMark: 1 }, () => 'marked enemies that die spread the mark to every enemy near them')],
+      [nd('cc_doom', 'Doom', 3, { markDot: 1 }, r => `marked enemies take ${r} damage every second`),
+       nd('cc_weave', 'Hexweaver', 3, pulse('hexnova', r => ({ every: 10 - 2 * r, r: 170, mark: 1, color: '#ce93d8', sfx: 'meow' })), r => `every ${10 - 2 * r} s marks every enemy within 170 px`)],
+      [nd('cc_calam', 'Calamity', 1, { markExplode: 3 }, () => 'ULTIMATE: marked enemies explode when they die, hitting everything nearby for 300% of the Calico\'s damage')]]),
+    tree('Fortune', '#ffd54f', [
+      [nd('cc_lucky', 'Lucky Cat', 3, { pCrit: 0.04 }, r => `+${4 * r}% crit chance for you`)],
+      [nd('cc_omen', 'Good Omen', 3, { pDmgPct: 0.08 }, r => `+${8 * r}% damage for you`),
+       nd('cc_charm', 'Charm', 3, { pDodge: 0.05 }, r => `+${5 * r}% chance for you to dodge attacks`)],
+      [nd('cc_bless', 'Calico\'s Blessing', 1, { critBless: 1 }, () => 'your crits heal you 1 HP and mark the enemy')],
+      [nd('cc_jack', 'Jackpot', 3, { pCritMul: 0.25 }, r => `your crits deal +${25 * r}% more damage`),
+       nd('cc_ward', 'Black Cat Ward', 3, { ward: 0.1 }, r => `enemies near the Calico deal ${10 * r}% less damage`)],
+      [nd('cc_luck', 'Lady Luck', 1, { ladyLuck: 1 }, () => 'ULTIMATE: +15% crit chance for you and every pet, and pet crits deal at least triple damage')]]),
+    tree('Mischief', '#80cbc4', [
+      [DMG('cc_kit', 'Pounce Kit')],
+      [HASTE('cc_play', 'Playful'), nd('cc_tangle', 'Tangle', 3, { slowCh: 0.15 }, r => `${15 * r}% chance to tangle enemies up, slowing them`)],
+      [nd('cc_yarn', 'Yarn Trap', 1, pulse('yarn', { every: 8, r: 130, slow: 3, mark: 1, color: '#80cbc4', sfx: 'meow' }), () => 'every 8 s flings yarn that slows and marks every enemy within 130 px')],
+      [BLEED('cc_fever', 'Scratch Fever'), nd('cc_nimble', 'Nimble Paws', 3, { speed: 0.15, dodge: 0.05 }, r => `moves ${15 * r}% faster and dodges ${5 * r}% of hits`)],
+      [nd('cc_chaos', 'Chaos Cat', 1, { chaos: 1 }, () => 'ULTIMATE: every hit also lands a random curse: stun, blind, burn, poison or weaken')]]),
+  ],
+  cockatiel: [
+    tree('Songbird', '#fff176', [
+      [nd('ck_song', 'Soothing Song', 3, { healAmt: 1 }, r => `songs heal +${r} HP`)],
+      [nd('ck_tempo', 'Quick Tempo', 3, { healEvery: 1 }, r => `sings every ${7 - r} s`),
+       nd('ck_duet', 'Duet', 3, { healPets: 2 }, r => `each song also heals your other pets for ${2 * r} HP`)],
+      [nd('ck_wings', 'Guardian Wings', 1, { guardWings: 1 }, () => 'once per floor, a big heal (30% of your max HP) when you drop below 30% health')],
+      [nd('ck_over', 'Overflow', 3, { healShield: 3 }, r => `songs at full health give you a shield instead (up to ${3 * r} HP)`),
+       nd('ck_big', 'Swelling Chorus', 3, { healMissing: 0.1 }, r => `songs also heal ${10 * r}% of your missing health`)],
+      [nd('ck_anthem', 'Anthem', 1, pulse('anthem', { every: 20, r: 400, center: 'player', healPetsFull: 1, shield: 5, rally: 5, color: '#fff176', sfx: 'rest' }), () => 'ULTIMATE: every 20 s in a fight, fully heals all pets, shields you for 5 HP and gives the team +40% damage for 5 s')]]),
+    tree('Windcaller', '#81d4fa', [
+      [DMG('ck_beak', 'Sharp Beak')],
+      [nd('ck_gust', 'Gust', 3, { kb: 0.6, slowCh: 0.1 }, r => `pecks knock enemies ${60 * r}% further and slow ${10 * r}% of the time`),
+       nd('ck_dive', 'Dive', 3, { speed: 0.15, haste: 0.1 }, r => `flies ${15 * r}% faster and pecks ${10 * r}% faster`)],
+      [nd('ck_tail', 'Tailwind', 1, { pSpeed: 0.2 }, () => 'you move 20% faster')],
+      [nd('ck_storm', 'Feather Storm', 3, pulse('feathers', r => ({ every: 8, r: 130, dmg: r, color: '#e1f5fe', sfx: 'chirp' })), r => `every 8 s sheds razor feathers, hitting every enemy within 130 px for ${100 * r}% damage`),
+       nd('ck_peck', 'Peck Order', 3, { blindCh: 0.1 }, r => `${10 * r}% chance for its pecks to blind`)],
+      [nd('ck_cyc', 'Cyclone', 1, pulse('cyclone', { every: 12, r: 170, pull: 1, stun: 1.2, dmg: 3, color: '#81d4fa', sfx: 'dash' }), () => 'ULTIMATE: every 12 s whips up a cyclone that drags enemies in, stuns them for 1.2 s and hits for 300% damage')]]),
+    tree('Warden', '#b39ddb', [
+      [HP('ck_down', 'Downy Feathers')],
+      [nd('ck_shield', 'Feather Shield', 3, pulse('fshield', r => ({ every: 10, r: 260, center: 'player', shield: 2 * r, color: '#b39ddb', sfx: 'chirp' })), r => `every 10 s in a fight gives you a ${2 * r} HP shield`),
+       nd('ck_hearty', 'Hearty', 3, { pMaxHp: 4 }, r => `+${4 * r} max HP for you`)],
+      [nd('ck_sanct', 'Sanctuary', 1, { sanctuary: 1 }, () => 'once per floor, when you drop below 40% health a bubble makes you untouchable for 3 s')],
+      [nd('ck_bulw', 'Bulwark', 3, { shieldAmp: 0.5 }, r => `all your shields are ${50 * r}% stronger`),
+       nd('ck_mend', 'Mend', 3, { pRegen: 1 }, r => `you regenerate ${r} HP every 8 s`)],
+      [nd('ck_aegis', 'Aegis', 1, { aegis: 1 }, () => 'ULTIMATE: when your shield soaks up a hit, the attacker takes double that back and is stunned for 1 s')]]),
+  ],
+  dragon: [
+    tree('Inferno', '#ff7043', [
+      [nd('dr_sear', 'Searing Flames', 3, { burnPct: 0.5 }, r => `burns deal +${50 * r}% damage`)],
+      [HASTE('dr_rapid', 'Rapid Fire'), nd('dr_kindle', 'Kindling', 3, { burnDur: 1 }, r => `burns last ${3 + r} s`)],
+      [nd('dr_inferno', 'Inferno', 1, { inferno: 1 }, () => 'fireballs explode, setting every enemy nearby on fire')],
+      [nd('dr_wild', 'Wildfire', 3, (M, r) => { M.spreadBurn = 50 + 30 * r; }, r => `burning enemies that die spread their fire to enemies within ${50 + 30 * r} px`),
+       nd('dr_melt', 'Meltdown', 3, { burnAmp: 0.1 }, r => `burning enemies take +${10 * r}% damage from everything`)],
+      [nd('dr_breath', 'Dragon\'s Breath', 1, pulse('breath', { every: 8, r: 240, cone: 1, dmg: 2, burn: 5, color: '#ff7043', sfx: 'fireball' }), () => 'ULTIMATE: every 8 s breathes a gout of fire over the enemies in front of it: 200% damage and a long burn')]]),
+    tree('Scales', '#a1887f', [
+      [HP('dr_hide', 'Scaled Hide')],
+      [nd('dr_ember', 'Ember Scales', 3, { thorns: 0.4, thornBurn: 1 }, r => `enemies that hit it take ${40 * r}% of its damage back and catch fire`), GUARD('dr_shelter', 'Wing Shelter')],
+      [nd('dr_core', 'Molten Core', 1, { tough: 0.4 }, () => 'takes 40% less damage')],
+      [nd('dr_heat', 'Heat Aura', 3, pulse('heat', r => ({ every: 2, r: 70 + 20 * r, burn: 2.2, burnDps: r, quiet: 1 })), r => `enemies within ${70 + 20 * r} px of it keep burning (${r} damage a tick)`), ARMOR('dr_hoard', 'Hoard')],
+      [nd('dr_wyrm', 'Ancient Wyrm', 1, { hp: 1, koBlast: 5, koFast: 1 }, () => 'ULTIMATE: +100% health; when knocked out it erupts for 500% damage around it and is back up after 2 s')]]),
+    tree('Arcane', '#ea80fc', [
+      [DMG('dr_fangs', 'Ember Fangs')],
+      [nd('dr_twin', 'Twin Flames', 2, { multishot: 1 }, r => `shoots ${r} extra fireball${r > 1 ? 's' : ''} each time`),
+       nd('dr_comet', 'Comet', 3, { pierce: 1, projSpeed: 0.2 }, r => `fireballs fly ${20 * r}% faster and pass through ${r} enem${r > 1 ? 'ies' : 'y'}`)],
+      [nd('dr_meteor', 'Meteor', 1, { projSize: 1, pierce: 99 }, () => 'fireballs are twice as big and burn through everything in their path')],
+      [nd('dr_range', 'Farsight', 3, { range: 60, crit: 0.08 }, r => `shoots from ${60 * r} px further away and crits ${8 * r}% of the time`),
+       nd('dr_surge', 'Mana Surge', 3, { mega: 1 }, r => `every 4th fireball is a mega fireball dealing +${100 * r}% damage`)],
+      [nd('dr_star', 'Starfall', 1, pulse('starfall', { every: 10, r: 420, center: 'player', starfall: 5, color: '#ea80fc', sfx: 'bomb' }), () => 'ULTIMATE: every 10 s rains 5 meteors on enemies near you, each blasting for 200% damage')]]),
+  ],
+  fox: [
+    tree('Trickster', '#ffab40', [
+      [nd('fx_sly', 'Sly', 3, { crit: 0.1 }, r => `${30 + 10 * r}% chance to crit`)],
+      [nd('fx_fang', 'Sharp Fangs', 3, { critMul: 0.5 }, r => `crits deal x${3 + 0.5 * r} damage`), DODGE('fx_feint', 'Feint')],
+      [nd('fx_ambush', 'Ambush', 1, { ambushCrit: 1 }, () => 'its first bite on each enemy always crits')],
+      [nd('fx_mirage', 'Mirage', 3, { critInv: 0.4 }, r => `after a crit it's untouchable for ${(0.4 * r).toFixed(1)} s`),
+       nd('fx_dazzle', 'Dazzle', 3, { critBlind: 1 }, r => `crits blind the enemy for ${r} s`)],
+      [nd('fx_foxfire', 'Foxfire', 1, { foxfire: 1 }, () => 'ULTIMATE: crits burst into foxfire, hitting every enemy nearby for the full crit damage and setting them alight')]]),
+    tree('Swift', '#ffe082', [
+      [nd('fx_swift', 'Swift', 3, { speed: 0.15, haste: 0.08 }, r => `moves ${15 * r}% faster and bites ${8 * r}% faster`)],
+      [nd('fx_quick', 'Quick Bite', 3, { double: 0.12 }, r => `${12 * r}% chance to bite twice`), LEECH('fx_blood', 'Lifeblood')],
+      [nd('fx_blur', 'Blur', 1, { haste: 0.4 }, () => 'attacks 40% faster')],
+      [nd('fx_pack', 'Pack Instinct', 3, { packDmg: 0.1 }, r => `+${10 * r}% damage for each other pet in your team`),
+       nd('fx_tire', 'Tireless', 3, { recover: 0.2, hp: 0.15 }, r => `+${15 * r}% health and gets up ${20 * r}% sooner after a knock-out`)],
+      [nd('fx_whirl', 'Whirlwind', 1, { spin: 1.5 }, () => 'ULTIMATE: every 3rd bite is a spinning slash that hits every enemy around it for 150% damage')]]),
+    tree('Den Mother', '#a5d6a7', [
+      [HP('fx_coat', 'Bushy Coat')],
+      [nd('fx_scav', 'Scavenger', 3, { killHeal: 1 }, r => `when it kills, you heal ${r} HP`), nd('fx_watch', 'Watchful', 3, { pDodge: 0.04 }, r => `+${4 * r}% chance for you to dodge attacks`)],
+      [nd('fx_cunning', 'Fox\'s Cunning', 1, { pCrit: 0.15 }, () => '+15% crit chance for you')],
+      [nd('fx_lure', 'Lure', 3, { ward: 0.08 }, r => `enemies near the Fox deal ${8 * r}% less damage`), nd('fx_rally', 'Rally Cry', 3, { pDmgPct: 0.06 }, r => `+${6 * r}% damage for you`)],
+      [nd('fx_nine', 'Nine Tails', 1, { nineTails: 1, pCritMul: 0.5 }, () => 'ULTIMATE: your crits deal +50% damage, heal you 1 HP and make the Fox\'s next bite a sure crit')]]),
+  ],
+  owl: [
+    tree('Night', '#90a4ae', [
+      [nd('ow_talon', 'Blinding Talons', 3, { blindDur: 1 }, r => `blinds last ${2 + r} s`)],
+      [nd('ow_keen', 'Keen Sight', 3, { blindAmp: 0.15 }, r => `blinded enemies take +${15 * r}% damage`),
+       nd('ow_silent', 'Silent Wings', 3, { speed: 0.15, dodge: 0.08 }, r => `flies ${15 * r}% faster and dodges ${8 * r}% of hits`)],
+      [nd('ow_shriek', 'Night Shriek', 1, pulse('shriek', { every: 12, r: 190, blind: 1, color: '#cfd8dc', sfx: 'chirp' }), () => 'every 12 s shrieks to blind every enemy within 190 px')],
+      [nd('ow_dark', 'Darkness', 3, { blindSlow: 0.15 }, r => `blinded enemies move and attack ${15 * r}% slower`),
+       nd('ow_terror', 'Terror', 3, { blindMiss: 0.15 }, r => `blinded enemies miss ${15 * r}% of their attacks completely`)],
+      [nd('ow_eclipse', 'Eternal Night', 1, pulse('eclipse', { every: 15, r: 700, center: 'player', blind: 1, eclipse: 5, color: '#546e7a', sfx: 'chirp' }), () => 'ULTIMATE: every 15 s night falls for 5 s: every enemy on screen is blinded and you deal +30% damage')]]),
+    tree('Hunter\'s Moon', '#ffcc80', [
+      [DMG('ow_razor', 'Razor Talons')],
+      [nd('ow_swoop', 'Swoop', 3, { swoop: 0.5 }, r => `its first strike on each enemy deals +${50 * r}% damage`),
+       nd('ow_grip', 'Grip', 3, { grip: 0.3 }, r => `its talons pin enemies in place for ${(0.3 * r).toFixed(1)} s`)],
+      [nd('ow_wise', 'Wise Eyes', 1, { crit: 0.25, critMul: 1 }, () => '25% chance to crit, and its crits deal triple damage')],
+      [HASTE('ow_moon', 'Moonlight'), BLEED('ow_rip', 'Rip')],
+      [nd('ow_spiral', 'Death Spiral', 1, pulse('spiral', { every: 10, r: 340, center: 'player', spiral: 5, color: '#ffcc80', sfx: 'dash' }), () => 'ULTIMATE: every 10 s spirals down onto the toughest enemy near you for 500% damage')]]),
+    tree('Sage', '#b39ddb', [
+      [HP('ow_plume', 'Soft Plumage')],
+      [nd('ow_wisdom', 'Wisdom', 3, { petXp: 0.15 }, r => `all your pets earn ${15 * r}% more experience`), nd('ow_fore', 'Foresight', 3, { pDodge: 0.04 }, r => `+${4 * r}% chance for you to dodge attacks`)],
+      [nd('ow_counsel', 'Counsel', 1, { teamDmg: 0.15 }, () => 'all your pets deal +15% damage')],
+      [nd('ow_insight', 'Insight', 3, { teamCrit: 0.05 }, r => `all your pets get +${5 * r}% crit chance`), nd('ow_mentor', 'Mentor', 3, { teamHp: 0.1 }, r => `all your pets have +${10 * r}% health`)],
+      [nd('ow_elder', 'Elder Owl', 1, { elder: 0.5 }, () => 'ULTIMATE: your other pets grow 50% stronger: +50% damage and health')]]),
+  ],
+  ferret: [
+    tree('Thief', '#d7ccc8', [
+      [nd('fe_sap', 'Sap Strength', 3, { weakenAmt: 1 }, r => `weakened enemies deal ${1 + r} less damage`)],
+      [nd('fe_pick', 'Pickpocket', 3, { stealHeal: 1 }, r => `weakened enemies that die heal you ${r} HP`), HASTE('fe_nimble', 'Nimble')],
+      [nd('fe_steal', 'Steal Strength', 1, { stealStr: 1 }, () => 'you deal +1 damage for every weakened enemy near you (up to +5)')],
+      [nd('fe_long', 'Lasting Weakness', 3, { weakenDur: 2 }, r => `weakness lasts ${4 + 2 * r} s`), DODGE('fe_sneak', 'Sneak')],
+      [nd('fe_heist', 'Grand Heist', 1, { robbery: 1 }, () => 'ULTIMATE: weakened enemies deal half damage, and all your pets deal +25% damage to them')]]),
+    tree('Frenzy', '#ffab91', [
+      [DMG('fe_teeth', 'Needle Teeth')],
+      [SPEED('fe_dart', 'Dart'), BLEED('fe_gnaw', 'Gnaw')],
+      [nd('fe_dance', 'War Dance', 1, { double: 0.4 }, () => '40% chance to bite twice')],
+      [HASTE('fe_hyper', 'Hyper'), nd('fe_weasel', 'Weasel Out', 3, { recover: 0.2, dodge: 0.05 }, r => `gets up ${20 * r}% sooner and dodges ${5 * r}% of hits`)],
+      [nd('fe_frenzy', 'Frenzy', 1, { frenzyStack: 0.08 }, () => 'ULTIMATE: every bite makes it 8% faster and stronger (up to 10 stacks); stacks fade after 3 s without fighting')]]),
+    tree('Burrower', '#bcaaa4', [
+      [HP('fe_fur', 'Wiry Fur')],
+      [nd('fe_tunnel', 'Ambush Burrow', 3, { ambushStun: 0.5 }, r => `its first bite on each enemy stuns it for ${(0.5 * r).toFixed(1)} s`),
+       nd('fe_under', 'Underfoot', 3, pulse('underfoot', r => ({ every: 2.5, r: 60 + 20 * r, slow: 2, quiet: 1 })), r => `enemies within ${60 + 20 * r} px of it are slowed`)],
+      [nd('fe_trip', 'Tripwire', 1, { stunCh: 0.35 }, () => '35% chance per bite to trip the enemy, stunning it for 0.8 s')],
+      [nd('fe_mine', 'Undermine', 3, { stunAmp: 0.12, slowAmp: 0.12 }, r => `stunned or slowed enemies take +${12 * r}% damage`), DODGE('fe_escape', 'Escape Artist')],
+      [nd('fe_sink', 'Sinkhole', 1, pulse('sinkhole', { every: 12, r: 320, center: 'player', sink: 120, stun: 2, dmg: 3, color: '#8d6e63', sfx: 'slam' }), () => 'ULTIMATE: every 12 s opens a sinkhole under the biggest group of enemies: all within 120 px are stunned for 2 s and take 300% damage')]]),
+  ],
+  boar: [
+    tree('Stampede', '#ffab91', [
+      [nd('bo_gore', 'Gore', 3, { chargeDmg: 0.4 }, r => `charges deal +${40 * r}% damage`)],
+      [nd('bo_stamp', 'Stampede', 3, { chargeCd: 1 }, r => `charges every ${5 - r} s`), nd('bo_long', 'Long Charge', 3, { chargeLen: 0.15 }, r => `charges run ${30 * r}% further`)],
+      [nd('bo_quake', 'Earthshaker', 1, { quake: 1 }, () => 'charges end with a slam that stuns enemies nearby')],
+      [nd('bo_trample', 'Trample', 3, { chargeStun: 0.3 }, r => `enemies it charges through are stunned for ${(0.3 * r).toFixed(1)} s`),
+       nd('bo_mom', 'Momentum', 3, { momentum: 0.25 }, r => `each enemy it charges through adds +${25 * r}% damage to the rest of the charge`)],
+      [nd('bo_jugg', 'Juggernaut', 1, { juggernaut: 1 }, () => 'ULTIMATE: charges run twice as far, fling enemies aside, and give you a 4 HP shield')]]),
+    tree('Bulwark', '#90caf9', [
+      [HP('bo_hide', 'Bristled Hide')],
+      [TOUGH('bo_skull', 'Thick Skull'), nd('bo_bristle', 'Bristles', 3, { thorns: 0.3 }, r => `enemies that hit it take ${30 * r}% of its damage back`)],
+      [nd('bo_duty', 'Guard Duty', 1, { guard: 0.25 }, () => 'takes 25% of the damage meant for you while it\'s near you')],
+      [nd('bo_wallow', 'Wallow', 3, { lifesteal: 0.1, recover: 0.2 }, r => `heals for ${10 * r}% of its damage and gets up ${20 * r}% sooner`), ARMOR('bo_wall', 'Shield Wall')],
+      [nd('bo_brace', 'Unbreakable', 1, pulse('brace', { every: 15, r: 300, center: 'player', brace: 3, color: '#90caf9', sfx: 'clank' }), () => 'ULTIMATE: every 15 s in a fight it braces for 3 s: it takes no damage and soaks up every hit meant for you')]]),
+    tree('Wild', '#e57373', [
+      [DMG('bo_tusk', 'Tusks')],
+      [HASTE('bo_ramp', 'Rampage'), nd('bo_rage', 'Rage', 3, { rageLow: 0.1 }, r => `+${10 * r}% damage for every 25% of health it's missing`)],
+      [nd('bo_berserk', 'Berserk', 1, { killFrenzy: 1 }, () => 'every kill sends it into a frenzy: double attack speed and +50% damage for 4 s')],
+      [nd('bo_toss', 'Tusk Toss', 3, { cleave: 0.2, kb: 0.3 }, r => `hits also strike enemies beside the target for ${20 * r}% damage`),
+       nd('bo_stagger', 'Stagger', 3, { stunCh: 0.1 }, r => `${10 * r}% chance for its tusks to stun for 0.8 s`)],
+      [nd('bo_warpig', 'War Pig', 1, { chargeReset: 1, chargeDmg: 0.5 }, () => 'ULTIMATE: every kill instantly readies another charge, and charges deal +50% damage')]]),
+  ],
+  toad: [
+    tree('Venom', '#9ccc65', [
+      [nd('td_venom', 'Venom Glands', 3, { poisonDps: 1 }, r => `poison deals +${r} damage per second`)],
+      [nd('td_dose', 'Toxic Dose', 3, { poisonDur: 1.5 }, r => `poison lasts ${4 + 1.5 * r} s`), nd('td_corrode', 'Corrode', 3, { poisonAmp: 0.1 }, r => `poisoned enemies take +${10 * r}% damage from everything`)],
+      [nd('td_cloud', 'Toxic Cloud', 1, { spreadPoison: 1 }, () => 'poisoned enemies that die burst, poisoning enemies nearby')],
+      [nd('td_neuro', 'Neurotoxin', 3, { poisonSlow: 0.1 }, r => `poisoned enemies move and attack ${10 * r}% slower`),
+       nd('td_viru', 'Virulence', 3, { poisonJump: 0.1 }, r => `every poison tick has a ${10 * r}% chance to jump to another enemy nearby`)],
+      [nd('td_plague', 'Plague', 1, { poisonStack: 5 }, () => 'ULTIMATE: poison stacks: each new dose adds to the damage instead of replacing it (up to 5 doses)')]]),
+    tree('Tongue', '#f48fb1', [
+      [nd('td_long', 'Long Tongue', 3, { reach: 25 }, r => `tongue reaches ${25 * r} px further`)],
+      [nd('td_sticky', 'Sticky Tongue', 3, { slowCh: 0.2 }, r => `${20 * r}% chance to glue enemies in place, slowing them`), HASTE('td_lick', 'Quick Lick')],
+      [nd('td_yank', 'Yank', 1, { pull: 1 }, () => 'its tongue yanks enemies right up to the toad')],
+      [nd('td_lasso', 'Lasso', 2, { chain: 1 }, r => `the tongue also lashes ${r} more enem${r > 1 ? 'ies' : 'y'} nearby for half damage`),
+       nd('td_gulp', 'Gulp', 3, { execute: 0.06, execHeal: 1 }, r => `swallows normal enemies below ${6 * r}% health whole, healing you 1 HP`)],
+      [nd('td_devour', 'Devour', 1, pulse('devour', { every: 10, r: 260, center: 'player', devour: 0.4, color: '#f48fb1', sfx: 'slimeHop' }), () => 'ULTIMATE: every 10 s swallows a normal enemy below 40% health whole and heals you 3 HP')]]),
+    tree('Bog', '#8d6e63', [
+      [HP('td_wart', 'Warty Skin')],
+      [nd('td_slime', 'Slime Coat', 3, { thorns: 0.3, thornPoison: 1 }, r => `enemies that hit it take ${30 * r}% of its damage back and are poisoned`), SPEED('td_hop', 'Bog Hop')],
+      [nd('td_swamp', 'Swamp', 1, pulse('swamp', { every: 3, r: 120, slow: 2, poison: 3, quiet: 1 }), () => 'every 3 s, enemies within 120 px of it are slowed and poisoned')],
+      [TOUGH('td_mud', 'Mud Skin'), nd('td_regrow', 'Regrowth', 3, { regen: 0.03 }, r => `regenerates ${3 * r}% of its health every second`)],
+      [nd('td_king', 'Toad King', 1, { hp: 1, dmg: 0.5, reach: 70, king: 1 }, () => 'ULTIMATE: grows to giant size: +100% health, +50% damage and double tongue reach')]]),
+  ],
 };
 // ---- team synergies (both pets in your slots) ----
 const SYNERGIES = [
   { id: 'clowder',  name: 'Clowder',   pets: ['catgray', 'catcalico'], icon: '🐈', txt: 'Marked enemies count as wounded for the Gray Cat\'s finisher, and both cats attack 25% faster.' },
-  { id: 'packhunt', name: 'Pack Hunt', pets: ['dog', 'fox'],           icon: '🐺', txt: 'The Fox deals triple damage to stunned enemies, and the Shepherd can stun twice as often.' },
+  { id: 'packhunt', name: 'Pack Hunt', pets: ['dog', 'fox'],           icon: '🐺', txt: 'The Fox always crits stunned enemies, and the Shepherd can stun twice as often.' },
   { id: 'wildfire', name: 'Wildfire',  pets: ['dragon', 'toad'],       icon: '🔥', txt: 'Enemies that are both burning and poisoned take double damage from both.' },
 ];
 const syn = id => !!(G && G.syn && G.syn[id]);
 const petLvl = it => it.plvl || 1;
 const tal = (it, id) => (it.talents && it.talents[id]) || 0;
-const talentPoints = it => (petLvl(it) - 1) - Object.values(it.talents || {}).reduce((a, b) => a + b, 0);
-const petMult = it => 1 + 0.1 * (petLvl(it) - 1);   // pets grow 10% stronger per level
-function canLearn(it, t) { return talentPoints(it) > 0 && petLvl(it) >= TIER_LVL[t.tier] && tal(it, t.id) < t.max; }
+const talentSpent = it => Object.values(it.talents || {}).reduce((a, b) => a + b, 0);
+const talentPoints = it => (petLvl(it) - 1) - talentSpent(it);
+const petMult = it => 1 + 0.05 * (petLvl(it) - 1);   // pets grow 5% stronger per level
+// everything a pet's talents add up to (cached until its talents change)
+function petMods(it) {
+  if (it._M && it._Mv === (it.talV || 0)) return it._M;
+  const M = { pulses: {} };
+  for (const tr of PET_TREES[it.def.pet] || []) for (const row of tr.tiers) for (const n of row) {
+    const r = tal(it, n.id); if (!r) continue;
+    if (typeof n.fx === 'function') n.fx(M, r); else for (const k in n.fx) M[k] = (M[k] || 0) + n.fx[k] * r;
+  }
+  it._M = M; it._Mv = it.talV || 0; return M;
+}
+// talents that help the whole team (summed over every pet in a slot)
+function teamMods() {
+  const T = { dmg: 0, crit: 0, hp: 0, xp: 0, pDmgPct: 0, shieldAmp: 0, pRegen: 0, n: 0 };
+  for (const it of petSlots) if (it) {
+    const M = petMods(it); T.n++;
+    T.dmg += M.teamDmg || 0; T.crit += M.teamCrit || 0; T.hp += M.teamHp || 0; T.xp += M.petXp || 0;
+    T.pDmgPct += M.pDmgPct || 0; T.shieldAmp += M.shieldAmp || 0; T.pRegen += M.pRegen || 0;
+    for (const f of ['ladyLuck', 'critBless', 'nineTails', 'robbery', 'aegis', 'stealStr', 'sanctuary']) if (M[f]) T[f] = true;
+  }
+  return T;
+}
+const TEAM = () => (G && G.team) || teamMods();
+const elderBoost = it => petSlots.some(o => o && o !== it && petMods(o).elder) ? 0.5 : 0;
+// where in the trees a talent sits
+function talentPos(pet, id) {
+  const trees = PET_TREES[pet] || [];
+  for (let ti = 0; ti < trees.length; ti++) for (let k = 0; k < trees[ti].tiers.length; k++) if (trees[ti].tiers[k].some(n => n.id === id)) return { ti, tier: k + 1 };
+  return null;
+}
+// why a talent can't be learned right now ('' = it can)
+function talentBlock(it, t) {
+  const pos = talentPos(it.def.pet, t.id); if (!pos) return 'Unknown talent.';
+  if (tal(it, t.id) >= t.max) return 'Fully learned.';
+  if (petLvl(it) < TIER_LVL[pos.tier]) return `Unlocks when your ${it.def.name} reaches level ${TIER_LVL[pos.tier]}.`;
+  if (pos.tier > 1 && !PET_TREES[it.def.pet][pos.ti].tiers[pos.tier - 2].some(n => tal(it, n.id) > 0)) return 'Needs a point in a talent just above it in this tree.';
+  if (talentPoints(it) <= 0) return 'No talent points left. Kill enemies with this pet in a slot to level it up.';
+  return '';
+}
+const canLearn = (it, t) => !talentBlock(it, t);
 function learnTalent(it, t) {
   if (!canLearn(it, t)) { SFX.play('error'); return false; }
-  it.talents = it.talents || {}; it.talents[t.id] = tal(it, t.id) + 1; SFX.play('merge');
+  it.talents = it.talents || {}; it.talents[t.id] = tal(it, t.id) + 1; it.talV = (it.talV || 0) + 1; SFX.play('merge');
   stats = computeStats(); syncPets(); return true;
 }
+function resetTalents(it) {
+  const n = talentSpent(it);
+  if (!n) { showMsg('Nothing to reset yet.', 1.2); SFX.play('error'); return; }
+  it.talents = {}; it.talV = (it.talV || 0) + 1; stats = computeStats(); syncPets(); SFX.play('pick');
+  showMsg(`Talents reset: ${n} point${n > 1 ? 's' : ''} back to spend.`, 1.6);
+}
 function gainPetXp(n) {
+  n *= 1 + TEAM().xp;   // Owl: Wisdom
   for (const it of petSlots) {
     if (!it || petLvl(it) >= PET_MAX_LVL) continue;
     it.xp = (it.xp || 0) + n;
     while (petLvl(it) < PET_MAX_LVL && it.xp >= petXpNeed(petLvl(it))) {
       it.xp -= petXpNeed(petLvl(it)); it.plvl = petLvl(it) + 1;
-      showMsg(`${it.def.name} reached level ${it.plvl}! Right-click it in your backpack to pick a talent.`, 2.6); SFX.play('merge'); rethreat();
+      const opens = TIER_LVL.indexOf(it.plvl);
+      showMsg(`${it.def.name} reached level ${it.plvl}!${opens > 1 ? ` Tier ${opens} talents unlocked!` : ''} Right-click it in your backpack to spend the point.`, 2.6); SFX.play('merge'); rethreat();
       const p = (G.pets || []).find(q => q.item === it); if (p) { ring(p.x + p.w / 2, p.y + p.h / 2, 60, '#ffd54f'); burst(p.x + p.w / 2, p.y, '#ffd54f', 18, 200); }
     }
     if (petLvl(it) >= PET_MAX_LVL) it.xp = 0;
@@ -2728,91 +3019,309 @@ function syncPets() {
   G.pets = G.pets || [];
   const items = petSlots.filter(Boolean), P = G.player, have = new Set(items.map(i => i.def.pet));
   G.syn = Object.fromEntries(SYNERGIES.map(s => [s.id, s.pets.every(k => have.has(k))]));
+  G.team = teamMods();
   rethreat();
   G.pets = G.pets.filter(p => items.includes(p.item));
   for (const it of items) if (!G.pets.some(p => p.item === it)) {
     const d = PETS[it.def.pet];
     G.pets.push({ item: it, d, x: P.x - 20 * P.face, y: P.y + P.h - d.h - (d.fly ? 40 : 0), w: d.w, h: d.h, vx: 0, vy: 0, face: P.face, hp: 1, maxHp: 1,
-                  ko: 0, cd: 0.5, atkT: 0, healT: d.heal || 0, skillT: 4, phase: rand(0, 6), onGround: false, inv: 0, slot: 0 });
+                  ko: 0, cd: 0.5, atkT: 0, healT: d.heal || 0, phase: rand(0, 6), onGround: false, inv: 0, slot: 0, pt: {} });
     burst(P.x + P.w / 2, P.y, d.color, 12, 160);
   }
-  G.pets.forEach((p, i) => {
-    p.slot = petSlots.indexOf(p.item);
-    const mhp = Math.round((p.d.hp * petMult(p.item) + G.roomNum * 2) * (1 + stats.petHp) * (1 + 0.2 * tal(p.item, 'hp')));
+  G.pets.forEach(p => {
+    p.slot = petSlots.indexOf(p.item); p.M = petMods(p.item);
+    const mhp = Math.round((p.d.hp * petMult(p.item) + G.roomNum * 2) * (1 + stats.petHp) * (1 + (p.M.hp || 0) + G.team.hp + elderBoost(p.item)));
     if (p.maxHp !== mhp) { p.hp = p.maxHp === 1 ? mhp : Math.max(1, Math.min(mhp, p.hp + (mhp - p.maxHp))); p.maxHp = mhp; }
   });
 }
-const petDamage = p => Math.max(1, Math.round((p.d.dmg * petMult(p.item) + Math.floor(G.roomNum / 4) + (G.cls === 'beastmaster' ? 1 : 0) + stats.petDmg)
-                                              * (1 + 0.15 * tal(p.item, 'dmg'))));   // Beastmaster: +1 on every pet
+const pm = (p, k) => (p.M && p.M[k]) || 0;
+function petDamage(p) {
+  const it = p.item, T = TEAM(), others = (G.pets || []).filter(o => o !== p).length;
+  let mul = 1 + pm(p, 'dmg') + T.dmg + elderBoost(it) + pm(p, 'packDmg') * others;
+  if (pm(p, 'rageLow') && p.maxHp > 1) mul += pm(p, 'rageLow') * Math.floor((1 - p.hp / p.maxHp) * 4);
+  if (p.fstk) mul += pm(p, 'frenzyStack') * p.fstk;
+  if (p.frenzyT > 0 && pm(p, 'killFrenzy')) mul += 0.5;
+  if (G.rallyT > 0) mul += 0.4;
+  return Math.max(1, Math.round((p.d.dmg * petMult(it) + Math.floor(G.roomNum / 4) + (G.cls === 'beastmaster' ? 1 : 0) + stats.petDmg) * mul));   // Beastmaster: +1 on every pet
+}
 function petCooldown(p) {
-  const it = p.item; let m = stats.petCdMul;
-  m *= 1 - 0.12 * (tal(it, 'quick') + tal(it, 'nimble') + tal(it, 'swift') + tal(it, 'rapid'));
+  let m = stats.petCdMul;
+  m /= 1 + pm(p, 'haste') + (p.killHasteT > 0 ? pm(p, 'killHaste') : 0) + (p.fstk || 0) * pm(p, 'frenzyStack');
   if (syn('clowder') && (p.d.finisher || p.d.mark)) m *= 0.8;
-  if (p.frenzyT > 0) m *= 0.4;   // Gray Cat: Bloodlust
-  return p.d.cd * Math.max(0.3, m);
+  if ((p.frenzyT > 0 && pm(p, 'killFrenzy')) || p.ninthT > 0) m *= 0.5;
+  return p.d.cd * Math.max(0.2, m);
 }
 function placePetsAtPlayer() {
   const P = G.player;
-  for (const p of G.pets || []) { p.x = P.x - (20 + p.slot * 18) * P.face; p.y = P.y + P.h - p.h - (p.d.fly ? 40 : 0); p.vx = p.vy = 0; p.ko = 0; p.hp = p.maxHp; p.chargeT = 0; }
+  for (const p of G.pets || []) { p.x = P.x - (20 + p.slot * 18) * P.face; p.y = P.y + P.h - p.h - (p.d.fly ? 40 : 0); p.vx = p.vy = 0; p.ko = 0; p.hp = p.maxHp; p.chargeT = 0; p.braceT = 0; }
 }
-function hurtPet(p, dmg) {
-  if (p.ko > 0 || p.inv > 0 || p.chargeT > 0) return;
+const floorUse = (p, key) => { if (p.useRoom !== G.room) { p.useRoom = G.room; p.used = {}; } if (p.used[key]) return false; p.used[key] = true; return true; };
+function petHeal(p, n) { if (p.ko > 0 || n <= 0) return; p.hp = Math.min(p.maxHp, p.hp + n); }
+function hurtPet(p, dmg, src) {
+  if (p.ko > 0 || p.inv > 0 || p.chargeT > 0 || p.braceT > 0) return;
+  if (pm(p, 'dodge') && Math.random() < Math.min(0.6, pm(p, 'dodge'))) { p.inv = 0.4; addText(p.x + p.w / 2, p.y - 6, 'DODGE', '#b39ddb', 11); return; }
+  dmg = Math.max(1, Math.round(dmg * (1 - Math.min(0.7, pm(p, 'tough')))));
   p.hp -= dmg; p.inv = 0.7; addText(p.x + p.w / 2, p.y - 6, '-' + dmg, '#ffab91', 12);
-  if (p.hp <= 0) { p.hp = 0; p.ko = 6 * (1 - stats.petRecover); SFX.play('petKo'); showMsg(`Your ${p.d.name} is knocked out!`, 1.5); }
+  if (src && src.d && !src.dead && pm(p, 'thorns')) {   // spiky / scaly / slimy pets bite back
+    damageEnemy(src, Math.max(1, Math.round(petDamage(p) * pm(p, 'thorns'))), { noCrit: true, kb: Math.sign(src.x - p.x) * 120 });
+    if (!src.dead && pm(p, 'thornBurn')) burnEnemy(src, Math.max(1, Math.ceil(petDamage(p) / 2)), 3, p);
+    if (!src.dead && pm(p, 'thornPoison')) poisonFrom(p, src);
+  }
+  if (p.hp > 0) return;
+  if (pm(p, 'ninthLife') && !(p.ninthCd > 0)) {   // Gray Cat: Ninth Life
+    p.hp = 1; p.ninthT = 4; p.ninthCd = 20; p.inv = 4; showMsg(`${p.d.name}: Ninth Life!`, 1.2); ring(p.x + p.w / 2, p.y + p.h / 2, 60, '#a5d6a7'); return;
+  }
+  if (pm(p, 'lastStand') && floorUse(p, 'stand')) {   // Gray Cat: Land on Its Feet
+    p.hp = p.maxHp; p.inv = 1.5; showMsg(`${p.d.name} lands on its feet!`, 1.2); ring(p.x + p.w / 2, p.y + p.h / 2, 60, '#a5d6a7'); return;
+  }
+  p.hp = 0; p.ko = pm(p, 'koFast') ? 2 : 6 * (1 - stats.petRecover) * (1 - Math.min(0.8, pm(p, 'recover')));
+  if (pm(p, 'koBlast')) petBlast(p, p.x + p.w / 2, p.y + p.h / 2, 110, pm(p, 'koBlast'), '#ff7043');   // Ancient Wyrm
+  SFX.play('petKo'); showMsg(`Your ${p.d.name} is knocked out!`, 1.5);
 }
 // ----- status effects pets put on enemies -----
-function stunEnemy(e, t, imm = 2) {
+function stunEnemy(e, t, imm = 2, M) {
   if (e.stunImm > 0) return;
-  e.stunT = e.type === 'boss' ? Math.min(t, 0.4) : t; e.stunImm = e.stunT + (syn('packhunt') ? imm / 2 : imm);
+  e.stunT = e.type === 'boss' ? Math.min(t, 0.4) : t;
+  e.stunImm = e.stunT + (syn('packhunt') ? imm / 2 : imm) * (1 - Math.min(0.75, (M && M.stunImmCut) || 0));
+  if (M && M.stunAmp) e.stunAmp = Math.max(e.stunAmp || 0, M.stunAmp);
   addText(e.x + e.w / 2, e.y - 22, 'STUNNED', '#ffeb3b', 12);
 }
-function blindEnemy(e, t, keen) {
+function blindEnemy(e, t, keen, M) {
   if (!(e.blindT > 0)) addText(e.x + e.w / 2, e.y - 22, 'BLINDED', '#b0bec5', 12);
   e.blindT = Math.max(e.blindT || 0, t); e.blindBonus = Math.max(e.blindBonus || 0, keen);
+  if (M) { e.blindSlow = Math.max(e.blindSlow || 0, M.blindSlow || 0); e.blindMiss = Math.max(e.blindMiss || 0, M.blindMiss || 0); }
 }
-function poisonEnemy(e, dps, t, cloud) { e.poisonT = Math.max(e.poisonT || 0, t); e.poisonDps = Math.max(e.poisonDps || 0, dps); if (cloud) e.toadCloud = true; }
-function burnEnemy(e, dps, t) { e.burnT = Math.max(e.burnT || 0, t); e.burnDps = Math.max(e.burnDps || 0, dps); }
-// how hard an enemy hits you after blind (half) and weaken (-N)
+function poisonEnemy(e, dps, t, cloud, M) {
+  const stack = M && M.poisonStack;
+  if (stack && e.poisonT > 0) e.poisonDps = Math.min(dps * stack, (e.poisonDps || 0) + dps);   // Toad: Plague
+  else e.poisonDps = Math.max(e.poisonDps || 0, dps);
+  e.poisonT = Math.max(e.poisonT || 0, t); if (cloud) e.toadCloud = true;
+  if (M) { e.poisonAmp = Math.max(e.poisonAmp || 0, M.poisonAmp || 0); e.poisonSlow = Math.max(e.poisonSlow || 0, M.poisonSlow || 0); e.poisonJump = Math.max(e.poisonJump || 0, M.poisonJump || 0); }
+}
+function poisonFrom(p, e, t) {
+  const M = p.M || {}; poisonEnemy(e, 1 + (M.poisonDps || 0) + Math.floor(petLvl(p.item) / 3), t || 4 + (M.poisonDur || 0), !!M.spreadPoison, M);
+}
+function burnEnemy(e, dps, t, p) {
+  e.burnT = Math.max(e.burnT || 0, t); e.burnDps = Math.max(e.burnDps || 0, dps);
+  if (p && p.M) { e.burnAmp = Math.max(e.burnAmp || 0, p.M.burnAmp || 0); if (p.M.spreadBurn) e.spreadBurn = Math.max(e.spreadBurn || 0, p.M.spreadBurn); }
+}
+function markEnemy(e, p) {
+  const M = p.M || {};
+  if (!(e.markT > 0)) addText(e.x + e.w / 2, e.y - 22, 'MARKED', '#ce93d8', 12);
+  e.markDur = 4 + (M.markDur || 0); e.markT = e.markDur; e.markBonus = Math.max(e.markBonus || 0, 0.25 + (M.markPct || 0));
+  if (M.spreadMark) e.hexBurst = true;
+  if (M.markSlow) e.markSlow = Math.max(e.markSlow || 0, M.markSlow);
+  if (M.markDot) e.markDot = Math.max(e.markDot || 0, M.markDot);
+  if (M.markExplode) { e.markExplode = Math.max(e.markExplode || 0, Math.round(petDamage(p) * M.markExplode)); }
+}
+function weakenEnemy(e, p) {
+  const M = p.M || {};
+  if (!(e.weakenT > 0)) addText(e.x + e.w / 2, e.y - 22, 'WEAKENED', '#d7ccc8', 12);
+  e.weakenT = 4 + (M.weakenDur || 0); e.weakenAmt = Math.max(e.weakenAmt || 0, 1 + (M.weakenAmt || 0));
+  if (M.stealHeal) e.stealHeal = Math.max(e.stealHeal || 0, M.stealHeal);
+}
+function bleedEnemy(e, dps, t) { e.bleedT = Math.max(e.bleedT || 0, t); e.bleedDps = Math.max(e.bleedDps || 0, Math.max(1, Math.round(dps))); }
+// how hard an enemy hits you after blind (half), weaken (-N), Grand Heist (half again) and warding pets (-%)
 function enemyOutDmg(e, dmg) {
   if (!e) return dmg;
   if (e.blindT > 0) dmg = Math.ceil(dmg / 2);
-  if (e.weakenT > 0) dmg = Math.max(1, dmg - e.weakenAmt);
+  if (e.weakenT > 0) { dmg = Math.max(1, dmg - e.weakenAmt); if (TEAM().robbery) dmg = Math.ceil(dmg / 2); }
+  let ward = 0;
+  for (const p of G.pets || []) if (p.ko <= 0 && pm(p, 'ward') && Math.hypot(p.x + p.w / 2 - (e.x + e.w / 2), p.y + p.h / 2 - (e.y + e.h / 2)) < 120) ward += pm(p, 'ward');
+  if (ward) dmg = Math.max(1, Math.round(dmg * (1 - Math.min(0.6, ward))));
   return dmg;
+}
+// extra damage enemies take from the statuses on them (used by damageEnemy for every hit)
+function statusAmp(e) {
+  let k = 1;
+  if (e.markT > 0) k *= 1 + (e.markBonus || 0.25);           // Calico's mark
+  if (e.blindT > 0 && e.blindBonus) k *= 1 + e.blindBonus;    // Owl: Keen Sight
+  if (e.stunT > 0 && e.stunAmp) k *= 1 + e.stunAmp;           // Shake Down / Undermine
+  if (e.burnT > 0 && e.burnAmp) k *= 1 + e.burnAmp;           // Meltdown
+  if (e.poisonT > 0 && e.poisonAmp) k *= 1 + e.poisonAmp;     // Corrode
+  if (e.slowT > 0) { let s = 0; for (const p of G.pets || []) s = Math.max(s, pm(p, 'slowAmp')); k *= 1 + s; }   // Undermine
+  return k;
 }
 // on-death tricks (called from killEnemy)
 function petDeathEffects(e) {
   const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
   const near = r => G.enemies.filter(o => o !== e && !o.dead && attackable(o) && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) < r);
-  if (e.markT > 0 && e.hexBurst) { ring(cx, cy, 120, '#ce93d8'); for (const o of near(120)) { o.markT = Math.max(o.markT || 0, e.markDur || 4); o.markBonus = Math.max(o.markBonus || 0, e.markBonus || 0.25); o.hexBurst = true; } }
+  if (e.markT > 0 && e.hexBurst) { ring(cx, cy, 120, '#ce93d8'); for (const o of near(120)) { o.markT = Math.max(o.markT || 0, e.markDur || 4); o.markBonus = Math.max(o.markBonus || 0, e.markBonus || 0.25); for (const k of ['hexBurst', 'markSlow', 'markDot', 'markExplode']) if (e[k]) o[k] = e[k]; } }
+  if (e.markT > 0 && e.markExplode) { ring(cx, cy, 100, '#e040fb'); burst(cx, cy, '#ea80fc', 18, 240, 4); SFX.play('bomb'); for (const o of near(100)) damageEnemy(o, e.markExplode, { noCrit: true, kb: Math.sign(o.x - cx) * 160 }); }
   if (e.poisonT > 0 && e.toadCloud) { ring(cx, cy, 110, '#9ccc65'); burst(cx, cy, '#9ccc65', 16, 160, 4); for (const o of near(110)) poisonEnemy(o, e.poisonDps || 2, 4, true); }
-  if (e.weakenT > 0 && e.pickpocket) healPlayer(2);
+  if (e.burnT > 0 && e.spreadBurn) { ring(cx, cy, e.spreadBurn, '#ff7043'); for (const o of near(e.spreadBurn)) { burnEnemy(o, e.burnDps || 2, 3); o.spreadBurn = e.spreadBurn; o.burnAmp = Math.max(o.burnAmp || 0, e.burnAmp || 0); } }
+  if (e.weakenT > 0 && e.stealHeal) healPlayer(e.stealHeal);
 }
-function petsUseSkills(p, dt) {   // timed abilities: Alpha Howl, Night Shriek, boar charge
-  const it = p.item, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
-  const near = r => G.enemies.filter(o => attackable(o) && o.awake && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) < r);
-  p.skillT -= dt;
-  if (p.skillT > 0) return;
-  if (p.d.stun && tal(it, 'howl')) {
-    const es = near(140); p.skillT = es.length ? 10 : 1;
-    if (es.length) { ring(cx, cy, 140, '#fff59d'); SFX.play('howl'); for (const o of es) { o.stunImm = 0; stunEnemy(o, 1); } }
-  } else if (p.d.blind && tal(it, 'shriek')) {
-    const es = near(180); p.skillT = es.length ? 12 : 1;
-    if (es.length) { ring(cx, cy, 180, '#cfd8dc'); SFX.play('chirp'); for (const o of es) blindEnemy(o, 2 + tal(it, 'blindlong'), 0.15 * tal(it, 'keen')); }
-  } else p.skillT = 1;
+// your shield (from pet talents): soaks up damage before your health
+function giveShield(n) {
+  const P = G.player; n = Math.round(n * (1 + TEAM().shieldAmp)); if (n <= 0) return;
+  P.shield = Math.min(Math.max(6, Math.round(stats.maxHp * 0.6)), (P.shield || 0) + n);
+  addText(P.x + P.w / 2, P.y - 22, '+' + n + ' SHIELD', '#81d4fa', 13);
+}
+// a pet's area hit (Ancient Wyrm, Foxfire, Starfall...)
+function petBlast(p, x, y, r, mult, color, fx) {
+  ring(x, y, r, color); burst(x, y, color, 16, 220, 4);
+  for (const o of G.enemies) if (attackable(o) && Math.hypot(o.x + o.w / 2 - x, o.y + o.h / 2 - y) < r) {
+    damageEnemy(o, Math.max(1, Math.round(petDamage(p) * mult)), { noCrit: true, kb: Math.sign(o.x + o.w / 2 - x) * 160 });
+    if (fx && !o.dead) fx(o);
+    if (o.dead) petOnKill(p, o);
+  }
+}
+// timed talent skills: howls, shrieks, shields, cyclones, meteors...
+function petsUseSkills(p, dt) {
+  p.pt = p.pt || {};
+  for (const id in p.M.pulses) {
+    const q = p.M.pulses[id];
+    p.pt[id] = (p.pt[id] ?? Math.min(3, q.every)) - dt;
+    if (p.pt[id] > 0) continue;
+    const P = G.player, cx = q.center === 'player' ? P.x + P.w / 2 : p.x + p.w / 2, cy = q.center === 'player' ? P.y + P.h / 2 : p.y + p.h / 2;
+    const es = G.enemies.filter(o => attackable(o) && o.awake && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) < q.r);
+    if (!es.length) { p.pt[id] = 0.5; continue; }   // only in a fight
+    p.pt[id] = q.every;
+    firePulse(p, q, es, cx, cy);
+  }
+}
+function firePulse(p, q, es, cx, cy) {
+  const M = p.M, P = G.player, pd = petDamage(p);
+  if (!q.quiet) { if (q.color && !q.sink && !q.cone && !q.starfall && !q.spiral) ring(cx, cy, Math.min(q.r, 260), q.color); if (q.sfx) SFX.play(q.sfx); }
+  if (q.devour) {   // Toad: Devour
+    const v = es.filter(e => e.type !== 'boss' && e.hp < e.maxHp * q.devour).sort((a, b) => a.hp - b.hp)[0];
+    if (!v) { p.pt.devour = 1; return; }
+    p.tongue = { x: v.x + v.w / 2, y: v.y + v.h / 2, t: 0.3 }; addText(v.x + v.w / 2, v.y - 22, 'DEVOURED', '#f48fb1', 14);
+    v.hp = 0; killEnemy(v); petOnKill(p, v); healPlayer(3); return;
+  }
+  if (q.spiral) {   // Owl: Death Spiral
+    const v = es.slice().sort((a, b) => b.hp - a.hp)[0];
+    p.x = v.x + v.w / 2 - p.w / 2; p.y = v.y - p.h - 4; ring(v.x + v.w / 2, v.y + v.h / 2, 70, q.color);
+    addText(v.x + v.w / 2, v.y - 26, 'DEATH SPIRAL', '#ffcc80', 14);
+    damageEnemy(v, Math.round(pd * q.spiral), { noCrit: true, kb: 0 }); if (v.dead) petOnKill(p, v); return;
+  }
+  if (q.starfall) {   // Dragon: Starfall
+    for (let i = 0; i < q.starfall; i++) { const v = pick(es); if (!v) break; const x = v.x + v.w / 2 + rand(-20, 20), y = v.y + v.h / 2;
+      petBlast(p, x, y, 55, 2, '#ea80fc', o => burnEnemy(o, Math.ceil(pd / 2), 3, p)); }
+    return;
+  }
+  if (q.brace) { p.braceT = q.brace; addText(p.x + p.w / 2, p.y - 14, 'BRACED', '#90caf9', 13); return; }   // Boar: Unbreakable
+  if (q.eclipse) { G.eclipseT = q.eclipse; showMsg('Night falls!', 1.2); }
+  let tx = cx, ty = cy, R = q.r, hit = es;
+  if (q.sink) {   // Ferret: Sinkhole under the biggest pack of enemies
+    let best = es[0], bn = 0;
+    for (const e of es) { const n = es.filter(o => Math.hypot(o.x - e.x, o.y - e.y) < q.sink).length; if (n > bn) { bn = n; best = e; } }
+    tx = best.x + best.w / 2; ty = best.y + best.h; R = q.sink; ring(tx, ty - 10, R, q.color); G.shake = Math.max(G.shake, 6);
+    hit = G.enemies.filter(o => attackable(o) && Math.hypot(o.x + o.w / 2 - tx, o.y + o.h - ty) < R);
+  }
+  if (q.cone) {   // Dragon's Breath: everything in front of it
+    const t0 = es.slice().sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0], dir = Math.sign(t0.x + t0.w / 2 - cx) || p.face;
+    p.face = dir; hit = es.filter(o => Math.sign(o.x + o.w / 2 - cx) === dir && Math.abs(o.y + o.h / 2 - cy) < 110);
+    for (let i = 0; i < 26; i++) G.parts.push({ x: cx, y: cy, vx: dir * rand(250, 520), vy: rand(-90, 90), life: 0.45, max: 0.45, color: pick(['#ff7a2a', '#ffcf5a', '#ff3d00']), size: rand(3, 6), grav: -30 });
+  }
+  for (const e of hit) {
+    if (e.dead) continue;
+    if (q.pull && e.type !== 'boss') e.kbx += Math.sign(tx - (e.x + e.w / 2)) * Math.min(520, Math.abs(tx - (e.x + e.w / 2)) * 4);
+    if (q.dmg) { damageEnemy(e, Math.max(1, Math.round(pd * q.dmg)), { noCrit: true, kb: q.pull ? 0 : Math.sign(e.x + e.w / 2 - tx) * 140 }); if (e.dead) { petOnKill(p, e); continue; } }
+    if (q.stun) { e.stunImm = 0; stunEnemy(e, q.stun === 1 ? 1 + (M.stunDur || 0) : q.stun, 2, M); }
+    if (q.blind) blindEnemy(e, 2 + (M.blindDur || 0), M.blindAmp || 0, M);
+    if (q.mark) markEnemy(e, p);
+    if (q.burn) burnEnemy(e, q.burnDps || Math.max(1, Math.ceil(pd / 2 * (1 + (M.burnPct || 0)))), q.burn, p);
+    if (q.poison) poisonFrom(p, e, q.poison);
+    if (q.slow) e.slowT = Math.max(e.slowT || 0, q.slow);
+  }
+  if (q.shield) giveShield(q.shield);
+  if (q.rally) { G.rallyT = q.rally; addText(P.x + P.w / 2, P.y - 30, 'RALLY!', '#ffd54f', 15); }
+  if (q.healPetsFull) for (const o of G.pets) if (o.ko <= 0) o.hp = o.maxHp;
+}
+// a pet's kill: Bone Whistle, Scavenger, Feral/Berserk, Bloodlust, War Pig, Death From the Shadows
+function petOnKill(p, e) {
+  if (!e.dead || e._petKill) return; e._petKill = true;
+  const M = p.M || {};
+  if (stats.petLifeKill) healPlayer(stats.petLifeKill);   // Bone Whistle
+  if (M.killHeal) healPlayer(M.killHeal);
+  if (M.killFrenzy) { if (!(p.frenzyT > 0)) addText(p.x + p.w / 2, p.y - 14, 'FRENZY', '#ef5350', 13); p.frenzyT = 4; }
+  if (M.killHaste) p.killHasteT = 3;
+  if (M.chargeReset) p.chargeCd = 0;
+  if (M.killBlink) {
+    p.cd = 0;
+    const cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+    const n = G.enemies.filter(o => attackable(o) && o.awake && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) < 260).sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy))[0];
+    if (n) { burst(cx, cy, '#546e7a', 10, 140); p.x = n.x + n.w / 2 - n.face * 20 - p.w / 2; p.y = n.y + n.h - p.h; p.vx = p.vy = 0; p.trailT = undefined; burst(p.x + p.w / 2, p.y + p.h / 2, '#546e7a', 10, 140); }
+  }
+}
+// your crits (Calico's Blessing, Nine Tails)
+function petsOnPlayerCrit(e) {
+  const T = TEAM();
+  if (T.critBless) { healPlayer(1); if (!e.dead) { const c = (G.pets || []).find(p => p.d.mark) || (G.pets || [])[0]; if (c) markEnemy(e, c); } }
+  if (T.nineTails) { healPlayer(1); for (const p of G.pets || []) if (pm(p, 'nineTails')) p.sureCrit = true; }
+}
+// one strike from a pet, with everything its talents add
+function petHit(p, tgt, mult, primary) {
+  if (tgt.dead) return;
+  const M = p.M || {}, T = TEAM(), cx = p.x + p.w / 2;
+  let pd = petDamage(p) * mult;
+  if (p.d.finisher && (tgt.hp < tgt.maxHp * (0.5 + (M.finPct || 0)) || (syn('clowder') && tgt.markT > 0))) { pd *= 2 + (M.finMul || 0); addText(tgt.x + tgt.w / 2, tgt.y - 22, 'FINISHER', '#cfd8dc', 12); }
+  const seen = tgt.petSeen || (tgt.petSeen = []), first = !seen.includes(p); if (first) seen.push(p);
+  if (first && M.ambush) pd *= 1 + M.ambush;          // Pounce
+  if (first && M.swoop) pd *= 1 + M.swoop;            // Swoop
+  if (M.cuts) { tgt.cuts = (tgt.cuts || 0) + 1; pd *= 1 + Math.min(3, (tgt.cuts - 1) * M.cuts); }   // Thousand Cuts
+  if (T.robbery && tgt.weakenT > 0) pd *= 1.25;        // Grand Heist
+  const critCh = (p.d.crit ? 0.3 : 0) + (M.crit || 0) + T.crit + (T.ladyLuck ? 0.15 : 0);
+  const crit = Math.random() < critCh || (first && M.ambushCrit) || p.sureCrit || (syn('packhunt') && p.d.crit && tgt.stunT > 0);
+  if (crit) {
+    p.sureCrit = false;
+    let k = (p.d.crit ? 3 : 2) + (M.critMul || 0); if (T.ladyLuck) k = Math.max(k, 3);
+    pd *= k; addText(tgt.x + tgt.w / 2, tgt.y - 22, 'CRIT x' + (+k.toFixed(1)), '#ffab40', 13);
+  }
+  pd = Math.max(1, Math.round(pd));
+  const before = tgt.hp;
+  damageEnemy(tgt, pd, { kb: (p.face || 1) * p.d.kb * (1 + (M.kb || 0)) * mult, fromX: cx, noCrit: true });
+  const dealt = Math.max(0, before - Math.max(0, tgt.hp));
+  if (M.lifesteal && dealt) petHeal(p, dealt * M.lifesteal);
+  if (crit) {
+    if (M.critInv) p.inv = Math.max(p.inv, M.critInv);
+    if (M.critBlind && !tgt.dead) blindEnemy(tgt, M.critBlind, M.blindAmp || 0, M);
+    if (M.foxfire) petBlast(p, tgt.x + tgt.w / 2, tgt.y + tgt.h / 2, 80, pd / petDamage(p), '#ff6d00', o => burnEnemy(o, Math.ceil(pd / 4), 3, p));
+  }
+  if (!tgt.dead && M.execute && tgt.type !== 'boss' && tgt.hp < tgt.maxHp * Math.min(0.4, M.execute)) {
+    addText(tgt.x + tgt.w / 2, tgt.y - 30, M.execHeal ? 'GULP!' : 'EXECUTED', '#ef5350', 13); tgt.hp = 0; killEnemy(tgt); if (M.execHeal) healPlayer(M.execHeal);
+  }
+  if (!tgt.dead) petStatuses(p, tgt, primary, first, dealt);
+  if (tgt.dead) petOnKill(p, tgt);
+}
+function petStatuses(p, tgt, primary, first, dealt) {
+  const M = p.M || {};
+  if (p.d.stun) stunEnemy(tgt, 0.9 + (M.stunDur || 0), 2, M);
+  else if (M.stunCh && Math.random() < M.stunCh) stunEnemy(tgt, 0.8, 2, M);
+  if (primary && M.grip) stunEnemy(tgt, M.grip, 1, M);
+  if (first && M.ambushStun) { tgt.stunImm = 0; stunEnemy(tgt, M.ambushStun, 2, M); }
+  if (p.d.mark) markEnemy(tgt, p);
+  if (p.d.blind || (M.blindCh && Math.random() < M.blindCh)) blindEnemy(tgt, 2 + (M.blindDur || 0), M.blindAmp || 0, M);
+  if (p.d.weaken) weakenEnemy(tgt, p);
+  if (p.d.poison) poisonFrom(p, tgt);
+  if (M.bleed && dealt) bleedEnemy(tgt, dealt * M.bleed, 3);
+  if (M.slowCh && Math.random() < M.slowCh) tgt.slowT = Math.max(tgt.slowT || 0, 2);
+  if (M.pull && tgt.type !== 'boss') tgt.kbx += Math.sign(p.x + p.w / 2 - (tgt.x + tgt.w / 2)) * Math.min(560, Math.abs(p.x - tgt.x) * 5);   // Toad: Yank
+  if (M.chaos) {   // Calico: Chaos Cat
+    const k = Math.floor(Math.random() * 5);
+    if (k === 0) stunEnemy(tgt, 0.8, 2, M); else if (k === 1) blindEnemy(tgt, 2, 0, M); else if (k === 2) burnEnemy(tgt, Math.max(1, Math.ceil(petDamage(p) / 2)), 3, p);
+    else if (k === 3) poisonEnemy(tgt, 1 + Math.floor(petLvl(p.item) / 3), 4, false, M); else weakenEnemy(tgt, p);
+  }
 }
 function boarCharge(p, tgt, dt) {
-  const it = p.item;
+  const M = p.M || {};
   if (p.chargeT > 0) {   // thundering forward: hits everything it passes through
     p.chargeT -= dt; p.vx = p.chargeDir * 640; moveBody(p, dt, false); p.face = p.chargeDir;
     if (Math.random() < 0.7) G.parts.push({ x: p.x + p.w / 2 - p.chargeDir * 14, y: p.y + p.h, vx: -p.chargeDir * 60, vy: rand(-60, -10), life: 0.35, max: 0.35, color: '#8d6e63', size: rand(3, 5), grav: 200 });
     for (const e of G.enemies) if (attackable(e) && !p.chargeHit.has(e) && overlap(p, e)) {
-      p.chargeHit.add(e); damageEnemy(e, Math.round(petDamage(p) * 1.5 * (1 + 0.3 * tal(it, 'gore'))), { kb: p.chargeDir * 420, fromX: p.x + p.w / 2 - p.chargeDir * 30, noCrit: true });
+      p.chargeHit.add(e);
+      damageEnemy(e, Math.round(petDamage(p) * 1.5 * (1 + (M.chargeDmg || 0)) * (1 + p.chargeBonus)), { kb: p.chargeDir * (M.juggernaut ? 820 : 420), fromX: p.x + p.w / 2 - p.chargeDir * 30, noCrit: true });
+      p.chargeBonus += M.momentum || 0;
+      if (!e.dead && M.chargeStun) { e.stunImm = 0; stunEnemy(e, M.chargeStun, 1, M); }
+      if (e.dead) petOnKill(p, e);
       G.shake = Math.max(G.shake, 3); SFX.play('thud');
     }
     if (p.chargeT <= 0 || p.hitWall) {
       p.chargeT = 0;
-      if (tal(it, 'quake')) { const cx = p.x + p.w / 2, by = p.y + p.h; ring(cx, by - 10, 90, '#bcaaa4'); G.shake = Math.max(G.shake, 6); SFX.play('slam');
-        for (const e of G.enemies) if (attackable(e) && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h - by) < 90) stunEnemy(e, 0.8); }
+      if (M.quake) { const cx = p.x + p.w / 2, by = p.y + p.h; ring(cx, by - 10, 90, '#bcaaa4'); G.shake = Math.max(G.shake, 6); SFX.play('slam');
+        for (const e of G.enemies) if (attackable(e) && Math.hypot(e.x + e.w / 2 - cx, e.y + e.h - by) < 90) stunEnemy(e, 0.8, 2, M); }
     }
     return true;
   }
@@ -2820,39 +3329,79 @@ function boarCharge(p, tgt, dt) {
   if (tgt && p.chargeCd <= 0 && p.onGround) {
     const dx = tgt.x + tgt.w / 2 - (p.x + p.w / 2);
     if (Math.abs(dx) < 280 && Math.abs(dx) > 30 && Math.abs(tgt.y + tgt.h - (p.y + p.h)) < 40) {
-      p.chargeT = 0.5; p.chargeDir = Math.sign(dx); p.chargeHit = new Set(); p.chargeCd = 5 - tal(it, 'stampede'); SFX.play('growl');
+      p.chargeT = (0.5 + (M.chargeLen || 0)) * (M.juggernaut ? 2 : 1); p.chargeDir = Math.sign(dx); p.chargeHit = new Set(); p.chargeBonus = 0;
+      p.chargeCd = Math.max(1.5, 5 - (M.chargeCd || 0)); SFX.play('growl');
+      if (M.juggernaut) giveShield(4);
       addText(p.x + p.w / 2, p.y - 12, 'CHARGE!', '#ffab91', 12); return true;
     }
   }
   return false;
 }
 function petBite(p, tgt) {
-  const it = p.item, cx = p.x + p.w / 2;
-  let pd = petDamage(p);
-  const wounded = tgt.hp < tgt.maxHp * (0.5 + 0.1 * tal(it, 'instinct')) || (syn('clowder') && tgt.markT > 0);
-  if (p.d.finisher && wounded) { pd *= 2; addText(tgt.x + tgt.w / 2, tgt.y - 22, 'FINISHER', '#cfd8dc', 12); }
-  if (p.d.crit) {   // Fox: opportunist crits, Ambush, Pack Hunt
-    const first = !tgt.foxBitten; tgt.foxBitten = true;
-    let k = 1;
-    if (Math.random() < 0.3 + 0.1 * tal(it, 'sly') || (first && tal(it, 'ambush'))) k = 3;
-    if (syn('packhunt') && tgt.stunT > 0) k = 3;
-    if (k > 1) { pd *= k; addText(tgt.x + tgt.w / 2, tgt.y - 22, 'CRIT x3', '#ffab40', 13); }
+  const M = p.M || {}, cx = p.x + p.w / 2;
+  if (M.king) p.kingT = 1;
+  petHit(p, tgt, 1, true);
+  if (M.double && !tgt.dead && Math.random() < Math.min(0.8, M.double)) petHit(p, tgt, 1, false);
+  const near = (r, c) => G.enemies.filter(o => o !== c && attackable(o) && Math.hypot(o.x + o.w / 2 - (c.x + c.w / 2), o.y + o.h / 2 - (c.y + c.h / 2)) < r);
+  if (M.cleave) for (const o of near(60, tgt).slice(0, 3)) petHit(p, o, M.cleave, false);
+  if (M.chain) for (const o of near(130, tgt).slice(0, M.chain)) { petHit(p, o, 0.5, false); burst(o.x + o.w / 2, o.y + o.h / 2, '#f48fb1', 5, 90, 2); }
+  if (M.spin && (p.spinN = (p.spinN || 0) + 1) % 3 === 0) {   // Fox: Whirlwind
+    ring(cx, p.y + p.h / 2, 75, '#ffe082'); SFX.play('swing');
+    for (const o of G.enemies.filter(o => attackable(o) && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - (p.y + p.h / 2)) < 75)) petHit(p, o, M.spin, false);
   }
-  damageEnemy(tgt, pd, { kb: (p.face || 1) * p.d.kb, fromX: cx, noCrit: true });
-  if (!tgt.dead) {
-    if (p.d.stun) stunEnemy(tgt, 0.9 + 0.25 * tal(it, 'pin'));
-    if (p.d.mark) {
-      if (!(tgt.markT > 0)) addText(tgt.x + tgt.w / 2, tgt.y - 22, 'MARKED', '#ce93d8', 12);
-      tgt.markDur = 4 + 1.5 * tal(it, 'linger'); tgt.markT = tgt.markDur; tgt.markBonus = 0.25 + 0.1 * tal(it, 'deepmark'); if (tal(it, 'hexburst')) tgt.hexBurst = true;
-    }
-    if (p.d.blind) blindEnemy(tgt, 2 + tal(it, 'blindlong'), 0.15 * tal(it, 'keen'));
-    if (p.d.weaken) { if (!(tgt.weakenT > 0)) addText(tgt.x + tgt.w / 2, tgt.y - 22, 'WEAKENED', '#d7ccc8', 12); tgt.weakenT = 4; tgt.weakenAmt = Math.max(tgt.weakenAmt || 0, 1 + tal(it, 'sap')); if (tal(it, 'pickpocket')) tgt.pickpocket = true; }
-    if (p.d.poison) poisonEnemy(tgt, 1 + tal(it, 'venom') + Math.floor(petLvl(it) / 3), 4, tal(it, 'cloud') > 0);
-  } else if (p.d.finisher && tal(it, 'bloodlust')) p.frenzyT = 3;
+  if (M.frenzyStack) { p.fstk = Math.min(10, (p.fstk || 0) + 1); p.fstkT = 3; }
   if (p.d.poison) p.tongue = { x: tgt.x + tgt.w / 2, y: tgt.y + tgt.h / 2, t: 0.15 };
-  if (tgt.dead && stats.petLifeKill) healPlayer(stats.petLifeKill);   // Bone Whistle
   p.cd = petCooldown(p); p.atkT = Math.min(p.d.atk || 0.3, p.cd);
   if (inView(cx, p.y)) SFX.play(p.item.def.pet === 'dog' ? 'bark' : p.d.fly ? 'chirp' : p.d.charge ? 'growl' : p.d.poison ? 'slimeHop' : 'meow');
+}
+// a hit coming your way: bracing/guarding pets soak some of it, then your shield, then Last Line
+function petsTakeHit(dealt, src) {
+  const P = G.player, near = (G.pets || []).filter(p => p.ko <= 0 && Math.hypot(p.x + p.w / 2 - (P.x + P.w / 2), p.y - P.y) < 320);
+  const brace = near.find(p => p.braceT > 0);
+  if (brace) { addText(brace.x + brace.w / 2, brace.y - 12, 'SOAKED', '#90caf9', 12); SFX.play('clank'); return 0; }   // Boar: Unbreakable
+  let g = 0; for (const p of near) g += pm(p, 'guard');
+  if (g > 0) {   // Bodyguard, Wing Shelter, Guard Duty
+    const share = Math.min(dealt, Math.round(dealt * Math.min(0.6, g)));
+    if (share > 0) { for (const p of near) if (pm(p, 'guard')) hurtPet(p, Math.max(1, Math.round(share * pm(p, 'guard') / g)), src); dealt -= share; }
+  }
+  if (P.shield > 0 && dealt > 0) {
+    const a = Math.min(P.shield, dealt); P.shield -= a; dealt -= a;
+    addText(P.x + P.w / 2, P.y - 8, 'SHIELD -' + a, '#81d4fa', 14); burst(P.x + P.w / 2, P.y + P.h / 2, '#81d4fa', 8, 160, 3);
+    if (TEAM().aegis && src && src.d && !src.dead) { damageEnemy(src, a * 2, { noCrit: true, kb: Math.sign(src.x - P.x) * 200 }); if (!src.dead) { src.stunImm = 0; stunEnemy(src, 1); } }   // Aegis
+  }
+  if (dealt > 0 && P.hp - dealt <= 0) {   // Shepherd: Last Line
+    const dog = near.find(p => pm(p, 'lastLine') && floorUse(p, 'lastLine'));
+    if (dog) {
+      dog.hp = 0; dog.ko = 6; SFX.play('petKo'); P.inv = 2; ring(P.x + P.w / 2, P.y + P.h / 2, 90, '#90caf9');
+      showMsg(`Last Line! Your ${dog.d.name} took the blow for you.`, 2); return 0;
+    }
+  }
+  return dealt;
+}
+// a dragon fireball landing (called from the projectile code)
+function petFireHit(q, e, cx, cy) {
+  const p = q.pet, M = (p && p.M) || {};
+  damageEnemy(e, q.dmg, { kb: Math.sign(q.vx) * 90, fromX: cx - Math.sign(q.vx) * 60, noCrit: true });
+  if (e.dead && p) petOnKill(p, e);
+  const bdps = Math.max(1, Math.ceil(q.dmg / 2 * (1 + (M.burnPct || 0)))), dur = 3 + (M.burnDur || 0);
+  if (!e.dead) burnEnemy(e, bdps, dur, p);   // Dragon: sets enemies on fire
+  if (M.inferno) { ring(cx, cy, 70, '#ff7043'); burst(cx, cy, '#ff9100', 16, 220, 4); for (const o of G.enemies) if (o !== e && attackable(o) && Math.hypot(o.x + o.w / 2 - cx, o.y + o.h / 2 - cy) < 70) burnEnemy(o, bdps, dur, p); }
+}
+function dragonShoot(p, tgt) {
+  const M = p.M || {}, cx = p.x + p.w / 2, cy = p.y + p.h / 2, ex = tgt.x + tgt.w / 2, ey = tgt.y + tgt.h / 2;
+  const a = Math.atan2(ey - cy, ex - cx), sp = 380 * (1 + (M.projSpeed || 0)), sz = M.projSize ? 32 : 16;
+  let dmg = petDamage(p), mega = false;
+  p.shots = (p.shots || 0) + 1;
+  if (M.mega && p.shots % 4 === 0) { dmg = Math.round(dmg * (1 + M.mega)); mega = true; }
+  const critCh = (M.crit || 0) + TEAM().crit + (TEAM().ladyLuck ? 0.15 : 0);
+  if (Math.random() < critCh) { let k = 2 + (M.critMul || 0); if (TEAM().ladyLuck) k = Math.max(k, 3); dmg = Math.round(dmg * k); }
+  const n = 1 + (M.multishot || 0);
+  for (let i = 0; i < n; i++) {
+    const aa = a + (i - (n - 1) / 2) * 0.2;
+    G.proj.push({ friendly: true, kind: 'petfire', pet: p, x: cx - sz / 2, y: cy - sz / 2, w: mega ? sz * 1.5 : sz, h: mega ? sz * 1.5 : sz, vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp, dmg, life: 1.6 + (M.range || 0) / 400,
+                  pierce: M.pierce || 0, hitSet: new Set(), big: !!M.projSize || mega });
+  }
+  p.cd = petCooldown(p); p.atkT = 0.35; if (inView(cx, cy)) SFX.play('fireball');
 }
 // ---- pet idle behaviour helpers ----
 function navDistAt(o) { const R = G.room; if (!R.navDist) return 0; const k = Math.floor((o.y + o.h - 2) / TILE) * R.cols + Math.floor((o.x + o.w / 2) / TILE); return R.navDist[k] ?? -1; }
@@ -2977,9 +3526,16 @@ function updatePets(dt) {
   G.stillT = moving ? 0 : (G.stillT || 0) + dt;   // pets relax once you've stood still for a moment
   if (P.face !== G.lastPFace) { G.lastPFace = P.face; G.faceT = 0; } else G.faceT = (G.faceT || 0) + dt;
   const rd = Math.abs(P.vx) > 40 ? Math.sign(P.vx) : 0; if (rd && rd === G.runDir) G.runDirT = (G.runDirT || 0) + dt; else if (rd) { G.runDir = rd; G.runDirT = 0; }
+  // team-wide talent timers: Pack Leader / Anthem rally, Eternal Night, Sanctuary bubble, Purr / Mend regeneration
+  G.rallyT = (G.rallyT || 0) - dt; G.eclipseT = (G.eclipseT || 0) - dt; P.bubbleT = (P.bubbleT || 0) - dt;
+  const T = TEAM();
+  if (T.pRegen && G.mode === 'play') { G.regenT = (G.regenT || 0) + dt; if (G.regenT >= 8) { G.regenT = 0; if (P.hp < stats.maxHp) healPlayer(T.pRegen); } }
   for (const p of G.pets) {
-    const it = p.item;
+    const it = p.item; if (!p.M) p.M = petMods(it);
     p.phase += dt; p.cd -= dt * (RUN.buffs.catnip > 0 ? 2 : 1); p.atkT -= dt; p.inv -= dt; p.frenzyT = (p.frenzyT || 0) - dt;
+    p.killHasteT = (p.killHasteT || 0) - dt; p.ninthT = (p.ninthT || 0) - dt; p.ninthCd = (p.ninthCd || 0) - dt; p.braceT = (p.braceT || 0) - dt;
+    if (p.fstk && (p.fstkT -= dt) <= 0) p.fstk = 0;   // Ferret: Frenzy stacks fade
+    if (pm(p, 'regen') && p.ko <= 0) petHeal(p, p.maxHp * pm(p, 'regen') * dt);   // Toad: Regrowth
     if (p.tongue) { p.tongue.t -= dt; if (p.tongue.t <= 0) p.tongue = null; }
     // smooth animation clocks: advance at a steady rate instead of jumping with every speed change
     const spd = Math.abs(p.vx);
@@ -3022,7 +3578,7 @@ function updatePets(dt) {
       burst(p.x + p.w / 2, p.y + p.h / 2, p.d.color, 8, 120);
       continue;
     }
-    const spMul = 1 + 0.12 * tal(it, 'swift');
+    const spMul = 1 + pm(p, 'speed');
     if (p.d.fly) { // flyers glide freely (through walls)
       let tx = hx, ty = hy + Math.sin(p.phase * 3) * 6;
       if (tgt) {
@@ -3045,7 +3601,7 @@ function updatePets(dt) {
       p.perched = relax && p.wander && p.wander.perch && d < 8;
       p.resting = p.perched;
     } else {        // ground pets
-      const reach = p.d.reach + 25 * tal(it, 'tongue');
+      const reach = p.d.reach + pm(p, 'reach');
       const sameLevel = Math.abs(P.y + P.h - (p.y + p.h)) < 24;
       p.dropT = (p.dropT || 0) - dt;
       if (tgt || relax) p.trailT = undefined;
@@ -3082,29 +3638,39 @@ function updatePets(dt) {
     if (tgt && p.cd <= 0) {
       const ex = tgt.x + tgt.w / 2, ey = tgt.y + tgt.h / 2;
       if (p.d.ranged) {
-        if (Math.hypot(ex - cx, ey - cy) < p.d.ranged) {
-          const a = Math.atan2(ey - cy, ex - cx);
-          G.proj.push({ friendly: true, kind: 'petfire', x: cx - 8, y: cy - 8, w: 16, h: 16, vx: Math.cos(a) * 380, vy: Math.sin(a) * 380, dmg: petDamage(p), life: 1.6,
-                        burnMul: 1 + 0.5 * tal(it, 'sear'), inferno: tal(it, 'inferno') > 0 });
-          p.cd = petCooldown(p); p.atkT = 0.35; if (inView(cx, cy)) SFX.play('fireball');
-        }
+        if (Math.hypot(ex - cx, ey - cy) < p.d.ranged + pm(p, 'range')) dragonShoot(p, tgt);
       } else {
-        const reach = p.d.reach + 25 * tal(it, 'tongue');
+        const reach = p.d.reach + pm(p, 'reach');
         if (overlap({ x: p.x - reach / 2, y: p.y - 6, w: p.w + reach, h: p.h + 12 }, tgt)) petBite(p, tgt);
       }
     }
     // the cockatiel heals you every few seconds (and saves you once per floor with Guardian Wings)
     if (p.d.heal) {
       p.healT -= dt;
-      if (p.healT <= 0) { p.healT = p.d.heal - tal(it, 'tempo'); if (P.hp < stats.maxHp && G.mode === 'play') { healPlayer(Math.max(1, Math.round(petMult(it))) + tal(it, 'song')); SFX.play('chirp'); burst(P.x + P.w / 2, P.y, '#fff59d', 8, 90); } }
-      if (tal(it, 'guardwings') && P.hp > 0 && P.hp < stats.maxHp * 0.3 && !G.room.wingsUsed && G.mode === 'play') {
+      if (p.healT <= 0 && G.mode === 'play') {
+        p.healT = Math.max(2, p.d.heal - pm(p, 'healEvery'));
+        const amt = Math.max(1, Math.round(petMult(it))) + pm(p, 'healAmt');
+        let sang = false;
+        if (P.hp < stats.maxHp) { healPlayer(amt + Math.round((stats.maxHp - P.hp) * pm(p, 'healMissing'))); sang = true; }
+        else if (pm(p, 'healShield') && (P.shield || 0) < pm(p, 'healShield')) { giveShield(Math.min(amt, pm(p, 'healShield') - (P.shield || 0))); sang = true; }   // Overflow
+        if (pm(p, 'healPets')) for (const o of G.pets) if (o !== p && o.ko <= 0 && o.hp < o.maxHp) { petHeal(o, pm(p, 'healPets')); sang = true; }   // Duet
+        if (sang) { SFX.play('chirp'); burst(P.x + P.w / 2, P.y, '#fff59d', 8, 90); }
+      }
+      if (pm(p, 'guardWings') && P.hp > 0 && P.hp < stats.maxHp * 0.3 && !G.room.wingsUsed && G.mode === 'play') {
         G.room.wingsUsed = true; healPlayer(Math.ceil(stats.maxHp * 0.3)); ring(P.x + P.w / 2, P.y + P.h / 2, 80, '#fff59d'); showMsg('Guardian Wings!', 1.4); SFX.play('rest');
       }
     }
     // enemies hurt pets they touch, and enemy shots can hit them
-    for (const e of G.enemies) { const c2 = contactDamage(e); if (c2 > 0 && overlap(e, p)) hurtPet(p, Math.max(1, enemyOutDmg(e, c2) - 1)); }
+    for (const e of G.enemies) { const c2 = contactDamage(e); if (c2 > 0 && overlap(e, p)) hurtPet(p, Math.max(1, enemyOutDmg(e, c2) - 1), e); }
     for (const q of G.proj) if (!q.friendly && overlap(q, p)) hurtPet(p, enemyOutDmg(q.owner, q.dmg));
   }
+}
+// your pet-talent shield and the Sanctuary bubble
+function drawPlayerWard() {
+  const P = G.player; if (!P) return;
+  const cx = P.x + P.w / 2, cy = P.y + P.h / 2;
+  if (P.bubbleT > 0) { ctx.fillStyle = 'rgba(179,157,219,0.18)'; ctx.strokeStyle = `rgba(206,147,216,${0.6 + 0.3 * Math.sin(TIME * 8)})`; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(cx, cy, 40, 0, 7); ctx.fill(); ctx.stroke(); }
+  else if (P.shield > 0) { ctx.strokeStyle = `rgba(129,212,250,${0.35 + 0.15 * Math.sin(TIME * 4)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 34, 0, 7); ctx.stroke(); }
 }
 function drawPets() {
   for (const p of G.pets || []) {
@@ -3126,6 +3692,10 @@ function drawPets() {
     const y = p.d.fly && p.ko <= 0 ? p.y + p.h / 2 : p.y + p.h + 1;
     if (!p.d.fly || p.perched) footShadow(cx, p.y + p.h, p.w * 0.5, p.onGround || p.perched ? 0.8 : 0.4);
     const pf = p.vface ?? p.face;
+    if (pm(p, 'king')) o.scale = PX * 1.6;                              // Toad King: giant
+    if (p.ninthT > 0) o.alpha = 0.55 + 0.3 * Math.sin(TIME * 12);       // Ninth Life: ghostly
+    if (p.braceT > 0 && p.ko <= 0) { ctx.strokeStyle = `rgba(144,202,249,${0.5 + 0.3 * Math.sin(TIME * 10)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, p.y + p.h / 2, Math.max(p.w, p.h) * 0.8, 0, 7); ctx.stroke(); }
+    if (p.frenzyT > 0 && pm(p, 'killFrenzy') && Math.random() < 0.3) G.parts.push({ x: cx + rand(-8, 8), y: p.y + rand(0, p.h), vx: 0, vy: -50, life: 0.35, max: 0.35, color: '#ef5350', size: 3, grav: 0 });
     if (!drawAnim(sheet, anim, i, cx, y, pf, o) && !drawAnim(p.d.anim, p.d.fly ? 'fly' : 'idle', i, cx, y, pf, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if (p.ko > 0) { ctx.fillStyle = '#ffeb3b'; ctx.font = `bold 12px ${UI}`; ctx.fillText('z', cx + 8 + Math.sin(TIME * 3) * 3, p.y - 6 - (TIME * 10) % 10); }
@@ -3943,10 +4513,10 @@ function drawEnemy(e) {
 
 function drawProj(p) {
   if (p.kind === 'fire' || p.kind === 'orb' || p.kind === 'petfire') { // glowing fireballs and shadow orbs
-    const cx = p.x + p.w / 2, cy = p.y + p.h / 2, rgb = p.kind === 'fire' ? '255,120,40' : '179,136,255';
-    const gl = ctx.createRadialGradient(cx, cy, 1, cx, cy, 18); gl.addColorStop(0, `rgba(${rgb},0.95)`); gl.addColorStop(1, `rgba(${rgb},0)`);
-    ctx.fillStyle = gl; ctx.fillRect(cx - 18, cy - 18, 36, 36);
-    ctx.fillStyle = p.kind === 'fire' ? '#ffe082' : '#ede7f6'; ctx.beginPath(); ctx.arc(cx, cy, 4 + Math.sin(TIME * 30) * 0.8, 0, 7); ctx.fill();
+    const cx = p.x + p.w / 2, cy = p.y + p.h / 2, rgb = p.kind === 'fire' ? '255,120,40' : '179,136,255', k = p.big ? p.w / 16 : 1;
+    const gl = ctx.createRadialGradient(cx, cy, 1, cx, cy, 18 * k); gl.addColorStop(0, `rgba(${rgb},0.95)`); gl.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = gl; ctx.fillRect(cx - 18 * k, cy - 18 * k, 36 * k, 36 * k);
+    ctx.fillStyle = p.kind === 'fire' ? '#ffe082' : '#ede7f6'; ctx.beginPath(); ctx.arc(cx, cy, (4 + Math.sin(TIME * 30) * 0.8) * k, 0, 7); ctx.fill();
     return;
   }
   if (p.kind === 'firewave') {
@@ -4014,8 +4584,9 @@ function drawHUD() {
   ctx.fillStyle = '#3a1a1a'; ctx.fillRect(18, 14, 238, 14);
   const pct = Math.max(0, P.hp / stats.maxHp);
   ctx.fillStyle = pct > 0.5 ? '#43a047' : pct > 0.25 ? '#fbc02d' : '#e53935'; ctx.fillRect(18, 14, 238 * pct, 14);
+  if (P.shield > 0) { ctx.fillStyle = 'rgba(129,212,250,0.75)'; ctx.fillRect(18, 14, 238 * Math.min(1, P.shield / stats.maxHp), 5); }   // pet-talent shield
   ctx.font = `bold 12px ${UI}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(`HP ${Math.ceil(P.hp)} / ${stats.maxHp}`, 137, 21.5);
+  ctx.fillText(`HP ${Math.ceil(P.hp)} / ${stats.maxHp}${P.shield > 0 ? `  +${Math.ceil(P.shield)}🛡` : ''}`, 137, 21.5);
   // stats line
   ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#e0e0e0';
   ctx.fillText(`⚔ ${stats.dmg}   🛡 ${stats.armor}   🧪 ${stats.potions} [Q]   ${abilityLabel()} [E]`, 272, 21.5);
@@ -4212,88 +4783,132 @@ function drawPack() {
   if (PK.talent != null) drawTalents();
 }
 
-// ---- pet talent menu ----
-const TAL = { x: 130, y: 50, w: 700, h: 432 };
-const TAL_CLOSE = { x: 130 + 700 - 118, y: 50 + 432 - 46, w: 104, h: 32 };
+// ---- pet talent screen: the pet on the left, its three talent trees reading top to bottom ----
+const TAL = { x: 16, y: 14, w: 928, h: 512 };
+const TAL_RESET = { x: 30, y: 14 + 512 - 92, w: 168, h: 34 };
+const TAL_CLOSE = { x: 30, y: 14 + 512 - 50, w: 168, h: 34 };
+const TREE_X = TAL.x + 200, TREE_W = 236, TREE_GAP = 6, ROW_Y = TAL.y + 86, ROW_H = 62, NODE_H = 44;
 function talentRects(it) {
-  const list = TALENTS[it.def.pet], out = [], bx = TAL.x + 214, bw = 228, bh = 66, gap = 14;
-  [1, 2, 3].forEach((tier, r) => list.filter(t => t.tier === tier).forEach((t, c, row) => {
-    out.push({ t, x: bx + c * (bw + gap), y: TAL.y + 62 + r * (bh + 46), w: row.length === 1 ? bw * 2 + gap : bw, h: bh });
-  }));
+  const out = [];
+  (PET_TREES[it.def.pet] || []).forEach((tr, ti) => {
+    const x0 = TREE_X + ti * (TREE_W + TREE_GAP), ax = x0 + 38, aw = TREE_W - 44;
+    tr.tiers.forEach((row, k) => {
+      const y = ROW_Y + k * ROW_H;
+      if (row.length === 1) out.push({ t: row[0], ti, tier: k + 1, x: ax + (aw - 150) / 2, y, w: 150, h: NODE_H });
+      else row.forEach((t, c) => { const w = (aw - 8) / 2; out.push({ t, ti, tier: k + 1, x: ax + c * (w + 8), y, w, h: NODE_H }); });
+    });
+  });
   return out;
 }
 function talentClick() {
   const it = petSlots[PK.talent]; if (!it) { PK.talent = null; return; }
   for (const r of talentRects(it)) if (inRect(mouse, r)) {
-    const t = r.t;
-    if (learnTalent(it, t)) showMsg(`${t.name}: rank ${tal(it, t.id)}/${t.max}`, 1.2);
-    else if (petLvl(it) < TIER_LVL[t.tier]) showMsg(`Unlocks when your ${it.def.name} reaches level ${TIER_LVL[t.tier]}.`, 1.6);
-    else if (tal(it, t.id) >= t.max) showMsg('Already maxed.', 1.2);
-    else showMsg('No talent points. Kill enemies with this pet in a slot to level it up.', 1.8);
+    const t = r.t, why = talentBlock(it, t);
+    if (!why && learnTalent(it, t)) showMsg(`${t.name}: rank ${tal(it, t.id)}/${t.max}`, 1.2);
+    else { SFX.play('error'); showMsg(why, 1.8); }
     return;
   }
+  if (inRect(mouse, TAL_RESET)) { resetTalents(it); return; }
   if (inRect(mouse, TAL_CLOSE) || !inRect(mouse, TAL)) { PK.talent = null; SFX.play('pick'); }
 }
 function drawTalents() {
   const it = petSlots[PK.talent]; if (!it) { PK.talent = null; return; }
-  const d = PETS[it.def.pet], L = petLvl(it), pts = talentPoints(it), rc = RARITY[it.def.rarity].c;
-  ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(0, 0, W, H);
+  const d = PETS[it.def.pet], L = petLvl(it), pts = talentPoints(it), rc = RARITY[it.def.rarity].c, trees = PET_TREES[it.def.pet];
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#1c1611'; rr(TAL.x, TAL.y, TAL.w, TAL.h, 14); ctx.fill(); ctx.strokeStyle = rc; ctx.lineWidth = 2; ctx.stroke();
-  // left: the pet
-  const lx = TAL.x + 14, lw = 186;
-  ctx.fillStyle = 'rgba(255,255,255,0.04)'; rr(lx, TAL.y + 14, lw, TAL.h - 28, 10); ctx.fill();
-  const g = ctx.createRadialGradient(lx + lw / 2, TAL.y + 100, 4, lx + lw / 2, TAL.y + 100, 80); g.addColorStop(0, d.color + '55'); g.addColorStop(1, d.color + '00');
-  ctx.fillStyle = g; ctx.fillRect(lx, TAL.y + 20, lw, 160);
-  if (!drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5, lx + lw / 2, d.fly ? TAL.y + 105 : TAL.y + 150, 1, { scale: 4 })) drawItem(it, lx + lw / 2 - 40, TAL.y + 60, 40);
+  // ---- left: the pet ----
+  const lx = TAL.x + 12, lw = 176;
+  ctx.fillStyle = 'rgba(255,255,255,0.04)'; rr(lx, TAL.y + 12, lw, TAL.h - 24, 10); ctx.fill();
+  const g = ctx.createRadialGradient(lx + lw / 2, TAL.y + 80, 4, lx + lw / 2, TAL.y + 80, 70); g.addColorStop(0, d.color + '55'); g.addColorStop(1, d.color + '00');
+  ctx.fillStyle = g; ctx.fillRect(lx, TAL.y + 16, lw, 130);
+  if (!drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5, lx + lw / 2, d.fly ? TAL.y + 82 : TAL.y + 122, 1, { scale: 3.5 })) drawItem(it, lx + lw / 2 - 36, TAL.y + 40, 36);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `bold 18px ${UI}`; ctx.fillStyle = rc; ctx.fillText(it.def.name, lx + lw / 2, TAL.y + 182);
-  ctx.font = `12px ${UI}`; ctx.fillStyle = '#bdbdbd'; ctx.fillText(`${RARITY[it.def.rarity].label} ${d.role} · ${d.ability}`, lx + lw / 2, TAL.y + 202);
-  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = '#a5d6a7'; ctx.fillText(`Level ${L} / ${PET_MAX_LVL}`, lx + lw / 2, TAL.y + 228);
-  const need = petXpNeed(L), xp = L >= PET_MAX_LVL ? need : (it.xp || 0);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(lx + 16, TAL.y + 242, lw - 32, 8); ctx.fillStyle = '#81c784'; ctx.fillRect(lx + 16, TAL.y + 242, (lw - 32) * xp / need, 8);
-  ctx.font = `11px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.fillText(L >= PET_MAX_LVL ? 'max level' : `${xp} / ${need} kills to level ${L + 1}`, lx + lw / 2, TAL.y + 262);
-  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = pts > 0 ? '#ffd54f' : '#757575'; ctx.fillText(`Talent points: ${pts}`, lx + lw / 2, TAL.y + 288);
-  // synergies this pet can join
-  ctx.textAlign = 'left'; let sy = TAL.y + 314;
-  ctx.font = `bold 12px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('Synergies', lx + 12, sy); sy += 18;
+  ctx.font = `bold 17px ${UI}`; ctx.fillStyle = rc; ctx.fillText(it.def.name, lx + lw / 2, TAL.y + 146);
+  ctx.font = `11.5px ${UI}`; ctx.fillStyle = '#bdbdbd'; ctx.fillText(`${RARITY[it.def.rarity].label} ${d.role} · ${d.ability}`, lx + lw / 2, TAL.y + 164);
+  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = '#a5d6a7'; ctx.fillText(`Level ${L} / ${PET_MAX_LVL}`, lx + lw / 2, TAL.y + 188);
+  const need = petXpNeed(L), xp = L >= PET_MAX_LVL ? need : Math.floor(it.xp || 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(lx + 14, TAL.y + 200, lw - 28, 7); ctx.fillStyle = '#81c784'; ctx.fillRect(lx + 14, TAL.y + 200, (lw - 28) * Math.min(1, xp / need), 7);
+  ctx.font = `10.5px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.fillText(L >= PET_MAX_LVL ? 'max level' : `${xp} / ${need} kills to level ${L + 1}`, lx + lw / 2, TAL.y + 217);
+  ctx.font = `bold 15px ${UI}`; ctx.fillStyle = pts > 0 ? '#ffd54f' : '#757575'; ctx.fillText(`Talent points: ${pts}`, lx + lw / 2, TAL.y + 242);
+  const nextTier = TIER_LVL.findIndex(l => l > L);
+  ctx.font = `10.5px ${UI}`; ctx.fillStyle = '#8d8d8d'; ctx.fillText(nextTier > 0 ? `Tier ${nextTier} opens at level ${TIER_LVL[nextTier]}` : 'All tiers open', lx + lw / 2, TAL.y + 260);
+  ctx.textAlign = 'left'; let sy = TAL.y + 284;
+  ctx.font = `bold 12px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('Synergies', lx + 10, sy); sy += 16;
   const mine = SYNERGIES.filter(x => x.pets.includes(it.def.pet));
-  if (!mine.length) { ctx.font = `11px ${UI}`; ctx.fillStyle = '#757575'; wrap('None yet: more to come.', lx + 12, sy, lw - 24, 14); }
+  if (!mine.length) { ctx.font = `10.5px ${UI}`; ctx.fillStyle = '#757575'; wrap('None for this pet yet.', lx + 10, sy, lw - 20, 13); }
   for (const x of mine) {
     const partner = x.pets.filter(k => k !== it.def.pet).map(k => PETS[k].name).join(' + ');
     ctx.font = `bold 11px ${UI}`; ctx.fillStyle = syn(x.id) ? '#ffd54f' : '#9e9e9e';
-    ctx.fillText(`${x.icon} ${x.name} (with ${partner})${syn(x.id) ? ' ✓' : ''}`, lx + 12, sy); sy += 14;
-    ctx.font = `10.5px ${UI}`; ctx.fillStyle = syn(x.id) ? '#e0e0e0' : '#8a8a8a'; sy = wrap(x.txt, lx + 12, sy, lw - 24, 13) + 4;
+    ctx.fillText(`${x.icon} ${x.name} (+ ${partner})${syn(x.id) ? ' ✓' : ''}`, lx + 10, sy); sy += 13;
+    ctx.font = `10px ${UI}`; ctx.fillStyle = syn(x.id) ? '#e0e0e0' : '#8a8a8a'; sy = wrap(x.txt, lx + 10, sy, lw - 20, 12) + 4;
   }
-  // right: talent tiers
-  ctx.font = `bold 20px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.textAlign = 'left'; ctx.fillText('Talents', TAL.x + 214, TAL.y + 30);
-  ctx.font = `12px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.textAlign = 'right';
-  ctx.fillText(pts > 0 ? 'Click a talent to spend a point' : 'Level up by killing enemies while this pet is in a slot', TAL.x + TAL.w - 16, TAL.y + 30);
+  if (G.msgT > 0 && G.msg) {   // feedback for the last click (learned, locked, reset...)
+    ctx.globalAlpha = Math.min(1, G.msgT * 2); ctx.fillStyle = 'rgba(0,0,0,0.55)'; rr(lx + 4, TAL_RESET.y - 62, lw - 8, 54, 8); ctx.fill();
+    ctx.textAlign = 'center'; ctx.font = `bold 11px ${UI}`; ctx.fillStyle = '#ffe082';
+    const words = G.msg.split(' '), lines = []; let cur = '';
+    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > lw - 20 && cur) { lines.push(cur); cur = w; } else cur = t; }
+    if (cur) lines.push(cur);
+    lines.slice(0, 4).forEach((l, i) => ctx.fillText(l, lx + lw / 2, TAL_RESET.y - 35 + (i - (Math.min(4, lines.length) - 1) / 2) * 12));
+    ctx.globalAlpha = 1;
+  }
+  for (const [b, label, col] of [[TAL_RESET, 'Reset talents (free)', '#8d6e63'], [TAL_CLOSE, 'Back  [B]', '#43a047']]) {
+    const over = inRect(mouse, b);
+    ctx.fillStyle = over ? (b === TAL_CLOSE ? '#66bb6a' : '#a1887f') : col; rr(b.x, b.y, b.w, b.h, 8); ctx.fill();
+    ctx.textAlign = 'center'; ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#fff'; ctx.fillText(label, b.x + b.w / 2, b.y + b.h / 2 + 1);
+  }
+  // ---- right: three trees ----
   const rects = talentRects(it); let hov = null;
-  [1, 2, 3].forEach((tier, r) => {
-    const yy = TAL.y + 62 + r * 112 - 12, open = L >= TIER_LVL[tier];
-    ctx.textAlign = 'left'; ctx.font = `bold 11px ${UI}`; ctx.fillStyle = open ? '#c8e6c9' : '#757575';
-    ctx.fillText(tier === 1 ? 'TIER 1' : `TIER ${tier} · ${open ? 'unlocked' : 'unlocks at level ' + TIER_LVL[tier]}${tier === 3 ? ' · CAPSTONE' : ''}`, TAL.x + 214, yy);
+  trees.forEach((tr, ti) => {
+    const x0 = TREE_X + ti * (TREE_W + TREE_GAP), spent = tr.tiers.flat().reduce((a, n) => a + tal(it, n.id), 0);
+    ctx.fillStyle = 'rgba(255,255,255,0.035)'; rr(x0, TAL.y + 12, TREE_W, 382, 10); ctx.fill();
+    ctx.fillStyle = tr.color; ctx.fillRect(x0 + 10, TAL.y + 50, TREE_W - 20, 2);
+    ctx.textAlign = 'center'; ctx.font = `bold 16px ${UI}`; ctx.fillStyle = tr.color; ctx.fillText(tr.name, x0 + TREE_W / 2, TAL.y + 30);
+    ctx.font = `11px ${UI}`; ctx.fillStyle = spent ? '#e0e0e0' : '#8a8a8a'; ctx.fillText(`${spent} point${spent === 1 ? '' : 's'} spent`, x0 + TREE_W / 2, TAL.y + 64);
+    tr.tiers.forEach((row, k) => {   // level labels down the side
+      const open = L >= TIER_LVL[k + 1];
+      ctx.textAlign = 'left'; ctx.font = `bold 10px ${UI}`; ctx.fillStyle = open ? '#c8e6c9' : '#6d6d6d';
+      ctx.fillText(k === 4 ? 'ULT' : `T${k + 1}`, x0 + 8, ROW_Y + k * ROW_H + 15);
+      ctx.font = `9.5px ${UI}`; ctx.fillText(`Lv ${TIER_LVL[k + 1]}`, x0 + 8, ROW_Y + k * ROW_H + 29);
+    });
+    // lines from each tier down to the next
+    for (let k = 1; k < tr.tiers.length; k++) for (const a of rects.filter(r => r.ti === ti && r.tier === k)) for (const b of rects.filter(r => r.ti === ti && r.tier === k + 1)) {
+      const lit = tal(it, a.t.id) > 0 && tal(it, b.t.id) > 0, ready = tal(it, a.t.id) > 0;
+      ctx.strokeStyle = lit ? '#ffd54f' : ready ? 'rgba(165,214,167,0.55)' : 'rgba(255,255,255,0.1)'; ctx.lineWidth = lit ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.moveTo(a.x + a.w / 2, a.y + a.h); ctx.lineTo(b.x + b.w / 2, b.y); ctx.stroke();
+    }
   });
   for (const r of rects) {
-    const t = r.t, rank = tal(it, t.id), open = L >= TIER_LVL[t.tier], can = canLearn(it, t), over = inRect(mouse, r);
+    const t = r.t, rank = tal(it, t.id), open = L >= TIER_LVL[r.tier], can = canLearn(it, t), over = inRect(mouse, r), ult = r.tier === 5, col = trees[r.ti].color;
     if (over) hov = r;
-    ctx.fillStyle = !open ? 'rgba(255,255,255,0.03)' : rank >= t.max ? 'rgba(255,213,79,0.12)' : can ? `rgba(129,199,132,${over ? 0.28 : 0.16})` : 'rgba(255,255,255,0.06)';
-    rr(r.x, r.y, r.w, r.h, 9); ctx.fill();
-    ctx.strokeStyle = rank >= t.max ? '#ffd54f' : can ? '#81c784' : open ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)'; ctx.lineWidth = can || rank >= t.max ? 2 : 1; ctx.stroke();
-    ctx.textAlign = 'left'; ctx.font = `bold 14px ${UI}`; ctx.fillStyle = open ? '#fff' : '#6d6d6d'; ctx.fillText(t.name, r.x + 12, r.y + 18);
-    for (let k = 0; k < t.max; k++) { ctx.fillStyle = k < rank ? '#ffd54f' : 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(r.x + r.w - 14 - (t.max - 1 - k) * 14, r.y + 18, 5, 0, 7); ctx.fill(); }
-    ctx.font = `12px ${UI}`; ctx.fillStyle = open ? '#cfcfcf' : '#6d6d6d';
-    const line = rank === 0 ? t.txt(1) : t.txt(rank);
-    wrap((rank === 0 ? '' : 'Now: ') + line.charAt(0).toUpperCase() + line.slice(1) + '.', r.x + 12, r.y + 40, r.w - 24, 14);
+    ctx.fillStyle = rank >= t.max ? 'rgba(255,213,79,0.16)' : rank > 0 ? 'rgba(255,213,79,0.08)' : can ? `rgba(129,199,132,${over ? 0.3 : 0.16})` : open ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.025)';
+    rr(r.x, r.y, r.w, r.h, ult ? 12 : 8); ctx.fill();
+    ctx.strokeStyle = rank > 0 ? '#ffd54f' : can ? '#81c784' : over ? 'rgba(255,255,255,0.5)' : ult && open ? col : 'rgba(255,255,255,0.13)';
+    ctx.lineWidth = rank > 0 || can || ult ? 2 : 1; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.font = `bold ${r.w < 100 ? 10.5 : 11.5}px ${UI}`; ctx.fillStyle = !open ? '#6d6d6d' : rank > 0 ? '#ffe082' : '#fff';
+    const name = (ult ? '★ ' : '') + t.name;
+    if (ctx.measureText(name).width > r.w - 10) { const ws = name.split(' '), h = Math.ceil(ws.length / 2); ctx.fillText(ws.slice(0, h).join(' '), r.x + r.w / 2, r.y + 11); ctx.fillText(ws.slice(h).join(' '), r.x + r.w / 2, r.y + 24); }
+    else ctx.fillText(name, r.x + r.w / 2, r.y + 16);
+    for (let q = 0; q < t.max; q++) { ctx.fillStyle = q < rank ? '#ffd54f' : 'rgba(255,255,255,0.2)'; ctx.beginPath(); ctx.arc(r.x + r.w / 2 + (q - (t.max - 1) / 2) * 11, r.y + r.h - 8, 3.5, 0, 7); ctx.fill(); }
   }
+  // ---- details of the talent under the mouse ----
+  const DX = TREE_X, DY = TAL.y + 402, DW = TAL.w - (TREE_X - TAL.x) - 12, DH = TAL.h - 414;
+  ctx.fillStyle = 'rgba(255,255,255,0.05)'; rr(DX, DY, DW, DH, 10); ctx.fill();
+  ctx.textAlign = 'left';
   if (hov) {
-    const t = hov.t, rank = tal(it, t.id);
-    ctx.textAlign = 'left'; ctx.font = `12px ${UI}`; ctx.fillStyle = '#ffe0b2';
-    ctx.fillText(rank < t.max ? `Next rank: ${t.txt(rank + 1)}` : `${t.name} is maxed.`, TAL.x + 214, TAL.y + TAL.h - 30);
+    const t = hov.t, rank = tal(it, t.id), why = talentBlock(it, t), cap = s => s.charAt(0).toUpperCase() + s.slice(1) + '.';
+    ctx.font = `bold 14px ${UI}`; ctx.fillStyle = trees[hov.ti].color;
+    ctx.fillText(`${hov.tier === 5 ? '★ ' : ''}${t.name}`, DX + 12, DY + 16);
+    ctx.font = `11px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.textAlign = 'right';
+    ctx.fillText(`${trees[hov.ti].name} · ${hov.tier === 5 ? 'Ultimate' : hov.tier === 3 ? 'Keystone' : 'Tier ' + hov.tier} · rank ${rank}/${t.max}`, DX + DW - 12, DY + 16);
+    ctx.textAlign = 'left'; ctx.font = `12.5px ${UI}`; ctx.fillStyle = '#e0e0e0';
+    let y = wrap((rank ? 'Now: ' : '') + cap(t.txt(Math.max(1, rank))), DX + 12, DY + 38, DW - 24, 15);
+    if (rank && rank < t.max) { ctx.fillStyle = '#c5e1a5'; y = wrap('Next rank: ' + cap(t.txt(rank + 1)), DX + 12, y + 2, DW - 24, 15); }
+    ctx.font = `bold 11.5px ${UI}`; ctx.fillStyle = rank >= t.max ? '#ffd54f' : why ? '#ef9a9a' : '#a5d6a7';
+    ctx.fillText(why || 'Click to learn.', DX + 12, DY + DH - 12);
+  } else {
+    ctx.font = `12.5px ${UI}`; ctx.fillStyle = '#bdbdbd';
+    wrap('Spend points from the top of a tree down. Each tier opens at the level on the left and needs a point in the tier above it. Mix trees or go deep for the ultimates; reset any time for free.', DX + 12, DY + 22, DW - 24, 16);
   }
-  const ch = inRect(mouse, TAL_CLOSE);
-  ctx.fillStyle = ch ? '#66bb6a' : '#43a047'; rr(TAL_CLOSE.x, TAL_CLOSE.y, TAL_CLOSE.w, TAL_CLOSE.h, 8); ctx.fill();
-  ctx.textAlign = 'center'; ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#fff'; ctx.fillText('Back  [B]', TAL_CLOSE.x + TAL_CLOSE.w / 2, TAL_CLOSE.y + TAL_CLOSE.h / 2 + 1);
 }
 
 function drawTitle() {
@@ -4309,7 +4924,7 @@ function drawTitle() {
   if (!drawAnim(heroSheet(selClass), 'idle', TIME * 5, 150, 440, 1, { scale: 5 }) && th) drawSprite(th, 150, 440 + Math.round(Math.sin(TIME * 2) * 2), 1, { scale: 5 });
   if (!drawAnim('warden', 'idle', TIME * 4, W - 150, 440, -1, { scale: 3 }) && tb) drawSprite(tb, W - 150, 440, -1, { scale: 3 });
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `bold 54px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('PACK RAT DUNGEON', W / 2, 168);
+  ctx.font = `bold 54px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('BACKPACK SANCTUARY', W / 2, 168);
   ctx.font = `16px ${UI}`; ctx.fillStyle = '#bcaaa4'; ctx.fillText('Fight through rooms. Loot everything. Pack it well — your backpack IS your build.', W / 2, 212);
   const lines = [['A / D  or  ← →', 'Move'], ['W / ↑', 'Jump  (S / ↓ drops through platforms)'], ['Space (hold)', 'Attack'], ['Q', 'Drink a Health Potion'], ['E', 'Class ability  (in the Sanctuary: use / pet)'], ['B / Tab', 'Open backpack (when the room is clear)'], ['Shift / L', 'Dash (you can\'t be hurt mid-dash)'], ['N', 'Show / hide the minimap'], ['P / Esc', 'Pause'], ['M', 'Mute / unmute sound']];
   lines.forEach(([k, v], i) => {
@@ -4389,10 +5004,12 @@ function draw() {
   drawPets();
   drawWolves();
   drawPlayer();
+  drawPlayerWard();
   for (const p of G.proj) drawProj(p);
   drawFx();
   if (G.hub) drawHubBubble();
   ctx.restore();
+  if (G.eclipseT > 0) { ctx.fillStyle = `rgba(6,8,28,${0.35 * Math.min(1, G.eclipseT)})`; ctx.fillRect(0, 0, W, H); }   // Owl: Eternal Night
   drawVignette();
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
   if (G.hub) drawHubHUD(); else drawHUD();
@@ -4402,6 +5019,7 @@ function draw() {
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('You Died', `${CLASSES[G.cls].name} fell on floor ${G.roomNum} · ${G.kills} enemies slain · ${pack.length} items carried${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to choose a class and try again' : '');
 }
 function drawHUDMessageOnly() {
+  if (PK && PK.talent != null) return;   // the talent screen shows messages in its own panel
   if (G.msgT > 0 && G.msg) {
     ctx.globalAlpha = Math.min(1, G.msgT * 2);
     ctx.font = `bold 16px ${UI}`; const tw = ctx.measureText(G.msg).width + 32;

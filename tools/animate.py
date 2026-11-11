@@ -1,4 +1,4 @@
-"""Slice ChatGPT animation sheets into clean, consistent pixel-art animation frames for Pack Rat Dungeon.
+"""Slice ChatGPT animation sheets into clean, consistent pixel-art animation frames for Backpack Sanctuary.
 
     python -P tools/animate.py <name>      # assets_raw/anim_<name>.png -> assets/anim/<name>.png (+ rebuild anims.js)
     python -P tools/animate.py all         # every sheet listed in SPECS that exists

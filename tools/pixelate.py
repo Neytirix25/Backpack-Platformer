@@ -1,4 +1,4 @@
-"""Turn ChatGPT-generated sheets into crisp, true-resolution pixel-art sprites for Pack Rat Dungeon.
+"""Turn ChatGPT-generated sheets into crisp, true-resolution pixel-art sprites for Backpack Sanctuary.
 
 Usage (run from anywhere):
     python -P tools/pixelate.py items        # slice items_sheet.png  -> assets/items/*.png
