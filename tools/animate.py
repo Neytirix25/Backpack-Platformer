@@ -51,6 +51,9 @@ SPECS = {
     'pet_catcalico': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=12),
     'pet_cockatiel': dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=14, ref='fly', fly=True),
     'pet_dragon':    dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=19, ref='fly', fly=True),
+    'shadowwolf':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=19),        # boss + its pup and shades
+    'elderdragon':   dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=22, ref='fly', fly=True),   # floor 20 boss + Elder Drake pet
+    'unicorn':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=20),        # first-turn-victory achievement pet
     'pet_fox':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=14),
     'pet_owl':       dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=15, ref='fly', fly=True),
     'pet_ferret':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=9, ref='run'),   # idle stands up tall: size from the run
@@ -193,7 +196,7 @@ def anchor(img, fly):
 
 
 # per-row size corrections so every pose of a pet reads as the same-sized animal (measured by on-screen area)
-ROW_FIX = {"pet_dog": {"run": 1.274, "attack": 1.039, "ko": 1.073}, "pet_dog_rest": {"rest": 1.166}, "pet_catgray": {"run": 1.095, "ko": 0.903}, "pet_catcalico": {"ko": 1.009}, "pet_catcalico_rest": {"rest": 0.842}, "pet_dragon": {"ko": 0.953}, "pet_fox": {"run": 1.163, "ko": 0.921}, "pet_fox_rest": {"rest": 0.89}, "pet_owl": {"attack": 0.896, "ko": 0.885}, "pet_owl_rest": {"rest": 1.149}, "pet_ferret": {"run": 1.36, "attack": 1.063, "ko": 1.021}, "pet_ferret_rest": {"rest": 1.043}, "pet_boar": {"run": 1.066, "attack": 1.051, "ko": 1.106}, "pet_boar_rest": {"rest": 1.106}, "pet_toad": {"run": 1.208, "attack": 1.065, "ko": 1.063}, "pet_toad_rest": {"rest": 1.069}}
+ROW_FIX = {"pet_dog": {"run": 1.274, "attack": 1.039, "ko": 1.073}, "pet_dog_rest": {"rest": 1.166}, "pet_catgray": {"run": 1.095, "ko": 0.903}, "pet_catcalico": {"ko": 1.009}, "pet_catcalico_rest": {"rest": 0.842}, "pet_dragon": {"ko": 0.953}, "pet_fox": {"run": 1.163, "ko": 0.921}, "pet_fox_rest": {"rest": 0.89}, "pet_owl": {"attack": 0.896, "ko": 0.885}, "pet_owl_rest": {"rest": 1.149}, "pet_ferret": {"run": 1.36, "attack": 1.063, "ko": 1.021}, "pet_ferret_rest": {"rest": 1.043}, "pet_boar": {"run": 1.066, "attack": 1.051, "ko": 1.106}, "pet_boar_rest": {"rest": 1.106}, "pet_toad": {"run": 1.208, "attack": 1.065, "ko": 1.063}, "pet_toad_rest": {"rest": 1.069}, "shadowwolf": {"run": 1.35}, "unicorn": {"run": 1.2}}
 
 
 def process(name):
