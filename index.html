@@ -3098,7 +3098,11 @@ function updateBattle(dt) {
     return;
   }
   if (B.phase === 'player') battleInput();
-  if (B.phase === 'won' || B.phase === 'lost') { if (B.t > 0.6 && (hit('Enter', ' ', 'e') || B.clicked)) endBattle(); B.clicked = false; }
+  if (B.phase === 'won' || B.phase === 'lost') {
+    const go = B.t > 0.6 && (hit('Enter', ' ', 'e') || B.clicked);
+    B.clicked = false;
+    if (go) endBattle();   // (B is gone after this)
+  }
 }
 // ---------- the hero's items ----------
 const USE_T = { salve: 'ally', revive: 'dead', salts: 'allies', brew: 'allies', smoke: 'foes', net: 'foe' };
@@ -4423,7 +4427,8 @@ function frame(t) {
   const raw = Math.min(0.05, Math.max(0, (t - last) / 1000)); last = t;
   // browsers hand out frames a little unevenly: smooth the step so motion glides, but follow real rate changes at once
   dtSmooth += (raw - dtSmooth) * 0.2; if (Math.abs(raw - dtSmooth) > 0.012) dtSmooth = raw;
-  update(Math.min(0.033, dtSmooth)); draw();
+  // never let one bad frame freeze the whole game: log it and keep going
+  try { update(Math.min(0.033, dtSmooth)); draw(); } catch (e) { console.error(e); }
   pressed = {};
   requestAnimationFrame(frame);
 }
