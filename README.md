@@ -1,6 +1,6 @@
 # Backpack Platformer
 
-**Pack Rat Dungeon** is a side-scrolling roguelike platformer about packing the perfect backpack. Fight down through 20 floors of a dark-fantasy dungeon, cram every item you find into a 10×4 grid, and merge duplicates to make them stronger.
+**Backpack Sanctuary** is a side-scrolling roguelike platformer about packing the perfect backpack. Fight down through 20 floors of a dark-fantasy dungeon, cram every item you find into a 10×4 grid, and merge duplicates to make them stronger.
 
 ## Play
 
@@ -35,7 +35,7 @@ Open `index.html` in a browser (double-click works). No install or build step ne
   - **Uncommon:** Fox (triple crits), Boar (charge).
   - **Rare:** Cockatiel (heals you), Owl (blind).
   - **Legendary:** Dragon (burn).
-- **Pet talents:** pets level up from the kills you make together. Right-click a pet in its slot to spend talent points across three tiers.
+- **Pet talent trees:** pets level up (to 30) from the kills you make together. Right-click a pet in its slot to open its three talent trees: each reads top to bottom, opens new tiers as the pet levels, and ends in a game-changing ultimate. Specialize a Shepherd into a bodyguard, a crowd-stunning herder or a frenzied hunter. Resetting is free.
 - **Team synergies:** Clowder (both cats), Pack Hunt (Shepherd + Fox) and Wildfire (Dragon + Toad).
 - **Lively pets:** they follow you, hop off ledges and leap gaps, and wander, sniff, perch or lie down when you stand still.
 - **The dungeon fights back:** monsters are tougher, hit harder, attack faster and come in larger numbers for every pet on your team (and a little more as your pets level up), so a full team still has a tough time.

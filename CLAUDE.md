@@ -1,4 +1,4 @@
-# CLAUDE.md — Pack Rat Dungeon
+# CLAUDE.md — Backpack Sanctuary
 
 Guide for Claude Code sessions working on this project. Read this first, then grep `index.html` for the
 function names below instead of reading the whole file (it is ~4,500 lines).
@@ -51,7 +51,7 @@ Run Python tools with `python -P` (avoids local-module shadowing).
 | BUFF PLANTS | `PLANTS`, lantern reveal tiers |
 | COMBAT / CLASS ABILITIES | `atkDmg`, `playerHit`, `damageEnemy`, `hurtPlayer`, `ABILITY` table + `useAbility` |
 | UPDATE | `updatePlayer`, `updateEnemy`, `updateWorld`, camera, hazards, chasms (`fellInChasm`) |
-| PETS | `PETS` roster (10), `petSlots`, `syncPets`, `TALENTS`, `SYNERGIES`, `updatePets`, trail-following (`recordTrail`, `petTrailStep`), `petRun`/`edgeAhead`, `drawPets` |
+| PETS | `PETS` roster (10), `petSlots`, `syncPets`, `PET_TREES` (3 talent trees per pet, `nd`/`pulse` helpers), `petMods` (talents -> modifier object `p.M`), `teamMods`/`TEAM()` (team-wide talents), `petHit`/`petStatuses`, `firePulse` (timed talent skills), `petsTakeHit` (guard/shield/Last Line), `SYNERGIES`, `updatePets`, trail-following (`recordTrail`, `petTrailStep`), `petRun`/`edgeAhead`, `drawPets` |
 | CAGES | `makeCage`, `addCageGuards`, `freeCage` (also records the species in the collection) |
 | BACKPACK SCREEN / DRAWING / MAIN LOOP | pack UI, all draw functions, `update(dt)` mode switch, `frame()` |
 
@@ -65,7 +65,7 @@ endless after 20) → death/victory → back to the hub. `G.mode`: play / pack /
 
 ## Systems worth knowing before changing things
 
-- **Pets:** live only in 3 pet slots (`petSlots`), rescued from cages, level 1–10 from kills, talents via
+- **Pets:** live only in 3 pet slots (`petSlots`), rescued from cages, level 1–30 from kills, three talent trees per pet via
   right-click. Ground pets follow the hero's recorded path (`G.trail`) with a delay; fighting, resting,
   flyers, boar charge, KO and the leash teleport use the older logic.
 - **Difficulty:** `enemyHpCurve(n) = 1 + 0.4(n-1) + 0.025(n-1)^2` (halved for Act II types); `THREAT` adds
@@ -74,8 +74,11 @@ endless after 20) → death/victory → back to the hub. `G.mode`: play / pack /
   (female looks), `packrat_class`, `packrat_best` — always read/written through `sk(key)`, which appends
   `@<SLOT>` (a hash of the folder the game runs from). Chrome shares one storage for every `file://` page, so
   this keeps each copy's progress separate and a fresh download starts unprogressed. A folder named
-  `pack-rat-dungeon` adopts the old unslotted save once. Mute/music flags (`packrat_muted`, `packrat_music`)
+  `backpack sanctuary` (or the old name `pack-rat-dungeon`) adopts the old folder's save / the unslotted save once. Mute/music flags (`packrat_muted`, `packrat_music`)
   stay shared on purpose.
+- **Talent trees:** `TIER_LVL = [0,1,5,10,16,22]`; a talent needs a point in the tier above in the same tree
+  (`talentBlock`). Node `fx` is either `{key: perRank}` (summed into `p.M`) or `(M, r) => ...`. Talent screen:
+  `drawTalents`/`talentRects`/`talentClick` (free reset button). Pets level to 30 (`petXpNeed`), 5% stronger per level.
 - **Female heroes:** sheets `<cls>_f`, plus `warrior_f_block`, `archer_f_arcane`; `heroSheet()` picks them.
 
 ## Art pipeline (ChatGPT in Chrome)
