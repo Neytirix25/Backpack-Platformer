@@ -33,8 +33,10 @@ CLAUDE.md           this file
 README.md           player-facing description + controls
 assets/anim/        animation sheets (<name>.png + entries in anims.js, loaded via <script src>)
 assets/items|props|tiles|bg|chars/   static sprites (items: 18 art px per backpack cell; world sprites drawn at 2x)
+assets/ui/          the menu UI kit (leather/parchment panels, wooden buttons, slot, banner ribbon, wax seal), 9-sliced at 2x
+assets/fonts/       pixel fonts (SIL OFL) + fonts.js (base64, loaded with FontFace so file:// works)
 tools/animate.py    slices raw ChatGPT animation sheets -> assets/anim/*.png + anims.js   (SPECS dict, ROW_FIX)
-tools/pixelate.py   slices raw item/prop/bg sheets -> assets/*   (classitems pets1|pets2|pets3 = the pet item icon sheets; also items2, tiles, plants, hubprops, bg <name>)
+tools/pixelate.py   slices raw item/prop/bg sheets -> assets/*   (classitems pets1|pets2|pets3 = the pet item icon sheets; also items2, tiles, plants, hubprops, bg <name>, uikit = assets_raw/ui_kit_sheet.png -> assets/ui)
 assets_raw/         raw ChatGPT downloads (gitignored, local only)
 ```
 
@@ -44,6 +46,7 @@ Run Python tools with `python -P` (avoids local-module shadowing).
 
 | Section | What lives there |
 |---|---|
+| UI STYLE | `PAL` colours, `UI`/`TITLE` fonts, crisp text (`pixelFont`, `TEXT_CACHE`), `rr`, `fitText`, `UIKIT`/`nine`, `panel(x,y,w,h,'leather'|'parch'|'dark'|'slot')`, `button`, `banner`, `label`, `meter`, `hpColor` |
 | ART | `ART_FILES` lists every static sprite to load, `drawAnim`, `drawSprite`, `whiteOf`/`blackOf`, `BG_CROP`/`BG_FLOOR` |
 | SOUND / MUSIC | `SFX` synth, `SONGS`, `Music`, `musicDirector`, `LEVEL_POOLS`, `pickLevelSong` |
 | ITEMS | `ITEMS` (pet passives, family items `fam:`, position items, consumables `use:`, eggs `egg:`, pet entries `pet_<k>`), `LVL_MULT` merges, `computeStats` (team bonuses), `rollItem` |
@@ -83,6 +86,13 @@ Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 
 - **Pets menu:** `T` / `PETS_BTN` → `openPetsMenu()` (the roster with `PK.rosterOnly`). Ability tooltips come from `abilityLines(u, ab)` + `drawTipBox`.
 - **Entering a floor:** `petsEnterRoom()` keeps pets at the door (`p.waiting`) and lets them in one by one as you walk on.
 - **Unicorn:** earned by `B.turn <= 1` wins (`SAVE.ach.first`), never wild.
+- **UI look (leather & brass backpack):** draw menus with `panel`/`button`/`banner`/`label`/`meter` and `PAL` colours,
+  never plain translucent boxes. Fonts: `UI` = Jersey 10 (body), `TITLE` = Jacquarda Bastarda 9 (short headings
+  only; long or changing text uses `banner(..., { plain: true })`). The canvas `fillText`/`measureText` are wrapped:
+  any size asked for is snapped to the font's pixel grid (body text is always 18.667px, 37.333px when 24px+;
+  9px and below is Micro 5), each string is cached as solid pixels with a 1px ink shadow (`ctx.textShadowOff = true`
+  turns it off). Because sizes snap, use `fitText(t, maxW)` / `wrap()` for text in fixed boxes. Pixelify Sans was
+  tried and dropped: its 2 reads as an 8 at game sizes.
 - **Female heroes:** sheets `<cls>_f`; `heroSheet()` picks them.
 
 ## Art pipeline (ChatGPT in Chrome)
