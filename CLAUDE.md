@@ -80,6 +80,9 @@ Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 
   which appends `@<SLOT>` (a hash of the game's folder) so each copy keeps its own progress. A folder named
   `backpack sanctuary` (or `pack-rat-dungeon`) adopts the old folder's / the unslotted save once.
 - **Run state:** `RUN.petHp[k]` = HP fraction during a run (fainted = 0); +25% per new floor, camps heal fully.
+- **Pets menu:** `T` / `PETS_BTN` → `openPetsMenu()` (the roster with `PK.rosterOnly`). Ability tooltips come from `abilityLines(u, ab)` + `drawTipBox`.
+- **Entering a floor:** `petsEnterRoom()` keeps pets at the door (`p.waiting`) and lets them in one by one as you walk on.
+- **Unicorn:** earned by `B.turn <= 1` wins (`SAVE.ach.first`), never wild.
 - **Female heroes:** sheets `<cls>_f`; `heroSheet()` picks them.
 
 ## Art pipeline (ChatGPT in Chrome)

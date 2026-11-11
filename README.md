@@ -13,7 +13,8 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 | S | Drop through ledges |
 | Shift | Dash |
 | E | In the Sanctuary: use / pet an animal |
-| B | Open the backpack and your team |
+| B | Open the backpack |
+| T | Your pets: every pet you own, swap your team, talents (also the button by your team cards) |
 | 1–6 / mouse | Battle: pick an ability, then click a target |
 | R / right-click | Rotate an item while packing · cancel a target in battle |
 | N | Toggle the minimap |
@@ -28,7 +29,9 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 - **Offspring:** beating a species you don't own always leaves its baby (Shepherd, cats, Fox, Ferret, Boar) or its egg (Cockatiel, Owl, Dragon, Toad). Eggs take up backpack space and hatch after 2 more wins. Species you already own sometimes leave another, which turns into experience.
 - **Your collection is saved forever:** pets keep their levels (up to 30) and talents between runs. Bring any 3 into a run (front, middle, back) and swap them at the pet beds in the Sanctuary or from the backpack screen.
 - **Talent trees:** every pet has three trees that read top to bottom (tiers open at levels 1, 5, 10, 16 and 22). Talents upgrade its abilities, add curses to its hits and power up the whole team, and each tree ends in an ultimate battle ability. Resetting is free.
-- **Bosses:** the **Shadow Wolf** guards floor 10 and the **Elder Dragon** floor 20. Beat the Shadow Wolf within three turns to earn the achievement and its pup; beat the Elder Dragon without a pet fainting to earn its egg.
+- **Bosses:** the **Shadow Wolf** guards floor 10 (its shades vanish when it falls) and the **Elder Dragon** floor 20. Beat the Shadow Wolf within three turns to earn the achievement and its pup; beat the Elder Dragon without a pet fainting to earn its egg.
+- **The Unicorn:** defeat a whole enemy team on the first turn of a battle and a Unicorn, impressed by your strength, joins your Sanctuary.
+- **Clear tooltips:** hover any ability in battle to see exactly what it does with that pet's numbers: targets, damage, healing, every status with its chance and duration, and the cooldown.
 - **Classes shape your team:**
   - **Warrior (Vanguard):** your front pet has +30% HP and +2 defense and starts every battle shielded.
   - **Archer (Volley):** you open each battle with arrows that hit every foe, and pets get +8% crit.

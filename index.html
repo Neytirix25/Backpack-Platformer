@@ -685,6 +685,7 @@ const ITEMS = {
   pet_boar:       { name: 'Boar',           icon: '🐗', shape: [[1, 1], [1, 1]], color: '#5a4030', rarity: 'uncommon',  tags: ['pet'], pet: 'boar', noDrop: true, desc: 'A burly Guardian that charges and soaks hits.' },
   pet_toad:       { name: 'Toad',           icon: '🐸', shape: [[1, 1], [1, 1]], color: '#3a5a2a', rarity: 'common',    tags: ['pet'], pet: 'toad', noDrop: true, desc: 'A Poisoner whose tongue spreads venom.' },
   pet_shadowwolf: { name: 'Shadow Wolf',    icon: '🐺', shape: [[1, 1], [1, 1]], color: '#2a2a3a', rarity: 'legendary', tags: ['pet'], pet: 'shadowwolf', noDrop: true, desc: 'The Shadow Wolf\'s pup: a deadly hunter of the dark.' },
+  pet_unicorn:    { name: 'Unicorn',        icon: '🦄', shape: [[1, 1], [1, 1]], color: '#7a5a7a', rarity: 'legendary', tags: ['pet'], pet: 'unicorn', noDrop: true, desc: 'It found you formidable in battle and joined your Sanctuary: a radiant horn and a healing mane.' },
   pet_elder:      { name: 'Elder Drake',    icon: '🐲', shape: [[1, 1], [1, 1]], color: '#4a1a3a', rarity: 'legendary', tags: ['pet'], pet: 'elder', noDrop: true, desc: 'Hatched from the Elder Dragon\'s egg: ancient fire.' },
 };
 
@@ -1054,7 +1055,7 @@ function drawHubBubble() {
   if (s.kind === 'pet') {
     const d = s.pet.d, it = s.pet.item;
     lines = [[d.name, '#ffe0b2', 'bold 13px'], [`${d.role} · level ${petLvl(it)}`, '#bcaaa4', '11px'], [petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#a5d6a7', '11px'], ['[E] Pet', '#69f0ae', 'bold 11px']];
-  } else if (s.kind === 'locked') lines = [['???', '#9e9e9e', 'bold 13px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, '#9e9e9e', '11px']];
+  } else if (s.kind === 'locked') lines = [['???', '#9e9e9e', 'bold 13px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Win a battle on its very first turn' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, '#9e9e9e', '11px']];
   else lines = [[s.label, '#ffe0b2', 'bold 12px'], ['[E]', '#69f0ae', 'bold 11px']];
   const top = Math.min(s.kind === 'pet' ? s.pet.y : s.y - 100, G.player.y) - 12 - lines.length * 15;
   ctx.font = `bold 13px ${UI}`; const wdt = Math.max(...lines.map(([t, , f]) => { ctx.font = `${f} ${UI}`; return ctx.measureText(t).width; })) + 18;
@@ -1074,7 +1075,7 @@ function drawHubHUD() {
   ctx.fillText('A / D move  ·  W jump  ·  E use / pet  ·  pet beds: choose your team  ·  walk through the gate to start a run  ·  Esc title screen', W / 2, H - 12);
   if (G.panel === 'records') {
     const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`],
-      ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—']];
+      ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—']];
     const bw = 360, bh = 78 + rows.length * 28, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 20;
     ctx.fillStyle = 'rgba(20,14,10,0.94)'; rr(bx, by, bw, bh, 10); ctx.fill(); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 2; rr(bx, by, bw, bh, 10); ctx.stroke();
     ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.textAlign = 'center'; ctx.fillText('Run Records', W / 2, by + 26);
@@ -1121,7 +1122,7 @@ function nextRoom() {
   R.terrain = bakeTerrain(R); R.mini = bakeMinimap(R);
   const P = G.player;
   P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vx = P.vy = P.kb = 0; P.trail = []; P.dashT = 0; P.onGround = true;
-  syncPets(); placePetsAtPlayer();
+  syncPets(); petsEnterRoom();
   snapCamera();
   const where = `Floor ${n}${n <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''} — ${R.theme.name}`;
   if (n === 11) showMsg('ACT II — The Burning Depths. Wilder animals and deadly hazards await...', 4);
@@ -1917,11 +1918,12 @@ const PETS = {
   boar:      { role: 'Guardian', ability: 'Charge',   charge: true,   name: 'Boar',      anim: 'pet_boar',      fly: false, w: 34, h: 26, hp: 45, dmg: 3, cd: 1.1,  speed: 230, reach: 34, kb: 300, color: '#a1887f' },
   toad:      { role: 'Poisoner', ability: 'Poison',   poison: true,   name: 'Toad',      anim: 'pet_toad',      fly: false, w: 24, h: 18, hp: 22, dmg: 1, cd: 0.9,  speed: 220, reach: 70, kb: 60,  color: '#9ccc65' },
   shadowwolf: { role: 'Hunter', ability: 'Bleed',   name: 'Shadow Wolf', anim: 'shadowwolf', fallback: 'pet_dog',  fly: false, w: 32, h: 26, hp: 30, dmg: 3, cd: 0.8, speed: 300, reach: 36, kb: 200, color: '#37474f' },
+  unicorn:    { role: 'Paladin', ability: 'Radiance', name: 'Unicorn', anim: 'unicorn', fallback: 'pet_dog', fly: false, w: 32, h: 28, hp: 40, dmg: 3, cd: 0.9, speed: 290, reach: 34, kb: 200, color: '#f8bbd0' },
   elder:      { role: 'Mystic', ability: 'Burn',    name: 'Elder Drake', anim: 'elderdragon', fallback: 'pet_dragon', fly: true, w: 36, h: 30, hp: 50, dmg: 4, cd: 1.2, speed: 240, ranged: 300, kb: 160, color: '#8e24aa' },
 };
 // ---- battle data: stats, abilities and statuses of every species (see BATTLES below) ----
 const FAMILY = { dog: 'canine', fox: 'canine', shadowwolf: 'canine', catgray: 'feline', catcalico: 'feline', cockatiel: 'bird', owl: 'bird',
-                 dragon: 'drake', elder: 'drake', toad: 'amphibian', ferret: 'critter', boar: 'critter', shade: 'canine' };
+                 dragon: 'drake', elder: 'drake', toad: 'amphibian', ferret: 'critter', boar: 'critter', shade: 'canine', unicorn: 'equine' };
 // battle stats at level 1 · base abilities · the ultimate each talent tree unlocks · what its offspring is
 const BS = {
   dog:        { hp: 46, atk: 9,  def: 4, crit: 0,    abil: ['bite', 'guard', 'howl'],          ult: ['bulwark', 'packleader', 'feral'],        off: 'baby', baby: 'Shepherd Pup' },
@@ -1936,6 +1938,7 @@ const BS = {
   toad:       { hp: 40, atk: 8,  def: 3, crit: 0,    abil: ['tongue', 'spit', 'bogskin'],      ult: ['plague', 'devour', 'toadking'],         off: 'egg',  baby: 'Toadlet' },
   shadowwolf: { hp: 46, atk: 11, def: 3, crit: 0.1,  abil: ['shadowbite', 'darkhowl', 'fade'], ult: ['eclipsefang', 'shades', 'nightmare'],   off: 'baby', baby: 'Shadow Pup' },
   elder:      { hp: 52, atk: 12, def: 4, crit: 0,    abil: ['emberclaw', 'firestorm', 'ancientroar'], ult: ['cataclysm', 'phoenixheart', 'dragonrage'], off: 'egg', baby: 'Elder Drake hatchling' },
+  unicorn:    { hp: 48, atk: 11, def: 4, crit: 0.1,  abil: ['hornstrike', 'rainbowmane', 'lightcharge'], ult: ['prismatic', 'sanctify', 'starlight'], off: 'special', baby: 'Unicorn' },
   shade:      { hp: 22, atk: 8,  def: 1, crit: 0.05, abil: ['shadowbite', 'fade'], ult: [] },
 };
 const STARTERS = ['dog', 'fox', 'cockatiel'];
@@ -1992,7 +1995,7 @@ const ABIL = {
   elderwisdom: { n: 'Elder Wisdom', t: 'allies', cd: 5, allySt: [['str', 3], ['lucky', 3]], ult: 1, d: 'Every ally gains Strength and Luck for 3 turns.' },
   // Ferret
   nip:         { n: 'Nip', t: 'foe', pow: 0.9, st: [['weak', 2]], d: 'Nip one foe (90%) and Weaken it for 2 turns.' },
-  pilfer:      { n: 'Pilfer', t: 'foe', cd: 2, pow: 0.7, steal: 1, d: 'Hit one foe (70%), steal its buffs and gain Strength.' },
+  pilfer:      { n: 'Pilfer', t: 'foe', cd: 2, pow: 0.7, steal: 1, d: 'Hit one foe (70%) and take every buff it has (shield, Strength, Guard, Luck...) for itself, plus Strength for 2 turns.' },
   burrow:      { n: 'Burrow', t: 'self', cd: 3, self: [['evade', 2]], d: 'Dig in: dodge the next 2 attacks.' },
   heist:       { n: 'Grand Heist', t: 'foes', cd: 5, st: [['weak', 3]], allySt: [['str', 2]], ult: 1, d: 'Weaken every foe for 3 turns; every ally gains Strength for 2.' },
   frenzy:      { n: 'Frenzy', t: 'rand', hits: 4, pow: 0.6, cd: 4, st: [['weak', 1]], ult: 1, d: '4 frantic bites at random foes (60% each), each Weakens.' },
@@ -2025,6 +2028,13 @@ const ABIL = {
   cataclysm:   { n: 'Cataclysm', t: 'foes', cd: 5, pow: 1.8, st: [['burn', 3]], ult: 1, d: 'Every foe takes 180% and Burns for 3 turns.' },
   phoenixheart:{ n: 'Phoenix Heart', t: 'allies', cd: 6, heal: 2.0, reviveAll: 0.3, ult: 1, d: 'Heal every ally (200%) and revive fainted allies with 30% HP.' },
   dragonrage:  { n: 'Dragon Rage', t: 'foe', cd: 4, pow: 2.4, self: [['str', 3]], ult: 1, d: 'Smash one foe (240%) and gain Strength for 3 turns.' },
+  // Unicorn (earned by winning a battle on its first turn)
+  hornstrike:  { n: 'Horn Strike', t: 'foe', pow: 1.2, st: [['mark', 1]], d: 'Drive its horn into one foe (120%) and Mark it for 1 turn.' },
+  rainbowmane: { n: 'Rainbow Mane', t: 'allies', cd: 3, heal: 1.1, cleanse: 1, d: 'Heal every ally (110% of its attack) and cure all their curses.' },
+  lightcharge: { n: 'Charge of Light', t: 'foes', cd: 3, pow: 0.8, st: [['blind', 1, 0.6]], d: 'Gallop through every foe (80%), with a 60% chance to Blind each one.' },
+  prismatic:   { n: 'Prismatic Burst', t: 'foes', cd: 5, pow: 1.7, chaos: 1, ult: 1, d: 'A rainbow blast on every foe (170%), each also hit with a random curse.' },
+  sanctify:    { n: 'Sanctify', t: 'allies', cd: 5, shieldOf: 0.3, cleanse: 1, allySt: [['regen', 3]], ult: 1, d: 'Shield every ally for 30% of the Unicorn\'s max HP, cure their curses and give Regen for 3 turns.' },
+  starlight:   { n: 'Starlight', t: 'allies', cd: 6, heal: 1.6, reviveAll: 0.4, allySt: [['str', 2]], ult: 1, d: 'Heal every ally (160%), bring fainted ones back with 40% HP, and give everyone Strength for 2 turns.' },
   // ----- bosses -----
   shadowclaw:  { n: 'Shadow Claw', t: 'foe', pow: 1.3, st: [['bleed', 2]], d: 'Slashes one pet and makes it bleed.' },
   dreadhowl:   { n: 'Dread Howl', t: 'foes', cd: 3, st: [['weak', 2], ['blind', 1, 0.5]], d: 'Weakens every pet; may blind them.' },
@@ -2039,21 +2049,21 @@ const ABIL = {
 };
 // statuses: good ones help the unit they sit on, bad ones (curses) hurt it
 const STATUS = {
-  burn:    { n: 'Burn',    c: '#ff7043', bad: true,  d: 'Takes fire damage every turn.' },
-  poison:  { n: 'Poison',  c: '#9ccc65', bad: true,  d: 'Takes poison damage every turn (stacks).' },
-  bleed:   { n: 'Bleed',   c: '#e53935', bad: true,  d: 'Takes bleed damage every turn.' },
-  stun:    { n: 'Stun',    c: '#ffeb3b', bad: true,  d: 'Skips its next action.' },
-  blind:   { n: 'Blind',   c: '#90a4ae', bad: true,  d: 'Misses half its attacks.' },
-  weak:    { n: 'Weak',    c: '#bcaaa4', bad: true,  d: 'Deals 30% less damage.' },
-  mark:    { n: 'Mark',    c: '#ce93d8', bad: true,  d: 'Takes 30% more damage.' },
-  shield:  { n: 'Shield',  c: '#81d4fa', bad: false, d: 'Absorbs damage.' },
-  regen:   { n: 'Regen',   c: '#69f0ae', bad: false, d: 'Heals 8% of max HP every turn.' },
-  str:     { n: 'Strength', c: '#ff8a65', bad: false, d: 'Deals 30% more damage.' },
-  guard:   { n: 'Guard',   c: '#90caf9', bad: false, d: 'Takes 40% less damage.' },
-  taunt:   { n: 'Taunt',   c: '#fff59d', bad: false, d: 'Foes must attack it.' },
-  evade:   { n: 'Evade',   c: '#b39ddb', bad: false, d: 'Dodges the next attack.' },
-  lucky:   { n: 'Luck',    c: '#ffd54f', bad: false, d: '+30% critical hit chance.' },
-  undying: { n: 'Undying', c: '#f48fb1', bad: false, d: 'Can\'t drop below 1 HP.' },
+  burn:    { n: 'Burn',    c: '#ff7043', bad: true,  d: 'Takes fire damage every turn.' , ab: 'Bu' },
+  poison:  { n: 'Poison',  c: '#9ccc65', bad: true,  d: 'Takes poison damage every turn (stacks).' , ab: 'Po' },
+  bleed:   { n: 'Bleed',   c: '#e53935', bad: true,  d: 'Takes bleed damage every turn.' , ab: 'Bd' },
+  stun:    { n: 'Stun',    c: '#ffeb3b', bad: true,  d: 'Skips its next action.' , ab: 'St' },
+  blind:   { n: 'Blind',   c: '#90a4ae', bad: true,  d: 'Misses half its attacks.' , ab: 'Bl' },
+  weak:    { n: 'Weak',    c: '#bcaaa4', bad: true,  d: 'Deals 30% less damage.' , ab: 'Wk' },
+  mark:    { n: 'Mark',    c: '#ce93d8', bad: true,  d: 'Takes 30% more damage.' , ab: 'Mk' },
+  shield:  { n: 'Shield',  c: '#81d4fa', bad: false, d: 'Absorbs damage.' , ab: 'Sh' },
+  regen:   { n: 'Regen',   c: '#69f0ae', bad: false, d: 'Heals 8% of max HP every turn.' , ab: 'Rg' },
+  str:     { n: 'Strength', c: '#ff8a65', bad: false, d: 'Deals 30% more damage.' , ab: 'Sg' },
+  guard:   { n: 'Guard',   c: '#90caf9', bad: false, d: 'Takes 40% less damage.' , ab: 'Gd' },
+  taunt:   { n: 'Taunt',   c: '#fff59d', bad: false, d: 'Foes must attack it.' , ab: 'Ta' },
+  evade:   { n: 'Evade',   c: '#b39ddb', bad: false, d: 'Dodges the next attack.' , ab: 'Ev' },
+  lucky:   { n: 'Luck',    c: '#ffd54f', bad: false, d: '+30% critical hit chance.' , ab: 'Lk' },
+  undying: { n: 'Undying', c: '#f48fb1', bad: false, d: 'Can\'t drop below 1 HP.' , ab: 'Ud' },
 };
 const DOTK = { burn: 0.4, poison: 0.3, bleed: 0.35 };
 
@@ -2219,6 +2229,17 @@ const PET_TREES = {
       [KEY('sw_terror', 'Terror Aura', listFx('foeStartSt', [['weak', 1]]), () => 'every battle starts with all foes Weakened for 1 turn')],
       [T_STUN('sw_haunt', 'Haunt'), T_REGEN('sw_regen', 'Night Regrowth')], [ULT('sw_night', 'nightmare')]]),
   ],
+  unicorn: [
+    tree('Valor', '#f48fb1', [[T_ATK('un_horn', 'Sharp Horn')], [T_POW('un_strike', 'Piercing Horn', 'hornstrike', 0.25), T_CRIT('un_glint', 'Glint')],
+      [KEY('un_rainbow', 'Rainbow Charge', M => upAb(M, 'lightcharge', 'pow', 0.5), () => 'Charge of Light deals +50% damage')],
+      [T_CMUL('un_radiant', 'Radiant Blow'), T_FIRST('un_gallop', 'Gallop')], [ULT('un_prism', 'prismatic')]]),
+    tree('Radiance', '#fff59d', [[UP('un_mane', 'Shining Mane', 'rainbowmane', 'heal', 0.25, r => `Rainbow Mane heals +${25 * r}%`)], [T_CD('un_grace2', 'Swift Grace', 'rainbowmane'), S('un_glow', 'Glow', 'heal', 0.1, r => `all its healing and shields +${10 * r}%`)],
+      [KEY('un_halo', 'Halo', listFx('teamStartSt', [['regen', 2]]), () => 'every battle starts with your whole team Regenerating for 2 turns')],
+      [T_THP('un_bless', 'Blessing'), S('un_aura', 'Pure Aura', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)], [ULT('un_sanct', 'sanctify')]]),
+    tree('Starlight', '#b39ddb', [[T_HP('un_coat', 'Silver Coat')], [T_TATK('un_inspire', 'Inspire'), T_DODGE('un_grace', 'Grace')],
+      [KEY('un_wish', 'Wish', listFx('startSt', [['undying', 2]]), () => 'starts every battle Undying for 2 turns')],
+      [T_TCRIT('un_lucky', 'Lucky Star'), T_TDEF('un_ward', 'Starward')], [ULT('un_star', 'starlight')]]),
+  ],
   elder: [
     tree('Cataclysm', '#ff7043', [[S('el_flame', 'Ancient Flame', 'dot', 0.15, r => `its burns deal +${15 * r}%`)], [T_POW('el_storm', 'Firestorm Mastery', 'firestorm', 0.15), T_TURNS('el_claw', 'Ember Claws', 'emberclaw')],
       [KEY('el_living', 'Living Fire', { burnOn: 1 }, () => 'every damaging hit sets the foe on fire for 1 turn')],
@@ -2312,6 +2333,13 @@ function syncPets() {
     burst(P.x + P.w / 2, P.y, d.color, 12, 160);
   }
   G.pets.forEach(p => { p.slot = petSlots.indexOf(p.item); p.maxHp = 1; p.hp = runHp(p.item.def.pet) ?? 1; });
+}
+function petsEnterRoom() {
+  const R = G.room;
+  for (const p of G.pets || []) {
+    p.x = R.entry.x - p.w / 2; p.y = R.entry.y - p.h - (p.d.fly ? 40 : 0); p.vx = p.vy = 0; p.ko = 0;
+    p.waiting = 0.35 + p.slot * 0.45; p.trailT = undefined; p.wander = null;   // each one waits a little longer than the one before
+  }
 }
 function placePetsAtPlayer() {
   const P = G.player;
@@ -2423,6 +2451,7 @@ function petTrailStep(p, dt) {
   nt = Math.min(nt, T.clock, trailTimeAtS(T, T.s - gap));
   nt = Math.max(nt, p.trailT);
   const pt = trailAt(T, nt), ox = p.x, oy = p.y, k = Math.exp(-dt * 10);
+  if (!pt.g && G.stillT > 0.15) { p.trailT = undefined; p.leapVx = undefined; return false; }   // you stopped: don't hang in mid-air, fall and walk over
   p.trailT = nt; p.toffX *= k; p.toffY *= k;
   p.x = pt.x - p.w / 2 + p.toffX; p.y = pt.y - p.h + p.toffY;
   p.vx = clamp((p.x - ox) / dt, -900, 900); p.vy = clamp((p.y - oy) / dt, -900, 900);
@@ -2442,6 +2471,12 @@ function updatePets(dt) {
   const rd = Math.abs(P.vx) > 40 ? Math.sign(P.vx) : 0; if (rd && rd === G.runDir) G.runDirT = (G.runDirT || 0) + dt; else if (rd) { G.runDir = rd; G.runDirT = 0; }
   for (const p of G.pets) {
     const it = p.item;
+    if (p.waiting > 0) {   // still at the entrance: comes in once its turn is up and you've walked on a bit
+      const away = Math.abs(pcx - (R.entry.x)) > 50 + p.slot * 40;
+      p.waiting -= away ? dt : 0;
+      if (p.waiting <= 0) { p.waiting = 0; burst(p.x + p.w / 2, p.y + p.h, p.d.color, 8, 90); }
+      continue;
+    }
     p.phase += dt; p.atkT -= dt; p.inv -= dt;
     // smooth animation clocks: advance at a steady rate instead of jumping with every speed change
     const spd = Math.abs(p.vx);
@@ -2535,6 +2570,7 @@ function updatePets(dt) {
 }
 function drawPets() {
   for (const p of G.pets || []) {
+    if (p.waiting > 0) continue;
     const cx = p.x + p.w / 2, o = {};
     if (p.inv > 0 && p.ko <= 0 && Math.floor(p.inv * 16) % 2 === 0) o.alpha = 0.5;
     if (p.tongue) {   // the toad's tongue lash
@@ -2768,7 +2804,7 @@ function rollComp(R) {
   return wpick(opts);
 }
 function buildFoes(ent, count) {
-  const R = G.room, n = R.n, pool = THEME_POOL[R.type] || PET_IDS.filter(k => BS[k] && k !== 'shadowwolf' && k !== 'elder'), out = [];
+  const R = G.room, n = R.n, pool = THEME_POOL[R.type] || PET_IDS.filter(k => BS[k] && !['shadowwolf', 'elder', 'unicorn'].includes(k)), out = [];
   if (ent.boss === 'shadow') {
     out.push(foeUnit('shadowwolf', wildLevel(10) + 2, { boss: 'shadow', name: 'The Shadow Wolf', acts: 2, scale: 1.7, mul: { hp: 4.6, atk: 1.25, def: 2 },
       abil: ['shadowclaw', 'dreadhowl', 'umbralveil', 'devourweak', 'callshades'] }));
@@ -2906,7 +2942,10 @@ function faint(u, src) {
   }
   u.hp = 0; u.fainted = true; u.st = {}; u.faintT = 0;
   if (u.side === 'ally') { B.faints++; SFX.play('petKo'); bLog(`${u.name} fainted!`); }
-  else { SFX.play('thud'); bLog(`${u.name} is defeated!`); if (src && src.M.killHeal) healUnit(src, src.maxHp * src.M.killHeal); }
+  else {
+    SFX.play('thud'); bLog(`${u.name} is defeated!`); if (src && src.M.killHeal) healUnit(src, src.maxHp * src.M.killHeal);
+    if (u.boss === 'shadow') for (const o of B.foes) if (!o.fainted && o.k === 'shade') { o.hp = 0; o.fainted = true; o.st = {}; o.faintT = 0; bText(o, 'FADES', '#b39ddb', 15); }   // its shades die with it
+  }
   if (src && src.side !== u.side) src.killed = true;
 }
 // pick a target for a single-target attack: taunting units first
@@ -2937,7 +2976,7 @@ function act(u, ab, tgt) {
     if (DOTK[k]) addSt(t, k, T2, Math.max(1, Math.round(u.atk * DOTK[k] * u.dot)));
     else if (k === 'mark') addSt(t, k, T2, M.markAmp || 0);
     else addSt(t, k, T2);
-    if (k === 'stun') bText(t, 'STUN', '#ffeb3b', 14);
+    if (k === 'stun') bText(t, 'STUN', '#ffeb3b', 14); else if (STATUS[k] && t.st[k]) bText(t, STATUS[k].n.toUpperCase(), STATUS[k].c, 13);
   } };
   const onHitExtras = t => {
     if (t.fainted) return;
@@ -2963,7 +3002,15 @@ function act(u, ab, tgt) {
       if (A.devour && !t.boss && t.hp < t.maxHp * A.devour) { bText(t, 'DEVOURED', '#f48fb1', 18); t.hp = 0; faint(t, u); for (const f of friends) healUnit(f, f.maxHp * 0.15, u); }
       else if (pow) { strike(t, pow); if (M.double && Math.random() < M.double && !t.fainted) strike(t, pow * 0.6); }
       else curse(t, sts);
-      if (A.steal) { for (const k in t.st) if (STATUS[k] && !STATUS[k].bad) delete t.st[k]; addSt(u, 'str', 2); }
+      if (A.steal && !t.fainted) {   // Pilfer: the foe's buffs move over to the thief
+        const took = [];
+        for (const k of Object.keys(t.st)) if (STATUS[k] && !STATUS[k].bad) {
+          const st = t.st[k]; delete t.st[k]; took.push(STATUS[k].n);
+          if (k === 'shield') addShield(u, st.v); else addSt(u, k, (st.t || 1) + 1, st.v);
+        }
+        addSt(u, 'str', 3);
+        if (took.length) { bText(u, 'STOLE ' + took.join(', ').toUpperCase(), '#ffd54f', 14); bLog(`${u.name} steals ${took.join(', ')}!`); }
+      }
     }
   } else if (A.t === 'foes') {
     for (let r = 0; r < (A.repeat || 1); r++) for (const t of foes.filter(o => !o.fainted)) {
@@ -3027,7 +3074,7 @@ function tickSide(side) {
   for (const u of side === 'ally' ? B.allies : B.foes) {
     if (u.fainted) continue;
     if (B.turn >= FATIGUE_TURN) { const d = Math.max(1, Math.round(u.maxHp * 0.04 * (B.turn - FATIGUE_TURN + 1) * (u.boss ? 0.12 : 1))); bText(u, 'tired -' + d, '#bcaaa4', 13); applyDamage(u, d, null, false, true); if (u.fainted) continue; }
-    for (const k of ['burn', 'poison', 'bleed']) if (u.st[k]) { const d = Math.max(1, Math.round(u.st[k].v * (syn('wildfire') && u.st.burn && u.st.poison ? 2 : 1) * (u.boss ? 0.5 : 1)));   /* bosses shrug off half */ bText(u, d, STATUS[k].c, 15); applyDamage(u, d, null, false, true); if (u.fainted) break; }
+    for (const k of ['burn', 'poison', 'bleed']) if (u.st[k]) { const d = Math.max(1, Math.round(u.st[k].v * (syn('wildfire') && u.st.burn && u.st.poison ? 2 : 1) * (u.boss ? 0.5 : 1)));   /* bosses shrug off half */ bText(u, `-${d} ${STATUS[k].n.toLowerCase()}`, STATUS[k].c, 15); bLog(`${u.name} takes ${d} from ${STATUS[k].n}.`); applyDamage(u, d, null, false, true); if (u.fainted) break; }
     if (u.fainted) continue;
     if (u.st.regen) healUnit(u, u.st.regen.v || u.maxHp * 0.08);
     if (u.regenPct) healUnit(u, u.maxHp * u.regenPct);
@@ -3127,7 +3174,7 @@ function heroUse(it, tgt) {
 // ---------- winning, losing and rewards ----------
 function winBattle() {
   B.phase = 'won'; B.t = 0; SFX.play('clear');
-  const R = { xp: [], offspring: [], eggs: [], hatched: [], ach: null, dupes: [] };
+  const R = { xp: [], offspring: [], eggs: [], hatched: [], ach: [], dupes: [] };
   const xpBase = B.foes.reduce((a, f) => a + (4 + 2 * f.lvl) * (f.boss ? 4 : f.elite ? 1.6 : 1), 0) * (1 + stats.xp) * (G.cls === 'beastmaster' ? 1.5 : 1) * (1 + TEAM().xp);
   for (const u of B.allies) {
     const gain = Math.round(xpBase * (u.fainted ? 0.5 : 1)), ups = givePetXp(u.it, gain);
@@ -3145,10 +3192,14 @@ function winBattle() {
     }
   }
   if (B.boss === 'shadow') {
-    if (B.turn <= 3) { R.ach = 'Defeat the Shadow Wolf in three turns'; if (!SAVE.ach.shadow) { SAVE.ach.shadow = true; } if (!owned('shadowwolf')) giveOffspring('shadowwolf', R); }
+    if (B.turn <= 3) { R.ach.push('Defeat the Shadow Wolf in three turns'); if (!SAVE.ach.shadow) { SAVE.ach.shadow = true; } if (!owned('shadowwolf')) giveOffspring('shadowwolf', R); }
   }
   if (B.boss === 'elder') {
-    if (B.faints === 0) { R.ach = 'Defeat the Elder Dragon without a single pet fainting'; SAVE.ach.elder = true; if (!owned('elder') && !pack.some(it => it.def.egg === 'elder')) giveOffspring('elder', R); }
+    if (B.faints === 0) { R.ach.push('Defeat the Elder Dragon without a single pet fainting'); SAVE.ach.elder = true; if (!owned('elder') && !pack.some(it => it.def.egg === 'elder')) giveOffspring('elder', R); }
+  }
+  if (B.turn <= 1) {   // a whole enemy team beaten on the first turn
+    R.ach.push('Defeat an enemy team on the first turn of battle'); SAVE.ach.first = true;
+    if (!owned('unicorn')) { unlockPet('unicorn', newcomerLevel()); R.unicorn = true; }
   }
   // eggs in the backpack get closer to hatching
   for (const it of pack.filter(i => i.def.egg)) {
@@ -3182,6 +3233,54 @@ function endBattle() {
   else if (won === total) showMsg('Every wild group on this floor is beaten! Grab the chest.', 3);
   else if (won === exitNeed()) showMsg('The exit is open! (green on the map)', 2.4);
   if (R && R.eggs.length) openPack(R.eggs);
+}
+
+// everything an ability does, spelled out with this pet's numbers (battle tooltips)
+const TARGET_TXT = { foe: 'one foe you choose', foes: 'every foe', rand: 'random foes', ally: 'one ally you choose', allies: 'every ally (including itself)', self: 'itself', weakest: 'the foe with the least HP', strongest: 'the foe with the most HP' };
+function abilityLines(u, ab) {
+  const A = ABIL[ab], M = (u && u.M) || {}, up = (M.up && M.up[ab]) || {}, atk = u ? u.atk : 10, out = [];
+  const pow = (A.pow || 0) + (up.pow || 0), turns = t => `${t} turn${t === 1 ? '' : 's'}`, pct = v => Math.round(v * 100) + '%';
+  out.push(`Target: ${TARGET_TXT[A.t]}${A.t === 'rand' ? ` (${(A.hits || 1) + (up.hits || 0)} hits)` : ''}${A.repeat ? `, ${A.repeat} times` : ''}.`);
+  if (pow) out.push(`Damage: ${pct(pow)} of attack per hit (about ${Math.round(atk * pow)} before the foe's defense).`);
+  if (A.finisher) out.push('Finisher: double damage on foes below half HP.');
+  if (A.alwaysCrit) out.push(`Always a critical hit (x${(u ? u.critMul : 1.5).toFixed(1)} damage).`); else if (A.crit) out.push(`+${pct(A.crit)} crit chance.`);
+  if (A.devour) out.push(`Swallows a normal foe below ${pct(A.devour)} HP whole (not bosses) and heals your team 15%.`);
+  if (A.drain) out.push(`Heals itself for ${pct(A.drain)} of the damage.`);
+  const dur = u && u.side === 'ally' ? (stats ? stats.dur : 0) + (G && G.cls === 'rogue' ? 1 : 0) + (M.dur || 0) : 0;
+  for (const [k, t, ch] of (A.st || []).concat(up.stx || [])) {
+    const T2 = t + (k === 'stun' ? 0 : dur) + (up.turns || 0), c = ch === undefined ? '' : `${pct(Math.min(1, ch + (up.ch || 0)))} chance to `;
+    const dot = DOTK[k] ? ` (about ${Math.max(1, Math.round(atk * DOTK[k] * (u ? u.dot : 1)))} damage per turn)` : '';
+    out.push(`${c ? c[0].toUpperCase() + c.slice(1) : ''}${c ? 'inflict' : 'Inflicts'} ${STATUS[k].n} for ${turns(T2)}: ${STATUS[k].d.toLowerCase()}${dot}`);
+  }
+  if (A.chaos) out.push('Each foe also gets one random curse: Stun, Blind, Burn, Poison, Weak or Mark.');
+  if (A.steal) out.push('Steals every buff the foe has (Shield, Strength, Guard, Luck, Regen...) and gains Strength.');
+  const heal = (A.heal || 0) + (up.heal || 0);
+  if (heal) out.push(`Heals about ${Math.round(atk * heal * (u ? u.heal : 1))} HP (${pct(heal)} of its attack).`);
+  if (A.healPct) out.push(`Heals itself ${pct(A.healPct + (up.heal || 0))} of its max HP${u ? ` (about ${Math.round(u.maxHp * (A.healPct + (up.heal || 0)))})` : ''}.`);
+  if (A.shieldOf) out.push(`Shield worth ${pct(A.shieldOf + (up.shield || 0))} of its max HP${u ? ` (about ${Math.round(u.maxHp * (A.shieldOf + (up.shield || 0)) * u.heal)})` : ''}.`);
+  if (A.shieldAtk) out.push(`Shield worth about ${Math.round(atk * (A.shieldAtk + (up.shield || 0)) * (u ? u.heal : 1))} HP.`);
+  if (A.shieldPct) out.push(`Shields itself for ${pct(A.shieldPct + (up.shield || 0))} of its max HP.`);
+  if (A.cleanse) out.push('Removes every curse.');
+  if (A.reviveAll) out.push(`Brings fainted allies back with ${pct(A.reviveAll)} HP.`);
+  for (const [k, t] of (A.allySt || [])) out.push(`${A.t === 'foes' ? 'Every ally' : 'The ally'} gets ${STATUS[k].n} for ${turns(t + (up.turns || 0))}: ${STATUS[k].d.toLowerCase()}`);
+  for (const [k, t] of (A.self || [])) out.push(`It gets ${STATUS[k].n} for ${k === 'evade' ? t + ' dodge' + (t > 1 ? 's' : '') : turns(t + (up.turns || 0))}: ${STATUS[k].d.toLowerCase()}`);
+  if (A.again) out.push('If it defeats the foe, it acts again right away.');
+  if (A.summon) out.push('Calls a shade wolf to fight beside it.');
+  const cd = A.cd ? Math.max(1, A.cd - (up.cd || 0)) : 0;
+  out.push(cd ? `Cooldown: usable again ${cd} turn${cd > 1 ? 's' : ''} later.` : 'No cooldown: usable every turn.');
+  return out;
+}
+// a wrapped tooltip box: a title and lines, kept on screen
+function drawTipBox(title, lines, cx, y, maxW = 560) {
+  ctx.font = `12px ${UI}`;
+  const wrapped = [];
+  for (const l of lines) { let cur = ''; for (const w of l.split(' ')) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW - 24 && cur) { wrapped.push(cur); cur = w; } else cur = t; } if (cur) wrapped.push(cur); }
+  ctx.font = `bold 13px ${UI}`; const tw = Math.min(maxW, Math.max(ctx.measureText(title).width, ...wrapped.map(l => { ctx.font = `12px ${UI}`; return ctx.measureText(l).width; })) + 24);
+  const h = 26 + wrapped.length * 15, x = clamp(cx - tw / 2, 6, W - tw - 6);
+  ctx.fillStyle = 'rgba(8,6,10,0.93)'; rr(x, y, tw, h, 8); ctx.fill(); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText(title, x + 12, y + 13);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = '#e0e0e0'; wrapped.forEach((l, i) => ctx.fillText(l, x + 12, y + 30 + i * 15));
+  return h;
 }
 // ---------- input ----------
 function abilityRects(u) {
@@ -3265,10 +3364,11 @@ function drawBattleUnit(u) {
   const pct = Math.max(0, u.hp / u.maxHp); ctx.fillStyle = pct > 0.5 ? '#66bb6a' : pct > 0.25 ? '#fbc02d' : '#e53935'; ctx.fillRect(u.x - bw / 2, top - 7, bw * pct, 8);
   if (u.st.shield) { ctx.fillStyle = 'rgba(129,212,250,0.85)'; ctx.fillRect(u.x - bw / 2, top - 7, bw * Math.min(1, u.st.shield.v / u.maxHp), 3); }
   ctx.font = `bold 9px ${UI}`; ctx.fillStyle = '#fff'; ctx.fillText(`${Math.ceil(u.hp)}/${u.maxHp}`, u.x, top - 3);
-  const sts = Object.keys(u.st).filter(k => STATUS[k]); let sx = u.x - sts.length * 17 / 2;
+  const sts = Object.keys(u.st).filter(k => STATUS[k]); let sx = u.x - sts.length * 23 / 2;
   for (const k of sts) {
-    ctx.fillStyle = STATUS[k].c; rr(sx, top + 3, 16, 12, 3); ctx.fill();
-    ctx.fillStyle = '#111'; ctx.font = `bold 8px ${UI}`; ctx.fillText(STATUS[k].n.slice(0, 2).toUpperCase(), sx + 8, top + 9.5); sx += 17;
+    const t = k === 'shield' ? '' : u.st[k].t;
+    ctx.fillStyle = STATUS[k].c; rr(sx, top + 3, 22, 12, 3); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.font = `bold 8px ${UI}`; ctx.fillText((STATUS[k].ab || STATUS[k].n.slice(0, 2)) + t, sx + 11, top + 9.5); sx += 23;
   }
 }
 function drawBattle() {
@@ -3308,7 +3408,7 @@ function drawBattle() {
       ctx.textAlign = 'left'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = cdl ? '#777' : '#fff'; ctx.fillText(`${u.abil.indexOf(r.ab) + 1} ${A.ult ? '★ ' : ''}${A.n}`, r.x + 13, r.y + 14);
       ctx.font = `10px ${UI}`; ctx.fillStyle = cdl ? '#ef9a9a' : '#9e9e9e';
       ctx.fillText(cdl ? `ready in ${cdl} turn${cdl > 1 ? 's' : ''}` : ({ foe: 'one foe', foes: 'all foes', rand: 'random foes', ally: 'one ally', allies: 'all allies', self: 'self', weakest: 'weakest foe', strongest: 'toughest foe' })[A.t] + (A.cd ? ` · cooldown ${A.cd}` : ''), r.x + 13, r.y + 29);
-      if (over) hov.push(A.d);
+      if (over) hov.push({ title: `${A.ult ? '★ ' : ''}${A.n}`, lines: [A.d].concat(abilityLines(u, r.ab)) });
     }
     for (const r of itemRects()) {
       const over = inRect(mouse, r), used = B.heroUses >= heroUsesMax(), sel = B.pick && B.pick.item === r.g.it;
@@ -3317,14 +3417,17 @@ function drawBattle() {
       drawItem({ ...r.g.it, shape: [[1]] }, r.x + 4, r.y + 4, 32);
       ctx.textAlign = 'left'; ctx.font = `bold 10.5px ${UI}`; ctx.fillStyle = used ? '#777' : '#fff'; ctx.fillText(r.g.it.def.name + ((r.g.it.lvl || 1) > 1 ? ' ' + ROMAN[r.g.it.lvl] : ''), r.x + 40, r.y + 14);
       ctx.font = `10px ${UI}`; ctx.fillStyle = '#bcaaa4'; ctx.fillText('x' + r.g.n, r.x + 40, r.y + 29);
-      if (over) hov.push(r.g.it.def.desc);
+      if (over) hov.push({ title: r.g.it.def.name + ((r.g.it.lvl || 1) > 1 ? ' ' + ROMAN[r.g.it.lvl] : ''), lines: [r.g.it.def.desc, levelLine(r.g.it) ? 'This one: ' + levelLine(r.g.it) + '.' : ''].filter(Boolean) });
     }
     ctx.textAlign = 'left'; ctx.font = `bold 11px ${UI}`; ctx.fillStyle = '#ffe0b2';
     ctx.fillText(u ? `${u.name}'s move` : '', 14, 442 - 12);
     ctx.textAlign = 'right'; ctx.fillText(`Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`, W - 14, 442 - 12);
     if (!itemRects().length) { ctx.textAlign = 'left'; ctx.font = `12px ${UI}`; ctx.fillStyle = '#757575'; ctx.fillText('No consumables in your backpack.', 512, 466); }
-    const tip = hov[0] || (B.pick ? (B.pick.item ? `Click ${({ ally: 'a pet to heal', dead: 'a fainted pet', foe: 'a foe' })[USE_T[B.pick.item.def.use]]}  ·  right-click to cancel` : `Choose a target for ${ABIL[B.pick.ab].n}  ·  right-click to cancel`) : null);
-    if (tip) { ctx.font = `12px ${UI}`; const tw = ctx.measureText(tip).width + 20, ty = boss ? 84 : 52; ctx.fillStyle = 'rgba(0,0,0,0.85)'; rr(W / 2 - tw / 2, ty - 11, tw, 22, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(tip, W / 2, ty); }
+    if (hov[0]) { const lines = hov[0].lines; ctx.font = `12px ${UI}`; const h = 26 + lines.length * 17; drawTipBox(hov[0].title, lines, W / 2, boss ? 74 : 44); }
+    else if (B.pick) {
+      const tip = B.pick.item ? `Click ${({ ally: 'a pet to heal', dead: 'a fainted pet', foe: 'a foe' })[USE_T[B.pick.item.def.use]]}  ·  right-click to cancel` : `Choose a target for ${ABIL[B.pick.ab].n}  ·  right-click to cancel`;
+      ctx.font = `12px ${UI}`; const tw = ctx.measureText(tip).width + 20, ty = boss ? 84 : 52; ctx.fillStyle = 'rgba(0,0,0,0.85)'; rr(W / 2 - tw / 2, ty - 11, tw, 22, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(tip, W / 2, ty);
+    }
     // hovering a unit: its statuses explained
     const hu = unitAt(mouse);
     if (hu && !hu.fainted && !B.pick) {
@@ -3346,8 +3449,9 @@ function drawRewards(R) {
   let y = 456; const x0 = 470;
   const line = (t, c) => { ctx.fillStyle = c; ctx.fillText(t, x0, y); y += 16; };
   ctx.font = `bold 12px ${UI}`;
-  if (R.ach) line(`★ ACHIEVEMENT: ${R.ach}!`, '#ffd54f');
+  for (const a of R.ach) line(`★ ACHIEVEMENT: ${a}!`, '#ffd54f');
   ctx.font = `12px ${UI}`;
+  if (R.unicorn) line('The unicorn finds you formidable in battle and joins your Sanctuary!', '#f8bbd0');
   for (const k of R.offspring) line(`New pet! A ${BS[k].baby} joins your Sanctuary.`, '#69f0ae');
   for (const it of R.eggs) line(`The ${PETS[it.def.egg].name} left an egg: ${it.def.name}. Carry it to hatch it!`, '#ffe082');
   for (const k of R.hatched) line(`An egg hatched! A ${BS[k].baby} joins your Sanctuary.`, '#69f0ae');
@@ -3360,7 +3464,7 @@ const ROSTER = { x: 70, y: 30, w: 820, h: 480 };
 const ROSTER_DONE = { x: ROSTER.x + ROSTER.w - 150, y: ROSTER.y + ROSTER.h - 46, w: 130, h: 34 };
 let rosterSel = 0;
 function rosterSlotRect(i) { return { x: ROSTER.x + 170 + i * 165, y: ROSTER.y + 56, w: 155, h: 110 }; }
-function rosterCardRect(i) { const c = i % 6, r = Math.floor(i / 6); return { x: ROSTER.x + 24 + c * 130, y: ROSTER.y + 214 + r * 112, w: 122, h: 104 }; }
+function rosterCardRect(i) { const c = i % 7, r = Math.floor(i / 7); return { x: ROSTER.x + 20 + c * 112, y: ROSTER.y + 214 + r * 112, w: 106, h: 104 }; }
 function drawPetCard(it, r, opt = {}) {
   const k = it.def.pet, d = PETS[k], hp = runHp(k) ?? 1, inTeam = petSlots.includes(it);
   ctx.fillStyle = opt.sel ? 'rgba(255,213,79,0.18)' : opt.over ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.06)'; rr(r.x, r.y, r.w, r.h, 9); ctx.fill();
@@ -3377,7 +3481,7 @@ function drawPetCard(it, r, opt = {}) {
 function drawRoster() {
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = '#1c1611'; rr(ROSTER.x, ROSTER.y, ROSTER.w, ROSTER.h, 14); ctx.fill(); ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `bold 20px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('Your Team', ROSTER.x + 22, ROSTER.y + 28);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `bold 20px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('Your Pets', ROSTER.x + 22, ROSTER.y + 28);
   ctx.font = `12px ${UI}`; ctx.fillStyle = '#bdbdbd'; ctx.fillText('Click a slot, then a pet to put it there. Click a pet in its own slot to bench it. Right-click any pet for its talents.', ROSTER.x + 170, ROSTER.y + 28);
   ctx.font = `bold 12px ${UI}`; ctx.fillStyle = '#a5d6a7';
   ['FRONT  (hit most often)', 'MIDDLE', 'BACK'].forEach((l, i) => { const r = rosterSlotRect(i); ctx.textAlign = 'center'; ctx.fillText(l, r.x + r.w / 2, r.y - 10); });
@@ -3455,6 +3559,9 @@ function openPack(newItems) {
   if (newItems.length) showMsg(`Found: ${newItems.map(i => i.def.name).join(', ')}!`, 2.5);
 }
 function tryOpenPack() { openPack([]); }
+const PETS_BTN = { x: 486, y: 8, w: 84, h: 38 };
+function openPetsMenu() { openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; SFX.play('pick'); }
+function closeRoster() { PK.roster = false; SFX.play('pick'); if (PK.rosterOnly) closePack(); }
 function closePack() {
   if (PK.drag) return;
   if (PK.staging.length && !PK.warn) { PK.warn = true; showMsg('Unplaced items will be left behind! Press again to leave them.', 2.5); SFX.play('error'); return; }
@@ -3491,10 +3598,11 @@ function onMouseDown(btn) {
   }
   if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
   if (G.mode === 'battle') { battleClick(btn); return; }
+  if (G.mode === 'play' && !G.hub && btn === 0 && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { openPetsMenu(); return; }
   if (G.hub && (G.panel || (PK && PK.talent != null))) { hubPanelClick(btn); return; }
   if (G.mode !== 'pack' || !PK) return;
   if (PK.talent != null) { if (btn === 0) talentClick(); else PK.talent = null; return; }
-  if (PK.roster) { const r = rosterClick(btn); if (r === 'close') { PK.roster = false; SFX.play('pick'); } else if (r) PK.talent = r; return; }
+  if (PK.roster) { const r = rosterClick(btn); if (r === 'close') closeRoster(); else if (r) PK.talent = r; return; }
   if (btn === 2 && !PK.drag) { const ps = petSlotAt(mouse); if (ps !== null && petSlots[ps]) { PK.talent = ps; SFX.play('pick'); return; } }
   if (btn === 2) { if (PK.drag) rotateDrag(); else rotateHovered(); return; }
   if (btn !== 0) return;
@@ -3931,6 +4039,11 @@ function drawHUD() {
     ctx.fillStyle = fainted ? '#555' : hp > 0.5 ? '#43a047' : hp > 0.25 ? '#fbc02d' : '#e53935'; ctx.fillRect(x + 8, y + 22, 134 * Math.max(0, hp), 9);
     if (fainted) { ctx.textAlign = 'center'; ctx.font = `bold 9px ${UI}`; ctx.fillStyle = '#fff'; ctx.fillText('FAINTED', x + 75, y + 27); }
   });
+  { const over = inRect(mouse, PETS_BTN);   // the pets menu button
+    ctx.fillStyle = over ? 'rgba(129,199,132,0.45)' : 'rgba(0,0,0,0.6)'; rr(PETS_BTN.x, PETS_BTN.y, PETS_BTN.w, PETS_BTN.h, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(165,214,167,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = '#c8e6c9';
+    ctx.fillText(`Pets ${ownedIds().length}`, PETS_BTN.x + PETS_BTN.w / 2, PETS_BTN.y + 13); ctx.font = `10px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.fillText('[T] team', PETS_BTN.x + PETS_BTN.w / 2, PETS_BTN.y + 28); }
   // plant charges for the next battle
   let bx = 14;
   for (const kk of ['ember', 'stone', 'catnip', 'swift']) {
@@ -3958,7 +4071,7 @@ function drawHUD() {
   }
   // controls hint
   ctx.textAlign = 'center'; ctx.font = `11px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText('A/D move · W jump · S drop · Shift dash · run into wild animals to battle · B backpack & team · N map · P pause · M ' + (SFX.muted ? 'sound on' : Music.on ? 'music off' : 'mute all'), W / 2, H - 12);
+  ctx.fillText('A/D move · W jump · S drop · Shift dash · run into wild animals to battle · B backpack · T pets · N map · P pause · M ' + (SFX.muted ? 'sound on' : Music.on ? 'music off' : 'mute all'), W / 2, H - 12);
   // message
   if (G.msgT > 0 && G.msg) {
     ctx.globalAlpha = Math.min(1, G.msgT * 2);
@@ -3971,6 +4084,10 @@ function drawHUD() {
 }
 
 function drawPack() {
+  if (PK.rosterOnly && PK.roster) {   // the pets menu on its own, over the dimmed world
+    ctx.fillStyle = 'rgba(6,6,10,0.45)'; ctx.fillRect(0, 0, W, H);
+    drawRoster(); if (PK.talent != null) drawTalents(); return;
+  }
   ctx.fillStyle = 'rgba(6,6,10,0.82)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold 24px ${UI}`; ctx.fillStyle = '#ffe0b2'; ctx.fillText('Backpack', W / 2, 30);
@@ -4001,7 +4118,9 @@ function drawPack() {
     ctx.fillStyle = over ? 'rgba(129,199,132,0.35)' : 'rgba(0,0,0,0.35)'; rr(r.x, r.y, r.w, r.h, 8); ctx.fill();
     ctx.strokeStyle = over ? '#a5d6a7' : 'rgba(165,214,167,0.35)'; ctx.lineWidth = over ? 2.5 : 1.5; ctx.stroke();
     if (pet) {
-      drawItem(pet, r.x, r.y, r.w / 2);
+      { const k = pet.def.pet, d = PETS[k], sh = speciesSheet(k); ctx.save(); rr(r.x, r.y, r.w, r.h, 8); ctx.clip(); ctx.filter = standInTint(k, sh);
+        if (!drawAnim(sh, d.fly ? 'fly' : 'idle', TIME * 5 + i, r.x + r.w / 2, d.fly ? r.y + r.h * 0.45 : r.y + r.h - 6, 1, { scale: PX * 0.85 * babyScale(pet) })) drawItem(pet, r.x, r.y, r.w / 2);
+        ctx.filter = 'none'; ctx.restore(); }
       ctx.font = `bold 10px ${UI}`; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(r.x + 2, r.y + r.h - 13, 26, 11);
       ctx.fillStyle = '#c8e6c9'; ctx.fillText('Lv' + petLvl(pet), r.x + 4, r.y + r.h - 7);
       if (talentPoints(pet) > 0) { ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'right'; ctx.font = `bold 13px ${UI}`; ctx.fillText('▲', r.x + r.w - 3, r.y + 9 + Math.sin(TIME * 5) * 1.5); }
@@ -4222,11 +4341,17 @@ function drawTalents() {
     ctx.fillText(`${hov.tier === 5 ? '★ ' : ''}${t.name}`, DX + 12, DY + 16);
     ctx.font = `11px ${UI}`; ctx.fillStyle = '#9e9e9e'; ctx.textAlign = 'right';
     ctx.fillText(`${trees[hov.ti].name} · ${hov.tier === 5 ? 'Ultimate' : hov.tier === 3 ? 'Keystone' : 'Tier ' + hov.tier} · rank ${rank}/${t.max}`, DX + DW - 12, DY + 16);
-    ctx.textAlign = 'left'; ctx.font = `12.5px ${UI}`; ctx.fillStyle = '#e0e0e0';
-    let y = wrap((rank ? 'Now: ' : '') + cap(t.txt(Math.max(1, rank))), DX + 12, DY + 38, DW - 24, 15);
-    if (rank && rank < t.max) { ctx.fillStyle = '#c5e1a5'; y = wrap('Next rank: ' + cap(t.txt(rank + 1)), DX + 12, y + 2, DW - 24, 15); }
-    ctx.font = `bold 11.5px ${UI}`; ctx.fillStyle = rank >= t.max ? '#ffd54f' : why ? '#ef9a9a' : '#a5d6a7';
-    ctx.fillText(why || 'Click to learn.', DX + 12, DY + DH - 12);
+    ctx.textAlign = 'right'; ctx.font = `bold 11.5px ${UI}`; ctx.fillStyle = rank >= t.max ? '#ffd54f' : why ? '#ef9a9a' : '#a5d6a7';
+    ctx.fillText(why || 'Click to learn.', DX + DW - 12, DY + 34);
+    ctx.textAlign = 'left'; ctx.font = `12px ${UI}`; ctx.fillStyle = '#e0e0e0';
+    const ultAb = hov.tier === 5 && BS[it.def.pet].ult[hov.ti];
+    if (ultAb) {   // ultimates: the full breakdown of the ability it teaches
+      const lines = [ABIL[ultAb].d].concat(abilityLines(null, ultAb).slice(0, -1)).join(' ');
+      wrap('ULTIMATE: learns ' + ABIL[ultAb].n + '. ' + lines + ' ' + abilityLines(null, ultAb).slice(-1)[0], DX + 12, DY + 52, DW - 24, 14);
+    } else {
+      let y = wrap((rank ? 'Now: ' : '') + cap(t.txt(Math.max(1, rank))), DX + 12, DY + 52, DW - 24, 14);
+      if (rank && rank < t.max) { ctx.fillStyle = '#c5e1a5'; wrap('Next rank: ' + cap(t.txt(rank + 1)), DX + 12, y + 2, DW - 24, 14); }
+    }
   } else {
     ctx.font = `12.5px ${UI}`; ctx.fillStyle = '#bdbdbd';
     wrap('Spend points from the top of a tree down. Each tier opens at the level on the left and needs a point in the tier above it. Mix trees or go deep for the ultimates; reset any time for free.', DX + 12, DY + 22, DW - 24, 16);
@@ -4385,6 +4510,7 @@ function update(dt) {
       }
       if (hit('p', 'Escape')) { G.mode = 'pause'; SFX.play('pause'); break; }
       if (hit('b', 'i', 'Tab')) { tryOpenPack(); if (G.mode === 'pack') break; }
+      if (hit('t')) { openPetsMenu(); break; }
       if (hit('n')) G.minimap = !G.minimap;
       updateWorld(dt);
       break;
@@ -4397,7 +4523,7 @@ function update(dt) {
     case 'pack':
       if (PK && PK.flash) PK.flash.t -= dt;
       if (PK && PK.talent != null) { if (hit('b', 'i', 'Tab', 'Escape')) PK.talent = null; }
-      else if (PK && PK.roster) { if (hit('b', 'i', 'Tab', 'Escape')) PK.roster = false; }
+      else if (PK && PK.roster) { if (hit('b', 'i', 'Tab', 'Escape', 't')) closeRoster(); }
       else {
         if (hit('r')) { if (PK.drag) rotateDrag(); else rotateHovered(); }
         if (hit('b', 'i', 'Tab', 'Escape')) closePack();
