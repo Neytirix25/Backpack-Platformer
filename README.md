@@ -1,6 +1,6 @@
 # Backpack Platformer
 
-**Backpack Sanctuary** is a side-scrolling roguelike platformer about packing the perfect backpack. Fight down through 20 floors of a dark-fantasy dungeon, cram every item you find into a 10×4 grid, and merge duplicates to make them stronger.
+**Backpack Sanctuary** is a side-scrolling roguelike about raising a team of animal companions. Explore 20 floors of a dark-fantasy dungeon, run into wild animals to start turn-based battles, and collect their babies and eggs to grow your Sanctuary. Everything you pack in your 10×4 backpack powers up your pets.
 
 ## Play
 
@@ -12,36 +12,32 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 | W | Jump |
 | S | Drop through ledges |
 | Shift | Dash |
-| Space | Attack |
-| E | Class ability (in the Sanctuary: use / pet) |
-| Q | Drink a potion |
-| B | Open the backpack |
-| R / right-click | Rotate an item while packing |
+| E | In the Sanctuary: use / pet an animal |
+| B | Open the backpack and your team |
+| 1–6 / mouse | Battle: pick an ability, then click a target |
+| R / right-click | Rotate an item while packing · cancel a target in battle |
 | N | Toggle the minimap |
 | P | Pause |
 | M | Music off / all sound off / on |
 
-## Features
+## How it works
 
-- **The Sanctuary:** a home base between runs. Walk around as your hero, switch class at the banners, pick a male or female look at the mirror, read your run records, and visit (and pet!) every animal you've ever rescued. Animals you haven't found yet wait as silhouettes. Walk through the gate to start a run.
-- **Four classes**, each with its own ten class-only items and an E ability:
-  - **Warrior:** Shield Block
-  - **Archer:** Arcane Shot
-  - **Rogue:** Bombs
-  - **Beastmaster:** Spirit Wolf, plus +1 damage on every pet
-- **Backpack management:** items have shapes, synergies (whetstones, charms, fletching kits) and merge up to level V.
-- **Rescue animals:** monsters keep captured animals in guarded cages. Beat the guards, open the cage, and the animal joins you in one of 3 pet slots. There are 10 to find, each with its own ability:
-  - **Common:** White Shepherd (stun), Gray Cat (finisher), Calico (mark), Ferret (weaken), Toad (poison).
-  - **Uncommon:** Fox (triple crits), Boar (charge).
-  - **Rare:** Cockatiel (heals you), Owl (blind).
-  - **Legendary:** Dragon (burn).
-- **Pet talent trees:** pets level up (to 30) from the kills you make together. Right-click a pet in its slot to open its three talent trees: each reads top to bottom, opens new tiers as the pet levels, and ends in a game-changing ultimate. Specialize a Shepherd into a bodyguard, a crowd-stunning herder or a frenzied hunter. Resetting is free.
+- **Your first companion:** a new game starts in the Sanctuary, where you pick a Shepherd Pup, a Fox Kit or a Cockatiel Chick.
+- **Wild animals:** each floor has wild animal groups roaming its ledges. Run into one and a turn-based battle starts: your hero stands at the back, your pets line up front, middle and back, and the wild animals face them, **as many foes as you have pets**. Groups come in different compositions (packs, shield walls, healer-backed, hexers, venom), and Act II animals and Alphas know ultimate abilities.
+- **Turn-based battles:** each pet picks one of its abilities (damage, heals, shields, buffs and curses such as Burn, Poison, Bleed, Stun, Blind, Weaken and Mark), then the foes act. The hero can use one backpack consumable per turn (heal, revive, cure, Strength, smoke, net). Long fights tire everyone out. If all your active pets faint, the run ends, but your pets keep every level.
+- **Offspring:** beating a species you don't own always leaves its baby (Shepherd, cats, Fox, Ferret, Boar) or its egg (Cockatiel, Owl, Dragon, Toad). Eggs take up backpack space and hatch after 2 more wins. Species you already own sometimes leave another, which turns into experience.
+- **Your collection is saved forever:** pets keep their levels (up to 30) and talents between runs. Bring any 3 into a run (front, middle, back) and swap them at the pet beds in the Sanctuary or from the backpack screen.
+- **Talent trees:** every pet has three trees that read top to bottom (tiers open at levels 1, 5, 10, 16 and 22). Talents upgrade its abilities, add curses to its hits and power up the whole team, and each tree ends in an ultimate battle ability. Resetting is free.
+- **Bosses:** the **Shadow Wolf** guards floor 10 and the **Elder Dragon** floor 20. Beat the Shadow Wolf within three turns to earn the achievement and its pup; beat the Elder Dragon without a pet fainting to earn its egg.
+- **Classes shape your team:**
+  - **Warrior (Vanguard):** your front pet has +30% HP and +2 defense and starts every battle shielded.
+  - **Archer (Volley):** you open each battle with arrows that hit every foe, and pets get +8% crit.
+  - **Rogue (Poacher):** more offspring, faster-hatching eggs, and your pets' curses last longer.
+  - **Beastmaster (Bond):** pets earn 50% more experience, and you can use two items per turn.
+- **Pet items:** collars, chew bones, harnesses and charms; family items for canines, cats, birds, drakes, toads and critters; front and back position items; legendaries like the Dragon Heart; and battle consumables. Items merge up to level V.
 - **Team synergies:** Clowder (both cats), Pack Hunt (Shepherd + Fox) and Wildfire (Dragon + Toad).
-- **Lively pets:** they follow you, hop off ledges and leap gaps, and wander, sniff, perch or lie down when you stand still.
-- **The dungeon fights back:** monsters are tougher, hit harder, attack faster and come in larger numbers for every pet on your team (and a little more as your pets level up), so a full team still has a tough time.
-- **Long levels:** one long stretch per floor, with chasms and arcane barriers you can only get past by dashing, challenge courses with treasure chests at the end, buff plants, and an Explorer's Lantern that reveals more with each level.
-- **Two acts:** floors 1–10 end with the Warden boss, and floors 11–20 bring new enemies and hazards (lava, flame vents, crumbling blocks). Endless mode unlocks after floor 20.
-- **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio. Floors rotate through a pool of tracks without repeating the last two.
+- **Long levels:** chasms and arcane barriers you dash past, hazards that hurt your team, challenge courses with treasure chests, and buff plants that power up your next battle. Beat half of a floor's wild groups to open the exit, or all of them for the floor's chest. Camps on floors 5 and 15 fully heal your team.
+- **Original chiptune soundtrack and sound effects,** synthesized live with Web Audio.
 
 ## Project layout
 

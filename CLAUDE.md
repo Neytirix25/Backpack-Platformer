@@ -5,9 +5,12 @@ function names below instead of reading the whole file (it is ~4,500 lines).
 
 ## What it is
 
-A side-scrolling roguelike platformer about packing a 10x4 backpack. Plain JavaScript + `<canvas>`, no
-libraries, no build step: **the whole game is `index.html`**, opened by double-click (must keep working from
-`file://`). Sprites load from `assets/`; anything missing falls back to code-drawn graphics.
+A side-scrolling roguelike about raising a team of animal companions. You explore platforming floors as the
+hero (no attacking); running into a wild animal group opens a **turn-based battle** between your 3 active pets
+and that many wild animals. Defeated animals leave babies/eggs that join your saved collection. Backpack
+items power up the pets. Plain JavaScript + `<canvas>`, no libraries, no build step: **the whole game is
+`index.html`**, opened by double-click (must keep working from `file://`). Sprites load from `assets/`;
+anything missing falls back to code-drawn graphics.
 
 Owner: GitHub `Neytirix25`, repo https://github.com/Neytirix25/Backpack-Platformer (public).
 
@@ -31,7 +34,7 @@ README.md           player-facing description + controls
 assets/anim/        animation sheets (<name>.png + entries in anims.js, loaded via <script src>)
 assets/items|props|tiles|bg|chars/   static sprites (items: 18 art px per backpack cell; world sprites drawn at 2x)
 tools/animate.py    slices raw ChatGPT animation sheets -> assets/anim/*.png + anims.js   (SPECS dict, ROW_FIX)
-tools/pixelate.py   slices raw item/prop/bg sheets -> assets/*   (subcommands: items2, tiles, plants, classitems <cls>, petcages, hubprops, bg <name>, floor <name>)
+tools/pixelate.py   slices raw item/prop/bg sheets -> assets/*   (classitems pets1|pets2|pets3 = the pet item icon sheets; also items2, tiles, plants, hubprops, bg <name>)
 assets_raw/         raw ChatGPT downloads (gitignored, local only)
 ```
 
@@ -41,61 +44,61 @@ Run Python tools with `python -P` (avoids local-module shadowing).
 
 | Section | What lives there |
 |---|---|
-| ART | `ART_FILES` lists every sprite to load, `drawAnim`, `drawSprite`, `whiteOf`/`blackOf` silhouettes, `BG_CROP`/`BG_FLOOR` |
-| SOUND / MUSIC | `SFX` synth, `SONGS`, `Music`, `musicDirector`, `LEVEL_POOLS`, `pickLevelSong` (never repeats the last 2) |
-| ITEMS | `ITEMS` table (shape, rarity, stats, `only:` class, `noDrop`), `LVL_MULT` merge levels, `computeStats`, `rollItem` |
-| CLASSES | `CLASSES`, `CLASS_ORDER`, `startItems`; `SAVE` (localStorage: collection, records, skins), `heroSheet(cls)`, `logRun` |
-| ENEMIES & ROOMS | `ENEMIES`, `THEMES`, `THREAT`/`threat()`/`applyThreat` (pet-team scaling), `enemyHpCurve(n)` (per-floor HP), `makeEnemy`, `newGame`, `nextRoom` |
-| THE SANCTUARY | hub between runs: `enterHub`, `HUB_SPOTS`, `updateHubPets`, `hubStations`/`hubNearest`/`hubInteract` (E key), `drawHubWorld`, `drawHubBubble`, `drawHubHUD` |
-| level generation | `SEGMENTS` ASCII templates, `buildLevel`/`tryBuild` (one storey, 18 segments x 16 tiles), `buildArena` (camp/boss/hub), `buildNav`, `populate` (enemy budget + at least 3 per screen) |
-| BUFF PLANTS | `PLANTS`, lantern reveal tiers |
-| COMBAT / CLASS ABILITIES | `atkDmg`, `playerHit`, `damageEnemy`, `hurtPlayer`, `ABILITY` table + `useAbility` |
-| UPDATE | `updatePlayer`, `updateEnemy`, `updateWorld`, camera, hazards, chasms (`fellInChasm`) |
-| PETS | `PETS` roster (10), `petSlots`, `syncPets`, `PET_TREES` (3 talent trees per pet, `nd`/`pulse` helpers), `petMods` (talents -> modifier object `p.M`), `teamMods`/`TEAM()` (team-wide talents), `petHit`/`petStatuses`, `firePulse` (timed talent skills), `petsTakeHit` (guard/shield/Last Line), `SYNERGIES`, `updatePets`, trail-following (`recordTrail`, `petTrailStep`), `petRun`/`edgeAhead`, `drawPets` |
-| CAGES | `makeCage`, `addCageGuards`, `freeCage` (also records the species in the collection) |
-| BACKPACK SCREEN / DRAWING / MAIN LOOP | pack UI, all draw functions, `update(dt)` mode switch, `frame()` |
+| ART | `ART_FILES` lists every static sprite to load, `drawAnim`, `drawSprite`, `whiteOf`/`blackOf`, `BG_CROP`/`BG_FLOOR` |
+| SOUND / MUSIC | `SFX` synth, `SONGS`, `Music`, `musicDirector`, `LEVEL_POOLS`, `pickLevelSong` |
+| ITEMS | `ITEMS` (pet passives, family items `fam:`, position items, consumables `use:`, eggs `egg:`, pet entries `pet_<k>`), `LVL_MULT` merges, `computeStats` (team bonuses), `rollItem` |
+| CLASSES | `CLASSES` (Warrior Vanguard, Archer Volley, Rogue Poacher, Beastmaster Bond: their effects live in `petUnit`, `beginPlayerTurn`, `winBattle`, `heroUsesMax`), `SAVE` (`coll`, `rec`, `skin`, `pets`, `team`, `ach`), `heroSheet`, `logRun` |
+| ENEMIES & ROOMS | `THEMES`, `newGame`, `nextRoom` (boss every 10th floor: 10 Shadow Wolf, 20 Elder Dragon; camps on 5/15) |
+| THE SANCTUARY | hub: `enterHub` (starter panel when you own no pets), `HUB_SPOTS`, `hubStations` (incl. the team station at the pet beds), `hubInteract`, `hubPanelClick`, `drawHubHUD` |
+| level generation | `SEGMENTS`, `buildLevel`/`tryBuild`, `buildArena`, `buildNav`, `populate` (calls `placeWild`) |
+| BUFF PLANTS | `PLANTS` (charges for the next battle, Swiftleaf = hero speed), `pickPlant` |
+| UPDATE | `updatePlayer` (no attacks; exit gated by `exitOpen()`), `updateWorld`, hazards hurt the team (`hurtTeam`), chasms |
+| PETS | `PETS` (overworld body + art, incl. `shadowwolf`/`elder` with `fallback` sheets), battle data `FAMILY`/`BS` (stats, 3 base abilities, 3 tree ultimates, offspring)/`ABIL`/`STATUS`, `PET_TREES` (`S`/`UP`/`KEY`/`ULT` helpers), `petMods` → `M`, `teamMods`/`TEAM()`, talents, `syncPets` (overworld followers), trail-following |
+| WILD ANIMALS | `placeWild`, `updateWild` (touch → `startBattle`), `drawWild`, `exitNeed`/`exitOpen`, `hurtTeam`/`healTeam` |
+| BATTLES | collection `PET_ITEMS`/`loadPets`/`savePets`/`unlockPet`/`newcomerLevel`, XP `XP_NEED`/`givePetXp`, `petUnit`/`foeUnit`, `THEME_POOL`/`COMPS`/`wildLevel`/`buildFoes` (bosses too), `startBattle`, `act` (resolves any ability), `dealDamage`/`applyDamage`/`faint`, `aiChoose`, `tickSide`/`expireSide` (DoTs, fatigue from turn 15), `winBattle` (XP, offspring, eggs hatch, achievements), `heroUse`, `drawBattle`, roster + starter screens |
+| BACKPACK SCREEN / DRAWING / MAIN LOOP | pack UI (team box opens the roster, right-click = talents), draw functions, `update(dt)` (`G.mode` play / pack / battle / pause / trans / dead / won), `frame()` |
 
 Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 1, ONEWAY 2, SPIKES 3, LAVA 4, CRUMBLE 5, PHASE 6`.
 
-## Game flow
-
-Title → **Sanctuary hub** (`G.hub = true`; pick class at banners, look at the mirror, records board, pet
-animals, walk through the gate) → `newGame()` → floors 1–20 (boss on 10, camps on 5 and 15, Act II from 11,
-endless after 20) → death/victory → back to the hub. `G.mode`: play / pack / pause / trans / dead / won.
-
 ## Systems worth knowing before changing things
 
-- **Pets:** live only in 3 pet slots (`petSlots`), rescued from cages, level 1–30 from kills, three talent trees per pet via
-  right-click. Ground pets follow the hero's recorded path (`G.trail`) with a delay; fighting, resting,
-  flyers, boar charge, KO and the leash teleport use the older logic.
-- **Difficulty:** `enemyHpCurve(n) = 1 + 0.4(n-1) + 0.025(n-1)^2` (halved for Act II types); `THREAT` adds
-  HP/damage/count/attack speed per pet in your team (and a bit per pet level).
-- **Saved data (localStorage):** `packrat_coll` (species rescued), `packrat_records`, `packrat_skin`
-  (female looks), `packrat_class`, `packrat_best` — always read/written through `sk(key)`, which appends
-  `@<SLOT>` (a hash of the folder the game runs from). Chrome shares one storage for every `file://` page, so
-  this keeps each copy's progress separate and a fresh download starts unprogressed. A folder named
-  `backpack sanctuary` (or the old name `pack-rat-dungeon`) adopts the old folder's save / the unslotted save once. Mute/music flags (`packrat_muted`, `packrat_music`)
-  stay shared on purpose.
+- **Turn order:** player phase (each living pet acts in slot order front→back, the hero may use `heroUsesMax()`
+  consumables), then every foe acts (`B.queue`; bosses act twice). Statuses: DoTs/regen tick at the start of
+  the owner's phase (`tickSide`), durations count down at the end of it (`expireSide`). Curses put on the
+  other side use the plain turn count; buffs on your own side get +1 (they're applied mid-phase).
+- **Ability fields (`ABIL`):** `t` (foe/foes/rand/ally/allies/self/weakest/strongest), `pow`, `hits`, `repeat`,
+  `heal`/`healPct`, `shieldOf`/`shieldAtk`/`shieldPct`, `st` (curses `[status, turns, chance]`), `self`,
+  `allySt`, `cd`, `finisher`, `alwaysCrit`, `crit`, `devour`, `steal`, `cleanse`, `reviveAll`, `again`, `summon`, `ult`.
+  Talents tweak abilities through `M.up[ab]` (`pow`, `cd`, `ch`, `turns`, `heal`, `shield`, `stx` extra curses).
 - **Talent trees:** `TIER_LVL = [0,1,5,10,16,22]`; a talent needs a point in the tier above in the same tree
-  (`talentBlock`). Node `fx` is either `{key: perRank}` (summed into `p.M`) or `(M, r) => ...`. Talent screen:
-  `drawTalents`/`talentRects`/`talentClick` (free reset button). Pets level to 30 (`petXpNeed`), 5% stronger per level.
-- **Female heroes:** sheets `<cls>_f`, plus `warrior_f_block`, `archer_f_arcane`; `heroSheet()` picks them.
+  (`talentBlock`). Tier 5 of each tree is `ULT(id, ability)` → pushes the ability onto `M.ults`.
+- **Balance knobs:** `statLine` growth (+9% HP, +8% atk per level), `wildLevel(n)`, `foeUnit` multipliers,
+  boss `mul`s in `buildFoes`, `XP_NEED`, XP per foe in `winBattle`, `FATIGUE_TURN`. Bosses take half DoT damage
+  and resist stuns (1 turn, then immune for 3).
+- **Saved data (localStorage):** `packrat_pets` (level/xp/talents per species), `packrat_team`, `packrat_ach`,
+  `packrat_coll`, `packrat_records`, `packrat_skin`, `packrat_class`, `packrat_best`: always through `sk(key)`,
+  which appends `@<SLOT>` (a hash of the game's folder) so each copy keeps its own progress. A folder named
+  `backpack sanctuary` (or `pack-rat-dungeon`) adopts the old folder's / the unslotted save once.
+- **Run state:** `RUN.petHp[k]` = HP fraction during a run (fainted = 0); +25% per new floor, camps heal fully.
+- **Female heroes:** sheets `<cls>_f`; `heroSheet()` picks them.
 
 ## Art pipeline (ChatGPT in Chrome)
 
-1. Type the prompt into the ChatGPT tab (transparent background, rows/frames spelled out, "no text").
-2. In that tab, inject the helpers `window.__prd.prepLatest(name)` and `window.__grab3(name, prevSize)`
-   (they find the newest generated image and add a big green SAVE button); click the button to download.
-3. Copy the newest `*.tmp` from `Downloads` into `assets_raw/` (for animations: `anim_<name>.png`), remove
-   white backgrounds/halos if needed, then run `tools/animate.py <name>` or the matching `pixelate.py` command.
-   Check `assets_raw/anim_<name>_check.png` to see the sliced frames.
-4. New sprites must be added to `ART_FILES` (static) — animation sheets register themselves via `anims.js`.
+1. Type the prompt into the ChatGPT tab (transparent background, rows/frames or item order spelled out, "no text").
+2. In that tab, inject a helper that fetches the newest generated `main img` as a blob and adds a big green
+   SAVE button that downloads it; click the button with a real mouse click.
+3. Copy the newest `*.tmp` (match it by byte size) from `Downloads` into `assets_raw/` (animations:
+   `anim_<name>.png`; icon sheets: `items_<name>_sheet.png`), remove white backgrounds/halos if needed, then run
+   `tools/animate.py <name>` or `tools/pixelate.py classitems <name>`. Check `assets_raw/anim_<name>_check.png`.
+4. New static sprites must be added to `ART_FILES` — animation sheets register themselves via `anims.js`.
 
 ## Testing
 
-There is no test runner in the repo. Past sessions used headless Node scripts that stub canvas/audio and
-`eval` the game's `<script>` (extract it with: `sed -n '/<script>$/,/<\/script>/p' index.html | sed '1d;$d'`).
-Always at least syntax-check after edits: `node --check` on the extracted script. To preview visually, run
+There is no test runner in the repo. Headless Node scripts stub canvas/audio and `eval` the game's `<script>`
+(extract it with: `sed -n '/<script>$/,/<\/script>/p' index.html | sed '1d;$d'`), then drive it: a bot that
+picks a starter, walks into each wild group, chooses abilities, and plays floors 1–20 is the best smoke test;
+a boss simulator (fixed team/level/kit vs the boss, many runs) is the best balance check. Always at least
+syntax-check after edits: `node --check` on the extracted script. To preview visually, run
 `python -P -m http.server 8765 --bind 127.0.0.1` in this folder and open it in a new Chrome tab (freeze the
 loop with `window.__U = update; window.update = () => {}` and step `__U(1/60)` + `draw()` manually, because
 background tabs throttle animation frames).

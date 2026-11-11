@@ -48,7 +48,7 @@ let TIME = 0;
 const PX = 2;  // world sprites are drawn at 2x
 const ART = {};
 const ART_FILES = {
-  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover'],
+  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain'],
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub'],
@@ -638,7 +638,7 @@ const ITEMS = {
   vest:      { name: 'Padded Vest',     icon: '🦺', shape: [[1, 1], [1, 1]],  color: '#4a5a6a', rarity: 'common',    tags: [], def: 2, desc: 'All pets +2 defense.' },
   treats:    { name: 'Pet Treats',      icon: '🍪', shape: [[1]],             color: '#8a6a3a', rarity: 'common',    tags: [], xp: 0.25, desc: 'Pets earn 25% more experience.' },
   blanket:   { name: 'Cozy Blanket',    icon: '🧣', shape: [[1, 1, 1]],       color: '#6a3a4a', rarity: 'uncommon',  tags: [], regen: 0.04, desc: 'All pets regenerate 4% of their max HP every turn.' },
-  spikes:    { name: 'Spiked Collar',   icon: '🦔', shape: [[1, 1]],          color: '#5a3a3a', rarity: 'uncommon',  tags: [], thorns: 0.2, desc: 'Foes that hit a pet take 20% of the damage back.' },
+  spikes:    { name: 'Spiked Collar',   icon: '🦔', shape: [[1]],          color: '#5a3a3a', rarity: 'uncommon',  tags: [], thorns: 0.2, desc: 'Foes that hit a pet take 20% of the damage back.' },
   whistle:   { name: 'Rally Whistle',   icon: '📯', shape: [[1]],             color: '#7a6020', rarity: 'uncommon',  tags: [], rally: 1, desc: 'Every battle starts with all pets Strengthened (+30% attack) for 1 turn.' },
   clover:    { name: 'Lucky Clover',    icon: '🍀', shape: [[0, 1, 0], [1, 1, 1], [0, 1, 0]], color: '#2d6638', rarity: 'rare', tags: [], crit: 0.1, luck: 1, offspring: 0.1, desc: '+10% crit for all pets, rarer loot, and +10% offspring chance.' },
   phoenix:   { name: 'Phoenix Feather', icon: '🪶', shape: [[1], [1]],        color: '#7a2a10', rarity: 'rare',      tags: [], revive: 0.3, desc: 'Once per battle, the first pet to faint rises again with 30% HP.' },
@@ -2065,7 +2065,7 @@ const PET_MAX_LVL = 30, TIER_LVL = [0, 1, 5, 10, 16, 22];
 const nd = (id, name, max, fx, txt) => ({ id, name, max, fx, txt });
 const tree = (name, color, tiers) => ({ name, color, tiers });
 const upAb = (M, ab, k, v) => { M.up = M.up || {}; const u = M.up[ab] || (M.up[ab] = {}); u[k] = (u[k] || 0) + v; };
-const S = (id, name, key, per, txt, max = 3) => nd(id, name, max, typeof key === 'object' ? key : { [key]: per }, txt);
+const S = (id, name, key, per, txt, max = 3) => typeof key === 'object' ? nd(id, name, txt || 3, key, per) : nd(id, name, max, { [key]: per }, txt);   // S(id, name, {k: v, ...}, txtFn) also works
 const UP = (id, name, ab, k, per, txt, max = 3) => nd(id, name, max, (M, r) => upAb(M, ab, k, per * r), txt);
 const KEY = (id, name, fx, txt) => nd(id, name, 1, fx, txt);
 const ULT = (id, ab) => nd(id, ABIL[ab].n, 1, M => { M.ults = (M.ults || []).concat(ab); }, () => 'ULTIMATE: learns ' + ABIL[ab].n + '. ' + ABIL[ab].d);
@@ -2733,7 +2733,8 @@ function petUnit(it, slot, n) {
   return u;
 }
 function foeUnit(k, L, opt = {}) {
-  const base = statLine(k, L), mul = opt.mul || {};
+  const ramp = opt.boss ? 1 : Math.min(1, 0.8 + 0.07 * ((G && G.roomNum || 1) - 1));   // the first floors go easy on a new team
+  const base = statLine(k, L), mul = Object.assign({}, opt.mul || {}); mul.hp = (mul.hp || 1) * ramp; mul.atk = (mul.atk || 1) * ramp;
   const u = {
     side: 'foe', k, name: opt.name || PETS[k].name, lvl: L, M: {}, elite: !!opt.elite, boss: opt.boss || null,
     maxHp: Math.round(base.hp * (mul.hp || 1)), atk: base.atk * (mul.atk || 1) * 0.95, def: base.def + (mul.def || 0),
@@ -2769,15 +2770,15 @@ function rollComp(R) {
 function buildFoes(ent, count) {
   const R = G.room, n = R.n, pool = THEME_POOL[R.type] || PET_IDS.filter(k => BS[k] && k !== 'shadowwolf' && k !== 'elder'), out = [];
   if (ent.boss === 'shadow') {
-    out.push(foeUnit('shadowwolf', wildLevel(10) + 2, { boss: 'shadow', name: 'The Shadow Wolf', acts: 2, scale: 2.1, mul: { hp: 4.6, atk: 1.25, def: 2 },
+    out.push(foeUnit('shadowwolf', wildLevel(10) + 2, { boss: 'shadow', name: 'The Shadow Wolf', acts: 2, scale: 1.7, mul: { hp: 4.6, atk: 1.25, def: 2 },
       abil: ['shadowclaw', 'dreadhowl', 'umbralveil', 'devourweak', 'callshades'] }));
-    for (let i = 1; i < count; i++) out.push(foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.85 }));
+    for (let i = 1; i < count; i++) out.push(foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.6 }));
     return out;
   }
   if (ent.boss === 'elder') {
-    out.push(foeUnit('elder', wildLevel(20) + 2, { boss: 'elder', name: 'The Elder Dragon', acts: 2, scale: 2.2, mul: { hp: 6.0, atk: 1.2, def: 3 },
+    out.push(foeUnit('elder', wildLevel(20) + 2, { boss: 'elder', name: 'The Elder Dragon', acts: 2, scale: 1.8, mul: { hp: 6.0, atk: 1.2, def: 3 },
       abil: ['elderclaw', 'elderbreath', 'tailsweep', 'wingguard'] }));
-    for (let i = 1; i < count; i++) out.push(foeUnit('dragon', wildLevel(20) - 2, { name: 'Dragon Whelp', scale: 0.85 }));
+    for (let i = 1; i < count; i++) out.push(foeUnit('dragon', wildLevel(20) - 2, { name: 'Whelp', scale: 0.8 }));
     return out;
   }
   const L = wildLevel(n), C = COMPS[ent.comp] || COMPS.mixed;
@@ -2800,8 +2801,8 @@ function startBattle(ent) {
   const allies = petSlots.map((it, i) => it ? petUnit(it, i, team.length) : null).filter(Boolean);
   allies.forEach((u, i) => { u.slot = i; u.x = BX.ally[i]; u.face = 1; });
   const foes = buildFoes(ent, team.length);
-  foes.forEach((u, i) => { u.slot = i; u.x = u.boss ? 770 : BX.foe[i]; u.face = -1; });
-  if (foes.length > 1 && foes[0].boss) { foes[1].x = 590; if (foes[2]) foes[2].x = 905; }
+  foes.forEach((u, i) => { u.slot = i; u.x = u.boss ? 845 : BX.foe[i]; u.face = -1; });
+  if (foes.length > 1 && foes[0].boss) { foes[1].x = 605; if (foes[2]) foes[2].x = 705; }   // the boss looms at the back, its minions in front
   B = { ent, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], log: [], heroUses: 0, queue: [], faints: 0,
         boss: foes[0].boss, rewards: null, reviveUsed: false, t: 0 };
   // battle-start effects: Rally Whistle, Guardian Bell, Warrior's front shield, talents
@@ -2994,8 +2995,8 @@ function act(u, ab, tgt) {
 }
 function summonShade(u) {
   if (B.foes.filter(o => !o.fainted).length >= 3) { const dead = B.foes.find(o => o.fainted && !o.boss); if (!dead) return; B.foes.splice(B.foes.indexOf(dead), 1); }
-  const s = foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.85 });
-  const used = B.foes.map(o => o.x), spot = [590, 905].find(x => !used.includes(x)) || 905;
+  const s = foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.6 });
+  const used = B.foes.filter(o => !o.fainted).map(o => o.x), spot = [605, 705].find(x => !used.includes(x)) || 705;
   s.x = spot; s.face = -1; s.slot = B.foes.length; s.summoned = true; B.foes.push(s); bText(s, 'SUMMONED', '#b39ddb', 15);
 }
 // foes think: heal a hurt friend, buff when safe, curse what isn't cursed, otherwise hit hardest
