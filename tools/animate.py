@@ -51,6 +51,8 @@ SPECS = {
     'pet_catcalico': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=12),
     'pet_cockatiel': dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=14, ref='fly', fly=True),
     'pet_dragon':    dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=19, ref='fly', fly=True),
+    'shadowwolf':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=19),        # boss + its pup and shades
+    'elderdragon':   dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=22, ref='fly', fly=True),   # floor 20 boss + Elder Drake pet
     'pet_fox':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=14),
     'pet_owl':       dict(rows=[('fly', 6), ('attack', 4), ('ko', 4)], height=15, ref='fly', fly=True),
     'pet_ferret':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4)], height=9, ref='run'),   # idle stands up tall: size from the run

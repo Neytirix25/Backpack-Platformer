@@ -441,6 +441,13 @@ CLASS_ITEMS = {
                ('hawkeye', T1), ('bracer', W2), ('rangercloak', SQ), ('fletching', T1), ('starfall', [[1, 1], [1, 0], [1, 1]])],
     'rogue': [('venom', T1), ('kris', T2), ('shadowcloak', SQ), ('knives', W2), ('lockpicks', T1),
               ('duelist', W2), ('shadowstep', [[1, 0], [1, 1]]), ('bloodring', T1), ('rmask', W2), ('nightfang', SQ)],
+    # Backpack Sanctuary pet items: three sheets (assets_raw/items_pets1_sheet.png ...), read left to right, top to bottom
+    'pets1': [('collar', T1), ('chewbone', W2), ('clawfile', T1), ('vest', SQ), ('blanket', W3),
+              ('incubator', SQ), ('harness', SQ), ('bell', T1), ('huntmark', T1), ('squeaky', W2)],
+    'pets2': [('catnip', T1), ('cuttlebone', T2), ('heatrock', W2), ('bogmoss', T1), ('truffle', T1),
+              ('nightshade', T1), ('hexcharm', T1), ('healbell', T2), ('dragonheart', SQ), ('alphafang', T1)],
+    'pets3': [('salve', T1), ('herb', T1), ('salts', T1), ('brew', T1), ('smoke', T1), ('net', W2),
+              ('egg_cockatiel', T1), ('egg_owl', T2), ('egg_toad', T1), ('egg_dragon', SQ), ('egg_elder', SQ)],
     'beastmaster': [('barbwhip', W3), ('alphahorn', W2), ('collar', T1), ('totem', T2), ('poultice', T1),
                     ('falconglove', W2), ('whistle', T1), ('wolfcloak', SQ), ('bearclaw', T1), ('crown', W3)],
 }
