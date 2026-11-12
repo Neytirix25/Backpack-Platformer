@@ -2082,7 +2082,9 @@ function hubPanelClick(btn = 0) {
   if (G.panel === 'starter') starterClick();
   else if (G.panel === 'acts') actSelectClick();
   else if (G.panel === 'team') { const r = rosterClick(btn); if (r === 'close') { G.panel = null; SFX.play('pick'); } else if (r) PK = { talent: r, hub: true, staging: [] }; }
-  else if (G.panel === 'records' || G.panel === 'trophies') G.panel = null;
+  else if (G.panel === 'records') recordsClick();
+  else if (G.panel === 'import') importClick();
+  else if (G.panel === 'trophies') G.panel = null;
   else if (G.panel === 'den') denClick(btn);
   else if (G.panel === 'newborn') G.panel = null;
   else if (G.panel === 'net') netPanelClick(btn);
@@ -2209,23 +2211,26 @@ function drawHubHUD() {
   if (G.panel === 'records') {
     const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`], ['Animals in your Sanctuary', HERD.length], ['Shinies found', r.shinies || 0], ['Animals bred', r.bred || 0], ['Friend battles', `${r.pvpW || 0} won · ${r.pvpL || 0} lost`], ['Animals traded', r.trades || 0],
       ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
-    const RH = 25, bw = 400, bh = 96 + rows.length * RH, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10;
+    const half = Math.ceil(rows.length / 2), RH = 27, bw = 760, bh = 96 + half * RH + 86, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10; G.recBox = { bx, by, bw, bh };
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
     panel(bx, by, bw, bh, 'parch');
     banner('Run Records', W / 2, by + 4, { size: 30, h: 44, pad: 100 });
     rows.forEach(([k, v], i) => {
-      const y = by + 52 + i * RH;
-      label(k, bx + 30, y, { size: 15, color: PAL.parchInk });
-      label(String(v), bx + bw - 30, y, { align: 'right', size: 15, bold: true, color: String(v).startsWith('★') ? '#8a5a00' : '#4a2a10' });
-      ctx.fillStyle = 'rgba(58,38,20,0.18)'; ctx.fillRect(bx + 30, y + 12, bw - 60, 1);
+      const col = i < half ? 0 : 1, cx = bx + 30 + col * (bw / 2 - 10), cw = bw / 2 - 50, y = by + 52 + (i % half) * RH;
+      label(k, cx, y, { size: 15, color: PAL.parchInk });
+      label(String(v), cx + cw, y, { align: 'right', size: 15, bold: true, color: String(v).startsWith('★') ? '#8a5a00' : '#4a2a10' });
+      ctx.fillStyle = 'rgba(58,38,20,0.18)'; ctx.fillRect(cx, y + 12, cw, 1);
     });
-    label('E or walk away to close', W / 2, by + bh - 18, { align: 'center', size: 12, color: '#6b4a2a' });
+    ['Export save file', 'Import save file'].forEach((t, i) => button(SAVEF_BTN(i), t, { hover: inRect(mouse, SAVEF_BTN(i)), size: 15, color: i ? PAL.cream : PAL.gold }));
+    label('Move your progress to another browser or computer, or to the online version.', W / 2, by + bh - 40, { align: 'center', size: 12, color: '#6b4a2a' });
+    label('E or walk away to close', W / 2, by + bh - 21, { align: 'center', size: 12, color: '#6b4a2a' });
   }
   if (G.panel === 'team') drawRoster();
   if (G.panel === 'trophies') drawTrophies();
   if (G.panel === 'den') drawDen();
   if (G.panel === 'newborn') drawNewborn();
   if (G.panel === 'net') drawNetPanel();
+  if (G.panel === 'import') drawImportConfirm();
   if (G.panel === 'trade') drawTrade();
   if (G.panel === 'starter') drawStarter();
   if (G.panel === 'acts') { if (G.actFlash) G.actFlash.t -= 1 / 60; drawActSelect(); }
@@ -6985,7 +6990,7 @@ function draw() {
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('Your team fainted', `Floor ${G.roomNum} · ${G.battlesWon || 0} battles won · your pets keep every level they earned${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to return to the Sanctuary' : '');
 }
 function drawHUDMessageOnly() {
-  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies' || G.panel === 'trade') return;   // full-screen panels cover the middle of the screen
+  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies' || G.panel === 'trade' || G.panel === 'import') return;   // full-screen panels cover the middle of the screen
   if (G.msgT > 0 && G.msg) drawToast(G.msg, G.panel === 'net' ? H - 30 : 86);
 }
 // a message on a slip of parchment
@@ -6995,6 +7000,86 @@ function drawToast(msg, y) {
   panel(W / 2 - tw / 2, y - 19, tw, 38, 'parch');
   label(msg, W / 2, y + 1, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
   ctx.globalAlpha = 1;
+}
+
+// =====================================================================
+//  SAVE FILES — export your progress to a small file, and load it into any copy of the game (another browser,
+//  another computer, the online version or a folder copy). Importing replaces the progress in this copy.
+// =====================================================================
+const SAVE_FILE_GAME = 'Backpack Sanctuary';
+function saveFileText() {
+  savePets(); saveData();
+  const data = {};
+  for (const k of SAVE_KEYS) { try { const v = localStorage.getItem(sk(k)); if (v !== null) data[k] = v; } catch (e) {} }
+  return JSON.stringify({ game: SAVE_FILE_GAME, v: 1, saved: new Date().toISOString(), data }, null, 1);
+}
+function exportSave() {
+  try {
+    const blob = new Blob([saveFileText()], { type: 'application/json' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `backpack-sanctuary-save-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    showMsg('Save file downloaded. Load it into any copy of the game with "Import".', 3); SFX.play('chest', true);
+  } catch (e) { showMsg("Couldn't make the save file in this browser.", 2.5); SFX.play('error'); }
+}
+// read a save file and say what's in it; nothing changes until you confirm
+function saveFileCheck(text) {
+  let f; try { f = JSON.parse(text); } catch (e) { return { why: "That file isn't a Backpack Sanctuary save." }; }
+  if (!f || typeof f !== 'object' || f.game !== SAVE_FILE_GAME || !f.data || typeof f.data !== 'object') return { why: "That file isn't a Backpack Sanctuary save." };
+  const data = {};
+  for (const k of SAVE_KEYS) {
+    const v = f.data[k]; if (v === undefined || v === null) continue;
+    if (typeof v !== 'string' || v.length > 2e6) return { why: 'That save file is damaged.' };
+    if (k !== 'packrat_best' && k !== 'packrat_class') { try { JSON.parse(v); } catch (e) { return { why: 'That save file is damaged.' }; } }
+    data[k] = v;
+  }
+  let herd = []; try { herd = JSON.parse(data.packrat_herd || '[]'); } catch (e) {}
+  if (!Array.isArray(herd) || herd.some(h => !h || typeof h !== 'object' || typeof h.k !== 'string')) return { why: 'That save file is damaged.' };
+  let rec = {}; try { rec = JSON.parse(data.packrat_records || '{}') || {}; } catch (e) {}
+  const species = new Set(herd.map(h => h.k).filter(k => PETS[k])).size;
+  return { ok: true, data, info: { animals: herd.length, species, best: Math.max(+data.packrat_best || 0, rec.bestFloor || 0), runs: rec.runs || 0, saved: typeof f.saved === 'string' ? f.saved.slice(0, 10) : '' } };
+}
+function saveFileApply(data) {
+  for (const k of SAVE_KEYS) { try { if (data[k] !== undefined) localStorage.setItem(sk(k), data[k]); else localStorage.removeItem(sk(k)); } catch (e) {} }
+  try { localStorage.setItem(sk('packrat_reset'), 'imported'); } catch (e) {}   // never adopt an old save over an imported one
+}
+function importSave() {
+  try {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = () => {
+      const file = inp.files && inp.files[0]; if (!file) return;
+      if (file.size > 8e6) { showMsg('That file is far too big to be a save.', 2.5); SFX.play('error'); return; }
+      const rd = new FileReader();
+      rd.onload = () => { const c = saveFileCheck(String(rd.result || '')); if (!c.ok) { showMsg(c.why, 2.6); SFX.play('error'); return; } G.importing = c; G.panel = 'import'; SFX.play('pick'); };
+      rd.readAsText(file);
+    };
+    inp.click();
+  } catch (e) { showMsg("This browser can't open files here.", 2.5); SFX.play('error'); }
+}
+function confirmImport() {
+  const c = G && G.importing; if (!c) return;
+  if (NET.state !== 'off') netLeave();
+  saveFileApply(c.data); G.importing = null;
+  if (typeof location !== 'undefined' && location.reload) location.reload();   // start the game again with the imported progress
+}
+const IMPORT_BTN = i => ({ x: W / 2 - 170 + i * 180, y: H / 2 + 52, w: 160, h: 42 });
+function drawImportConfirm() {
+  const c = G.importing; if (!c) { G.panel = 'records'; return; }
+  ctx.fillStyle = 'rgba(8,5,3,0.75)'; ctx.fillRect(0, 0, W, H);
+  banner('Import this save?', W / 2, H / 2 - 128, { size: 32, h: 50, pad: 110 });
+  panel(W / 2 - 280, H / 2 - 98, 560, 214, 'parch');
+  const I = c.info;
+  label(`${I.animals} animals of ${I.species} species · deepest floor ${I.best} · ${I.runs} runs${I.saved ? ' · saved ' + I.saved : ''}`, W / 2, H / 2 - 62, { align: 'center', size: 15, bold: true, color: PAL.parchInk });
+  label('It replaces all the progress in this copy of the game:', W / 2, H / 2 - 30, { align: 'center', size: 13, color: '#6b4a2a' });
+  label('animals, team, records, trophies, looks and the Breeding Den.', W / 2, H / 2 - 10, { align: 'center', size: 13, color: '#6b4a2a' });
+  label('Export your current save first if you want to keep it.', W / 2, H / 2 + 18, { align: 'center', size: 13, bold: true, color: '#8a2a12' });
+  ['Import', 'Cancel'].forEach((t, i) => button(IMPORT_BTN(i), t, { hover: inRect(mouse, IMPORT_BTN(i)), size: 17, color: i ? PAL.cream : PAL.gold }));
+}
+function importClick() { if (inRect(mouse, IMPORT_BTN(0))) confirmImport(); else if (inRect(mouse, IMPORT_BTN(1))) { G.importing = null; G.panel = 'records'; SFX.play('pick'); } }
+const SAVEF_BTN = i => { const R = G.recBox || { bx: 100, by: 20, bw: 760, bh: 480 }; return { x: W / 2 - 250 + i * 260, y: R.by + R.bh - 96, w: 240, h: 38 }; };
+function recordsClick() {
+  if (inRect(mouse, SAVEF_BTN(0))) { exportSave(); return; }
+  if (inRect(mouse, SAVEF_BTN(1))) { importSave(); return; }
+  G.panel = null;
 }
 
 // =====================================================================
@@ -7766,6 +7851,7 @@ function update(dt) {
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
         if (G.panel === 'net' || G.panel === 'trade') { netPanelKeys(); break; }
+        if (G.panel === 'import') { if (hit('Escape', 'n')) { G.importing = null; G.panel = 'records'; } else if (hit('y')) confirmImport(); break; }
         if (G.panel === 'den' || G.panel === 'trophies' || G.panel === 'newborn') { if (hit('Escape', 'e')) G.panel = null; break; }
         if (!G.panel && hit('w', 'ArrowUp')) { const s = hubNearest(); if (s && s.kind === 'door') { goHubRoom(s.to); break; } }
         if (G.panel === 'acts') { if (hit('Escape')) G.panel = null; else for (let a = 1; a <= actsOpen(); a++) if (hit(String(a))) { startRunFromHub(a); break; } break; }
