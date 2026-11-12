@@ -213,7 +213,7 @@ def shape_mask(shape):
     return m
 
 
-FILL_SHEETS = {'pets4', 'pets5', 'pets6', 'pets7'}   # icons ChatGPT drew to match their odd shapes: fill the whole block, trim what spills
+FILL_SHEETS = {'pets4', 'pets5', 'pets6', 'pets7', 'pets8'}   # icons ChatGPT drew to match their odd shapes: fill the whole block, trim what spills
 
 
 def fit_fill(src, shape):
@@ -472,6 +472,7 @@ CLASS_ITEMS = {
     # the fire beasts' eggs (items_pets6_sheet.png)
     'pets6': [('egg_phoenix', T2), ('egg_salamander', W3), ('egg_tortoise', SQ), ('egg_moth', T3)],
     'pets7': [('egg_fairydragon', W2), ('egg_viper', [[1, 0], [1, 1]])],   # Act III eggs
+    'pets8': [('egg_sunday', T1)],   # the Sunday's egg
     'beastmaster': [('barbwhip', W3), ('alphahorn', W2), ('collar', T1), ('totem', T2), ('poultice', T1),
                     ('falconglove', W2), ('whistle', T1), ('wolfcloak', SQ), ('bearclaw', T1), ('crown', W3)],
 }

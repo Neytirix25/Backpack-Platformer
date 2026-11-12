@@ -71,6 +71,7 @@ SPECS = {
     # ----- fey creatures (Act III) + the Lake Wyrm (floor 30 boss and its Wyrmling) -----
     'pet_mossbear':     dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=19),
     'pet_fairydragon':  dict(rows=[('fly', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=16, ref='fly', fly=True),
+    'pet_sunday':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=14),   # idle = eating a walnut held in one foot
     'pet_wolpertinger': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=14),
     'pet_moonstag':     dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=22),
     'pet_viper':        dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=16),   # idle is raised in an S-curve
