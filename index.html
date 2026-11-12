@@ -4554,8 +4554,8 @@ function addBond(it, n) {   // bond only ever grows, up to 100; Gentle and Loyal
 }
 // shiny animals: a rare recolour of the species, with a little sparkle
 const SHINY_HUE = k => { let h = 7; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 70 + h % 220; };
-const SHINY_SPECIAL = { sunday: 'sepia(1) saturate(2.6) hue-rotate(-6deg) brightness(0.98) contrast(1.35)' };   // the Sunday's shiny is solid gold
-const GOLD_SPARKLE = new Set(['sunday', 'rhino']);   // the shiny Rhino's horns are gold
+const SHINY_SPECIAL = { sunday: 'hue-rotate(150deg)' };   // the Sunday's shiny: sky-blue, green and pink, with its own saturation
+const GOLD_SPARKLE = new Set(['rhino']);   // the shiny Rhino's horns are gold
 const shinyFilter = k => SHINY_SPECIAL[k] || `hue-rotate(${SHINY_HUE(k)}deg) saturate(1.45) brightness(1.08)`;
 // a shiny with its own art (pet_<k>_shiny, e.g. the spirit-blue Rhino with gold horns) uses that sheet instead of a colour shift
 const hasShinyArt = (sheet, it) => !!(it && it.g && it.g.shiny && sheet && animFrames(sheet + '_shiny', 'idle'));
