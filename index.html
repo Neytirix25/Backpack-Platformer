@@ -55,7 +55,7 @@ const VFX_SPR = ['star', 'fireball', 'flame', 'spark', 'meteor', 'sun', 'moon', 
   'vine', 'thorn', 'petal', 'lily', 'splash', 'whirl', 'spore', 'pixie', 'antler', 'paw', 'mist', 'acorn'];   // vfx4: the Fey Wilds
 const ART_FILES = {
   vfx: VFX_SPR,
-  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper'],
+  items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'],
@@ -658,6 +658,13 @@ const SFX = (() => {
     prismatic: p => { V.whinny(0, 1, p, 0.7); V.sparkle(0.35, 1.3, [784, 1047, 1319, 1568, 2093, 2637]); V.boom(0.5, 0.5); },
     sanctify: p => { V.chord(0, 1.2, [523, 659, 784, 1047], 1.1); V.shield(0.3, 1.1); V.whinny(0.1, 0.4, p * 1.1, 0.5); },
     starlight: p => { V.whinny(0, 0.9, p, 0.8); V.sparkle(0.3, 1.2, [3136, 2637, 2349, 2093, 1568, 1319, 1047], 0.07); V.chord(0.5, 1, [523, 659, 784], 0.9); },
+    // Sunday
+    sunpeck: p => { V.squawk(0, 0.7, p * 1.25, 0.15); V.peckTick(0.12, 1, 2); },
+    brightsong: p => { V.whistle(0, 0.8, p, [1319, 1568, 2093], 0.1); V.sparkle(0.32, 0.8, [2093, 2637]); },
+    featherward: p => { V.squawk(0, 0.6, p * 1.1, 0.2); V.flaps(0.1, 0.9, 3, 0.1, 1.3); V.shield(0.35, 1); },
+    goldenchorus: p => { V.squawk(0, 0.8, p * 1.2, 0.25); V.whistle(0.15, 0.9, p, [1047, 1319, 1568, 2093], 0.12); V.chord(0.4, 1, [523, 659, 784, 1047], 1.0); },
+    rainbowwings: p => { V.flaps(0, 1.1, 4, 0.08, 1.3); V.squawk(0.1, 0.8, p * 1.1, 0.3); V.shield(0.4, 1.2); V.sparkle(0.5, 0.8, [1568, 2093, 2637]); },
+    sunrisecall: p => { V.squawk(0, 0.9, p * 1.3, 0.4); V.chord(0.2, 1.1, [392, 494, 587, 784], 1.2); V.sparkle(0.5, 1, [1319, 1568, 2093, 2637], 0.07); },
     // Phoenix
     emberpeck: p => { V.phoenixCry(0, 0.6, p * 1.1, 0.2); V.peckTick(0.16, 1.2); V.fire(0.18, 0.5, 0.3); },
     kindlesong: p => { V.whistle(0, 1.3, p * 0.9, [1319, 1568, 1976, 1760, 2349], 0.11); V.fire(0.2, 0.3, 0.5); },
@@ -1396,7 +1403,7 @@ const ITEMS = {
   // ----- animal families -----
   squeaky:   { name: 'Squeaky Bone',    icon: '🐕', shape: [[1, 1]],          color: '#6a6a72', rarity: 'uncommon',  tags: ['canine'], fam: 'canine', famAtk: 0.2, famCrit: 0.05, desc: 'Canines (Shepherd, Fox, Shadow Wolf, Hellhound, Cu Sith, Spirit Wolf) +20% attack and +5% crit.' },
   catnip:    { name: 'Catnip Pouch',    icon: '🌿', shape: [[1]],             color: '#4a6a3a', rarity: 'uncommon',  tags: ['feline'], fam: 'feline', famCrit: 0.12, famCritMul: 0.3, desc: 'Cats +12% crit, and their crits hit 30% harder.' },
-  cuttlebone:{ name: 'Cuttlebone',      icon: '🐚', shape: [[1], [1]],        color: '#8a8a7a', rarity: 'uncommon',  tags: ['bird'], fam: 'bird', famHeal: 0.35, famDef: 2, desc: 'Birds (Cockatiel, Owl, Phoenix) heal 35% more and get +2 defense.' },
+  cuttlebone:{ name: 'Cuttlebone',      icon: '🐚', shape: [[1], [1]],        color: '#8a8a7a', rarity: 'uncommon',  tags: ['bird'], fam: 'bird', famHeal: 0.35, famDef: 2, desc: 'Birds (Cockatiel, Owl, Phoenix, Sunday) heal 35% more and get +2 defense.' },
   heatrock:  { name: 'Heat Rock',       icon: '🔥', shape: [[1, 1]],          color: '#7a3a1a', rarity: 'uncommon',  tags: ['drake'], fam: 'drake', famAtk: 0.15, famDot: 0.5, desc: 'Drakes (Dragon, Elder Drake, Fairy Dragon, Lake Wyrm) +15% attack, and their burns deal 50% more.' },
   bogmoss:   { name: 'Bog Moss',        icon: '🍃', shape: [[1, 1, 0], [0, 1, 1]],             color: '#3a5a2a', rarity: 'uncommon',  tags: ['amphibian'], fam: 'amphibian', famDot: 0.5, famRegen: 0.05, desc: 'Toads, Salamanders and the Bramble Viper: poison deals 50% more and they regenerate 5% max HP per turn.' },
   truffle:   { name: 'Truffle',         icon: '🍄', shape: [[1, 1], [1, 0]],             color: '#5a4030', rarity: 'uncommon',  tags: ['critter'], fam: 'critter', famHp: 0.25, famDef: 2, desc: 'Critters (Ferret, Boar, Magma Tortoise, Moss Bear, Wolpertinger) +25% max HP and +2 defense.' },
@@ -1427,6 +1434,7 @@ const ITEMS = {
   smoke:     { name: 'Smoke Bomb',      icon: '💨', shape: [[1]],             color: '#3a3a46', rarity: 'uncommon',  tags: ['consumable'], use: 'smoke', w: 1.1, desc: 'Battle: blind every foe for 2 turns (they miss half their attacks). Used up.' },
   net:       { name: 'Throwing Net',    icon: '🕸️', shape: [[1, 1]],          color: '#5a5040', rarity: 'common',    tags: ['consumable'], use: 'net', w: 1.3, desc: 'Battle: stun one foe for 1 turn (bosses shrug it off). Used up.' },
   // ----- eggs (never in chests: defeated wild animals leave them) -----
+  egg_sunday:    { name: 'Sunday Egg',    icon: '🥚', shape: [[1]],            color: '#8a6a20', rarity: 'rare',      tags: ['egg'], egg: 'sunday', noDrop: true, desc: 'A warm, freckled little egg. Hatches into a Sunday chick after you win 2 fights carrying it.' },
   egg_cockatiel: { name: 'Cockatiel Egg', icon: '🥚', shape: [[1]],            color: '#8a8060', rarity: 'rare',      tags: ['egg'], egg: 'cockatiel', noDrop: true, desc: 'Hatches into a Cockatiel chick after you win 2 fights carrying it.' },
   egg_owl:       { name: 'Owl Egg',       icon: '🥚', shape: [[1], [1]],       color: '#6a6050', rarity: 'rare',      tags: ['egg'], egg: 'owl', noDrop: true, desc: 'Hatches into an Owlet after you win 2 fights carrying it.' },
   egg_toad:      { name: 'Toad Spawn',    icon: '🫧', shape: [[1]],            color: '#4a6a3a', rarity: 'uncommon',  tags: ['egg'], egg: 'toad', noDrop: true, desc: 'Hatches into a little Toad after you win 2 fights carrying it.' },
@@ -1442,6 +1450,7 @@ const ITEMS = {
   pet_dog:        { name: 'Loyal Shepherd', icon: '🐕', shape: [[1, 1], [1, 1]], color: '#5a5a62', rarity: 'common',    tags: ['pet'], pet: 'dog', noDrop: true, desc: 'A tough Guardian: bites that stun, taunts that protect.' },
   pet_catgray:    { name: 'Gray Cat',       icon: '🐈', shape: [[1, 1], [1, 1]], color: '#50545c', rarity: 'common',    tags: ['pet'], pet: 'catgray', noDrop: true, desc: 'A Hunter that finishes off wounded foes.' },
   pet_catcalico:  { name: 'Calico Cat',     icon: '🐈', shape: [[1, 1], [1, 1]], color: '#6a5040', rarity: 'common',    tags: ['pet'], pet: 'catcalico', noDrop: true, desc: 'A Hexer that marks foes and brings luck.' },
+  pet_sunday:     { name: 'Sunday',         icon: '🦜', shape: [[1, 1], [1, 1]], color: '#8a6a20', rarity: 'rare',      tags: ['pet'], pet: 'sunday', noDrop: true, desc: 'A Sun conure x Jenday parrot: a cheerful Support that showers the team with every kind of buff.' },
   pet_cockatiel:  { name: 'Cockatiel',      icon: '🐦', shape: [[1, 1], [1, 1]], color: '#6a6230', rarity: 'rare',      tags: ['pet'], pet: 'cockatiel', noDrop: true, desc: 'A Healer: songs that mend the team.' },
   pet_dragon:     { name: 'Dragon',         icon: '🐉', shape: [[1, 1], [1, 1]], color: '#6a2a1e', rarity: 'legendary', tags: ['pet'], pet: 'dragon', noDrop: true, desc: 'A Mystic that sets foes on fire.' },
   pet_fox:        { name: 'Fox',            icon: '🦊', shape: [[1, 1], [1, 1]], color: '#6a3a20', rarity: 'uncommon',  tags: ['pet'], pet: 'fox', noDrop: true, desc: 'A Hunter whose bites often crit.' },
@@ -2054,7 +2063,7 @@ function drawNewborn() {
   const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), glow = ctx.createRadialGradient(bx + 110, by + 140, 4, bx + 110, by + 140, 90);
   glow.addColorStop(0, (g.shiny ? '#ffd36b' : d.color) + '66'); glow.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = glow; ctx.fillRect(bx + 20, by + 50, 180, 180);
   ctx.filter = petFilter(k, sheet, it); drawAnim(sheet, d.fly ? 'fly' : 'idle', TIME * 5, bx + 110, d.fly ? by + 140 : by + 190, 1, { scale: 3.2 * babyScale(it) }); ctx.filter = 'none';
-  if (g.shiny) shinySparkle(bx + 60, by + 80, 100, 110, 2, 1.5);
+  if (g.shiny) shinySparkle(bx + 60, by + 80, 100, 110, 2, 1.5, k);
   label(BS[k].baby, bx + 110, by + 230, { align: 'center', size: 16, bold: true, color: g.shiny ? PAL.gold : PAL.cream });
   label(`Level ${petLvl(it)}`, bx + 110, by + 250, { align: 'center', size: 13, color: PAL.good });
   drawTraits(it, bx + 230, by + 70, bw - 260);
@@ -2123,7 +2132,7 @@ function drawHubRoomProps(room, ft) {
         const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), rest = animFrames(sheet, 'rest') ? sheet : animFrames(sheet + '_rest', 'rest') ? sheet + '_rest' : null;
         ctx.filter = petFilter(k, sheet, it);
         if (rest) drawAnim(rest, 'rest', TIME * 2.5 + i, x, ft - 8, i ? -1 : 1); else drawAnim(sheet, d.fly ? 'fly' : 'idle', TIME * 4, x, d.fly ? ft - 30 : ft - 8, i ? -1 : 1);
-        ctx.filter = 'none'; if (it.g.shiny) shinySparkle(x - 24, ft - 60, 48, 50, i);
+        ctx.filter = 'none'; if (it.g.shiny) shinySparkle(x - 24, ft - 60, 48, 50, i, 1, k);
         label(sexSym(it.g), x, ft - 70, { align: 'center', size: 16, bold: true, color: i ? '#f8a5c2' : '#8fc3e0' });
       }
     });
@@ -3119,6 +3128,7 @@ const PETS = {
   dog:       { role: 'Guardian', ability: 'Stun',     stun: true,     name: 'Shepherd',  anim: 'pet_dog',       fly: false, w: 30, h: 26, hp: 30, dmg: 3, cd: 0.9,  speed: 270, reach: 36, kb: 260, color: '#eceff1' },
   catgray:   { role: 'Hunter',   ability: 'Finisher', finisher: true, name: 'Gray Cat',  anim: 'pet_catgray',   fly: false, w: 22, h: 18, hp: 16, dmg: 1, cd: 0.42, atk: 0.4, runFps: 9, idleFps: 3.5, speed: 300, reach: 26, kb: 90,  color: '#9e9e9e' },
   catcalico: { role: 'Hexer',    ability: 'Mark',     mark: true,     name: 'Calico',    anim: 'pet_catcalico', fly: false, w: 22, h: 18, hp: 16, dmg: 1, cd: 0.42, atk: 0.4, runFps: 9, idleFps: 3.5, speed: 300, reach: 26, kb: 90,  color: '#ffcc80' },
+  sunday:    { role: 'Support',  ability: 'Buffs',    name: 'Sunday',    anim: 'pet_sunday', fallback: 'pet_cockatiel', fly: false, w: 18, h: 18, hp: 16, dmg: 1, cd: 0.8, speed: 290, reach: 22, kb: 60, color: '#ffca28', runFps: 12, idleFps: 6 },
   cockatiel: { role: 'Healer',   ability: 'Heal',     heal: 7,        name: 'Cockatiel', anim: 'pet_cockatiel', fly: true,  w: 18, h: 16, hp: 14, dmg: 1, cd: 0.7,  speed: 260, reach: 22, kb: 60,  color: '#fff176' },
   dragon:    { role: 'Mystic',   ability: 'Burn',     burn: true,     name: 'Dragon',    anim: 'pet_dragon',    fly: true,  w: 34, h: 28, hp: 50, dmg: 4, cd: 1.25, speed: 240, ranged: 300, kb: 160, color: '#ff7043' },
   fox:       { role: 'Hunter',   ability: 'Crit',     crit: true,     name: 'Fox',       anim: 'pet_fox',       fly: false, w: 26, h: 20, hp: 20, dmg: 2, cd: 0.6,  atk: 0.35, speed: 330, reach: 28, kb: 120, color: '#ff8a50' },
@@ -3150,7 +3160,7 @@ const PETS = {
   moth:       { role: 'Trickster', ability: 'Blind',   name: 'Ember Moth',   anim: 'pet_moth',       fallback: 'pet_owl',       fly: true,  w: 22, h: 18, hp: 18, dmg: 2, cd: 0.8, speed: 280, reach: 24, kb: 60,  color: '#ffab40' },
 };
 // ---- battle data: stats, abilities and statuses of every species (see BATTLES below) ----
-const FAMILY = { dog: 'canine', fox: 'canine', shadowwolf: 'canine', catgray: 'feline', catcalico: 'feline', cockatiel: 'bird', owl: 'bird',
+const FAMILY = { sunday: 'bird', dog: 'canine', fox: 'canine', shadowwolf: 'canine', catgray: 'feline', catcalico: 'feline', cockatiel: 'bird', owl: 'bird',
                  dragon: 'drake', elder: 'drake', toad: 'amphibian', ferret: 'critter', boar: 'critter', shade: 'canine', unicorn: 'equine',
                  phoenix: 'bird', hellhound: 'canine', salamander: 'amphibian', tortoise: 'critter', qilin: 'equine', chimera: 'feline', lion: 'feline', moth: 'insect',
                  mossbear: 'critter', fairydragon: 'drake', wolpertinger: 'critter', moonstag: 'equine', viper: 'amphibian', cusith: 'canine', puca: 'equine', spiritwolf: 'canine', lakewyrm: 'drake' };
@@ -3159,6 +3169,7 @@ const BS = {
   dog:        { hp: 46, atk: 9,  def: 4, crit: 0,    abil: ['bite', 'guard', 'howl'],          ult: ['bulwark', 'packleader', 'feral'],        off: 'baby', baby: 'Shepherd Pup' },
   catgray:    { hp: 32, atk: 10, def: 2, crit: 0.05, abil: ['scratch', 'pounce', 'lick'],      ult: ['shadowstrike', 'ninthlife', 'flurry'],  off: 'baby', baby: 'Gray Kitten' },
   catcalico:  { hp: 34, atk: 8,  def: 2, crit: 0.05, abil: ['hexclaw', 'jinx', 'fortune'],     ult: ['calamity', 'ladyluck', 'chaos'],        off: 'baby', baby: 'Calico Kitten' },
+  sunday:     { hp: 34, atk: 8,  def: 2, crit: 0.05, abil: ['sunpeck', 'brightsong', 'featherward'], ult: ['goldenchorus', 'rainbowwings', 'sunrisecall'], off: 'egg', baby: 'Sunday Chick' },
   cockatiel:  { hp: 32, atk: 8,  def: 2, crit: 0,    abil: ['peck', 'song', 'chorus'],         ult: ['anthem', 'cyclone', 'aegis'],           off: 'egg',  baby: 'Cockatiel Chick' },
   dragon:     { hp: 40, atk: 11, def: 3, crit: 0,    abil: ['fireball', 'flamebreath', 'emberscales'], ult: ['inferno', 'wyrmhide', 'starfall'], off: 'egg', baby: 'Dragon Whelp' },
   fox:        { hp: 33, atk: 10, def: 2, crit: 0.15, abil: ['quickbite', 'feint', 'ambush'],   ult: ['foxfire', 'whirlwind', 'ninetails'],    off: 'baby', baby: 'Fox Kit' },
@@ -3284,6 +3295,13 @@ const ABIL = {
   prismatic:   { n: 'Prismatic Burst', t: 'foes', cd: 5, pow: 1.7, chaos: 1, ult: 1, d: 'A rainbow blast on every foe (170%), each also hit with a random curse.' },
   sanctify:    { n: 'Sanctify', t: 'allies', cd: 5, shieldOf: 0.3, cleanse: 1, allySt: [['regen', 3]], ult: 1, d: 'Shield every ally for 30% of the Unicorn\'s max HP, cure their curses and give Regen for 3 turns.' },
   starlight:   { n: 'Starlight', t: 'allies', cd: 6, heal: 1.6, reviveAll: 0.4, allySt: [['str', 2]], ult: 1, d: 'Heal every ally (160%), bring fainted ones back with 40% HP, and give everyone Strength for 2 turns.' },
+  // Sunday (Act I support: buffs the whole party)
+  sunpeck:     { n: 'Sunny Peck', t: 'foe', pow: 0.9, self: [['lucky', 1]], d: 'Peck one foe (90%) and feel lucky: Luck for 1 turn.' },
+  brightsong:  { n: 'Bright Song', t: 'ally', cd: 2, allySt: [['str', 2], ['lucky', 2]], d: 'Sing to one ally: Strength and Luck for 2 turns.' },
+  featherward: { n: 'Feather Ward', t: 'allies', cd: 3, shieldOf: 0.15, allySt: [['guard', 1]], d: 'Fluff up over your team: every ally is shielded for 15% of the Sunday\'s max HP and Guarded for 1 turn.' },
+  goldenchorus:{ n: 'Golden Chorus', t: 'allies', cd: 5, allySt: [['str', 3], ['lucky', 3], ['regen', 2]], ult: 1, d: 'A loud, happy chorus: every ally gains Strength and Luck for 3 turns and Regenerates for 2.' },
+  rainbowwings:{ n: 'Rainbow Wings', t: 'allies', cd: 6, allySt: [['evade', 1], ['guard', 2], ['undying', 1]], ult: 1, d: 'Spreads its bright wings over the team: every ally dodges the next attack, is Guarded for 2 turns and can\'t drop below 1 HP for a turn.' },
+  sunrisecall: { n: 'Sunrise Call', t: 'allies', cd: 6, shieldOf: 0.2, cleanse: 1, allySt: [['regen', 3], ['str', 2]], ult: 1, d: 'Greets the sun: every ally is cured of its curses, shielded for 20% of the Sunday\'s max HP, Regenerates for 3 turns and gains Strength for 2.' },
   // ===== Act II: the mythical fire beasts (floors 11-20) =====
   // Phoenix
   emberpeck:   { n: 'Ember Peck', t: 'foe', pow: 1.0, st: [['burn', 2]], d: 'Peck one foe with a burning beak (100%) and Burn it for 2 turns.' },
@@ -3514,6 +3532,17 @@ const PET_TREES = {
     tree('Mischief', '#80cbc4', [[T_ATK('cc_kit', 'Pounce Kit')], [T_DOUBLE('cc_play', 'Playful'), S('cc_tangle', 'Tangle', 'blindOn', 0.1, r => `${10 * r}% chance for its hits to Blind`)],
       [KEY('cc_yarn', 'Yarn Trap', listFx('foeStartSt', [['weak', 1]]), () => 'every battle starts with all foes Weakened for 1 turn')],
       [T_BLEED('cc_fever', 'Scratch Fever'), T_DODGE('cc_nimble', 'Nimble Paws')], [ULT('cc_chaos', 'chaos')]]),
+  ],
+  sunday: [
+    tree('Sunshine', '#ffd54f', [[T_TATK('su_warm', 'Warm Feathers')], [T_CD('su_encore', 'Encore', 'brightsong'), T_TURNS('su_long', 'Long Song', 'brightsong')],
+      [KEY('su_dawn', 'Dawn Chorus', listFx('teamStartSt', [['str', 1]]), () => 'your whole team starts every battle with Strength for 1 turn')],
+      [T_TCRIT('su_bright', 'Bright Eyes'), T_TURNS('su_hours', 'Golden Hours', 'goldenchorus')], [ULT('su_chorus', 'goldenchorus')]]),
+    tree('Guardian Wings', '#81d4fa', [[T_THP('su_fluff', 'Fluffed Up')], [UP('su_ward', 'Thick Ward', 'featherward', 'shield', 0.08, r => `Feather Ward shields +${8 * r}% more`), T_CD('su_quick', 'Quick Ward', 'featherward')],
+      [KEY('su_shelter', 'Shelter', listFx('teamStartSt', [['guard', 1]]), () => 'your whole team starts every battle Guarded for 1 turn (40% less damage)')],
+      [T_TDEF('su_flock', 'Flock'), T_DODGE('su_flit', 'Flit')], [ULT('su_wings', 'rainbowwings')]]),
+    tree('Sunrise', '#ffab91', [[T_REGEN('su_bask', 'Basking')], [S('su_glow', 'Glow', 'heal', 0.1, r => `all its healing and shields +${10 * r}%`), S('su_mend', 'Morning Mend', 'teamRegen', 0.01, r => `every pet regenerates ${r}% max HP per turn`)],
+      [KEY('su_charm', 'Lucky Charm', listFx('teamStartSt', [['lucky', 2]]), () => 'your whole team starts every battle with Luck for 2 turns')],
+      [S('su_cheer', 'Cheer', 'teamFirstStrike', 0.07, r => `every pet deals +${7 * r}% damage on the first turn`), T_HP('su_hardy', 'Hardy')], [ULT('su_sunrise', 'sunrisecall')]]),
   ],
   cockatiel: [
     tree('Songbird', '#fff176', [[UP('ck_song', 'Soothing Song', 'song', 'heal', 0.4, r => `Soothing Song heals +${40 * r}%`)], [UP('ck_tempo', 'Quick Tempo', 'chorus', 'cd', 1, r => `Chorus is ready ${r} turn${r > 1 ? 's' : ''} sooner`, 2), S('ck_duet', 'Duet', 'heal', 0.1, r => `all its healing +${10 * r}%`)],
@@ -4166,7 +4195,7 @@ function drawPets() {
     ctx.filter = petFilter(k, sheet, p.item);
     if (!drawAnim(sheet, anim, i, cx, y, pf, o) && !drawAnim(speciesSheet(k), p.d.fly ? 'fly' : 'idle', i, cx, y, pf, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
     ctx.filter = 'none';
-    if (p.item && p.item.g && p.item.g.shiny) shinySparkle(p.x - 6, p.y - 8, p.w + 12, p.h + 4, p.slot || 0);
+    if (p.item && p.item.g && p.item.g.shiny) shinySparkle(p.x - 6, p.y - 8, p.w + 12, p.h + 4, p.slot || 0, 1, k);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if (p.ko > 0) { ctx.fillStyle = '#ffeb3b'; ctx.font = `bold 12px ${UI}`; ctx.fillText('z', cx + 8 + Math.sin(TIME * 3) * 3, p.y - 6 - (TIME * 10) % 10); }
     else if (!p.hub && p.hp < p.maxHp) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(cx - 12, p.y - 7, 24, 3); ctx.fillStyle = '#81c784'; ctx.fillRect(cx - 12, p.y - 7, 24 * p.hp / p.maxHp, 3); }
@@ -4316,20 +4345,23 @@ function addBond(it, n) {   // bond only ever grows, up to 100; Gentle and Loyal
 }
 // shiny animals: a rare recolour of the species, with a little sparkle
 const SHINY_HUE = k => { let h = 7; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 70 + h % 220; };
-const shinyFilter = k => `hue-rotate(${SHINY_HUE(k)}deg) saturate(1.45) brightness(1.08)`;
+const SHINY_SPECIAL = { sunday: 'sepia(1) saturate(2.6) hue-rotate(-6deg) brightness(0.98) contrast(1.35)' };   // the Sunday's shiny is solid gold
+const GOLD_SPARKLE = new Set(['sunday']);
+const shinyFilter = k => SHINY_SPECIAL[k] || `hue-rotate(${SHINY_HUE(k)}deg) saturate(1.45) brightness(1.08)`;
 function petFilter(k, sheet, it) {
   const a = standInTint(k, sheet), s = it && it.g && it.g.shiny ? shinyFilter(k) : '';
   return a === 'none' ? (s || 'none') : s ? a + ' ' + s : a;
 }
-function shinySparkle(x, y, w, h, seed = 0, sc = 1) {   // two twinkles that drift over a shiny animal
-  for (let i = 0; i < 2; i++) {
+function shinySparkle(x, y, w, h, seed = 0, sc = 1, sp) {   // twinkles that drift over a shiny animal (golden ones, and more of them, for gold shinies)
+  const gold = GOLD_SPARKLE.has(sp);
+  for (let i = 0; i < (gold ? 3 : 2); i++) {
     const t = TIME * 1.3 + seed * 1.7 + i * 0.5, ph = t % 1, k = Math.sin(ph * Math.PI);
     if (k <= 0.05) continue;
     const n = Math.floor(t) * 7 + i * 13 + seed * 3, px = x + ((n * 37) % 100) / 100 * w, py = y + ((n * 61) % 100) / 100 * h, s = Math.round((2 + 3 * k) * sc);
     const img = art('props/sparkle_' + (n % 4));
-    ctx.save(); ctx.globalAlpha = 0.9 * k;
+    ctx.save(); ctx.globalAlpha = 0.9 * k; if (gold) ctx.filter = 'sepia(1) saturate(5) hue-rotate(-8deg) brightness(1.2)';
     if (img) drawSprite(img, px, py + img.height * PX / 2, 1, { scale: PX * 0.6 * sc * (0.6 + 0.6 * k) });
-    else { ctx.fillStyle = i ? '#fff8e1' : '#ffe082'; ctx.fillRect(Math.round(px - s), Math.round(py), s * 2 + 1, 1); ctx.fillRect(Math.round(px), Math.round(py - s), 1, s * 2 + 1); }
+    else { ctx.fillStyle = gold ? (i % 2 ? '#ffd54f' : '#fff3c4') : i ? '#fff8e1' : '#ffe082'; ctx.fillRect(Math.round(px - s), Math.round(py), s * 2 + 1, 1); ctx.fillRect(Math.round(px), Math.round(py - s), 1, s * 2 + 1); }
     ctx.restore();
   }
 }
@@ -4449,7 +4481,7 @@ function foeUnit(k, L, opt = {}) {
 
 // ---------- wild compositions: as many foes as you have pets ----------
 const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (11-20): only the mythical beasts · Act III (21-30): the fey
-  hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad'],
+  hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel', 'sunday'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel', 'sunday'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad'],
   forge: ['dragon', 'hellhound', 'salamander', 'tortoise', 'lion', 'phoenix'], hollow: ['shadowwolf', 'moth', 'chimera', 'salamander', 'tortoise', 'hellhound'],
   sanctum: ['qilin', 'phoenix', 'lion', 'chimera', 'dragon', 'moth', 'shadowwolf'],
   // Act III (21-30): only the fey creatures — and the Elder Dragon now roams wild
@@ -4457,7 +4489,7 @@ const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (
   lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder'],
 };
 const ACT_ROLES = [
-  { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
+  { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel', 'sunday'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
   { tank: ['tortoise', 'lion'], dps: ['hellhound', 'lion', 'dragon', 'chimera', 'shadowwolf'], heal: ['phoenix', 'qilin'], hex: ['chimera', 'moth', 'shadowwolf'], venom: ['salamander', 'dragon'] },
   { tank: ['mossbear', 'puca'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
 ];
@@ -5520,6 +5552,13 @@ const FXR = {
   prismatic: [0.45, c => { c.flash('#f8bbd0', 0.3, 0.35); c.each(c.T, (t, d) => { c.shot('rainbow', t, { d, arc: 100, s: 1.2 }); c.hit('shard', t, { d: d + 0.35, n: 8 }); }); }],
   sanctify: [0.35, c => c.each(c.A, (t, d) => { c.beam('ray', t, { d }); c.aura('bubble', t, { d: d + 0.2, s: 2.6 }); })],
   starlight: [0.45, c => c.each(c.A, (t, d) => { c.rain('star', t, { n: 3, d, hit: 'spark', s: 0.9, slant: 0, add: true }); c.rise('heart', t, { d: 0.4 + d }); })],
+  // ----- Sunday -----
+  sunpeck: [0.15, c => c.each(c.T, t => { c.hit('feather', t, { n: 3, s: 0.6, grav: 200 }); c.pop('impact', t, { s: 1, life: 0.2 }); })],
+  brightsong: [0.3, c => { c.waves('note', { n: 3, s: 0.7, s1: 1.2, spd: 260 }); c.each(c.A, (t, d) => c.rise('spark', t, { d: 0.2 + d, n: 4, add: true })); }],
+  featherward: [0.3, c => c.each(c.A, (t, d) => { c.hit('feather', t, { d, n: 4, s: 0.5 }); c.aura('bubble', t, { d: d + 0.1, s: 2.2 }); })],
+  goldenchorus: [0.45, c => { c.above('sun', { s: 2.4, add: true }); c.waves('note', { n: 5, s: 0.8 }); c.each(c.A, (t, d) => c.rise('coin', t, { d: 0.3 + d, n: 3 })); }],
+  rainbowwings: [0.4, c => c.each(c.A, (t, d) => { c.orbit('feather', t, { d, n: 5, life: 0.8 }); c.pop('rainbow', t, { d: d + 0.1, oy: -30, s: 1.2 }); c.aura('bubble', t, { d: d + 0.2, s: 2.6 }); })],
+  sunrisecall: [0.5, c => { c.above('sun', { s: 3.2, add: true, life: 0.8 }); c.flash('#fff3c4', 0.3, 0.3); c.each(c.A, (t, d) => { c.beam('ray', t, { d: 0.3 + d }); c.rise('plus', t, { d: 0.4 + d, n: 3 }); }); }],
   // ----- Phoenix -----
   emberpeck: [0.18, c => c.each(c.T, t => { c.shot('flame', t, { dur: 0.15, aim: 1, add: true }); c.hit('feather', t, { d: 0.15, n: 3 }); c.hit('spark', t, { d: 0.15, n: 4, add: true }); })],
   kindlesong: [0.4, c => c.each(c.A, t => { for (let i = 0; i < 4; i++) c.shot('note', t, { d: i * 0.08, arc: 50 + i * 15, trail: 'spark', s: 0.6 }); c.rise('flame', t, { d: 0.35, add: true }); })],
@@ -5672,7 +5711,7 @@ function drawBattleUnit(u) {
   if (!drawAnim(sheet, anim, fr, x, y, u.face, o) && !drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
     ctx.fillStyle = (PETS[u.k] || {}).color || '#888'; rr(x - 14 * s, y - 24 * s, 28 * s, 24 * s, 6); ctx.fill();
   }
-  if (u.shiny && !down) { const r = unitRect(u); ctx.filter = 'none'; shinySparkle(r.x, r.y, r.w, r.h, u.slot || 0, 1.3); }
+  if (u.shiny && !down) { const r = unitRect(u); ctx.filter = 'none'; shinySparkle(r.x, r.y, r.w, r.h, u.slot || 0, 1.3, u.k); }
   ctx.filter = 'none';
   if (down) return;
   // name, HP bar and statuses
@@ -5808,7 +5847,7 @@ function drawPetCard(it, r, opt = {}) {
   let sc = PX * 1.15 * babyScale(it); if (fr) sc = Math.min(sc, (r.w - 12) / (fr[2] * aS), (r.h - 40) / (fr[3] * aS));
   ctx.save(); ctx.beginPath(); ctx.rect(r.x + 3, r.y + 3, r.w - 6, r.h - 6); ctx.clip(); ctx.filter = petFilter(k, sheet, it);
   drawAnim(sheet, anim, TIME * 5 + r.x, r.x + r.w / 2, d.fly ? r.y + r.h * 0.42 : r.y + r.h * 0.62, 1, { scale: sc });
-  ctx.filter = 'none'; if (g.shiny) shinySparkle(r.x + 10, r.y + 8, r.w - 20, r.h - 46, r.x * 0.01, 0.8); ctx.restore();
+  ctx.filter = 'none'; if (g.shiny) shinySparkle(r.x + 10, r.y + 8, r.w - 20, r.h - 46, r.x * 0.01, 0.8, k); ctx.restore();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = g.shiny ? PAL.gold : RARITY[it.def.rarity].c; ctx.fillText(fitText((g.shiny ? '★' : '') + it.def.name, r.w - 8), r.x + r.w / 2, r.y + r.h - 30);
   ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(fitText(`Lv${petLvl(it)} ${sexSym(g)} ${gradeLine(g)}${talentPoints(it) > 0 ? ' ▲' : ''}`, r.w - 8), r.x + r.w / 2, r.y + r.h - 15);
@@ -6664,7 +6703,7 @@ function drawTalents() {
   ctx.fillStyle = g; ctx.fillRect(lx, TAL.y + 16, lw, 130);
   ctx.filter = petFilter(it.def.pet, d.anim, it);
   if (!drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5, lx + lw / 2, d.fly ? TAL.y + 82 : TAL.y + 122, 1, { scale: 3.5 })) drawItem(it, lx + lw / 2 - 36, TAL.y + 40, 36);
-  ctx.filter = 'none'; if (it.g && it.g.shiny) shinySparkle(lx + 30, TAL.y + 30, lw - 60, 100, 1, 1.4);
+  ctx.filter = 'none'; if (it.g && it.g.shiny) shinySparkle(lx + 30, TAL.y + 30, lw - 60, 100, 1, 1.4, it.def.pet);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `22px ${TITLE}`; ctx.fillStyle = it.g && it.g.shiny ? PAL.gold : rc; ctx.fillText(fitText((it.g && it.g.shiny ? '★' : '') + it.def.name, lw - 10), lx + lw / 2, TAL.y + 146);
   ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(fitText(`${RARITY[it.def.rarity].label} ${d.role}`, lw - 12), lx + lw / 2, TAL.y + 164);
