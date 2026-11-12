@@ -98,7 +98,7 @@ def heads(name, mask):
             blob = max([b for b in blobs if min(p[1] for p in b) <= top + 4], key=len)
             xs, ys = [p[0] for p in blob], [p[1] for p in blob]
             out[anim].append([min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1])
-    # keep every upright frame's head near this outfit's usual head width (a raised arm can merge into the head blob);
+    # give every upright frame this outfit's usual head width (a raised arm can merge into the head blob);
     # the face looks right, so keep the right edge and the top
     ws = sorted(h[2] for h in out.get('idle', []) if h)
     if ws:
@@ -106,7 +106,7 @@ def heads(name, mask):
         for anim, fr in out.items():
             for i, h in enumerate(fr):
                 if not h or (anim == 'death' and i >= 2): continue
-                if abs(h[2] - med) > 1: fr[i] = [h[0] + h[2] - med, h[1], med, min(h[3], med + 3)]
+                if h[2] != med: fr[i] = [h[0] + h[2] - med, h[1], med, min(h[3], med + 3)]   # one size for every frame, lined up on the face (no 'breathing')
     return out
 
 
