@@ -147,11 +147,19 @@ const SAVE_KEYS = ['packrat_best', 'packrat_coll', 'packrat_records', 'packrat_s
 const SAVE_DIR = (() => { try { return decodeURIComponent(location.pathname).replace(/\\/g, '/').replace(/[^\/]*$/, '').toLowerCase(); } catch (e) { return '/'; } })();
 const SLOT = (() => { let h = 2166136261; for (let i = 0; i < SAVE_DIR.length; i++) { h ^= SAVE_DIR.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); })();
 function sk(k) { return k + '@' + SLOT; }
+// a one-time fresh start for the development copy (requested 2026-11-11): its progress is cleared once, then kept
+(() => { try {
+  const RESET = 'dev-2026-11-11';
+  if (!SAVE_DIR.endsWith('/games/backpack sanctuary/') || localStorage.getItem(sk('packrat_reset')) === RESET) return;
+  for (const k of SAVE_KEYS) localStorage.removeItem(sk(k));
+  localStorage.setItem(sk('packrat_reset'), RESET);
+} catch (e) {} })();
 // the development folder keeps its progress: 'backpack sanctuary' (renamed from 'pack-rat-dungeon') takes over the old
 // folder's save if one sits next to it, otherwise the single shared save from before saves were split per copy
 (() => { try {
   const parts = SAVE_DIR.split('/').filter(Boolean), name = parts.pop();
   if (name !== 'pack-rat-dungeon' && name !== 'backpack sanctuary') return;
+  if (localStorage.getItem(sk('packrat_reset'))) return;   // started fresh on purpose: don't bring the old save back
   if (SAVE_KEYS.some(k => localStorage.getItem(sk(k)) !== null)) return;
   const oldDir = '/' + parts.join('/') + '/pack-rat-dungeon/';
   let h = 2166136261; for (let i = 0; i < oldDir.length; i++) { h ^= oldDir.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -355,9 +363,18 @@ function button(r, label, o = {}) {
 // a title on a leather banner ribbon (big blackletter pixel font)
 function banner(text, cx, cy, o = {}) {
   const fnt = o.plain ? `bold ${o.size || 18}px ${UI}` : `${o.size || 36}px ${TITLE}`;
-  ctx.font = fnt; const tw = ctx.measureText(text).width, w = Math.max(o.minW || 0, tw + (o.pad || 90)), h = o.h || 46;
-  const img = art('ui/banner');
-  if (img) ctx.drawImage(img, Math.round(cx - w / 2), Math.round(cy - h / 2), Math.round(w), Math.round(h));
+  ctx.font = fnt; const tw = ctx.measureText(text).width, h = o.h || 46;
+  // the ribbon is drawn in three pieces: its ends (tails and rivets) keep their shape, only the middle stretches,
+  // and the ribbon is always wide enough for the text to sit between the rivets
+  const img = art('ui/banner'), CAP = 20, cap = img ? Math.round(CAP * h / img.height) : 0;
+  const w = Math.round(Math.max(o.minW || 0, tw + (o.pad || 90), tw + 2 * cap + 24));
+  if (img) {
+    const X = Math.round(cx - w / 2), Y = Math.round(cy - h / 2), sw = img.width, sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, CAP, img.height, X, Y, cap, h);
+    ctx.drawImage(img, CAP, 0, sw - 2 * CAP, img.height, X + cap, Y, w - 2 * cap, h);
+    ctx.drawImage(img, sw - CAP, 0, CAP, img.height, X + w - cap, Y, cap, h);
+    ctx.imageSmoothingEnabled = sm;
+  }
   else {
     ctx.fillStyle = PAL.leatherDk; ctx.beginPath(); ctx.moveTo(cx - w / 2, cy - h / 2 + 6); ctx.lineTo(cx - w / 2 + 18, cy); ctx.lineTo(cx - w / 2, cy + h / 2 - 2); ctx.lineTo(cx + w / 2, cy + h / 2 - 2); ctx.lineTo(cx + w / 2 - 18, cy); ctx.lineTo(cx + w / 2, cy - h / 2 + 6); ctx.closePath(); ctx.fill();
     ctx.fillStyle = PAL.leather; ctx.fillRect(Math.round(cx - w / 2 + 22), Math.round(cy - h / 2 + 2), Math.round(w - 44), h - 6);
