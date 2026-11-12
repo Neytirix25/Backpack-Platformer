@@ -1750,7 +1750,7 @@ function drawDress() {
   panel(pv.x, pv.y, pv.w, pv.h, 'dark');
   const gl = ctx.createRadialGradient(pv.x + pv.w / 2, pv.y + 200, 10, pv.x + pv.w / 2, pv.y + 200, 160); gl.addColorStop(0, 'rgba(255,224,170,0.22)'); gl.addColorStop(1, 'rgba(255,224,170,0)');
   ctx.fillStyle = gl; ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
-  const moves = ['idle', 'run', 'attack', 'idle', 'jump'], an = moves[Math.floor(TIME / 2.2) % moves.length], sh = heroSheet(cls, L);
+  const moves = ['idle', 'run', 'idle', 'jump'], an = moves[Math.floor(TIME / 2.2) % moves.length], sh = heroSheet(cls, L);
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(pv.x + pv.w / 2, pv.y + 292, 58, 10, 0, 0, 7); ctx.fill();
   drawAnim(sh, an, an === 'jump' ? 2 : TIME * (an === 'run' ? 10 : 6), pv.x + pv.w / 2, pv.y + 292, 1, { scale: 7 });
   label(`${CLASSES[cls].name}  ·  ${myName()}`, pv.x + pv.w / 2, pv.y + 320, { align: 'center', size: 15, bold: true, color: PAL.gold });
