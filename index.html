@@ -57,7 +57,7 @@ const ART_FILES = {
   vfx: VFX_SPR,
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
+  props: ['friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'],
   anim: Object.keys(window.ANIMS || {}),
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
@@ -176,6 +176,7 @@ const norm = k => k.length === 1 ? k.toLowerCase() : k;
 addEventListener('keydown', e => {
   const k = norm(e.key);
   SFX.init();
+  if (NET.typing) { netType(e); return; }   // typing a name or a room code
   if (!keys[k]) pressed[k] = true;
   keys[k] = true;
   if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(k)) e.preventDefault();
@@ -194,7 +195,7 @@ cv.addEventListener('mousemove', e => {
 cv.addEventListener('mousedown', e => { SFX.init(); mpos(e); onMouseDown(e.button); e.preventDefault(); });
 addEventListener('mouseup', e => { mpos(e); onMouseUp(e.button); });
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('wheel', e => { if (rosterOpen()) { scrollRoster(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } }, { passive: false });
+cv.addEventListener('wheel', e => { if (rosterOpen()) { scrollRoster(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (G && G.panel === 'trade') { tradeScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } }, { passive: false });
 
 // =====================================================================
 //  UI STYLE — the look of every menu: an adventurer's leather backpack (stitched leather, brass, parchment,
@@ -1705,7 +1706,7 @@ const HUB_ROOMS = {
 };
 const HUB_COLS = HUB_ROOMS.yard.cols;
 const HUB_SPOTS = {   // tile x of each station
-  doors: { wardrobe: 4, records: 8.5, den: 13 }, fire: 18, team: 21.6, beds: 23.5, out: 2.6,
+  doors: { wardrobe: 4, records: 8.5, den: 13 }, post: 16.1, fire: 18, team: 21.6, beds: 23.5, out: 2.6,
   banners: { warrior: 8, archer: 11, rogue: 14, beastmaster: 17 }, mirror: 21, dye: 25, board: 11, trophies: 19, nests: [11, 16], pedestal: 21,
 };
 // outfit dyes (Wardrobe), saved per class
@@ -1747,7 +1748,7 @@ function goHubRoom(to) {
 }
 function spawnHubPets(R) {
   G.pets = []; const ft = R.floorTop * TILE;
-  rosterList().slice(0, 40).forEach((it, i) => {
+  (G.visit ? G.visit.items : rosterList()).slice(0, 40).forEach((it, i) => {   // (visiting a friend: their animals)
     const k = it.def.pet, d = PETS[k], x = rand(6, R.cols - 6) * TILE;
     G.pets.push({ item: it, d, kind: k, hub: true, x, y: d.fly ? ft - 120 - rand(0, 80) : ft - d.h, w: d.w, h: d.h, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
                   hp: 1, maxHp: 1, ko: 0, cd: 0, atkT: 0, phase: rand(0, 6), onGround: !d.fly, inv: 0, slot: i, wander: null, happyT: 0 });
@@ -1806,6 +1807,12 @@ function updateHubPets(dt) {
 function hubStations() {
   const R = G.room, ft = R.floorTop * TILE, out = [], room = G.hubRoom || 'yard', X = t => t * TILE;
   if (room === 'yard') {
+    if (G.visit) {   // a friend's Yard: meet their animals; the friend post takes you home
+      out.push({ kind: 'post', x: X(HUB_SPOTS.post), y: ft, label: 'Go home' });
+      for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
+      return out;
+    }
+    out.push({ kind: 'post', x: X(HUB_SPOTS.post), y: ft, label: NET.state === 'linked' && NET.friend ? `Friend post (${NET.friend.name})` : 'Play with a friend' });
     for (const to of ['wardrobe', 'records', 'den']) out.push({ kind: 'door', to, x: X(HUB_SPOTS.doors[to]), y: ft, label: `Enter ${HUB_ROOMS[to].name}` + (to === 'den' && denPair() && SAVE.den.ready ? '  (an egg is waiting!)' : '') });
     out.push({ kind: 'team', x: X(HUB_SPOTS.team), y: ft, label: 'Choose your team' });
     for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
@@ -1848,6 +1855,7 @@ function hubInteract() {
     burst(P.x + P.w / 2, P.y + P.h / 2, '#e1bee7', 22, 180); SFX.play('merge');
   } else if (s.kind === 'board') { G.panel = G.panel === 'records' ? null : 'records'; SFX.play('pick'); }
   else if (s.kind === 'door') goHubRoom(s.to);
+  else if (s.kind === 'post') { if (G.visit) visitGoHome(); else openNetPanel(); }
   else if (s.kind === 'trophies') { G.panel = 'trophies'; SFX.play('pick'); }
   else if (s.kind === 'dye') {
     const i = DYES.findIndex(d => d[0] === heroDyeId()), nx = DYES[(i + 1) % DYES.length];
@@ -1858,7 +1866,7 @@ function hubInteract() {
   else if (s.kind === 'pet') {
     const p = s.pet; p.happyT = 2.4; p.wander = null; p.face = Math.sign(P.x + P.w / 2 - (p.x + p.w / 2)) || p.face;
     for (let k = 0; k < 4; k++) addText(p.x + p.w / 2 + rand(-14, 14), p.y - 4 - k * 9, '❤', '#ff80ab', 13 + k * 2);
-    if (p.item && G.petted && !G.petted.has(p.item.pid)) { G.petted.add(p.item.pid); const got = addBond(p.item, 1); if (got > 0) { savePets(); addText(p.x + p.w / 2, p.y - 46, `+${Math.round(got * 10) / 10} bond`, '#f8bbd0', 13); } }
+    if (p.item && G.petted && !G.visit && !G.petted.has(p.item.pid)) { G.petted.add(p.item.pid); const got = addBond(p.item, 1); if (got > 0) { savePets(); addText(p.x + p.w / 2, p.y - 46, `+${Math.round(got * 10) / 10} bond`, '#f8bbd0', 13); } }
     SFX.play(p.kind === 'dog' ? 'bark' : p.d.fly ? 'chirp' : p.d.charge ? 'growl' : p.d.poison ? 'slimeHop' : 'meow');
   }
 }
@@ -2077,25 +2085,29 @@ function hubPanelClick(btn = 0) {
   else if (G.panel === 'records' || G.panel === 'trophies') G.panel = null;
   else if (G.panel === 'den') denClick(btn);
   else if (G.panel === 'newborn') G.panel = null;
+  else if (G.panel === 'net') netPanelClick(btn);
+  else if (G.panel === 'trade') tradeClick(btn);
 }
 // stations, beds, silhouettes and the "press E" bubble (drawn in the world)
 function drawHubWorld() {
   const R = G.room, ft = R.floorTop * TILE, room = G.hubRoom || 'yard';
-  if (room !== 'yard') { drawHubRoomProps(room, ft); return; }
+  if (room !== 'yard') { drawHubRoomProps(room, ft); drawRemoteHero(); return; }
   const house = art('props/sanct_house');   // the Sanctuary house, built into the hill: its archways hold the three doors
   if (house) drawSprite(house, HUB_SPOTS.doors.wardrobe * TILE + (0.5 - 0.226) * house.width * PX, ft + 2, 1);
   for (const to of ['wardrobe', 'records', 'den']) drawDoor('door_' + to, HUB_SPOTS.doors[to] * TILE, ft, HUB_ROOMS[to].name, to === 'den' && denPair() && SAVE.den.ready);
-  { const x = HUB_SPOTS.team * TILE; ctx.fillStyle = '#5d4037'; ctx.fillRect(x - 2, ft - 54, 4, 54); panel(x - 46, ft - 76, 92, 26, 'parch'); label('Your team', x, ft - 63, { align: 'center', size: 12, bold: true, color: PAL.parchInk }); }
+  if (!G.visit) { const x = HUB_SPOTS.team * TILE; ctx.fillStyle = '#5d4037'; ctx.fillRect(x - 2, ft - 54, 4, 54); panel(x - 46, ft - 76, 92, 26, 'parch'); label('Your team', x, ft - 63, { align: 'center', size: 12, bold: true, color: PAL.parchInk }); }
+  drawFriendPost(HUB_SPOTS.post * TILE, ft);
   // pet beds, with a dark silhouette waiting on each species you haven't found yet
   const bed = art('props/hub_petbed');
   PET_IDS.forEach((k, i) => {
     const x = bedX(i);
     if (bed) drawSprite(bed, x, ft + 2, 1); else { ctx.fillStyle = '#5d4037'; rr(x - 16, ft - 8, 32, 8, 4); ctx.fill(); }
-    if (!owned(k)) {
+    if (!(G.visit ? G.visit.owned.has(k) : owned(k))) {
       const d = PETS[k], y = d.fly ? ft - 14 : ft + 1;
       drawAnim(speciesSheet(k), d.fly ? 'fly' : 'idle', d.fly ? 0 : Math.floor(TIME * 2 + i), x, y, i % 2 ? -1 : 1, { shadow: true, alpha: 0.85 });
     }
   });
+  drawRemoteHero();   // your friend, when you're together in a Yard
 }
 // a door into one of the rooms (ChatGPT art when it exists), with its name on a sign
 function drawDoor(key, x, ft, name, glow) {
@@ -2174,7 +2186,7 @@ function drawHubBubble() {
   if (s.kind === 'pet') {
     const d = s.pet.d, it = s.pet.item;
     const g = it.g || {};
-    lines = [[(g.shiny ? '★ ' : '') + d.name + ' ' + sexSym(g), g.shiny ? '#8a5a00' : '#5a2e0c', 'bold 15px'], [`${d.role} · level ${petLvl(it)} · ${(NATURES[g.nat] || NATURES.calm).n}`, PAL.parchInk, '13px'], [`ATK ${grade(g.atk)[1]}  DEF ${grade(g.def)[1]}  HP ${grade(g.hp)[1]}  ·  bond ${Math.floor(g.bond || 0)}`, '#5a3a1a', '12px'], [petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
+    lines = [[(g.shiny ? '★ ' : '') + d.name + ' ' + sexSym(g), g.shiny ? '#8a5a00' : '#5a2e0c', 'bold 15px'], [`${d.role} · level ${petLvl(it)} · ${(NATURES[g.nat] || NATURES.calm).n}`, PAL.parchInk, '13px'], [`ATK ${grade(g.atk)[1]}  DEF ${grade(g.def)[1]}  HP ${grade(g.hp)[1]}  ·  bond ${Math.floor(g.bond || 0)}`, '#5a3a1a', '12px'], [G.visit ? `${G.visit.name}'s animal` : petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
   } else if (s.kind === 'locked') lines = [['???', '#5a2e0c', 'bold 15px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Win a battle on its very first turn' : s.id === 'lakewyrm' ? 'Beat the Lake Wyrm on floor 30' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, PAL.parchInk, '13px']];
   else lines = [[s.label, '#5a2e0c', 'bold 14px'], [s.kind === 'door' ? '[E] or [W]' : '[E]', '#7a2e14', 'bold 13px']];
   const top = Math.min(s.kind === 'pet' ? s.pet.y : s.y - 100, G.player.y) - 18 - lines.length * 17;
@@ -2186,22 +2198,23 @@ function drawHubBubble() {
 // the hub's screen overlay: who you are, controls, collection count, and the records board
 function drawHubHUD() {
   const have = ownedIds().length;
-  const who = `${CLASSES[G.cls].name} (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'})  ·  ${HERD.length} animals, ${have}/${PET_IDS.length} species  ·  Team ${petSlots.filter(Boolean).length}/3`;
+  const who = G.visit ? `Visiting ${G.visit.name}  ·  ${G.visit.items.length} animals, ${G.visit.owned.size}/${PET_IDS.length} species` : `${CLASSES[G.cls].name} (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'})  ·  ${HERD.length} animals, ${have}/${PET_IDS.length} species  ·  Team ${petSlots.filter(Boolean).length}/3`;
   ctx.font = `13px ${UI}`; panel(8, 6, Math.max(240, ctx.measureText(who).width + 40), 58, 'leather');
-  label(HUB_ROOMS[G.hubRoom || 'yard'].name, 24, 25, { title: true, size: 24, color: PAL.gold });
+  label(G.visit ? `${G.visit.name}'s Yard` : HUB_ROOMS[G.hubRoom || 'yard'].name, 24, 25, { title: true, size: 24, color: PAL.gold });
   label(who, 24, 47, { size: 13, color: PAL.cream });
   ctx.globalAlpha = 0.8;
-  label(HUB_ROOMS[G.hubRoom || 'yard'].hint + '  ·  P menu', W / 2, H - 12, { align: 'center', size: 12, color: PAL.cream });
+  label((G.visit ? 'A / D move  ·  W jump  ·  E pet their animals  ·  E at the friend post: go home' : HUB_ROOMS[G.hubRoom || 'yard'].hint) + (NET.state !== 'off' ? '  ·  F friends' : '') + '  ·  P menu', W / 2, H - 12, { align: 'center', size: 12, color: PAL.cream });
   ctx.globalAlpha = 1;
+  drawNetBadge();
   if (G.panel === 'records') {
-    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`], ['Animals in your Sanctuary', HERD.length], ['Shinies found', r.shinies || 0], ['Animals bred', r.bred || 0],
+    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`], ['Animals in your Sanctuary', HERD.length], ['Shinies found', r.shinies || 0], ['Animals bred', r.bred || 0], ['Friend battles', `${r.pvpW || 0} won · ${r.pvpL || 0} lost`], ['Animals traded', r.trades || 0],
       ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
-    const bw = 400, bh = 96 + rows.length * 27, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10;
+    const RH = 25, bw = 400, bh = 96 + rows.length * RH, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10;
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
     panel(bx, by, bw, bh, 'parch');
     banner('Run Records', W / 2, by + 4, { size: 30, h: 44, pad: 100 });
     rows.forEach(([k, v], i) => {
-      const y = by + 52 + i * 27;
+      const y = by + 52 + i * RH;
       label(k, bx + 30, y, { size: 15, color: PAL.parchInk });
       label(String(v), bx + bw - 30, y, { align: 'right', size: 15, bold: true, color: String(v).startsWith('★') ? '#8a5a00' : '#4a2a10' });
       ctx.fillStyle = 'rgba(58,38,20,0.18)'; ctx.fillRect(bx + 30, y + 12, bw - 60, 1);
@@ -2212,6 +2225,8 @@ function drawHubHUD() {
   if (G.panel === 'trophies') drawTrophies();
   if (G.panel === 'den') drawDen();
   if (G.panel === 'newborn') drawNewborn();
+  if (G.panel === 'net') drawNetPanel();
+  if (G.panel === 'trade') drawTrade();
   if (G.panel === 'starter') drawStarter();
   if (G.panel === 'acts') { if (G.actFlash) G.actFlash.t -= 1 / 60; drawActSelect(); }
   if (PK && PK.talent != null) drawTalents();
@@ -3062,7 +3077,7 @@ function updatePlayer(dt) {
   if (P.y > R.hpx + 100) { P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vy = 0; } // safety net
 
   // exit
-  if (G.hub) { if (G.mode === 'play' && G.hubRoom === 'yard' && overlap(P, exitRect(R))) { startRunFromHub(); if (G.hub) { P.x -= 40; } return; } if (G.panel === 'records' && Math.abs(P.vx) > 40) G.panel = null; }
+  if (G.hub) { if (G.mode === 'play' && G.hubRoom === 'yard' && !G.visit && overlap(P, exitRect(R))) { startRunFromHub(); if (G.hub) { P.x -= 40; } return; } if (G.panel === 'records' && Math.abs(P.vx) > 40) G.panel = null; }
   else if (G.mode === 'play' && overlap(P, exitRect(R)) && exitOpen()) {
     if (R.n >= FINAL_FLOOR && !G.endless) {
       G.mode = 'won'; G.wonT = 0; SFX.play('kill_boss'); logRun(true);
@@ -4600,7 +4615,7 @@ function healUnit(u, amt, src) {
 }
 function cleanse(u) { for (const k in u.st) if (STATUS[k] && STATUS[k].bad) delete u.st[k]; }
 // raw damage from an attacker's attack stat (Strength, Weak, first-turn talents)
-function atkOf(u) { return u.atk * (u.st.str ? 1.3 : 1) * (u.st.weak ? 0.7 : 1) * (B.turn === 1 ? 1 + (u.M.firstStrike || 0) + (u.side === 'ally' ? TEAM().firstStrike : 0) : 1); }
+function atkOf(u) { return u.atk * (u.st.str ? 1.3 : 1) * (u.st.weak ? 0.7 : 1) * (B.turn === 1 ? 1 + (u.M.firstStrike || 0) + (B.pvp ? B.pvp.side[u.side].first : u.side === 'ally' ? TEAM().firstStrike : 0) : 1); }
 function dealDamage(src, tgt, pow, opt = {}) {
   if (tgt.fainted) return 0;
   if (!opt.dot) {
@@ -4614,15 +4629,16 @@ function dealDamage(src, tgt, pow, opt = {}) {
   let crit = false;
   if (!opt.dot && opt.flat === undefined) {
     if (opt.finisher && tgt.hp < tgt.maxHp * (0.5 + (src.M.finPct || 0))) { d *= 2 + (src.M.finMul || 0); bText(tgt, 'FINISHER', '#cfd8dc', 13); }
-    if (tgt.st.burn && src.side === 'ally' && (src.k === 'hellhound' || src.k === 'phoenix') && syn('hellfire')) d *= 1.25;
-    const ch = src.crit + (src.st.lucky ? 0.3 : 0) + (opt.crit || 0) + (syn('packhunt') && src.k === 'fox' && tgt.st.stun ? 1 : 0);
+    if (tgt.st.burn && (src.k === 'hellhound' || src.k === 'phoenix') && (B.pvp ? B.pvp.side[src.side].syn.hellfire : src.side === 'ally' && syn('hellfire'))) d *= 1.25;
+    const ch = src.crit + (src.st.lucky ? 0.3 : 0) + (opt.crit || 0) + ((B.pvp ? B.pvp.side[src.side].syn.packhunt : syn('packhunt')) && src.k === 'fox' && tgt.st.stun ? 1 : 0);
     if (opt.alwaysCrit || Math.random() < ch) { crit = true; d *= src.critMul; }
     if (src.M.execute && !tgt.boss && tgt.hp - d < tgt.maxHp * src.M.execute) d = tgt.hp + (tgt.st.shield ? tgt.st.shield.v : 0);
   }
   if (tgt.st.mark) d *= 1.3 + (tgt.st.mark.v || 0);
   if (tgt.st.guard) d *= 0.6;
-  if (tgt.side === 'foe') {   // team talents: Shake Down / Undermine, Keen Sight, Corrode
-    const T = TEAM();
+  const AMP = B.pvp ? (src ? B.pvp.side[src.side].amp : null) : tgt.side === 'foe' ? TEAM() : null;
+  if (AMP) {   // team talents: Shake Down / Undermine, Keen Sight, Corrode
+    const T = AMP;
     if (tgt.st.stun || tgt.st.weak) d *= 1 + T.stunAmp;
     if (tgt.st.blind) d *= 1 + T.blindAmp;
     if (tgt.st.poison) d *= 1 + T.poisonAmp;
@@ -4631,8 +4647,8 @@ function dealDamage(src, tgt, pow, opt = {}) {
   if (!opt.dot && opt.flat === undefined) d *= 30 / (30 + tgt.def * 3);
   d = Math.max(1, Math.round(d));
   // guarding allies take part of the hit
-  if (!opt.dot && tgt.side === 'ally') {
-    const gs = B.allies.filter(o => o !== tgt && !o.fainted && o.M.guard);
+  if (!opt.dot && (B.pvp || tgt.side === 'ally')) {
+    const gs = sameSide(tgt).filter(o => o !== tgt && !o.fainted && o.M.guard);
     for (const g of gs) { const part = Math.round(d * Math.min(0.5, g.M.guard)); if (part > 0) { d -= part; applyDamage(g, part, src, false, true); } }
   }
   applyDamage(tgt, d, src, crit);
@@ -4656,11 +4672,11 @@ function applyDamage(u, d, src, crit, quiet) {
 function faint(u, src) {
   if (u.fainted) return;
   u.faintWait = B.wait || 0; u.faintT = 0;
-  if (u.side === 'ally' && stats.revive && !B.reviveUsed) {   // Phoenix Feather
+  if (u.side === 'ally' && !B.pvp && stats.revive && !B.reviveUsed) {   // Phoenix Feather
     B.reviveUsed = true; u.hp = Math.max(1, Math.round(u.maxHp * stats.revive)); bText(u, 'PHOENIX!', '#ff7043', 18); SFX.play('phoenix'); return;
   }
   u.hp = 0; u.fainted = true; u.st = {}; u.faintT = 0;
-  if (u.side === 'ally') { B.faints++; SFX.play('petKo'); bLog(`${u.name} fainted!`); }
+  if (u.side === 'ally') { B.faints++; SFX.play('petKo'); bLog(`${u.name} fainted!`); if (B.pvp && src && src.side !== u.side && src.M.killHeal) healUnit(src, src.maxHp * src.M.killHeal); }
   else {
     SFX.play('thud'); bLog(`${u.name} is defeated!`); if (src && src.M.killHeal) healUnit(src, src.maxHp * src.M.killHeal);
     if (u.boss === 'shadow') for (const o of B.foes) if (!o.fainted && o.k === 'shade') { o.hp = 0; o.fainted = true; o.st = {}; o.faintT = 0; bText(o, 'FADES', '#b39ddb', 15); }   // its shades die with it
@@ -4685,7 +4701,7 @@ const needsTarget = ab => ABIL[ab].t === 'foe' || ABIL[ab].t === 'ally';
 // one unit uses one ability
 function act(u, ab, tgt) {
   const A = ABIL[ab], M = u.M || {}, up = (M.up && M.up[ab]) || {};
-  const pow = (A.pow || 0) + (up.pow || 0), dur = u.side === 'ally' ? stats.dur + (G.cls === 'rogue' ? 1 : 0) + (M.dur || 0) : 0;
+  const pow = (A.pow || 0) + (up.pow || 0), dur = B.pvp ? (B.pvp.side[u.side].dur || 0) + (M.dur || 0) : u.side === 'ally' ? stats.dur + (G.cls === 'rogue' ? 1 : 0) + (M.dur || 0) : 0;
   u.cd[ab] = (A.cd || 0) > 0 ? Math.max(1, A.cd - (up.cd || 0)) + 1 : 0;
   u.atkT = 0.4; u.killed = false;
   // every ability has its own animal sound (howls, growls, squawks...); it carries its own impact, so the plain hit thud stays quiet
@@ -4807,7 +4823,7 @@ function tickSide(side) {
   for (const u of side === 'ally' ? B.allies : B.foes) {
     if (u.fainted) continue;
     if (B.turn >= FATIGUE_TURN) { const d = Math.max(1, Math.round(u.maxHp * 0.04 * (B.turn - FATIGUE_TURN + 1) * (u.boss ? 0.12 : 1))); bText(u, 'tired -' + d, '#bcaaa4', 13); applyDamage(u, d, null, false, true); if (u.fainted) continue; }
-    for (const k of ['burn', 'poison', 'bleed']) if (u.st[k]) { const d = Math.max(1, Math.round(u.st[k].v * (syn('wildfire') && u.st.burn && u.st.poison ? 2 : 1) * (u.boss ? 0.5 : 1)));   /* bosses shrug off half */ bText(u, `-${d} ${STATUS[k].n.toLowerCase()}`, STATUS[k].c, 15); bLog(`${u.name} takes ${d} from ${STATUS[k].n}.`); applyDamage(u, d, null, false, true); if (u.fainted) break; }
+    for (const k of ['burn', 'poison', 'bleed']) if (u.st[k]) { const d = Math.max(1, Math.round(u.st[k].v * ((B.pvp ? B.pvp.side[side === 'ally' ? 'foe' : 'ally'].syn.wildfire : syn('wildfire')) && u.st.burn && u.st.poison ? 2 : 1) * (u.boss ? 0.5 : 1)));   /* bosses shrug off half */ bText(u, `-${d} ${STATUS[k].n.toLowerCase()}`, STATUS[k].c, 15); bLog(`${u.name} takes ${d} from ${STATUS[k].n}.`); applyDamage(u, d, null, false, true); if (u.fainted) break; }
     if (u.fainted) continue;
     if (u.st.regen) healUnit(u, u.st.regen.v || u.maxHp * 0.08);
     if (u.regenPct) healUnit(u, u.maxHp * u.regenPct);
@@ -4824,7 +4840,7 @@ function expireSide(side) {
 function nextAlly() {
   for (let i = B.cur + 1; i < B.allies.length; i++) {
     const u = B.allies[i]; if (u.fainted) continue;
-    if (u.st.stun) { bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); continue; }
+    if (u.st.stun) { bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); pvpNote(u, 'STUNNED'); continue; }
     B.cur = i; B.pick = null; return true;
   }
   return false;
@@ -4832,8 +4848,9 @@ function nextAlly() {
 function beginPlayerTurn() {
   B.turn++; B.phase = 'player'; B.cur = -1; B.heroUses = 0; B.pick = null;
   tickSide('ally');
+  if (B.pvp) { pvpOpening('ally'); pvpPhaseSent('ally'); }
   if (checkEnd()) return;
-  if (B.turn === 1 && G.cls === 'archer') {   // Archer: opening volley
+  if (!B.pvp && B.turn === 1 && G.cls === 'archer') {   // Archer: opening volley
     for (const f of B.foes) if (!f.fainted) dealDamage(null, f, 0, { flat: Math.max(1, Math.round(f.maxHp * (f.boss ? 0.04 : 0.08))), dot: true });
     bLog('Your arrows rain on the foes!'); SFX.play('bow');
     if (checkEnd()) return;
@@ -4844,19 +4861,22 @@ function endPlayerTurn() {
   expireSide('ally');
   B.phase = 'foe'; B.queue = [];
   tickSide('foe');
+  if (B.pvp) { pvpOpening('foe'); pvpPhaseSent('foe'); }
   if (checkEnd()) return;
   for (const u of B.foes) if (!u.fainted) for (let i = 0; i < (u.acts || 1); i++) B.queue.push(u);
   B.lock = 0.5;
 }
 function checkEnd() {
+  if (B.pvp) return pvpCheckEnd();
   if (!bAlive('foe').length) { winBattle(); return true; }
   if (!bAlive('ally').length) { loseBattle(); return true; }
   return false;
 }
 // the player picks an ability for the current pet (and a target if it needs one)
 function playerAct(ab, tgt) {
+  if (B.pvp && !B.pvp.host) { pvpSendPick(ab, tgt); return; }   // a friend battle's guest: the host plays every move
   const u = B.allies[B.cur];
-  act(u, ab, tgt); B.pick = null; B.lock = Math.max(0.55, B.fxEnd || 0);
+  if (B.pvp) pvpDo(u, ab, tgt); else act(u, ab, tgt); B.pick = null; B.lock = Math.max(0.55, B.fxEnd || 0);
   if (checkEnd()) return;
   if (u.again && !u.fainted) { u.again = false; return; }   // Feral Maul and friends: same pet goes again
   if (!nextAlly()) endPlayerTurn();
@@ -4874,8 +4894,10 @@ function updateBattle(dt) {
   }
   if (B.intro) { updateIntro(dt); return; }
   if (B.lock > 0) { B.lock -= dt; return; }
+  if (B.pvp && !B.pvp.host && B.phase !== 'won' && B.phase !== 'lost') { pvpGuestStep(); if (B && B.phase === 'player') battleInput(); return; }
   if (B.phase === 'start') { beginPlayerTurn(); return; }
   if (B.phase === 'foe') {
+    if (B.pvp) { pvpHostFoeStep(); return; }
     while (B.queue.length && B.queue[0].fainted) B.queue.shift();
     const u = B.queue.shift();
     if (!u) { expireSide('foe'); if (!checkEnd()) beginPlayerTurn(); return; }
@@ -4963,6 +4985,7 @@ function giveOffspring(k, R) {
 }
 function loseBattle() { B.phase = 'lost'; B.t = 0; SFX.play('death'); }
 function endBattle() {
+  if (B && B.pvp) { pvpEndBattle(); return; }
   const R = B.rewards, ent = B.ent, lost = B.phase === 'lost';
   B = null;
   if (lost) {
@@ -5032,7 +5055,7 @@ function drawTipBox(title, lines, cx, y, maxW = 580) {
 function abilityRects(u) {
   return u.abil.map((ab, i) => ({ ab, x: 14 + (i % 3) * 156, y: 446 + Math.floor(i / 3) * 46, w: 150, h: 40 }));
 }
-function itemRects() { return heroItems().map((g, i) => ({ g, x: 512 + (i % 4) * 108, y: 446 + Math.floor(i / 4) * 46, w: 102, h: 40 })); }
+function itemRects() { if (B && B.pvp) return []; return heroItems().map((g, i) => ({ g, x: 512 + (i % 4) * 108, y: 446 + Math.floor(i / 4) * 46, w: 102, h: 40 })); }
 function unitAt(p) { for (const u of [...B.allies, ...B.foes]) { const r = unitRect(u); if (inRect(p, r)) return u; } return null; }
 function pickValid(u) {
   const P = B.pick; if (!P) return false;
@@ -5231,7 +5254,7 @@ function drawVsCard(I) {
   // their side
   const elite = B.foes.some(u => u.elite);
   panel(rx, py, pw, ph, 'leather'); ctx.fillStyle = 'rgba(229,57,53,0.2)'; ctx.fillRect(rx + 10, py + 10, pw - 20, 26);
-  label(elite ? 'AN ALPHA LEADS THEM!' : ({ pack: 'A WILD PACK', mixed: 'WILD ANIMALS', wall: 'A SHIELD WALL', healer: 'A HEALER-BACKED GROUP', hex: 'A COVEN OF HEXERS', venom: 'A VENOMOUS BUNCH' })[I.ent && I.ent.comp] || 'WILD ANIMALS', rx + pw - 22, py + 24, { align: 'right', size: 14, bold: true, color: elite ? '#ffb74d' : '#ff8a80' });
+  label(B.pvp ? `${B.pvp.name.toUpperCase()}'S TEAM` : elite ? 'AN ALPHA LEADS THEM!' : ({ pack: 'A WILD PACK', mixed: 'WILD ANIMALS', wall: 'A SHIELD WALL', healer: 'A HEALER-BACKED GROUP', hex: 'A COVEN OF HEXERS', venom: 'A VENOMOUS BUNCH' })[I.ent && I.ent.comp] || 'WILD ANIMALS', rx + pw - 22, py + 24, { align: 'right', size: 14, bold: true, color: elite ? '#ffb74d' : '#ff8a80' });
   ctx.save(); ctx.beginPath(); ctx.rect(rx + 8, py + 36, pw - 16, ph - 44); ctx.clip(); drawVsRow(B.foes, rx + pw - 92 - (B.foes.length - 1) * 112, -1); ctx.restore();
   // VS slams in between them
   const sk = (tau - 0.3) / 0.16;
@@ -5739,14 +5762,15 @@ function drawBattle() {
   ctx.fillStyle = R.theme.tile[0]; ctx.fillRect(0, BX.ground, W, H - BX.ground); ctx.fillStyle = R.theme.tile[3]; ctx.fillRect(0, BX.ground, W, 4);
   // the hero, behind the pets
   const hs = heroSheet(G.cls);
-  ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, BX.hero + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
+  ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, (B.pvp ? PVP_X.hero[0] : BX.hero) + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
+  if (B.pvp) { const o = B.pvp.side.foe; ctx.filter = o.dye || 'none'; drawAnim(animFrames(o.sheet, 'idle') ? o.sheet : o.cls, 'idle', B.t * 5 + 2, PVP_X.hero[1], BX.ground, -1, { scale: 2.6 }); ctx.filter = 'none'; }   // your friend's hero
   B.heroAnim = Math.max(0, (B.heroAnim || 0) - 1 / 60);
   ctx.save(); if (B.shakeT > 0) ctx.translate(rand(-1, 1) * (B.shakeA || 4), rand(-1, 1) * (B.shakeA || 4) * 0.6);
   for (const u of [...B.allies, ...B.foes]) drawBattleUnit(u);
   drawVfx(); ctx.restore(); drawVfxFlash();
   for (const f of B.fx) { if (f.wait > 0) continue; ctx.globalAlpha = Math.min(1, f.t * 2); ctx.font = `bold ${f.size}px ${UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(f.txt, f.x + 1, f.y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, f.y); ctx.globalAlpha = 1; }
   // top bar: turn, boss bar, log
-  banner(B.phase === 'foe' ? `Turn ${B.turn} — the foes act...` : B.phase === 'player' ? `Turn ${B.turn} — your move` : B.phase === 'won' ? 'Victory!' : B.phase === 'lost' ? 'Defeat...' : 'Battle!', W / 2, 24, { plain: true, size: 18, h: 38, pad: 100, minW: 300 });
+  banner(B.pvp && (B.phase === 'foe' || B.phase === 'wait' || B.phase === 'start') ? (B.phase === 'foe' ? `Turn ${B.turn} — ${B.pvp.name}'s move...` : B.turn ? `Turn ${B.turn}` : 'Friendly battle!') : B.phase === 'foe' ? `Turn ${B.turn} — the foes act...` : B.phase === 'player' ? `Turn ${B.turn} — your move` : B.phase === 'won' ? 'Victory!' : B.phase === 'lost' ? 'Defeat...' : 'Battle!', W / 2, 24, { plain: true, size: 18, h: 38, pad: 100, minW: 300 });
   const boss = B.foes.find(u => u.boss);
   if (boss) {
     panel(W / 2 - 228, 44, 456, 34, 'dark');
@@ -5783,8 +5807,8 @@ function drawBattle() {
     }
     ctx.textAlign = 'left'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.gold;
     ctx.fillText(u ? `${u.name}'s move` : '', 14, 442 - 12);
-    ctx.textAlign = 'right'; ctx.fillText(`Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`, W - 14, 442 - 12);
-    if (!itemRects().length) { ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('No consumables in your backpack.', 512, 466); }
+    ctx.textAlign = 'right'; if (!B.pvp) ctx.fillText(`Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`, W - 14, 442 - 12);
+    if (!B.pvp && !itemRects().length) { ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('No consumables in your backpack.', 512, 466); }
     if (hov[0]) { const lines = hov[0].lines; ctx.font = `13px ${UI}`; const h = 26 + lines.length * 17; drawTipBox(hov[0].title, lines, W / 2, boss ? 74 : 44); }
     else if (B.pick) {
       const tip = B.pick.item ? `Click ${({ ally: 'a pet to heal', dead: 'a fainted pet', foe: 'a foe' })[USE_T[B.pick.item.def.use]]}  ·  right-click to cancel` : `Choose a target for ${ABIL[B.pick.ab].n}  ·  right-click to cancel`;
@@ -5798,11 +5822,12 @@ function drawBattle() {
       panel(tx - 4, ty - 4, tw + 8, th + 8, 'dark'); ctx.textAlign = 'left';
       lines.forEach((l, i) => { ctx.fillStyle = i ? PAL.cream : PAL.gold; ctx.fillText(l, tx + 9, ty + 12 + i * 15); });
     }
-  } else if (B.phase === 'won' && B.rewards) drawRewards(B.rewards);
+  } else if (B.pvp && (B.phase === 'won' || B.phase === 'lost') && B.rewards) drawPvpResult(B.rewards);
+  else if (B.phase === 'won' && B.rewards) drawRewards(B.rewards);
   else if (B.phase === 'lost') {
     ctx.textAlign = 'center'; ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#f08a6a'; ctx.fillText('Your whole team fainted. The run is over.', W / 2, 470);
     ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText('Your pets keep every level they earned. Press Enter or click.', W / 2, 496);
-  } else { ctx.textAlign = 'center'; ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(B.phase === 'foe' ? 'The foes are taking their turn...' : '', W / 2, 480); }
+  } else { ctx.textAlign = 'center'; ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(B.pvp ? (B.phase === 'foe' ? `${B.pvp.name} is choosing a move...` : B.phase === 'wait' ? 'Waiting...' : '') : B.phase === 'foe' ? 'The foes are taking their turn...' : '', W / 2, 480); }
 }
 function drawRewards(R) {
   ctx.textAlign = 'left'; ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('Victory!', 16, 456);
@@ -6860,8 +6885,8 @@ function drawClassSelect() {
 // ---------- the pause menu: resume, restart, back to the Sanctuary, title screen (run-ending choices ask first) ----------
 const PAUSE_BTN = i => ({ x: W / 2 - 150, y: 204 + i * 56, w: 300, h: 44 });
 const CONFIRM_BTN = i => ({ x: W / 2 - 150 + i * 160, y: 302, w: 140, h: 42 });
-const CONFIRM_TXT = { restart: 'Restart this run from the beginning?', hub: 'Leave this run and return to the Sanctuary?', title: 'Leave this run and go to the title screen?' };
-function pauseItems() { return G.hub ? [['resume', 'Resume'], ['title', 'Title screen']] : [['resume', 'Resume'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
+const CONFIRM_TXT = { restart: 'Restart this run from the beginning?', hub: 'Leave this run and return to the Sanctuary?', title: 'Leave this run and go to the title screen?', forfeit: 'Give up this friendly battle?' };
+function pauseItems() { if (B && B.pvp && G.pauseFrom === 'battle') return [['resume', 'Resume'], ['forfeit', 'Give up the battle']]; return G.hub ? [['resume', 'Resume'], ['title', 'Title screen']] : [['resume', 'Resume'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
 function openPause() { G.pauseFrom = G.mode; G.mode = 'pause'; G.pauseSel = 0; G.confirm = null; SFX.play('pause'); }
 function closePause() { G.mode = G.pauseFrom === 'battle' && B ? 'battle' : 'play'; G.confirm = null; SFX.play('pause'); }
 // leaving a run early: it counts as abandoned (not a defeat); pets keep every level, the run's items are lost
@@ -6874,8 +6899,9 @@ function abandonRun() {
 }
 function pauseDo(k) {
   if (k === 'resume') { closePause(); return; }
-  if (!G.confirm && !G.hub) { G.confirm = k; G.confirmSel = 1; SFX.play('pick'); return; }   // run-ending choices ask first ("No" picked)
+  if (!G.confirm && (!G.hub || k === 'forfeit')) { G.confirm = k; G.confirmSel = 1; SFX.play('pick'); return; }   // run-ending choices ask first ("No" picked)
   G.confirm = null; SFX.play('pick');
+  if (k === 'forfeit') { closePause(); if (B && B.pvp && B.phase !== 'won' && B.phase !== 'lost') { netSend({ t: 'forfeit' }); pvpFinish(false, 'You gave up this one.'); } return; }
   if (k === 'title') { abandonRun(); G = null; B = null; PK = null; SCREEN = 'title'; return; }
   if (k === 'hub') { abandonRun(); enterHub(); return; }
   if (k === 'restart') { const cls = G.cls, act = G.startAct || 1; abandonRun(); newGame(cls, act); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1; }
@@ -6908,7 +6934,7 @@ function drawPauseMenu() {
     banner('Are you sure?', W / 2, 188, { size: 38, h: 56, pad: 120 });
     panel(W / 2 - 240, 226, 480, 136, 'parch');
     label(CONFIRM_TXT[G.confirm], W / 2, 254, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
-    label(G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W / 2, 278, { align: 'center', size: 12, color: '#6b4a2a' });
+    label(G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W / 2, 278, { align: 'center', size: 12, color: '#6b4a2a' });
     ['Yes', 'No'].forEach((t, i) => button(CONFIRM_BTN(i), t, { hover: inRect(mouse, CONFIRM_BTN(i)) || (G.confirmSel === i && !inRect(mouse, CONFIRM_BTN(1 - i))), size: 17, color: i ? PAL.cream : '#ffb199' }));
     label('Y / N  ·  or arrows + Enter', W / 2, 392, { align: 'center', size: 12, color: PAL.dim });
     return;
@@ -6959,8 +6985,8 @@ function draw() {
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('Your team fainted', `Floor ${G.roomNum} · ${G.battlesWon || 0} battles won · your pets keep every level they earned${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to return to the Sanctuary' : '');
 }
 function drawHUDMessageOnly() {
-  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies') return;   // full-screen panels cover the middle of the screen
-  if (G.msgT > 0 && G.msg) drawToast(G.msg, 86);
+  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies' || G.panel === 'trade') return;   // full-screen panels cover the middle of the screen
+  if (G.msgT > 0 && G.msg) drawToast(G.msg, G.panel === 'net' ? H - 30 : 86);
 }
 // a message on a slip of parchment
 function drawToast(msg, y) {
@@ -6969,6 +6995,742 @@ function drawToast(msg, y) {
   panel(W / 2 - tw / 2, y - 19, tw, 38, 'parch');
   label(msg, W / 2, y + 1, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
   ctx.globalAlpha = 1;
+}
+
+// =====================================================================
+//  PLAYING WITH A FRIEND — over the internet, browser to browser. A free public service (PeerJS) only introduces the
+//  two games; after that they talk directly. One player hosts a room and reads out its 5-letter code, the other joins.
+//  Then: friendly battles (the host's game runs the fight and sends every move with its dice roll, so both games show
+//  the same thing), trades (each side offers one animal, both accept) and Yard visits (walk around together, live).
+// =====================================================================
+const NET_VER = 1;
+const PEER_LIB = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+const PEER_PREFIX = 'backpack-sanctuary-';
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // no O/0 or I/1 to mix up when reading a code out loud
+const NATIVE_RANDOM = Math.random;
+const NET = { state: 'off', role: null, code: '', peer: null, conn: null, transport: null, friend: null, err: '', typing: null, buf: '',
+              ask: null, out: null, battle: null, trade: null, visit: null, visitor: null, remote: null, posT: 0, profT: 0, profSent: '', lib: null, joinT: null };
+const myName = () => (SAVE.skin.name || 'Adventurer');
+const REQ_TXT = { battle: 'a friendly battle', trade: 'to trade animals', visit: 'to visit your Yard' };
+const REQ_ME = { battle: 'a friendly battle', trade: 'a trade', visit: 'a visit to their Yard' };
+
+function netProfile() {
+  const cls = G && G.cls || selClass;
+  return { name: myName(), cls, sheet: heroSheet(cls), dye: heroDye(cls), n: HERD.length, sp: ownedIds().length, v: NET_VER };
+}
+const DYE_FILTERS = new Set(['none', ...DYES.map(d => d[2]).filter(Boolean)]);
+function netCleanProfile(p) {
+  p = p && typeof p === 'object' ? p : {};
+  const cls = CLASSES[p.cls] ? p.cls : 'warrior';
+  const sheet = typeof p.sheet === 'string' && (p.sheet === cls || p.sheet === cls + '_f') ? p.sheet : cls;
+  return { name: String(p.name || 'Friend').replace(/[\u0000-\u001f]/g, '').slice(0, 14) || 'Friend', cls, sheet, dye: DYE_FILTERS.has(p.dye) ? p.dye : 'none',
+           n: clamp(p.n | 0, 0, 9999), sp: clamp(p.sp | 0, 0, PET_IDS.length), v: p.v | 0 };
+}
+
+// ---------- the connection ----------
+function netSend(o) {
+  try { if (NET.transport) NET.transport.send(o); else if (NET.conn && NET.conn.open) NET.conn.send(o); } catch (e) { console.warn('net send', e); }
+}
+function netReset() {
+  const c = NET.conn, p = NET.peer;
+  Object.assign(NET, { state: 'off', role: null, code: '', peer: null, conn: null, transport: null, friend: null, err: '', ask: null, out: null, battle: null, trade: null, visit: null, visitor: null, remote: null });
+  clearTimeout(NET.joinT);
+  try { if (c) c.close(); } catch (e) {}
+  try { if (p) p.destroy(); } catch (e) {}
+}
+const makeCode = () => Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(NATIVE_RANDOM() * CODE_CHARS.length)]).join('');
+function loadPeerLib() {
+  if (window.Peer) return Promise.resolve();
+  if (NET.lib) return NET.lib;
+  return (NET.lib = new Promise((ok, fail) => {
+    const s = document.createElement('script'); s.src = PEER_LIB; s.async = true;
+    s.onload = () => (window.Peer ? ok() : fail(new Error('PeerJS missing')));
+    s.onerror = () => { NET.lib = null; fail(new Error('PeerJS did not load')); };
+    document.head.appendChild(s);
+  }));
+}
+const netErrText = e => ({ network: 'Lost touch with the multiplayer service. Check your internet connection.', 'browser-incompatible': "This browser can't make direct connections.",
+  'server-error': 'The multiplayer service is having trouble. Try again in a minute.', 'socket-error': 'Lost touch with the multiplayer service.', 'socket-closed': 'Lost touch with the multiplayer service.',
+  webrtc: "Couldn't connect directly. Some networks (school or work Wi-Fi) block this." })[e && e.type] || 'Something went wrong with the connection.';
+function netFail(msg) {
+  netReset(); NET.state = 'error'; NET.err = msg;
+  if (G && G.hub && G.mode === 'play' && !G.panel) G.panel = 'net';
+}
+async function netHost(tries = 0) {
+  netReset(); NET.state = 'connecting'; NET.role = 'host'; NET.code = makeCode();
+  try { await loadPeerLib(); } catch (e) { netFail("Couldn't reach the multiplayer service. Are you online?"); return; }
+  if (NET.role !== 'host' || NET.peer) return;   // cancelled while loading
+  const peer = NET.peer = new window.Peer(PEER_PREFIX + NET.code.toLowerCase(), { debug: 0 });
+  peer.on('open', () => { if (NET.peer === peer && NET.state === 'connecting') NET.state = 'waiting'; });
+  peer.on('connection', c => {
+    if (NET.peer !== peer) return;
+    if (NET.conn) { c.on('open', () => { try { c.send({ t: 'busy' }); } catch (e) {} setTimeout(() => { try { c.close(); } catch (e) {} }, 500); }); return; }
+    netAttach(c);
+  });
+  peer.on('error', e => {
+    if (NET.peer !== peer) return;
+    if (e.type === 'unavailable-id' && tries < 3) netHost(tries + 1);   // that code is taken right now: pick another
+    else if (!NET.conn) netFail(netErrText(e));
+  });
+  peer.on('disconnected', () => { if (NET.peer === peer && !NET.conn) try { peer.reconnect(); } catch (e) {} });
+}
+async function netJoin(code) {
+  code = String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 5) { SFX.play('error'); return; }
+  netReset(); NET.state = 'connecting'; NET.role = 'guest'; NET.code = code;
+  try { await loadPeerLib(); } catch (e) { netFail("Couldn't reach the multiplayer service. Are you online?"); return; }
+  if (NET.role !== 'guest' || NET.peer) return;
+  const peer = NET.peer = new window.Peer({ debug: 0 });
+  peer.on('open', () => { if (NET.peer === peer) netAttach(peer.connect(PEER_PREFIX + code.toLowerCase(), { reliable: true, serialization: 'json' })); });
+  peer.on('error', e => { if (NET.peer === peer) netFail(e.type === 'peer-unavailable' ? `Nobody is hosting room ${code} right now. Check the code with your friend.` : netErrText(e)); });
+  NET.joinT = setTimeout(() => { if (NET.peer === peer && NET.state !== 'linked') netFail("Couldn't connect. Some networks (school or work Wi-Fi) block direct connections."); }, 25000);
+}
+function netAttach(c) {
+  NET.conn = c;
+  c.on('open', () => { if (NET.conn === c) { NET.state = 'hello'; netSend({ t: 'hello', p: netProfile() }); } });
+  c.on('data', d => { if (NET.conn === c) netReceive(d); });
+  c.on('close', () => { if (NET.conn === c) netLost(); });
+  c.on('error', () => { if (NET.conn === c) netLost(); });
+}
+// tests (and anything else) can plug in their own pipe instead of PeerJS
+function netLinkTest(role, transport) { netReset(); NET.role = role; NET.transport = transport; NET.code = 'TEST1'; NET.state = 'hello'; netSend({ t: 'hello', p: netProfile() }); }
+function netLost() {
+  const name = NET.friend ? NET.friend.name : 'Your friend', visiting = !!(G && G.visit);
+  netReset();
+  if (B && B.pvp && B.phase !== 'won' && B.phase !== 'lost') pvpAbort(`${name} left the battle. Nothing is recorded.`);
+  if (visiting) { enterHub('yard'); showMsg(`Lost the connection to ${name}. You're back home.`, 3); }
+  else if (G) showMsg(`${name} disconnected.`, 2.5);
+  if (G && G.panel === 'trade') G.panel = null;
+}
+function netLeave() { if (NET.conn || NET.transport) netSend({ t: 'bye' }); const v = G && G.visit; netReset(); if (v) enterHub('yard'); }
+
+// ---------- messages ----------
+function netReceive(m) {
+  if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
+  const name = NET.friend ? NET.friend.name : 'Your friend';
+  switch (m.t) {
+    case 'hello':
+      NET.friend = netCleanProfile(m.p);
+      if (NET.state !== 'linked') {
+        NET.state = 'linked'; clearTimeout(NET.joinT); NET.profSent = JSON.stringify(netProfile()); SFX.play('chest', true);
+        showMsg(NET.friend.v !== NET_VER ? `Connected with ${NET.friend.name}, but your games are different versions: update both!` : `Connected with ${NET.friend.name}!`, 3);
+        if (G && G.hub && G.mode === 'play' && !G.panel) G.panel = 'net';
+      }
+      return;
+    case 'bye': netLost(); return;
+    case 'busy': netFail('That room already has two players in it.'); return;
+    case 'prof': if (NET.friend) NET.friend = netCleanProfile(m.p); if (NET.remote) Object.assign(NET.remote, { sheet: NET.friend.sheet, dye: NET.friend.dye }); if (NET.visitor) Object.assign(NET.visitor, { sheet: NET.friend.sheet, dye: NET.friend.dye }); return;
+    case 'req': netGotRequest(m.kind); return;
+    case 'cancel': if (NET.ask && NET.ask.kind === m.kind) { NET.ask = null; showMsg(`${name} changed their mind.`, 1.8); } return;
+    case 'ans': netGotAnswer(m); return;
+    case 'team': pvpGotTeam(m.team); return;
+    case 'start': pvpGuestStart(m); return;
+    case 'phase': case 'act': case 'yourmove': case 'note': case 'end':
+      if (B && B.pvp && !B.pvp.host) B.pvp.q.push(m);
+      else if (m.t === 'end' && m.win === 'none' && !B) { NET.battle = null; showMsg(`${name} couldn't start the battle.`, 2); }
+      return;
+    case 'pick': if (B && B.pvp && B.pvp.host && B.pvp.asked) B.pvp.pick = m; return;
+    case 'forfeit': if (B && B.pvp && B.phase !== 'won' && B.phase !== 'lost') pvpFinish(true, `${name} gave up. You win!`); NET.battle = null; return;
+    case 'tOffer': tradeGotOffer(m.it); return;
+    case 'tReady': if (NET.trade) { NET.trade.theirReady = !!m.ok; tradeMaybeCommit(); } return;
+    case 'tCommit': tradeCommit(m); return;
+    case 'tLeave': if (NET.trade) { NET.trade = null; if (G && G.panel === 'trade') G.panel = 'net'; showMsg(`${name} closed the trade.`, 2); } return;
+    case 'yard': visitBegin(m); return;
+    case 'pos': netGotPos(m); return;
+    case 'visitEnd': visitEnded(); return;
+  }
+}
+function netCantDo(kind, mine) {
+  if (!G || !G.hub || G.mode === 'battle') return mine ? 'You can do that from the Sanctuary.' : G && !G.hub ? 'is out in the dungeon right now' : 'is busy right now';
+  if (G.visit || NET.visitor || NET.trade || NET.battle) return mine ? 'Finish what you are doing with your friend first.' : 'is busy';
+  if (kind === 'battle' && !petSlots.some(Boolean)) return mine ? 'Put at least one animal in your team first.' : "doesn't have a team yet";
+  if (kind === 'trade' && HERD.length < 2) return mine ? 'You need at least two animals to trade one away.' : 'needs at least two animals to trade';
+  return null;
+}
+function netRequest(kind) {
+  if (NET.state !== 'linked' || NET.out || NET.ask || !REQ_TXT[kind]) return;
+  const why = netCantDo(kind, true); if (why) { showMsg(why, 2.2); SFX.play('error'); return; }
+  NET.out = { kind, t: 0 }; netSend({ t: 'req', kind }); SFX.play('pick');
+}
+function netCancelRequest() { if (!NET.out) return; netSend({ t: 'cancel', kind: NET.out.kind }); NET.out = null; SFX.play('pick'); }
+function netGotRequest(kind) {
+  if (!REQ_TXT[kind] || NET.state !== 'linked') return;
+  const why = NET.ask || NET.out ? 'is busy' : netCantDo(kind, false);
+  if (why) { netSend({ t: 'ans', kind, ok: false, why }); return; }
+  NET.ask = { kind }; SFX.play('alert');
+  if (G.mode === 'play' && !G.panel && !(PK && PK.talent != null)) G.panel = 'net';
+  else showMsg(`${NET.friend.name} wants ${REQ_TXT[kind]}! Press F to answer.`, 3);
+}
+function netAnswer(ok) {
+  if (!NET.ask) return;
+  const kind = NET.ask.kind; NET.ask = null;
+  const why = ok ? netCantDo(kind, true) : null;
+  if (!ok || why) { netSend({ t: 'ans', kind, ok: false, why: why ? 'is busy' : '' }); if (why) showMsg(why, 2.2); SFX.play('pick'); return; }
+  netSend({ t: 'ans', kind, ok: true }); netBegin(kind, false);
+}
+function netGotAnswer(m) {
+  if (!NET.out || NET.out.kind !== m.kind) return;
+  NET.out = null;
+  if (!m.ok) { showMsg(`${NET.friend.name} said no${m.why ? ` (${String(m.why).slice(0, 40)})` : ''}.`, 2.4); SFX.play('error'); return; }
+  netBegin(m.kind, true);
+}
+function netBegin(kind, asked) {
+  if (kind === 'battle') { NET.battle = { mine: null, theirs: (NET.battle && NET.battle.theirs) || null }; pvpSendTeam(); }
+  else if (kind === 'trade') tradeOpen();
+  else if (kind === 'visit') {
+    if (asked) { NET.visit = { waiting: true }; showMsg(`Heading over to ${NET.friend.name}'s Yard...`, 2); }
+    else { NET.visitor = Object.assign({ P: null }, NET.friend); netSend(visitYardData()); G.panel = null; showMsg(`${NET.friend.name} is visiting your Yard!`, 3); }
+  }
+}
+function netTick(dt) {
+  if (NET.state !== 'linked') return;
+  if (NET.visitor && (!G || !G.hub)) { netSend({ t: 'visitEnd' }); NET.visitor = null; }                 // you headed into the dungeon: the visit is over
+  if (NET.visit && !NET.visit.waiting && (!G || !G.visit)) { netSend({ t: 'visitEnd' }); NET.visit = null; NET.remote = null; }
+  const R = G && G.visit ? NET.remote : NET.visitor;
+  if (R && R.P) { const k = Math.min(1, dt * 12); R.P.x += (R.tx - R.P.x) * k; R.P.y += (R.ty - R.P.y) * k; }
+  if (G && G.hub && (G.visit || NET.visitor)) {
+    NET.posT -= dt;
+    if (NET.posT <= 0) { NET.posT = 0.1; const P = G.player; netSend({ t: 'pos', x: Math.round(P.x), y: Math.round(P.y), vx: Math.round(P.vx), vy: Math.round(P.vy), f: P.face, g: P.onGround ? 1 : 0, r: G.hubRoom || 'yard' }); }
+  }
+  NET.profT -= dt;
+  if (NET.profT <= 0) { NET.profT = 1.5; const p = JSON.stringify(netProfile()); if (p !== NET.profSent) { NET.profSent = p; netSend({ t: 'prof', p: netProfile() }); } }
+}
+
+// ---------- friendly battles ----------
+// pets only, plus each hero's class bonus (no items): every animal keeps its level, talents, nature and grades
+const PVP_X = { ally: [420, 300, 180], foe: [540, 660, 780], hero: [62, 898] };
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function pvpSeeded(seed, fn) {   // the same dice on both computers: sounds keep their own randomness so they can't throw the dice off
+  const R = Math.random, P = SFX.play; Math.random = mulberry32(seed);
+  SFX.play = function (...a) { const r = Math.random; Math.random = NATIVE_RANDOM; try { return P.apply(this, a); } finally { Math.random = r; } };
+  try { return fn(); } finally { Math.random = R; SFX.play = P; }
+}
+function netSyn() { const have = new Set(petSlots.filter(Boolean).map(i => i.def.pet)); return Object.fromEntries(SYNERGIES.map(s => [s.id, s.pets.every(k => have.has(k))])); }
+const PVP_KEYS = ['k', 'name', 'lvl', 'maxHp', 'atk', 'def', 'crit', 'critMul', 'heal', 'dot', 'regenPct', 'thorns', 'dr', 'abil', 'scale', 'dodge', 'hitB', 'M'];
+function pvpTeamData() {
+  const S0 = stats, T0 = G.team;
+  G.syn = netSyn(); stats = computeStats([], G.cls); G.team = teamMods();
+  const team = petSlots.filter(Boolean);
+  const units = petSlots.map((it, i) => (it ? petUnit(it, i, team.length) : null)).filter(Boolean);
+  const T = G.team, dur = (stats.dur || 0) + (G.cls === 'rogue' ? 1 : 0);
+  stats = S0; G.team = T0;
+  return JSON.parse(JSON.stringify({
+    units: units.map(u => { const o = {}; for (const k of PVP_KEYS) o[k] = u[k]; o.g = u.it.g; o.plvl = petLvl(u.it); return o; }),
+    name: myName(), cls: G.cls, sheet: heroSheet(G.cls), dye: heroDye(G.cls), syn: G.syn, first: T.firstStrike || 0,
+    amp: { stunAmp: T.stunAmp || 0, blindAmp: T.blindAmp || 0, poisonAmp: T.poisonAmp || 0 }, dur,
+    startSt: T.startSt || [], shieldStart: T.shieldStart || 0, foeSt: T.foeStartSt || [],
+  }));
+}
+const numIn = (v, lo, hi, d) => (Number.isFinite(+v) ? clamp(+v, lo, hi) : d);
+const cleanStList = l => (Array.isArray(l) ? l : []).filter(x => Array.isArray(x) && STATUS[x[0]]).slice(0, 12).map(([k, t]) => [k, clamp(t | 0, 0, 6)]);
+function cleanGenes(g) {
+  g = g && typeof g === 'object' ? g : {};
+  const o = rollGenes({ shiny: false });
+  if (NATURES[g.nat]) o.nat = g.nat;
+  for (const s of ['atk', 'def', 'hp', 'bond']) if (Number.isFinite(+g[s])) o[s] = clamp(+g[s], 0, 100);
+  o.sex = g.sex === 'f' ? 'f' : 'm'; o.shiny = !!g.shiny;
+  return o;
+}
+function pvpCleanTeam(t) {
+  t = t && typeof t === 'object' ? t : {};
+  const p = netCleanProfile(t), syn = {};
+  for (const s of SYNERGIES) syn[s.id] = !!(t.syn && t.syn[s.id]);
+  const a = t.amp || {};
+  return { units: (Array.isArray(t.units) ? t.units : []).slice(0, 3), name: p.name, cls: p.cls, sheet: p.sheet, dye: p.dye, syn, first: numIn(t.first, 0, 1, 0),
+           amp: { stunAmp: numIn(a.stunAmp, 0, 2, 0), blindAmp: numIn(a.blindAmp, 0, 2, 0), poisonAmp: numIn(a.poisonAmp, 0, 2, 0) }, dur: numIn(t.dur, 0, 4, 0) | 0,
+           startSt: cleanStList(t.startSt), shieldStart: numIn(t.shieldStart, 0, 1, 0), foeSt: cleanStList(t.foeSt) };
+}
+function pvpUnpack(o, i, side) {
+  o = o && typeof o === 'object' ? o : {};
+  const k = BS[o.k] && PETS[o.k] && ITEMS['pet_' + o.k] ? o.k : 'dog';
+  const it = makeItem('pet_' + k); it.pid = side + '-' + i; it.plvl = numIn(o.plvl, 1, PET_MAX_LVL, 1) | 0; it.g = cleanGenes(o.g); it.talents = {}; it.talV = 1;
+  const M = o.M && typeof o.M === 'object' && !Array.isArray(o.M) ? o.M : {};
+  const abil = (Array.isArray(o.abil) ? o.abil : []).filter(a => typeof a === 'string' && ABIL[a]).slice(0, 6);
+  const u = { side, k, it, name: String(o.name || PETS[k].name).slice(0, 24), lvl: numIn(o.lvl, 1, 99, 1) | 0, M,
+    maxHp: Math.round(numIn(o.maxHp, 1, 99999, 50)), atk: numIn(o.atk, 0, 9999, 5), def: numIn(o.def, 0, 999, 1), crit: numIn(o.crit, 0, 1, 0.05), critMul: numIn(o.critMul, 1, 10, 1.5),
+    heal: numIn(o.heal, 0, 10, 1), dot: numIn(o.dot, 0, 10, 1), regenPct: numIn(o.regenPct, 0, 1, 0), thorns: numIn(o.thorns, 0, 5, 0), dr: numIn(o.dr, 0, 0.9, 0),
+    abil: abil.length ? abil : BS[k].abil.slice(), cd: {}, st: {}, slot: i, scale: numIn(o.scale, 0.3, 3, 1), dodge: numIn(o.dodge, 0, 0.9, 0), hitB: numIn(o.hitB, 0, 1, 0), shiny: !!it.g.shiny };
+  u.hp = u.maxHp; u.fainted = false;
+  return u;
+}
+function pvpSendTeam() {
+  if (!NET.battle) return;
+  NET.battle.mine = pvpTeamData(); netSend({ t: 'team', team: NET.battle.mine });
+  showMsg(`Getting ready to battle ${NET.friend.name}...`, 2);
+  if (NET.role === 'host') pvpMaybeStart();
+}
+function pvpGotTeam(team) {
+  if (!NET.battle) return;
+  NET.battle.theirs = pvpCleanTeam(team);
+  if (NET.role === 'host') pvpMaybeStart();
+}
+function pvpBuild(me, them, host) {
+  const allies = me.units.map((o, i) => pvpUnpack(o, i, 'ally')), foes = them.units.map((o, i) => pvpUnpack(o, i, 'foe'));
+  allies.forEach((u, i) => { u.x = PVP_X.ally[i]; u.face = 1; }); foes.forEach((u, i) => { u.x = PVP_X.foe[i]; u.face = -1; });
+  G.syn = netSyn(); stats = computeStats([], G.cls); G.team = teamMods(); G.panel = null; PK = null;
+  B = { ent: { pvp: true }, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
+        boss: null, rewards: null, reviveUsed: false, t: 0, pvp: { host, q: [], pick: null, asked: null, desync: 0, name: them.name, side: { ally: me, foe: them } } };
+  const snap = document.createElement('canvas'); snap.width = W; snap.height = H;
+  try { snap.getContext('2d').drawImage(cv, 0, 0); } catch (err) {}
+  G.mode = 'battle'; G.battleT = 0;
+  bLog(`A friendly battle with ${them.name}!`);
+  try { beginIntro(snap, B.ent); } catch (e) { B.intro = null; }
+}
+function pvpMaybeStart() {   // host: both teams are in, set the battle up and send it over
+  const N = NET.battle; if (!N || !N.mine || !N.theirs || B) return;
+  if (!G || !G.hub) { netSend({ t: 'end', win: 'none' }); NET.battle = null; return; }
+  pvpBuild(N.mine, N.theirs, true);
+  for (const side of ['ally', 'foe']) {   // battle-start talents and class bonuses, for both sides
+    const I = B.pvp.side[side], list = side === 'ally' ? B.allies : B.foes, other = side === 'ally' ? B.foes : B.allies;
+    for (const u of list) {
+      if (u.M.shieldStart) addShield(u, u.maxHp * u.M.shieldStart);
+      if (u.M.tauntStart) addSt(u, 'taunt', u.M.tauntStart + 1);
+      if (I.shieldStart) addShield(u, u.maxHp * I.shieldStart);
+      for (const [k, t] of (Array.isArray(u.M.startSt) ? u.M.startSt : []).concat(I.startSt || [])) if (STATUS[k]) addSt(u, k, t + 1, k === 'regen' ? Math.round(u.maxHp * 0.08) : undefined);
+    }
+    for (const f of other) for (const [k, t] of I.foeSt || []) addSt(f, k, t);
+    if (I.cls === 'warrior' && list[0]) addShield(list[0], list[0].maxHp * 0.15);
+  }
+  netSend({ t: 'start', team: N.mine, snap: pvpSnap() });
+}
+function pvpGuestStart(m) {
+  const N = NET.battle; if (!N || !N.mine || B || !G || !G.hub) return;
+  pvpBuild(N.mine, pvpCleanTeam(m.team), false);
+  pvpApply(m.snap, true);
+}
+const pvpU = u => ({ hp: u.hp, f: u.fainted ? 1 : 0, st: u.st, cd: u.cd });
+function pvpSnap() { return JSON.parse(JSON.stringify({ h: B.allies.map(pvpU), g: B.foes.map(pvpU) })); }
+function cleanSt(st) {
+  const o = {}; if (!st || typeof st !== 'object') return o;
+  for (const k of Object.keys(st)) if ((STATUS[k] || k === 'stunImm') && st[k] !== null) {
+    if (k === 'stunImm') { o[k] = numIn(st[k], 0, 9, 0); continue; }
+    const v = st[k] || {}; o[k] = { t: numIn(v.t, 0, 99, 1) }; if (v.v !== undefined && v.v !== null) o[k].v = numIn(v.v, 0, 99999, 0);
+  }
+  return o;
+}
+function pvpApply(s, quiet) {   // the guest takes the host's numbers as the truth after every move
+  if (!s || !B) return;
+  const set = (list, arr) => (Array.isArray(arr) ? arr : []).forEach((v, i) => {
+    const u = list[i]; if (!u || !v) return;
+    const hp = Math.round(numIn(v.hp, 0, u.maxHp * 4, u.hp)), f = !!v.f;
+    if (!quiet && (Math.round(u.hp) !== hp || !!u.fainted !== f)) B.pvp.desync++;
+    u.hp = hp; u.st = cleanSt(v.st); u.cd = {};
+    if (v.cd && typeof v.cd === 'object') for (const a of Object.keys(v.cd)) if (ABIL[a]) u.cd[a] = numIn(v.cd[a], 0, 20, 0) | 0;
+    if (f && !u.fainted) { u.fainted = true; u.faintT = 0; u.faintWait = 0; u.st = {}; }
+    else if (!f && u.fainted) { u.fainted = false; u.faintT = 0; }
+  });
+  set(B.allies, s.g); set(B.foes, s.h);
+}
+const pvpRef = u => (u ? { o: (u.side === 'ally') === B.pvp.host ? 'h' : 'g', slot: u.slot } : null);
+const pvpUnitOf = r => (r && typeof r === 'object' ? ((r.o === 'h') === B.pvp.host ? B.allies : B.foes)[r.slot | 0] || null : null);
+function pvpDo(u, ab, tgt) {   // host: a move happens here, then goes over the wire with its dice
+  const seed = Math.floor(NATIVE_RANDOM() * 2147483646) + 1;
+  pvpSeeded(seed, () => act(u, ab, tgt));
+  netSend({ t: 'act', who: pvpRef(u), ab, tgt: pvpRef(tgt), seed, snap: pvpSnap() });
+}
+function pvpNote(u, txt) { if (B && B.pvp && B.pvp.host) netSend({ t: 'note', who: pvpRef(u), txt }); }
+function pvpPhaseSent(side) { netSend({ t: 'phase', side: side === 'ally' ? 'h' : 'g', turn: B.turn, snap: pvpSnap() }); }
+function pvpOpening(side) {   // the Archer's opening volley, for whichever side has an Archer
+  if (B.turn !== 1 || B.pvp.side[side].cls !== 'archer') return;
+  for (const f of side === 'ally' ? B.foes : B.allies) if (!f.fainted) dealDamage(null, f, 0, { flat: Math.max(1, Math.round(f.maxHp * 0.08)), dot: true });
+  bLog(side === 'ally' ? 'Your arrows rain on their team!' : `${B.pvp.name}'s arrows rain on your team!`); SFX.play('bow');
+}
+function pvpHostFoeStep() {   // host: your friend's animals act, one at a time, as your friend picks their moves
+  while (B.queue.length && B.queue[0].fainted) B.queue.shift();
+  const u = B.queue[0];
+  if (!u) { expireSide('foe'); if (!checkEnd()) beginPlayerTurn(); return; }
+  if (u.st.stun) { B.queue.shift(); bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); pvpNote(u, 'STUNNED'); B.lock = 0.5; return; }
+  if (B.pvp.asked !== u) { B.pvp.asked = u; B.pvp.pick = null; netSend({ t: 'yourmove', slot: u.slot }); return; }
+  const p = B.pvp.pick; if (!p) return;
+  B.pvp.pick = null; B.pvp.asked = null; B.queue.shift();
+  const ab = typeof p.ab === 'string' && u.abil.includes(p.ab) && !(u.cd[p.ab] > 0) ? p.ab : u.abil.find(a => !(u.cd[a] > 0)) || u.abil[0];
+  let tgt = null;
+  if (needsTarget(ab)) { const t = pvpUnitOf(p.tgt); if (t && validTargets(u, ab).includes(t)) tgt = t; }
+  pvpDo(u, ab, tgt); B.lock = Math.max(0.7, (B.fxEnd || 0) + 0.15);
+  if (checkEnd()) return;
+  if (u.again && !u.fainted) { u.again = false; B.queue.unshift(u); }
+}
+function pvpSendPick(ab, tgt) {   // guest: your move goes to the host, who plays it for both of you
+  netSend({ t: 'pick', ab, tgt: pvpRef(tgt) });
+  B.phase = 'wait'; B.pick = null;
+}
+function pvpGuestStep() {
+  const Q = B.pvp.q;
+  while (Q.length && B && B.lock <= 0 && B.phase !== 'won' && B.phase !== 'lost') {
+    const m = Q.shift();
+    if (m.t === 'phase') {
+      const side = (m.side === 'h') === B.pvp.host ? 'ally' : 'foe';
+      if (B.turn > 0 || m.side === 'g') expireSide(side === 'ally' ? 'foe' : 'ally');
+      B.turn = clamp(m.turn | 0, 0, 999); tickSide(side); pvpOpening(side); pvpApply(m.snap);
+      B.phase = side === 'ally' ? 'wait' : 'foe'; B.lock = 0.3;
+    } else if (m.t === 'yourmove') {
+      const u = B.allies[m.slot | 0]; if (!u || u.fainted) continue;
+      B.cur = m.slot | 0; B.phase = 'player'; B.pick = null;
+    } else if (m.t === 'note') {
+      const u = pvpUnitOf(m.who); if (u) { bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); }
+    } else if (m.t === 'act') {
+      const u = pvpUnitOf(m.who), t = pvpUnitOf(m.tgt);
+      if (u && typeof m.ab === 'string' && ABIL[m.ab]) pvpSeeded(m.seed | 0, () => act(u, m.ab, t));
+      pvpApply(m.snap); B.lock = Math.max(0.55, (B.fxEnd || 0) + 0.1);
+      if (B.phase === 'player') B.phase = 'wait';
+    } else if (m.t === 'end') {
+      if (m.win === 'none') { pvpAbort('The battle was called off.'); continue; }
+      pvpApply(m.snap); pvpFinish((m.win === 'h') === B.pvp.host);
+    }
+  }
+}
+function pvpCheckEnd() {   // only the host decides when it's over
+  if (B.phase === 'won' || B.phase === 'lost') return true;
+  if (!B.pvp.host) return false;
+  const foesOut = !bAlive('foe').length, alliesOut = !bAlive('ally').length;
+  if (!foesOut && !alliesOut) return false;
+  const win = foesOut ? 'h' : 'g';
+  netSend({ t: 'end', win, snap: pvpSnap() }); pvpFinish(win === 'h');
+  return true;
+}
+function pvpFinish(won, why) {   // friendly: nothing is lost; both teams grow closer, and the result goes in the Records Hall
+  if (!B || !B.pvp || B.phase === 'won' || B.phase === 'lost') return;
+  B.phase = won ? 'won' : 'lost'; B.t = 0; B.intro = null; SFX.play(won ? 'clear' : 'death');
+  let bond = 0; for (const it of petSlots) if (it) bond += addBond(it, won ? 2 : 1);
+  const R = SAVE.rec; if (won) R.pvpW = (R.pvpW || 0) + 1; else R.pvpL = (R.pvpL || 0) + 1;
+  savePets();
+  B.rewards = { pvp: true, won, bond, why }; NET.battle = null;
+}
+function pvpAbort(why) { if (!B || !B.pvp) return; B.phase = 'lost'; B.t = 0; B.intro = null; B.rewards = { pvp: true, aborted: true, why }; NET.battle = null; }
+function pvpEndBattle() {
+  const R = B.rewards || {}; B = null; G.mode = 'play';
+  stats = computeStats(); G.syn = netSyn(); G.team = teamMods();
+  if (NET.state === 'linked') G.panel = 'net';
+  showMsg(R.aborted ? R.why : R.won ? 'You won the friendly battle!' : 'A good fight! Your team grew closer.', 2.5);
+}
+function drawPvpResult(R) {
+  ctx.textAlign = 'center';
+  if (R.aborted) { label(R.why, W / 2, 470, { align: 'center', size: 17, bold: true, color: PAL.cream }); }
+  else {
+    label(R.why || (R.won ? `You beat ${B.pvp.name}!` : `${B.pvp.name} wins this one!`), W / 2, 462, { align: 'center', size: 20, bold: true, color: R.won ? PAL.gold : '#f0a080' });
+    label(`Your team's bond grows (+${Math.round(R.bond * 10) / 10}) · Friend battles: ${SAVE.rec.pvpW || 0} won, ${SAVE.rec.pvpL || 0} lost`, W / 2, 488, { align: 'center', size: 13, color: '#f8bbd0' });
+  }
+  label('Enter or click to go back to the Sanctuary', W - 14, H - 10, { align: 'right', size: 12, color: 'rgba(255,255,255,0.6)' });
+}
+
+// ---------- trading ----------
+const TRADE = { x: 30, y: 20, w: 900, h: 500 };
+const TRADE_GRID = { x: 46, y: 112, w: 460, h: 336 };
+const TRADE_MINE = { x: 526, y: 88, w: 186, h: 352 }, TRADE_THEIRS = { x: 726, y: 88, w: 186, h: 352 };
+const TRADE_OK = { x: 560, y: 456, w: 210, h: 42 }, TRADE_CLOSE = { x: 786, y: 456, w: 126, h: 42 };
+const tradeCard = i => ({ x: TRADE_GRID.x + 6 + (i % 4) * 112, y: TRADE_GRID.y + 4 + Math.floor(i / 4) * 108 - (NET.trade ? NET.trade.scroll : 0), w: 106, h: 102 });
+const tradeMax = () => Math.max(0, Math.ceil(HERD.length / 4) * 108 + 8 - TRADE_GRID.h);
+function tradeScroll(dy) { if (NET.trade) NET.trade.scroll = clamp(NET.trade.scroll + dy, 0, tradeMax()); }
+const inDen = it => !!(SAVE.den && (SAVE.den.m === it.pid || SAVE.den.f === it.pid));
+const tradeLite = it => ({ pid: it.pid, k: it.def.pet, lvl: petLvl(it), xp: Math.floor(it.xp || 0), talents: it.talents || {}, g: it.g });
+function tradeItem(o) {   // an animal described by your friend's game, as something you can look at
+  if (!o || typeof o !== 'object' || !BS[o.k] || !ITEMS['pet_' + o.k] || !PETS[o.k]) return null;
+  const it = makeItem('pet_' + o.k); it.pid = 'offer'; it.plvl = numIn(o.lvl, 1, PET_MAX_LVL, 1) | 0; it.xp = numIn(o.xp, 0, 1e6, 0) | 0; it.talV = 1; it.g = cleanGenes(o.g);
+  const ok = new Map(); for (const tr of PET_TREES[o.k] || []) for (const tier of tr.tiers) for (const n of tier) ok.set(n.id, n.max);
+  it.talents = {}; if (o.talents && typeof o.talents === 'object') for (const [id, r] of Object.entries(o.talents)) if (ok.has(id)) it.talents[id] = clamp(r | 0, 0, ok.get(id));
+  it.remotePid = typeof o.pid === 'string' ? o.pid.slice(0, 40) : '';
+  return it;
+}
+function tradeOpen() { NET.trade = { mine: null, theirs: null, ready: false, theirReady: false, scroll: 0, done: null, busy: false }; G.panel = 'trade'; SFX.play('bag'); }
+function tradeClose() { if (NET.trade) netSend({ t: 'tLeave' }); NET.trade = null; G.panel = NET.state === 'linked' ? 'net' : null; SFX.play('pick'); }
+function tradeOffer(it) {
+  const T = NET.trade; if (!T || T.busy) return;
+  if (HERD.length < 2) { tradeNote('You need at least two animals to trade one away.'); return; }
+  if (inDen(it)) { tradeNote('That one is pairing up in the Breeding Den.'); return; }
+  if (T.mine === it.pid) return;
+  T.mine = it.pid; T.ready = false; T.theirReady = false; T.done = null;
+  netSend({ t: 'tOffer', it: tradeLite(it) }); SFX.play('place');
+}
+function tradeGotOffer(o) {
+  const T = NET.trade; if (!T) return;
+  T.theirs = tradeItem(o); T.ready = false; T.theirReady = false; T.done = null;
+}
+function tradeSetReady(ok) {
+  const T = NET.trade; if (!T || T.busy) return;
+  if (ok && (!T.mine || !T.theirs)) { SFX.play('error'); return; }
+  T.ready = ok; netSend({ t: 'tReady', ok }); SFX.play(ok ? 'merge' : 'pick');
+  tradeMaybeCommit();
+}
+function tradeMaybeCommit() {   // the host seals the deal once both have accepted the same two animals
+  const T = NET.trade;
+  if (!T || NET.role !== 'host' || !T.ready || !T.theirReady || !T.mine || !T.theirs || T.busy) return;
+  T.busy = true; netSend({ t: 'tCommit', h: T.mine, g: T.theirs.remotePid }); tradeSwap();
+}
+function tradeCommit(m) {
+  const T = NET.trade; if (!T || NET.role === 'host') return;
+  if (!T.theirs || m.g !== T.mine || m.h !== T.theirs.remotePid) return;
+  tradeSwap();
+}
+function tradeSwap() {
+  const T = NET.trade, give = HERD.find(it => it.pid === T.mine), o = T.theirs;
+  T.busy = false;
+  if (!give || !o) return false;
+  HERD.splice(HERD.indexOf(give), 1);
+  const slot = petSlots.indexOf(give); if (slot >= 0) petSlots[slot] = null;
+  const fresh = !owned(o.def.pet);
+  const got = newPet(o.def.pet, o.plvl, Object.assign({}, o.g, { bond: 0 }));   // it has to get to know its new keeper
+  got.xp = o.xp || 0; got.talents = o.talents || {};
+  SAVE.coll[o.def.pet] = (SAVE.coll[o.def.pet] || 0) + 1; if (fresh) SAVE.rec.rescues++;
+  if (got.g.shiny) SAVE.rec.shinies = (SAVE.rec.shinies || 0) + 1;
+  SAVE.rec.trades = (SAVE.rec.trades || 0) + 1;
+  if (slot >= 0) petSlots[slot] = got; else if (!petSlots.some(Boolean)) petSlots[0] = got;   // it takes the traded animal's place in your team
+  G.syn = netSyn(); stats = computeStats(); G.team = teamMods(); savePets();
+  if (G.hub && G.room) spawnHubPets(G.room);
+  T.done = { gave: give, got }; T.mine = null; T.theirs = null; T.ready = T.theirReady = false;
+  SFX.play('chest', true);
+  return true;
+}
+function tradeNote(msg) { if (NET.trade) { NET.trade.note = msg; NET.trade.noteT = TIME + 2.5; } SFX.play('error'); }
+function tradeStatus() {
+  const T = NET.trade, n = NET.friend ? NET.friend.name : 'your friend';
+  if (T.note && TIME < T.noteT) return [T.note, '#ffab91'];
+  if (T.done) return [`Trade done! ${petBlurb(T.done.got)} joined your Sanctuary.`, PAL.good];
+  if (!T.mine && !T.theirs) return ['Click one of your animals to offer it.', PAL.cream];
+  if (!T.mine) return [`${n} offers an animal. Click one of yours to offer back.`, PAL.cream];
+  if (!T.theirs) return [`Waiting for ${n} to offer an animal...`, PAL.dim];
+  if (T.ready && T.theirReady) return ['Swapping...', PAL.gold];
+  if (T.ready) return [`You accepted. Waiting for ${n}...`, PAL.dim];
+  if (T.theirReady) return [`${n} accepted! Accept too to swap.`, PAL.gold];
+  return ['Both animals are on the table. Accept to swap.', PAL.cream];
+}
+function drawTradeBox(r, title, it, ready, col) {
+  panel(r.x, r.y, r.w, r.h, 'dark');
+  label(title, r.x + r.w / 2, r.y + 16, { align: 'center', size: 14, bold: true, color: col });
+  if (!it) { label('nothing yet', r.x + r.w / 2, r.y + 100, { align: 'center', size: 13, color: '#8a7458' }); return; }
+  drawPetCard(it, { x: r.x + 12, y: r.y + 30, w: r.w - 24, h: 120 }, { slot: true });
+  drawTraits(it, r.x + 14, r.y + 170, r.w - 28);
+  label(`${BS[it.def.pet] ? PETS[it.def.pet].role : ''} · ${talentSpent(it)} talent points spent`, r.x + r.w / 2, r.y + r.h - 34, { align: 'center', size: 11, color: PAL.dim });
+  if (ready) { ctx.fillStyle = 'rgba(102,187,106,0.85)'; rr(r.x + r.w / 2 - 50, r.y + r.h - 22, 100, 18, 4); ctx.fill(); label('✓ accepted', r.x + r.w / 2, r.y + r.h - 13, { align: 'center', size: 12, bold: true, color: '#0d2a10' }); }
+}
+function drawTrade() {
+  const T = NET.trade; if (!T) return;
+  const n = NET.friend ? NET.friend.name : 'Friend';
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, H);
+  panel(TRADE.x, TRADE.y, TRADE.w, TRADE.h, 'leather');
+  label(`Trade with ${n}`, TRADE.x + 24, TRADE.y + 30, { title: true, size: 28, color: PAL.gold });
+  label('Each of you offers one animal; when you both accept, they swap. It keeps its level, talents and traits, but its bond starts again at 0.', TRADE.x + 24, TRADE.y + 58, { size: 12, color: PAL.dim });
+  label(`Your animals (${HERD.length}): click one to offer it`, TRADE_GRID.x, TRADE_GRID.y - 10, { size: 13, bold: true, color: PAL.gold });
+  T.scroll = clamp(T.scroll, 0, tradeMax());
+  const Gd = TRADE_GRID, inG = inRect(mouse, Gd);
+  ctx.save(); ctx.beginPath(); ctx.rect(Gd.x, Gd.y, Gd.w, Gd.h); ctx.clip();
+  rosterList().forEach((it, i) => {
+    const r = tradeCard(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return;
+    drawPetCard(it, r, { over: inG && inRect(mouse, r), sel: T.mine === it.pid });
+    if (inDen(it)) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.fill(); label('in the Den', r.x + r.w / 2, r.y + r.h / 2, { align: 'center', size: 12, bold: true, color: '#f8bbd0' }); }
+  });
+  ctx.restore();
+  if (tradeMax() > 0) label('scroll for more ▼', Gd.x + Gd.w, TRADE_GRID.y - 10, { align: 'right', size: 12, color: PAL.dim });
+  drawTradeBox(TRADE_MINE, 'You give', T.mine ? HERD.find(it => it.pid === T.mine) : null, T.ready, PAL.good);
+  drawTradeBox(TRADE_THEIRS, `${n} gives`, T.theirs, T.theirReady, '#ffccbc');
+  label('⇄', (TRADE_MINE.x + TRADE_MINE.w + TRADE_THEIRS.x) / 2, TRADE_MINE.y + 90, { align: 'center', size: 20, bold: true, color: PAL.gold });
+  const [msg, col] = tradeStatus();
+  ctx.font = `bold 14px ${UI}`; label(fitText(msg, 500), TRADE.x + 24, TRADE_OK.y + 21, { size: 14, bold: true, color: col });
+  const can = T.mine && T.theirs;
+  button(TRADE_OK, T.ready ? 'Take back' : 'Accept trade', { hover: inRect(mouse, TRADE_OK) && can, off: !can, size: 16, color: T.ready ? PAL.cream : PAL.gold });
+  button(TRADE_CLOSE, 'Close', { hover: inRect(mouse, TRADE_CLOSE), size: 16 });
+}
+function tradeClick(btn) {
+  const T = NET.trade; if (!T) { G.panel = null; return; }
+  if (btn !== 0) return;
+  if (inRect(mouse, TRADE_CLOSE)) { tradeClose(); return; }
+  if (inRect(mouse, TRADE_OK)) { tradeSetReady(!T.ready); return; }
+  if (inRect(mouse, TRADE_GRID)) rosterList().forEach((it, i) => { if (inRect(mouse, tradeCard(i))) tradeOffer(it); });
+}
+
+// ---------- visiting a friend's Yard ----------
+function visitYardData() { return { t: 'yard', herd: rosterList().slice(0, 40).map(it => ({ k: it.def.pet, lvl: petLvl(it), g: it.g })), owned: ownedIds() }; }
+function visitBegin(m) {
+  if (!NET.visit || !NET.visit.waiting || !G || !G.hub || !NET.friend) return;
+  const items = (Array.isArray(m.herd) ? m.herd : []).slice(0, 40).map(o => tradeItem(o)).filter(Boolean);
+  NET.visit = { waiting: false };
+  NET.remote = Object.assign({ P: null }, NET.friend);
+  G.visit = { name: NET.friend.name, items, owned: new Set((Array.isArray(m.owned) ? m.owned : []).filter(k => PETS[k])) };
+  G.panel = null; G.hubTo = { room: 'yard', from: null }; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door');
+  showMsg(`Welcome to ${NET.friend.name}'s Yard! Walk around, meet their animals, and use the friend post to go home.`, 3.5);
+}
+function visitGoHome() { netSend({ t: 'visitEnd' }); NET.visit = null; NET.remote = null; enterHub('yard'); showMsg('Back home in your own Yard.', 2); }
+function visitEnded() {
+  const n = NET.friend ? NET.friend.name : 'Your friend';
+  if (G && G.visit) { NET.visit = null; NET.remote = null; enterHub('yard'); showMsg(`${n} ended the visit. You're back home.`, 3); }
+  else if (NET.visitor) { NET.visitor = null; showMsg(`${n} went home.`, 2.4); }
+  else NET.visit = null;
+}
+function netGotPos(m) {
+  const R = G && G.visit ? NET.remote : NET.visitor; if (!R) return;
+  const x = numIn(m.x, -200, 99999, 0), y = numIn(m.y, -2000, 99999, 0);
+  if (!R.P) R.P = { x, y };
+  Object.assign(R, { tx: x, ty: y, vx: numIn(m.vx, -2000, 2000, 0), vy: numIn(m.vy, -3000, 3000, 0), f: m.f < 0 ? -1 : 1, g: !!m.g, room: HUB_ROOMS[m.r] ? m.r : 'yard' });
+}
+function drawRemoteHero() {
+  const R = G.visit ? NET.remote : NET.visitor;
+  if (!R || !R.P || (R.room || 'yard') !== (G.hubRoom || 'yard')) return;
+  const cx = R.P.x + 12, foot = R.P.y + 46;
+  let nm = R.sheet; if (!animFrames(nm, 'idle')) nm = R.cls; if (!animFrames(nm, 'idle')) return;
+  const anim = !R.g ? 'jump' : Math.abs(R.vx) > 25 ? 'run' : 'idle';
+  const i = anim === 'jump' ? (R.vy < -260 ? 1 : R.vy < 140 ? 2 : 3) : anim === 'run' ? Math.floor(TIME * 9) : Math.floor(TIME * 5);
+  footShadow(cx, foot, 16, R.g ? 1 : 0.5);
+  ctx.filter = R.dye || 'none'; drawAnim(nm, anim, i, cx, foot + 1, R.f || 1, {}); ctx.filter = 'none';
+  ctx.font = `bold 12px ${UI}`; const tw = ctx.measureText(R.name).width + 18;
+  panel(cx - tw / 2, R.P.y - 34, tw, 20, 'parch'); label(R.name, cx, R.P.y - 24, { align: 'center', size: 12, bold: true, color: PAL.parchInk });
+}
+
+// ---------- the friend post's panel ----------
+const NETP = { x: W / 2 - 280, y: 46, w: 560, h: 448 };
+const NET_BTN = (row, col = 0, cols = 1) => { const w = cols === 1 ? 300 : cols === 2 ? 228 : 156, gap = 12, x0 = W / 2 - (w * cols + gap * (cols - 1)) / 2; return { x: x0 + col * (w + gap), y: NETP.y + 196 + row * 54, w, h: 42 }; };
+const NET_NAME = { x: NETP.x + 150, y: NETP.y + 64, w: 260, h: 32 };
+const NET_CLOSE = { x: NETP.x + NETP.w - 130, y: NETP.y + NETP.h - 52, w: 112, h: 38 };
+function openNetPanel() {
+  if (!G || !G.hub) return;
+  G.panel = 'net'; SFX.play('pick');
+  if (!SAVE.skin.name && NET.state === 'off') { NET.typing = 'name'; NET.buf = ''; }
+}
+function netButtons() {
+  const out = [], b = (id, txt, r, o = {}) => out.push(Object.assign({ id, txt, r }, o)), S = NET.state, n = NET.friend ? NET.friend.name : '';
+  if (NET.typing === 'name') return [{ id: 'nameOk', txt: 'OK', r: { x: NET_NAME.x + NET_NAME.w + 10, y: NET_NAME.y, w: 70, h: 32 } }];
+  if (S === 'off') { b('host', 'Host a room', NET_BTN(0), { gold: true }); b('join', 'Join a room', NET_BTN(1)); }
+  else if (S === 'join') { b('joinGo', 'Join', NET_BTN(1, 0, 2), { gold: true, off: NET.buf.length !== 5 }); b('back', 'Back', NET_BTN(1, 1, 2)); }
+  else if (S === 'connecting' || S === 'hello') b('cancel', 'Cancel', NET_BTN(2));
+  else if (S === 'waiting') { b('copy', 'Copy the code', NET_BTN(2, 0, 2)); b('cancel', 'Cancel', NET_BTN(2, 1, 2)); }
+  else if (S === 'error') b('ok', 'OK', NET_BTN(2));
+  else if (S === 'linked') {
+    if (NET.ask) { b('yes', 'Yes!', NET_BTN(1, 0, 2), { gold: true }); b('no', 'No thanks', NET_BTN(1, 1, 2)); }
+    else if (NET.out) b('unask', 'Cancel the request', NET_BTN(1));
+    else if (G.visit) b('home', 'Go home', NET_BTN(1), { gold: true });
+    else if (NET.visitor) b('endVisit', `End ${n}'s visit`, NET_BTN(1));
+    else if (NET.trade) b('toTrade', 'Back to the trade', NET_BTN(1), { gold: true });
+    else { b('battle', 'Battle', NET_BTN(0, 0, 3), { gold: true }); b('trade', 'Trade', NET_BTN(0, 1, 3), { gold: true }); b('visit', 'Visit their Yard', NET_BTN(0, 2, 3), { gold: true }); }
+    b('leave', 'Disconnect', NET_BTN(3));
+  }
+  b('close', 'Close', NET_CLOSE);
+  return out;
+}
+function drawNetPanel() {
+  const S = NET.state, n = NET.friend ? NET.friend.name : '';
+  ctx.fillStyle = 'rgba(8,5,3,0.66)'; ctx.fillRect(0, 0, W, H);
+  panel(NETP.x, NETP.y, NETP.w, NETP.h, 'parch');
+  banner('Play with a friend', W / 2, NETP.y + 4, { size: 28, h: 44, pad: 110 });
+  const ink = PAL.parchInk, soft = '#6b4a2a', mid = W / 2;
+  // your name
+  label('Your name', NETP.x + 34, NET_NAME.y + 16, { size: 14, bold: true, color: ink });
+  const typingName = NET.typing === 'name';
+  ctx.fillStyle = typingName ? '#fff6dc' : 'rgba(58,38,20,0.12)'; rr(NET_NAME.x, NET_NAME.y, NET_NAME.w, NET_NAME.h, 5); ctx.fill();
+  ctx.strokeStyle = typingName ? PAL.brass : 'rgba(58,38,20,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+  const nm = typingName ? NET.buf + (Math.floor(TIME * 2) % 2 ? '|' : ' ') : myName();
+  label(nm, NET_NAME.x + 12, NET_NAME.y + 16, { size: 15, bold: true, color: ink });
+  if (!typingName && S === 'off') label('click to change', NET_NAME.x + NET_NAME.w + 10, NET_NAME.y + 16, { size: 11, color: soft });
+  if (typingName) label('Type a name your friend will see, then Enter.', mid, NET_NAME.y + 50, { align: 'center', size: 12, color: soft });
+  // what's going on
+  const lines = [];
+  if (!typingName) {
+    if (S === 'off') lines.push(['Battle, trade animals and visit each other\'s Yard over the internet.', ink, 15], ['One of you hosts a room, the other joins it with the room code.', soft, 13]);
+    else if (S === 'join') lines.push(["Type your friend's 5-letter room code:", ink, 15]);
+    else if (S === 'connecting') lines.push([NET.role === 'host' ? 'Opening a room...' : `Looking for room ${NET.code}...`, ink, 15]);
+    else if (S === 'hello') lines.push(['Connected! Saying hello...', ink, 15]);
+    else if (S === 'waiting') lines.push(['Your room code:', ink, 15]);
+    else if (S === 'error') lines.push([NET.err, '#8a2a12', 15]);
+    else if (S === 'linked') {
+      const F = NET.friend;
+      lines.push([`Connected with ${n}`, '#2e5a12', 17], [`${CLASSES[F.cls].name} · ${F.n} animals · ${F.sp} of ${PET_IDS.length} species`, soft, 13]);
+      if (NET.ask) lines.push([`${n} wants ${REQ_TXT[NET.ask.kind]}!`, '#8a3a00', 17]);
+      else if (NET.out) lines.push([`Asked ${n} for ${REQ_ME[NET.out.kind]}. Waiting for an answer...`, ink, 14]);
+      else if (G.visit) lines.push([`You're visiting ${n}'s Yard.`, ink, 14]);
+      else if (NET.visitor) lines.push([`${n} is visiting your Yard.`, ink, 14]);
+    }
+  }
+  lines.forEach(([t, c, s], i) => label((ctx.font = `bold ${s}px ${UI}`, fitText(t, NETP.w - 50)), mid, NETP.y + 128 + i * 24, { align: 'center', size: s, bold: i === 0, color: c }));
+  if (S === 'join' || S === 'waiting') {   // the big room code
+    const code = S === 'join' ? NET.buf : NET.code;
+    for (let i = 0; i < 5; i++) {
+      const x = mid - 140 + i * 58, y = NETP.y + 158;
+      ctx.fillStyle = '#fff6dc'; rr(x, y, 48, 50, 6); ctx.fill(); ctx.strokeStyle = S === 'join' && i === code.length ? PAL.brass : 'rgba(58,38,20,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+      label(code[i] || '', x + 24, y + 26, { align: 'center', size: 30, bold: true, color: ink });
+    }
+    if (S === 'waiting') label('Tell your friend this code. They press "Join a room" and type it in.', mid, NETP.y + 228, { align: 'center', size: 12, color: soft });
+  }
+  if (S === 'linked' && !NET.ask && !NET.out && !G.visit && !NET.visitor && !NET.trade) {
+    label("Battles: your team's levels and talents plus your class bonus. No items.", mid, NET_BTN(1).y + 4, { align: 'center', size: 12, color: soft });
+    label("Win or lose, your team gains bond. A traded animal's bond starts at 0.", mid, NET_BTN(1).y + 22, { align: 'center', size: 12, color: soft });
+  }
+  for (const B0 of netButtons()) button(B0.r, B0.txt, { hover: inRect(mouse, B0.r) && !B0.off, off: B0.off, size: B0.id === 'nameOk' ? 13 : 16, color: B0.gold ? PAL.gold : PAL.cream });
+  const R = SAVE.rec;
+  label(`Friend battles: ${R.pvpW || 0} won, ${R.pvpL || 0} lost  ·  Trades: ${R.trades || 0}`, NETP.x + 24, NETP.y + NETP.h - 32, { size: 12, color: soft });
+  if (S === 'off' || S === 'error') label('Connects through PeerJS, a free public service. Some school or work networks block it.', mid, NETP.y + NETP.h - 70, { align: 'center', size: 11, color: soft });
+}
+function netPanelClick(btn) {
+  if (btn !== 0) return;
+  if (!NET.typing && NET.state === 'off' && inRect(mouse, NET_NAME)) { NET.typing = 'name'; NET.buf = SAVE.skin.name || ''; SFX.play('pick'); return; }
+  const hitB = netButtons().find(b => inRect(mouse, b.r) && !b.off); if (!hitB) return;
+  SFX.play('pick');
+  switch (hitB.id) {
+    case 'nameOk': netTypeDone(); break;
+    case 'host': netHost(); break;
+    case 'join': NET.state = 'join'; NET.typing = 'code'; NET.buf = ''; break;
+    case 'joinGo': NET.typing = null; netJoin(NET.buf); break;
+    case 'back': NET.typing = null; NET.state = 'off'; break;
+    case 'cancel': case 'leave': netLeave(); break;
+    case 'ok': NET.state = 'off'; NET.err = ''; break;
+    case 'copy': try { navigator.clipboard.writeText(NET.code); showMsg('Room code copied!', 1.6); } catch (e) { showMsg(`Your room code is ${NET.code}`, 2.5); } break;
+    case 'yes': netAnswer(true); break;
+    case 'no': netAnswer(false); break;
+    case 'unask': netCancelRequest(); break;
+    case 'battle': case 'trade': case 'visit': netRequest(hitB.id); break;
+    case 'home': visitGoHome(); break;
+    case 'endVisit': netSend({ t: 'visitEnd' }); NET.visitor = null; showMsg('The visit is over.', 1.8); break;
+    case 'toTrade': G.panel = 'trade'; break;
+    case 'close': NET.typing = null; if (NET.state === 'join') NET.state = 'off'; G.panel = null; break;
+  }
+}
+function netPanelKeys() {
+  if (G.panel === 'trade') { if (hit('Escape')) tradeClose(); return; }
+  if (NET.typing) return;
+  if (hit('Escape', 'f')) { if (NET.state === 'join') NET.state = 'off'; G.panel = null; SFX.play('pick'); }
+  else if (NET.ask && hit('y')) netAnswer(true);
+  else if (NET.ask && hit('n')) netAnswer(false);
+}
+// typing a name or a room code (keys go here instead of the game while a box is active)
+function netType(e) {
+  const k = e.key; if (e.preventDefault) e.preventDefault();
+  if (k === 'Escape') { NET.typing = null; if (NET.state === 'join') NET.state = 'off'; return; }
+  if (k === 'Enter') { netTypeDone(); return; }
+  if (k === 'Backspace') { NET.buf = NET.buf.slice(0, -1); return; }
+  if (k.length !== 1 || e.ctrlKey || e.metaKey) return;
+  if (NET.typing === 'code') { const c = k.toUpperCase(); if (/[A-Z0-9]/.test(c) && NET.buf.length < 5) NET.buf += c; }
+  else if (/^[\p{L}\p{N} '\-.!_]$/u.test(k) && NET.buf.length < 14) NET.buf += k;
+}
+function netTypeDone() {
+  if (NET.typing === 'name') {
+    SAVE.skin.name = NET.buf.trim().replace(/\s+/g, ' ').slice(0, 14) || SAVE.skin.name || 'Adventurer'; saveData(); NET.typing = null; SFX.play('pick');
+  } else if (NET.typing === 'code') { if (NET.buf.length === 5) { NET.typing = null; netJoin(NET.buf); } else SFX.play('error'); }
+}
+addEventListener('paste', e => {
+  if (!NET.typing) return;
+  const t = (e.clipboardData && e.clipboardData.getData('text')) || '';
+  for (const c of t) netType({ key: c });
+  e.preventDefault();
+});
+// the little badge in the Sanctuary's corner while you're connected (or a friend is waiting for an answer)
+function drawNetBadge() {
+  if (NET.state === 'off' || G.panel === 'net' || G.panel === 'trade') return;
+  const n = NET.friend ? NET.friend.name : '';
+  const txt = NET.ask ? `${n} wants ${REQ_TXT[NET.ask.kind]}! Press F` : NET.state === 'linked' ? `● ${n}  ·  F: friend menu` : NET.state === 'waiting' ? `Room ${NET.code}: waiting for your friend (F)` : NET.state === 'error' ? 'Connection problem (F)' : 'Connecting... (F)';
+  ctx.font = `bold 13px ${UI}`; const tw = ctx.measureText(txt).width + 30, x = W - tw - 10, pulse = NET.ask ? 0.6 + 0.4 * Math.sin(TIME * 6) : 1;
+  ctx.globalAlpha = pulse; panel(x, 10, tw, 30, NET.ask ? 'parch' : 'leather'); ctx.globalAlpha = 1;
+  label(txt, x + 15, 25, { size: 13, bold: true, color: NET.ask ? '#8a3a00' : NET.state === 'linked' ? '#9be08a' : PAL.cream });
+}
+function drawFriendPost(x, ft) {
+  const img = art('props/friend_post');
+  if (img) drawSprite(img, x, ft + 2, 1);
+  else {
+    ctx.fillStyle = '#5d4037'; ctx.fillRect(x - 4, ft - 86, 8, 86); ctx.fillStyle = '#c0392b'; rr(x - 14, ft - 62, 28, 18, 6); ctx.fill();
+    ctx.fillStyle = PAL.brass; ctx.fillRect(x + 12, ft - 70, 3, 12); ctx.fillStyle = '#90a4ae'; ctx.beginPath(); ctx.ellipse(x, ft - 92, 9, 7, 0, 0, 7); ctx.fill();
+  }
+  const top = ft - (img ? img.height * PX : 100) - 26, nm = 'Friends';
+  ctx.font = `bold 12px ${UI}`; const tw = ctx.measureText(nm).width + 18;
+  panel(x - tw / 2, top, tw, 22, 'parch'); label(nm, x, top + 11, { align: 'center', size: 12, bold: true, color: PAL.parchInk });
+  if (NET.ask || NET.state === 'linked') {   // a little letter pops out when your friend asks for something
+    const y = top - 18 + Math.sin(TIME * 4) * 3;
+    label(NET.ask ? '✉!' : '●', x, y, { align: 'center', size: NET.ask ? 18 : 12, bold: true, color: NET.ask ? '#ffd54f' : '#9be08a' });
+  }
 }
 
 // =====================================================================
@@ -6984,6 +7746,7 @@ function update(dt) {
     if (G) showMsg(msg, 1.2);
   }
   musicDirector(dt);
+  netTick(dt);
   if (!G) {
     if (SCREEN === 'title') { if (hit('Enter', ' ')) { SFX.play('pick'); enterHub(); } return; }
     const i = CLASS_ORDER.indexOf(selClass), before = selClass;
@@ -7002,12 +7765,14 @@ function update(dt) {
         G.gateHintT = (G.gateHintT || 0) - dt;
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
+        if (G.panel === 'net' || G.panel === 'trade') { netPanelKeys(); break; }
         if (G.panel === 'den' || G.panel === 'trophies' || G.panel === 'newborn') { if (hit('Escape', 'e')) G.panel = null; break; }
         if (!G.panel && hit('w', 'ArrowUp')) { const s = hubNearest(); if (s && s.kind === 'door') { goHubRoom(s.to); break; } }
         if (G.panel === 'acts') { if (hit('Escape')) G.panel = null; else for (let a = 1; a <= actsOpen(); a++) if (hit(String(a))) { startRunFromHub(a); break; } break; }
         if (G.panel === 'team') { if (hit('Escape', 'e')) G.panel = null; if (hit('ArrowDown', 'PageDown')) scrollRoster(112); if (hit('ArrowUp', 'PageUp')) scrollRoster(-112); break; }
         if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
         if (hit('p')) { openPause(); break; }
+        if (hit('f')) { openNetPanel(); break; }
         updateWorld(dt); break;
       }
       if (hit('p', 'Escape')) { openPause(); break; }
