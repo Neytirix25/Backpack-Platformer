@@ -57,8 +57,8 @@ const ART_FILES = {
   vfx: VFX_SPR,
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine'],
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake'],
+  props: ['hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'],
   anim: Object.keys(window.ANIMS || {}),
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -143,7 +143,7 @@ function poseX(idle, img, cx, face) { return idle ? cx + face * (img.width - idl
 // SAVE SLOTS: every copy of the game keeps its own progress. Chrome gives all pages opened from disk (file://) one
 // shared storage, so progress keys are tagged with the folder this copy lives in -> a freshly downloaded copy starts
 // fresh. (Sound/music settings stay shared on purpose.)
-const SAVE_KEYS = ['packrat_best', 'packrat_coll', 'packrat_records', 'packrat_skin', 'packrat_class', 'packrat_pets', 'packrat_team', 'packrat_ach'];
+const SAVE_KEYS = ['packrat_best', 'packrat_coll', 'packrat_records', 'packrat_skin', 'packrat_class', 'packrat_pets', 'packrat_team', 'packrat_ach', 'packrat_herd', 'packrat_den'];
 const SAVE_DIR = (() => { try { return decodeURIComponent(location.pathname).replace(/\\/g, '/').replace(/[^\/]*$/, '').toLowerCase(); } catch (e) { return '/'; } })();
 const SLOT = (() => { let h = 2166136261; for (let i = 0; i < SAVE_DIR.length; i++) { h ^= SAVE_DIR.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); })();
 function sk(k) { return k + '@' + SLOT; }
@@ -190,12 +190,12 @@ cv.addEventListener('wheel', e => { if (rosterOpen()) { scrollRoster(e.deltaY * 
 
 // =====================================================================
 //  UI STYLE — the look of every menu: an adventurer's leather backpack (stitched leather, brass, parchment,
-//  wood) with pixel fonts: Jersey 10 for reading, Micro 5 for tiny badges, Jacquarda Bastarda 9 for titles
+//  wood) with one readable pixel font, DotGothic16, for everything (Jersey 10 / Micro 5 / Jacquarda remain only as fallbacks)
 //  (all SIL OFL, bundled in assets/fonts). Text is drawn crisp: every string is rendered once at the font's
 //  pixel size, snapped to solid pixels and cached. Panels/buttons are 9-sliced from ChatGPT art in assets/ui.
 // =====================================================================
-const UI = '"Jersey 10","Segoe UI",system-ui,sans-serif';
-const TITLE = '"Jacquarda Bastarda 9","Jersey 10",serif';
+const UI = '"DotGothic16","Segoe UI",system-ui,sans-serif';   // DotGothic16: a clean pixel font that stays readable at small sizes
+const TITLE = UI;
 const PAL = {
   ink: '#140d07', leather: '#3d2516', leatherDk: '#26160c', leatherLt: '#5c3a22', stitch: '#a8865a',
   brass: '#c99a3e', brassLt: '#f2cd73', brassDk: '#6e4e1c', parch: '#e8d4a6', parchDk: '#b39461', parchInk: '#3a2614',
@@ -204,7 +204,7 @@ const PAL = {
 (function loadFonts() {   // from the bundled base64 data (works from file://, where font files are blocked)
   const F = window.FONT_DATA; if (!F || !window.FontFace || !document.fonts) return;
   const add = (name, b64) => { try { new FontFace(name, `url(data:font/ttf;base64,${b64})`).load().then(f => { document.fonts.add(f); TEXT_CACHE.clear(); }).catch(() => {}); } catch (e) {} };
-  add('Jersey 10', F.jersey); add('Micro 5', F.micro); add('Jacquarda Bastarda 9', F.jacquarda);
+  add('DotGothic16', F.dotgothic); add('Jersey 10', F.jersey); add('Micro 5', F.micro); add('Jacquarda Bastarda 9', F.jacquarda);
 })();
 // Every font the game asks for is moved onto the pixel fonts' own grid: body text is Jersey 10 at 18.667px
 // (37.333px when large), anything 9px or smaller is Micro 5 at 11px, titles snap to multiples of 13px.
@@ -220,8 +220,15 @@ function pixelFont(f) {
   if (typeof CanvasRenderingContext2D === 'undefined') return;   // no real canvas (headless tests)
   const P = CanvasRenderingContext2D.prototype, raw = P.fillText, rawMeasure = P.measureText;
   const isPixel = f => f.includes('"Jersey 10"') || f.includes('"Micro 5"') || f.includes('"Jacquarda');
+  // DotGothic16 is drawn smoothly (crisper glyph snapping makes it uneven at in-between sizes), never below 11px,
+  // with a soft ink shadow so it stays readable over busy backgrounds
+  const isDot = f => /px\s+"DotGothic16"/.test(f);
+  const darkInk = c => { const m = /^#([0-9a-f]{6})$/i.exec(c); if (!m) return false; const n = parseInt(m[1], 16); return ((n >> 16) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11) < 110; };
+  const dotFont = f => f.replace(/(\d+(?:\.\d+)?)px/, (m, n) => (parseFloat(n) < 11 ? '11px' : m));
   P.measureText = function (t) {
-    const f = this.font || ''; if (!isPixel(f)) return rawMeasure.call(this, t);
+    const f = this.font || '';
+    if (isDot(f)) { this.font = dotFont(f); const r = rawMeasure.call(this, t); this.font = f; return r; }
+    if (!isPixel(f)) return rawMeasure.call(this, t);
     this.font = pixelFont(f); const r = rawMeasure.call(this, t); this.font = f; return r;
   };
   // one string -> a small canvas of solid pixels in that colour
@@ -243,6 +250,17 @@ function pixelFont(f) {
   }
   P.fillText = function (t, x, y, mw) {
     const f = this.font || '';
+    if (isDot(f)) {
+      this.font = dotFont(f);
+      if (this.textShadowOff !== true && typeof this.fillStyle === 'string' && this.globalAlpha > 0.05 && !darkInk(this.fillStyle)) {   // light text gets a shadow; dark ink on parchment stays crisp
+        const fs = this.fillStyle, a = this.globalAlpha, big = parseFloat(/(\d+(?:\.\d+)?)px/.exec(this.font)[1]) >= 24;
+        this.fillStyle = '#140d07'; this.globalAlpha = a * 0.8;
+        if (mw === undefined) { raw.call(this, t, x, y + 1); if (big) raw.call(this, t, x + 1, y + 2); } else raw.call(this, t, x, y + 1, mw);
+        this.fillStyle = fs; this.globalAlpha = a;
+      }
+      if (mw === undefined) raw.call(this, t, x, y); else raw.call(this, t, x, y, mw);
+      this.font = f; return;
+    }
     if (!isPixel(f) || typeof this.fillStyle !== 'string' || typeof document === 'undefined' || !document.createElement) return mw === undefined ? raw.call(this, t, x, y) : raw.call(this, t, x, y, mw);
     t = String(t); if (!t) return;
     const font = pixelFont(f), base = this.textBaseline || 'alphabetic', al = this.textAlign;
@@ -1347,7 +1365,7 @@ const ITEMS = {
   chewbone:  { name: 'Chew Bone',       icon: '🦴', shape: [[1, 1]],          color: '#7a6a4a', rarity: 'common',    tags: [], atk: 0.1, desc: 'All pets +10% attack.' },
   clawfile:  { name: 'Claw File',       icon: '🪮', shape: [[1], [1], [1]],             color: '#5a5a62', rarity: 'common',    tags: [], crit: 0.06, desc: 'All pets +6% critical hit chance.' },
   vest:      { name: 'Padded Vest',     icon: '🦺', shape: [[1, 1], [1, 1]],  color: '#4a5a6a', rarity: 'common',    tags: [], def: 2, desc: 'All pets +2 defense.' },
-  treats:    { name: 'Pet Treats',      icon: '🍪', shape: [[1, 0], [1, 1]],             color: '#8a6a3a', rarity: 'common',    tags: [], xp: 0.25, desc: 'Pets earn 25% more experience.' },
+  treats:    { name: 'Pet Treats',      icon: '🍪', shape: [[1, 0], [1, 1]],             color: '#8a6a3a', rarity: 'common',    tags: [], xp: 0.25, desc: 'Pets earn 25% more experience. Drop it on a pet in your team box to feed it: +5 bond.' },
   blanket:   { name: 'Cozy Blanket',    icon: '🧣', shape: [[1, 1, 1]],       color: '#6a3a4a', rarity: 'uncommon',  tags: [], regen: 0.04, desc: 'All pets regenerate 4% of their max HP every turn.' },
   spikes:    { name: 'Spiked Collar',   icon: '🦔', shape: [[1, 1, 1], [1, 0, 1]],          color: '#5a3a3a', rarity: 'uncommon',  tags: [], thorns: 0.2, desc: 'Foes that hit a pet take 20% of the damage back.' },
   whistle:   { name: 'Rally Whistle',   icon: '📯', shape: [[1, 1, 1], [0, 0, 1]],             color: '#7a6020', rarity: 'uncommon',  tags: [], rally: 1, desc: 'Every battle starts with all pets Strengthened (+30% attack) for 1 turn.' },
@@ -1553,11 +1571,12 @@ const SAVE = (() => {
   const ld = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v && typeof v === 'object' ? Object.assign(d, v) : d; } catch (e) { return d; } };
   const team = (() => { try { const v = JSON.parse(localStorage.getItem(sk('packrat_team'))); return Array.isArray(v) ? v : []; } catch (e) { return []; } })();
   return { coll: ld(sk('packrat_coll'), {}), rec: ld(sk('packrat_records'), { runs: 0, wins: 0, deaths: 0, kills: 0, rescues: 0, bestFloor: 0 }), skin: ld(sk('packrat_skin'), {}),
-           pets: ld(sk('packrat_pets'), {}), team, ach: ld(sk('packrat_ach'), {}) };
+           pets: ld(sk('packrat_pets'), {}), team, ach: ld(sk('packrat_ach'), {}), den: ld(sk('packrat_den'), {}),
+           herd: (() => { try { const v = JSON.parse(localStorage.getItem(sk('packrat_herd'))); return Array.isArray(v) ? v : []; } catch (e) { return []; } })() };
 })();
 function saveData() {
   try {
-    for (const [k, v] of [['coll', SAVE.coll], ['records', SAVE.rec], ['skin', SAVE.skin], ['pets', SAVE.pets], ['team', SAVE.team], ['ach', SAVE.ach]]) localStorage.setItem(sk('packrat_' + k), JSON.stringify(v));
+    for (const [k, v] of [['coll', SAVE.coll], ['records', SAVE.rec], ['skin', SAVE.skin], ['pets', SAVE.pets], ['team', SAVE.team], ['ach', SAVE.ach], ['herd', SAVE.herd], ['den', SAVE.den]]) localStorage.setItem(sk('packrat_' + k), JSON.stringify(v));
   } catch (e) {}
 }
 // which animation sheet a class is drawn with: the female look when chosen (and its art exists)
@@ -1568,6 +1587,8 @@ function logRun(won) {
   const R = SAVE.rec, k = G.kills - (G.loggedKills || 0);
   R.kills += k; G.loggedKills = G.kills;
   if (won) R.wins++; else R.deaths++;
+  for (const it of petSlots) if (it) addBond(it, 2);   // finishing a run together
+  denRunEnded(); savePets();
   R.bestFloor = Math.max(R.bestFloor, G.roomNum);
   saveData();
 }
@@ -1592,6 +1613,7 @@ const THEMES = {
              w: { bat: 3, slime: 3, brute: 1.4, archer: 1, skeleton: 0.6, ghost: 0.4 } },
   crypt:   { name: 'Forgotten Crypt', act: 1, bg: '#1b1526', tile: ['#3a2f4a', '#261e31', '#55466b', '#6a5885'], deco: 'candle',
              w: { ghost: 3, skeleton: 2.5, bat: 1.5, archer: 1, slime: 0.5, brute: 0.6 } },
+  yard:    { name: 'The Sanctuary Yard', act: 0, dim: 0.04, bg: '#8fc3e0', tile: ['#4f6a42', '#34402e', '#6a8a52', '#9ad06a'], w: {} },
   hub:     { name: 'The Sanctuary',   act: 0, dim: 0.12, bg: '#1f1812', tile: ['#3d3022', '#281f16', '#5e4a32', '#6e5838'], w: {} },
   camp:    { name: 'Quiet Campsite',  act: 0, bg: '#1f1812', tile: ['#3d3022', '#281f16', '#5e4a32', '#6e5838'], w: {} },
   boss:    { name: "Warden's Lair",   act: 0, bg: '#1f1010', tile: ['#3d2222', '#271515', '#5a3030', '#7a3a3a'], deco: 'torch', torch: '#ff5a3c', w: {} },
@@ -1648,11 +1670,24 @@ function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
 //  THE SANCTUARY — the hub between runs: walk around as your hero, switch class and look,
 //  read your records, visit (and pet!) every animal you've ever rescued, then take the gate down.
 // =====================================================================
-const HUB_COLS = 66;
-const HUB_SPOTS = {   // tile x of each station
-  board: 4, banners: { warrior: 9, archer: 12, rogue: 15, beastmaster: 18 }, mirror: 22, fire: 26, beds: 28.5,
+// the rooms: walk up to a door and press E (or W) to go in; every indoor room has a door back out to the Yard
+const HUB_ROOMS = {
+  yard:     { name: 'The Yard', cols: 60, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  pet beds: choose your team  ·  the gate (right) starts a run' },
+  wardrobe: { name: 'The Wardrobe', cols: 32, bg: 'wardrobe', tiles: 'camp', hint: 'E at a banner: change class  ·  E at the mirror: change look  ·  E at the dye rack: change colours' },
+  records:  { name: 'The Records Hall', cols: 32, bg: 'records', tiles: 'camp', hint: 'E at the board: your run records  ·  E at the shelf: trophies' },
+  den:      { name: 'The Breeding Den', cols: 32, bg: 'hub', tiles: 'camp', hint: 'E at a nest: pair a male and a female  ·  after your next run, an egg waits on the pedestal' },
 };
-function enterHub() {
+const HUB_COLS = HUB_ROOMS.yard.cols;
+const HUB_SPOTS = {   // tile x of each station
+  doors: { wardrobe: 4, records: 8.5, den: 13 }, fire: 18, team: 21.6, beds: 23.5, out: 2.6,
+  banners: { warrior: 8, archer: 11, rogue: 14, beastmaster: 17 }, mirror: 21, dye: 25, board: 11, trophies: 19, nests: [11, 16], pedestal: 21,
+};
+// outfit dyes (Wardrobe), saved per class
+const DYES = [['natural', 'Natural', ''], ['crimson', 'Crimson', 'hue-rotate(-28deg) saturate(1.5)'], ['forest', 'Forest', 'hue-rotate(75deg) saturate(1.25)'], ['royal', 'Royal', 'hue-rotate(205deg) saturate(1.35)'],
+  ['shadow', 'Shadow', 'brightness(0.62) saturate(0.55)'], ['gold', 'Gilded', 'sepia(0.75) saturate(1.9) brightness(1.1)'], ['frost', 'Frost', 'hue-rotate(165deg) saturate(0.55) brightness(1.22)']];
+const heroDyeId = (cls = G && G.cls) => SAVE.skin[cls + 'Dye'] || 'natural';
+const heroDye = (cls) => { const d = DYES.find(x => x[0] === heroDyeId(cls)); return d && d[2] ? d[2] : 'none'; };
+function enterHub(room = 'yard') {
   pack = startItems(selClass); loadPets(); stats = null; RUN = { buffs: {}, petHp: {} };
   G = {
     roomNum: 0, mode: 'play', kills: 0, shake: 0, msg: '', msgT: 0, fade: 1, fadeDir: -1, deadT: 0, minimap: false, endless: false, hub: true, panel: null,
@@ -1660,26 +1695,35 @@ function enterHub() {
               dropT: 0, walk: 0, dashT: 0, dashCd: 0, dashDir: 1, airDashed: false, trail: [] },
     enemies: [], proj: [], parts: [], texts: [], corpses: [], pets: [], wolves: [], room: null, cam: { x: 0, y: 0 },
   };
-  G.cls = selClass; G.wild = []; stats = computeStats(); G.team = teamMods();
-  const R = { type: 'hub', n: 0, act: 0, theme: THEMES.hub, bgKey: 'hub', tileKey: 'camp', cleared: true, chests: [], cages: [], plants: [], dashSpots: [],
-              fire: null, decor: [], baked: [], vents: [], crumbles: new Map(), crumbleBase: new Map(), lavaTiles: [], crumbleTiles: [], openT: 9 };
-  buildArena(R, HUB_COLS, 18);
+  G.cls = selClass; G.wild = []; stats = computeStats(); G.team = teamMods(); G.petted = new Set();
+  buildHubRoom(room);
+  G.mode = 'trans';
+  if (!HERD.length) G.panel = 'starter';
+  else if (denPair() && SAVE.den.ready) showMsg('An egg is waiting in the Breeding Den!', 3.5);
+  else showMsg(`The Sanctuary — ${HERD.length} animals of ${ownedIds().length} species. Visit the beds (E) to choose your team.`, 3.5);
+}
+function buildHubRoom(room, from) {
+  const H0 = HUB_ROOMS[room] || HUB_ROOMS.yard; room = HUB_ROOMS[room] ? room : 'yard'; G.hubRoom = room;
+  const R = { type: 'hub', n: 0, act: 0, theme: room === 'yard' ? THEMES.yard : THEMES.hub, bgKey: H0.bg, tileKey: H0.tiles, hubRoom: room, cleared: true, chests: [], cages: [], plants: [], dashSpots: [],
+              fire: null, decor: [], baked: [], vents: [], shrooms: [], crumbles: new Map(), crumbleBase: new Map(), lavaTiles: [], crumbleTiles: [], openT: 9 };
+  buildArena(R, H0.cols, 18);
   const ft = R.floorTop * TILE;
-  R.fire = { x: HUB_SPOTS.fire * TILE - 22, y: ft - 30, w: 44, h: 30, used: true, hub: true };
+  if (room === 'yard') R.fire = { x: HUB_SPOTS.fire * TILE - 22, y: ft - 30, w: 44, h: 30, used: true, hub: true };
   G.room = R; R.terrain = bakeTerrain(R);
-  const P = G.player; P.x = 23 * TILE; P.y = ft - P.h; P.face = 1;
-  spawnHubPets(R);
-  snapCamera(); G.mode = 'trans';
-  const have = ownedIds().length;
-  if (!have) G.panel = 'starter';
-  else showMsg(`The Sanctuary — ${have} of ${PET_IDS.length} pets. Visit the beds (E) to choose your team.`, 3.5);
+  const P = G.player, sx = room === 'yard' ? (from && HUB_SPOTS.doors[from] ? HUB_SPOTS.doors[from] : HUB_SPOTS.fire + 2.5) : HUB_SPOTS.out + 1.4;
+  P.x = sx * TILE - P.w / 2; P.y = ft - P.h; P.vx = P.vy = 0; P.face = 1; P.onGround = true;
+  G.pets = []; if (room === 'yard') spawnHubPets(R);
+  snapCamera();
+}
+function goHubRoom(to) {
+  if (!G || !G.hub || G.mode !== 'play') return;
+  G.hubTo = { room: to, from: G.hubRoom }; G.panel = null; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door');
 }
 function spawnHubPets(R) {
   G.pets = []; const ft = R.floorTop * TILE;
-  PET_IDS.forEach((k, i) => {
-    if (!owned(k)) return;
-    const d = PETS[k], x = rand(6, R.cols - 6) * TILE;
-    G.pets.push({ item: PET_ITEMS[k], d, kind: k, hub: true, x, y: d.fly ? ft - 120 - rand(0, 80) : ft - d.h, w: d.w, h: d.h, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
+  rosterList().slice(0, 40).forEach((it, i) => {
+    const k = it.def.pet, d = PETS[k], x = rand(6, R.cols - 6) * TILE;
+    G.pets.push({ item: it, d, kind: k, hub: true, x, y: d.fly ? ft - 120 - rand(0, 80) : ft - d.h, w: d.w, h: d.h, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
                   hp: 1, maxHp: 1, ko: 0, cd: 0, atkT: 0, phase: rand(0, 6), onGround: !d.fly, inv: 0, slot: i, wander: null, happyT: 0 });
   });
 }
@@ -1734,13 +1778,26 @@ function updateHubPets(dt) {
 }
 // everything you can walk up to and use with E
 function hubStations() {
-  const R = G.room, ft = R.floorTop * TILE, out = [];
-  out.push({ kind: 'board', x: HUB_SPOTS.board * TILE, y: ft, label: 'Read your records' });
-  for (const c of CLASS_ORDER) out.push({ kind: 'class', cls: c, x: HUB_SPOTS.banners[c] * TILE, y: ft, label: G.cls === c ? `${CLASSES[c].name} (current)` : `Become the ${CLASSES[c].name}` });
-  out.push({ kind: 'mirror', x: HUB_SPOTS.mirror * TILE, y: ft, label: window.ANIMS && window.ANIMS[G.cls + '_f'] ? `Change look (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'} ${CLASSES[G.cls].name})` : 'Mirror' });
-  out.push({ kind: 'team', x: (HUB_SPOTS.beds - 1.1) * TILE, y: ft, label: 'Choose your team' });
-  for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
-  PET_IDS.forEach((k, i) => { if (!owned(k)) out.push({ kind: 'locked', id: k, x: bedX(i), y: ft, label: '' }); });
+  const R = G.room, ft = R.floorTop * TILE, out = [], room = G.hubRoom || 'yard', X = t => t * TILE;
+  if (room === 'yard') {
+    for (const to of ['wardrobe', 'records', 'den']) out.push({ kind: 'door', to, x: X(HUB_SPOTS.doors[to]), y: ft, label: `Enter ${HUB_ROOMS[to].name}` + (to === 'den' && denPair() && SAVE.den.ready ? '  (an egg is waiting!)' : '') });
+    out.push({ kind: 'team', x: X(HUB_SPOTS.team), y: ft, label: 'Choose your team' });
+    for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
+    PET_IDS.forEach((k, i) => { if (!owned(k)) out.push({ kind: 'locked', id: k, x: bedX(i), y: ft, label: '' }); });
+    return out;
+  }
+  out.push({ kind: 'door', to: 'yard', x: X(HUB_SPOTS.out), y: ft, label: 'Back out to the Yard' });
+  if (room === 'wardrobe') {
+    for (const c of CLASS_ORDER) out.push({ kind: 'class', cls: c, x: X(HUB_SPOTS.banners[c]), y: ft, label: G.cls === c ? `${CLASSES[c].name} (current)` : `Become the ${CLASSES[c].name}` });
+    out.push({ kind: 'mirror', x: X(HUB_SPOTS.mirror), y: ft, label: window.ANIMS && window.ANIMS[G.cls + '_f'] ? `Change look (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'} ${CLASSES[G.cls].name})` : 'Mirror' });
+    out.push({ kind: 'dye', x: X(HUB_SPOTS.dye), y: ft, label: `Outfit dye: ${DYES.find(d => d[0] === heroDyeId())[1]} (E for the next)` });
+  } else if (room === 'records') {
+    out.push({ kind: 'board', x: X(HUB_SPOTS.board), y: ft, label: 'Read your run records' });
+    out.push({ kind: 'trophies', x: X(HUB_SPOTS.trophies), y: ft, label: 'Look at your trophies' });
+  } else if (room === 'den') {
+    HUB_SPOTS.nests.forEach((t, i) => out.push({ kind: 'nest', x: X(t), y: ft, label: denPair() ? 'Visit the parents' : 'Choose a pair to breed' }));
+    out.push({ kind: 'pedestal', x: X(HUB_SPOTS.pedestal), y: ft, label: denPair() && SAVE.den.ready ? 'Hatch the egg!' : 'The hatching pedestal' });
+  }
   return out;
 }
 function hubNearest() {
@@ -1764,10 +1821,18 @@ function hubInteract() {
     SAVE.skin[G.cls] = SAVE.skin[G.cls] === 'f' ? 'm' : 'f'; saveData();
     burst(P.x + P.w / 2, P.y + P.h / 2, '#e1bee7', 22, 180); SFX.play('merge');
   } else if (s.kind === 'board') { G.panel = G.panel === 'records' ? null : 'records'; SFX.play('pick'); }
+  else if (s.kind === 'door') goHubRoom(s.to);
+  else if (s.kind === 'trophies') { G.panel = 'trophies'; SFX.play('pick'); }
+  else if (s.kind === 'dye') {
+    const i = DYES.findIndex(d => d[0] === heroDyeId()), nx = DYES[(i + 1) % DYES.length];
+    SAVE.skin[G.cls + 'Dye'] = nx[0]; saveData(); burst(P.x + P.w / 2, P.y + P.h / 2, '#ffd36b', 18, 160); SFX.play('merge'); showMsg(`Outfit dye: ${nx[1]}`, 1.4);
+  }
+  else if (s.kind === 'nest' || s.kind === 'pedestal') { openDen(); }
   else if (s.kind === 'team') { G.panel = 'team'; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
   else if (s.kind === 'pet') {
     const p = s.pet; p.happyT = 2.4; p.wander = null; p.face = Math.sign(P.x + P.w / 2 - (p.x + p.w / 2)) || p.face;
     for (let k = 0; k < 4; k++) addText(p.x + p.w / 2 + rand(-14, 14), p.y - 4 - k * 9, '❤', '#ff80ab', 13 + k * 2);
+    if (p.item && G.petted && !G.petted.has(p.item.pid)) { G.petted.add(p.item.pid); const got = addBond(p.item, 1); if (got > 0) { savePets(); addText(p.x + p.w / 2, p.y - 46, `+${Math.round(got * 10) / 10} bond`, '#f8bbd0', 13); } }
     SFX.play(p.kind === 'dog' ? 'bark' : p.d.fly ? 'chirp' : p.d.charge ? 'growl' : p.d.poison ? 'slimeHop' : 'meow');
   }
 }
@@ -1815,16 +1880,186 @@ function startRunFromHub(act) {
   if (!act && actsOpen() > 1) { if (G.panel !== 'acts') { G.panel = 'acts'; SFX.play('pick'); } return; }   // later acts are open: ask where to go
   G.panel = null; PK = null; SFX.play('door'); newGame(selClass, act || 1); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1;
 }
+// ---------- trophies (Records Hall) ----------
+function trophyList() {
+  const r = SAVE.rec, a = SAVE.ach, best = bestFloorEver(), maxStat = HERD.some(it => it.g && ['atk', 'def', 'hp'].some(s => it.g[s] >= 90));
+  return [
+    { n: 'Pack Leader', d: 'Beat the Shadow Wolf within three turns', done: !!a.shadow },
+    { n: 'Dragonheart', d: 'Beat the Elder Dragon with no pet fainting', done: !!a.elder },
+    { n: 'Lightning Strike', d: 'Win a battle on its very first turn', done: !!a.first },
+    { n: 'Wyrmslayer', d: 'Beat the Lake Wyrm on floor 30', done: !!a.wyrm },
+    { n: 'Into the Depths', d: 'Reach floor 11', done: best >= 11 },
+    { n: 'Into the Wilds', d: 'Reach floor 21', done: best >= 21 },
+    { n: 'Champion', d: 'Win a run', done: (r.wins || 0) > 0 },
+    { n: 'Glittering Find', d: 'Find a shiny animal', done: (r.shinies || 0) > 0 },
+    { n: 'New Life', d: 'Hatch an egg in the Breeding Den', done: (r.bred || 0) > 0 },
+    { n: 'Best of the Best', d: 'Own an animal with an S-grade stat', done: maxStat },
+    { n: 'Best Friends', d: 'Raise an animal\'s bond to 100', done: HERD.some(it => it.g && it.g.bond >= 100) },
+    { n: 'Full Sanctuary', d: `Befriend all ${PET_IDS.length} species`, done: ownedIds().length >= PET_IDS.length },
+  ];
+}
+function drawTrophies() {
+  const list = trophyList(), bw = 800, bh = 96 + Math.ceil(list.length / 2) * 52, bx = W / 2 - bw / 2, by = H / 2 - bh / 2;
+  ctx.fillStyle = 'rgba(8,5,3,0.6)'; ctx.fillRect(0, 0, W, H);
+  panel(bx, by, bw, bh, 'parch');
+  banner(`Trophies  ${list.filter(t => t.done).length} / ${list.length}`, W / 2, by + 4, { size: 26, h: 44, pad: 100 });
+  list.forEach((t, i) => {
+    const x = bx + 30 + (i % 2) * (bw / 2 - 20), y = by + 54 + Math.floor(i / 2) * 52;
+    label(t.done ? '★' : '☆', x, y + 10, { size: 22, bold: true, color: t.done ? '#b8860b' : '#8a7458' });
+    label(t.n, x + 30, y + 2, { size: 15, bold: true, color: t.done ? '#4a2a10' : '#6e5638' });
+    label(fitText(t.d, bw / 2 - 70), x + 30, y + 20, { size: 13, color: t.done ? '#5a3a1a' : '#7a6450' });
+  });
+  label('E or Esc to close', W / 2, by + bh - 16, { align: 'center', size: 12, color: '#6b4a2a' });
+}
+// ---------- the Breeding Den: pair a male and a female of one species; after your next run their egg hatches here ----------
+// The baby's attack, defense and health are its parents' average plus up to 10; its nature is one of theirs (or now and
+// then a new one). Shiny chance: 90% with two shiny parents, 40% with one, 2% with none.
+function denPair() {
+  const D = SAVE.den || {}; if (!D.m || !D.f) return null;
+  const m = HERD.find(it => it.pid === D.m), f = HERD.find(it => it.pid === D.f);
+  if (!m || !f) { SAVE.den = {}; saveData(); return null; }
+  return [m, f];
+}
+function denRunEnded() { if (denPair()) { SAVE.den.ready = true; saveData(); } }
+function breedGenes(a, b) {
+  const avg = s => clamp(Math.round(((a.g[s] || 0) + (b.g[s] || 0)) / 2 + Math.random() * 10), 0, 100);
+  const shinyParents = (a.g.shiny ? 1 : 0) + (b.g.shiny ? 1 : 0);
+  return { nat: Math.random() < 0.15 ? pick(NATURE_IDS) : pick([a.g.nat, b.g.nat]), atk: avg('atk'), def: avg('def'), hp: avg('hp'), bond: 0,
+           sex: Math.random() < 0.5 ? 'm' : 'f', shiny: Math.random() < SHINY_ODDS.bred[shinyParents] };
+}
+function openDen() { G.panel = 'den'; G.den = { k: null, m: null, f: null, mp: 0, fp: 0 }; SFX.play('pick'); }
+const DEN = { x: 40, y: 22, w: 880, h: 496 };
+const DEN_BTN = { x: DEN.x + DEN.w / 2 - 110, y: DEN.y + DEN.h - 58, w: 220, h: 40 };
+const DEN_BTN2 = { x: DEN.x + DEN.w - 190, y: DEN.y + DEN.h - 58, w: 160, h: 40 };
+const DEN_BACK = { x: DEN.x + 30, y: DEN.y + DEN.h - 58, w: 160, h: 40 };
+const denChip = i => ({ x: DEN.x + 30 + (i % 6) * 138, y: DEN.y + 112 + Math.floor(i / 6) * 40, w: 130, h: 32 });
+const denCard = (side, i) => ({ x: DEN.x + (side ? DEN.w / 2 + 40 : 50) + i * 116, y: DEN.y + 132, w: 108, h: 106 });
+const DEN_PAGE = (side, dir) => ({ x: DEN.x + (side ? DEN.w / 2 + 40 : 50) + (dir < 0 ? -36 : 3 * 116), y: DEN.y + 168, w: 30, h: 34 });
+const breedable = k => herdOf(k).some(it => it.g.sex === 'm') && herdOf(k).some(it => it.g.sex === 'f');
+const denList = (k, sex) => herdOf(k).filter(it => it.g.sex === sex).sort((a, b) => (b.g.atk + b.g.def + b.g.hp) - (a.g.atk + a.g.def + a.g.hp));
+// what the pair's baby could look like
+function drawBabyOdds(m, f, x, y, w) {
+  panel(x, y, w, 118, 'dark');
+  label('Their baby will have', x + 16, y + 18, { size: 14, bold: true, color: PAL.gold });
+  [['atk', 'Attack'], ['def', 'Defense'], ['hp', 'Health']].forEach(([s, nm], i) => {
+    const lo = Math.round((m.g[s] + f.g[s]) / 2), hi = Math.min(100, lo + 10), a = grade(lo), b = grade(hi), yy = y + 42 + i * 18;
+    label(nm, x + 16, yy, { size: 13, color: PAL.dim });
+    label(`${lo}-${hi}`, x + w / 2 - 10, yy, { align: 'right', size: 13, color: PAL.cream });
+    label(a[1] === b[1] ? a[1] : a[1] + ' to ' + b[1], x + w / 2 + 6, yy, { size: 14, bold: true, color: b[2] });
+  });
+  const sp = (m.g.shiny ? 1 : 0) + (f.g.shiny ? 1 : 0), natA = (NATURES[m.g.nat] || NATURES.calm).n, natB = (NATURES[f.g.nat] || NATURES.calm).n;
+  label(`Nature: ${natA === natB ? natA : natA + ' or ' + natB} (sometimes a new one)`, x + w / 2 + 70, y + 42, { size: 12, color: PAL.cream });
+  label(`Shiny chance: ${Math.round(SHINY_ODDS.bred[sp] * 100)}%`, x + w / 2 + 70, y + 62, { size: 13, bold: true, color: sp ? PAL.gold : PAL.cream });
+  label('Bond starts at 0 · male or female 50/50', x + w / 2 + 70, y + 82, { size: 12, color: PAL.dim });
+}
+function drawDen() {
+  ctx.fillStyle = 'rgba(8,5,3,0.72)'; ctx.fillRect(0, 0, W, H);
+  panel(DEN.x, DEN.y, DEN.w, DEN.h, 'leather');
+  label('The Breeding Den', DEN.x + 28, DEN.y + 34, { title: true, size: 28, color: PAL.gold });
+  const pair = denPair(), D = G.den || (G.den = { k: null, m: null, f: null, mp: 0, fp: 0 });
+  if (pair) {   // a pair is nesting
+    const [m, f] = pair;
+    label(SAVE.den.ready ? 'An egg is waiting on the pedestal!' : 'The pair is nesting. Come back after your next run (win or lose) for their egg.', DEN.x + 28, DEN.y + 66, { size: 14, bold: true, color: SAVE.den.ready ? PAL.gold : PAL.cream });
+    drawPetCard(m, { x: DEN.x + 200, y: DEN.y + 96, w: 150, h: 130 }, {}); drawPetCard(f, { x: DEN.x + DEN.w - 350, y: DEN.y + 96, w: 150, h: 130 }, {});
+    label('❤', DEN.x + DEN.w / 2, DEN.y + 160 + Math.sin(TIME * 3) * 4, { align: 'center', size: 30, color: '#ff80ab' });
+    drawBabyOdds(m, f, DEN.x + 50, DEN.y + 250, DEN.w - 100);
+    if (SAVE.den.ready) button(DEN_BTN, 'Hatch the egg!', { hover: inRect(mouse, DEN_BTN), size: 16, color: PAL.gold });
+    button(DEN_BTN2, 'Separate them', { hover: inRect(mouse, DEN_BTN2), size: 14 });
+    label('Esc to close', DEN.x + DEN.w / 2, DEN.y + DEN.h - 8, { align: 'center', size: 11, color: PAL.dim });
+    return;
+  }
+  if (!D.k) {   // step 1: a species with a male and a female
+    label('Pick a species. You need a male (♂) and a female (♀) of it.', DEN.x + 28, DEN.y + 68, { size: 14, color: PAL.cream });
+    label('Their baby: the parents\' average stats plus up to 10 more, so breeding your best pets makes even better ones.', DEN.x + 28, DEN.y + 88, { size: 12, color: PAL.dim });
+    const ks = ownedIds();
+    if (!ks.length) label('You have no animals yet.', DEN.x + 28, DEN.y + 130, { size: 14, color: PAL.dim });
+    ks.forEach((k, i) => {
+      const r = denChip(i), ok = breedable(k), over = ok && inRect(mouse, r), n = herdOf(k), nm = n.filter(it => it.g.sex === 'm').length;
+      button(r, '', { hover: over, off: !ok });
+      label(fitText(PETS[k].name, r.w - 50), r.x + 10, r.y + r.h / 2, { size: 13, bold: true, color: ok ? PAL.cream : '#8a7a68' });
+      label(`${nm}♂ ${n.length - nm}♀`, r.x + r.w - 8, r.y + r.h / 2, { align: 'right', size: 12, color: ok ? PAL.good : '#8a7a68' });
+    });
+    label('Esc to close', DEN.x + DEN.w / 2, DEN.y + DEN.h - 8, { align: 'center', size: 11, color: PAL.dim });
+    return;
+  }
+  // step 2: choose the father and the mother
+  label(`${PETS[D.k].name}: choose a father and a mother`, DEN.x + 28, DEN.y + 68, { size: 15, bold: true, color: PAL.cream });
+  [['m', 'Fathers ♂', '#8fc3e0'], ['f', 'Mothers ♀', '#f8a5c2']].forEach(([sex, title, col], side) => {
+    const list = denList(D.k, sex), page = D[sex + 'p'] || 0;
+    label(`${title} (${list.length})`, DEN.x + (side ? DEN.w / 2 + 40 : 50), DEN.y + 112, { size: 14, bold: true, color: col });
+    list.slice(page * 3, page * 3 + 3).forEach((it, i) => {
+      const r = denCard(side, i); drawPetCard(it, r, { sel: D[sex] === it.pid, over: inRect(mouse, r) });
+    });
+    if (page > 0) button(DEN_PAGE(side, -1), '◀', { hover: inRect(mouse, DEN_PAGE(side, -1)) });
+    if ((page + 1) * 3 < list.length) button(DEN_PAGE(side, 1), '▶', { hover: inRect(mouse, DEN_PAGE(side, 1)) });
+  });
+  const m = HERD.find(it => it.pid === D.m), f = HERD.find(it => it.pid === D.f);
+  if (m && f) drawBabyOdds(m, f, DEN.x + 50, DEN.y + 256, DEN.w - 100);
+  else label('Click one of each to see what their baby could be.', DEN.x + DEN.w / 2, DEN.y + 300, { align: 'center', size: 14, color: PAL.dim });
+  button(DEN_BACK, '◀ Species', { hover: inRect(mouse, DEN_BACK), size: 14 });
+  button(DEN_BTN, 'Put them in the den', { hover: m && f && inRect(mouse, DEN_BTN), off: !(m && f), size: 15, color: PAL.gold });
+}
+function denClick(btn) {
+  if (btn !== 0) return;
+  const pair = denPair(), D = G.den || (G.den = { k: null, m: null, f: null, mp: 0, fp: 0 });
+  if (!inRect(mouse, DEN)) { G.panel = null; return; }
+  if (pair) {
+    if (SAVE.den.ready && inRect(mouse, DEN_BTN)) hatchDenEgg();
+    else if (inRect(mouse, DEN_BTN2)) { SAVE.den = {}; saveData(); SFX.play('pick'); showMsg('The pair goes back to the Yard.', 1.6); }
+    return;
+  }
+  if (!D.k) { ownedIds().forEach((k, i) => { if (inRect(mouse, denChip(i))) { if (breedable(k)) { D.k = k; D.m = D.f = null; D.mp = D.fp = 0; SFX.play('pick'); } else SFX.play('error'); } }); return; }
+  if (inRect(mouse, DEN_BACK)) { D.k = null; SFX.play('pick'); return; }
+  for (const [sex, side] of [['m', 0], ['f', 1]]) {
+    const list = denList(D.k, sex), page = D[sex + 'p'] || 0;
+    if (page > 0 && inRect(mouse, DEN_PAGE(side, -1))) { D[sex + 'p']--; return; }
+    if ((page + 1) * 3 < list.length && inRect(mouse, DEN_PAGE(side, 1))) { D[sex + 'p']++; return; }
+    list.slice(page * 3, page * 3 + 3).forEach((it, i) => { if (inRect(mouse, denCard(side, i))) { D[sex] = it.pid; SFX.play('pick'); } });
+  }
+  if (D.m && D.f && inRect(mouse, DEN_BTN)) {
+    SAVE.den = { m: D.m, f: D.f, ready: false }; saveData(); SFX.play('chest', true);
+    showMsg(`The pair settles into the nests. Their egg will be ready after your next run.`, 3);
+  }
+}
+function hatchDenEgg() {
+  const pair = denPair(); if (!pair || !SAVE.den.ready) return;
+  const [m, f] = pair, baby = unlockPet(m.def.pet, newcomerLevel(), breedGenes(m, f));
+  SAVE.den.ready = false; SAVE.rec.bred = (SAVE.rec.bred || 0) + 1; saveData();
+  G.newborn = baby; G.panel = 'newborn'; SFX.play('chest', true);
+  if (G.hubRoom === 'yard') spawnHubPets(G.room);
+}
+function drawNewborn() {
+  const it = G.newborn; if (!it) { G.panel = null; return; }
+  const bw = 460, bh = 330, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10, g = it.g;
+  ctx.fillStyle = 'rgba(8,5,3,0.7)'; ctx.fillRect(0, 0, W, H);
+  panel(bx, by, bw, bh, 'leather');
+  banner(g.shiny ? '★ A shiny baby! ★' : 'A baby is born!', W / 2, by + 4, { size: 26, h: 44, pad: 100 });
+  const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), glow = ctx.createRadialGradient(bx + 110, by + 140, 4, bx + 110, by + 140, 90);
+  glow.addColorStop(0, (g.shiny ? '#ffd36b' : d.color) + '66'); glow.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = glow; ctx.fillRect(bx + 20, by + 50, 180, 180);
+  ctx.filter = petFilter(k, sheet, it); drawAnim(sheet, d.fly ? 'fly' : 'idle', TIME * 5, bx + 110, d.fly ? by + 140 : by + 190, 1, { scale: 3.2 * babyScale(it) }); ctx.filter = 'none';
+  if (g.shiny) shinySparkle(bx + 60, by + 80, 100, 110, 2, 1.5);
+  label(BS[k].baby, bx + 110, by + 230, { align: 'center', size: 16, bold: true, color: g.shiny ? PAL.gold : PAL.cream });
+  label(`Level ${petLvl(it)}`, bx + 110, by + 250, { align: 'center', size: 13, color: PAL.good });
+  drawTraits(it, bx + 230, by + 70, bw - 260);
+  label('Click or press E to welcome it', W / 2, by + bh - 18, { align: 'center', size: 12, color: PAL.dim });
+}
 function hubPanelClick(btn = 0) {
   if (PK && PK.talent != null) { if (btn === 0) talentClick(); else PK.talent = null; if (PK && PK.talent == null) PK = null; return; }
   if (G.panel === 'starter') starterClick();
   else if (G.panel === 'acts') actSelectClick();
   else if (G.panel === 'team') { const r = rosterClick(btn); if (r === 'close') { G.panel = null; SFX.play('pick'); } else if (r) PK = { talent: r, hub: true, staging: [] }; }
-  else if (G.panel === 'records') G.panel = null;
+  else if (G.panel === 'records' || G.panel === 'trophies') G.panel = null;
+  else if (G.panel === 'den') denClick(btn);
+  else if (G.panel === 'newborn') G.panel = null;
 }
 // stations, beds, silhouettes and the "press E" bubble (drawn in the world)
 function drawHubWorld() {
-  const R = G.room, ft = R.floorTop * TILE;
+  const R = G.room, ft = R.floorTop * TILE, room = G.hubRoom || 'yard';
+  if (room !== 'yard') { drawHubRoomProps(room, ft); return; }
+  const house = art('props/sanct_house');   // the Sanctuary house, built into the hill: its archways hold the three doors
+  if (house) drawSprite(house, HUB_SPOTS.doors.wardrobe * TILE + (0.5 - 0.226) * house.width * PX, ft + 2, 1);
+  for (const to of ['wardrobe', 'records', 'den']) drawDoor('door_' + to, HUB_SPOTS.doors[to] * TILE, ft, HUB_ROOMS[to].name, to === 'den' && denPair() && SAVE.den.ready);
+  { const x = HUB_SPOTS.team * TILE; ctx.fillStyle = '#5d4037'; ctx.fillRect(x - 2, ft - 54, 4, 54); panel(x - 46, ft - 76, 92, 26, 'parch'); label('Your team', x, ft - 63, { align: 'center', size: 12, bold: true, color: PAL.parchInk }); }
   // pet beds, with a dark silhouette waiting on each species you haven't found yet
   const bed = art('props/hub_petbed');
   PET_IDS.forEach((k, i) => {
@@ -1835,15 +2070,76 @@ function drawHubWorld() {
       drawAnim(speciesSheet(k), d.fly ? 'fly' : 'idle', d.fly ? 0 : Math.floor(TIME * 2 + i), x, y, i % 2 ? -1 : 1, { shadow: true, alpha: 0.85 });
     }
   });
-  // board, class banners, mirror
-  const board = art('props/hub_board'), mirror = art('props/hub_mirror');
-  if (board) drawSprite(board, HUB_SPOTS.board * TILE, ft + 2, 1); else { ctx.fillStyle = '#6d4c41'; ctx.fillRect(HUB_SPOTS.board * TILE - 30, ft - 70, 60, 46); }
+}
+// a door into one of the rooms (ChatGPT art when it exists), with its name on a sign
+function drawDoor(key, x, ft, name, glow) {
+  const img = art('props/' + key);
+  if (glow) { const g = ctx.createRadialGradient(x, ft - 40, 4, x, ft - 40, 70); g.addColorStop(0, 'rgba(255,224,130,0.45)'); g.addColorStop(1, 'rgba(255,224,130,0)'); ctx.fillStyle = g; ctx.fillRect(x - 70, ft - 110, 140, 120); }
+  if (img) drawSprite(img, x, ft + 2, 1);
+  else {
+    ctx.fillStyle = '#3e2615'; rr(x - 24, ft - 70, 48, 70, 10); ctx.fill(); ctx.fillStyle = '#7a4a26'; rr(x - 20, ft - 66, 40, 66, 8); ctx.fill();
+    ctx.fillStyle = '#5a361c'; for (let i = -12; i <= 12; i += 8) ctx.fillRect(x + i, ft - 62, 2, 60); ctx.fillStyle = PAL.brass; ctx.fillRect(x + 11, ft - 34, 4, 4);
+  }
+  ctx.font = `bold 12px ${UI}`; const tw = ctx.measureText(name).width + 18, top = ft - (img ? img.height * PX : 70) - 26;
+  panel(x - tw / 2, top, tw, 22, 'parch'); label(name, x, top + 11, { align: 'center', size: 12, bold: true, color: PAL.parchInk });
+}
+// the indoor rooms' furniture
+function drawHubRoomProps(room, ft) {
+  const X = t => t * TILE;
+  drawDoor('door_out', X(HUB_SPOTS.out), ft, 'The Yard');
+  if (room === 'wardrobe') { drawWardrobeProps(ft); return; }
+  if (room === 'records') {
+    const board = art('props/hub_board'), shelf = art('props/trophy_shelf');
+    if (board) drawSprite(board, X(HUB_SPOTS.board), ft + 2, 1); else { ctx.fillStyle = '#6d4c41'; ctx.fillRect(X(HUB_SPOTS.board) - 30, ft - 70, 60, 46); }
+    if (shelf) drawSprite(shelf, X(HUB_SPOTS.trophies), ft + 2, 1);
+    else { const x = X(HUB_SPOTS.trophies); ctx.fillStyle = '#5d4037'; ctx.fillRect(x - 40, ft - 84, 80, 84); ctx.fillStyle = '#3e2723'; for (const yy of [ft - 56, ft - 28]) ctx.fillRect(x - 36, yy, 72, 4);
+      trophyList().filter(t => t.done).slice(0, 6).forEach((t, i) => { ctx.fillStyle = PAL.gold; ctx.fillRect(x - 30 + (i % 3) * 24, ft - 76 + Math.floor(i / 3) * 28, 10, 14); }); }
+    return;
+  }
+  if (room === 'den') {
+    const nest = art('props/nest'), ped = art('props/pedestal'), pair = denPair();
+    HUB_SPOTS.nests.forEach((t, i) => {
+      const x = X(t);
+      if (nest) drawSprite(nest, x, ft + 2, i ? -1 : 1); else { ctx.fillStyle = '#a1793f'; ctx.beginPath(); ctx.ellipse(x, ft - 6, 30, 10, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#c9a25c'; ctx.beginPath(); ctx.ellipse(x, ft - 10, 24, 6, 0, 0, 7); ctx.fill(); }
+      const it = pair && pair[i];
+      if (it) {   // the parents snooze on their nests
+        const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), rest = animFrames(sheet, 'rest') ? sheet : animFrames(sheet + '_rest', 'rest') ? sheet + '_rest' : null;
+        ctx.filter = petFilter(k, sheet, it);
+        if (rest) drawAnim(rest, 'rest', TIME * 2.5 + i, x, ft - 8, i ? -1 : 1); else drawAnim(sheet, d.fly ? 'fly' : 'idle', TIME * 4, x, d.fly ? ft - 30 : ft - 8, i ? -1 : 1);
+        ctx.filter = 'none'; if (it.g.shiny) shinySparkle(x - 24, ft - 60, 48, 50, i);
+        label(sexSym(it.g), x, ft - 70, { align: 'center', size: 16, bold: true, color: i ? '#f8a5c2' : '#8fc3e0' });
+      }
+    });
+    if (pair) { const hx = (X(HUB_SPOTS.nests[0]) + X(HUB_SPOTS.nests[1])) / 2; label('❤', hx, ft - 56 + Math.sin(TIME * 3) * 4, { align: 'center', size: 18, color: '#ff80ab' }); }
+    const px = X(HUB_SPOTS.pedestal);
+    if (ped) drawSprite(ped, px, ft + 2, 1); else { ctx.fillStyle = '#8d8a84'; ctx.fillRect(px - 16, ft - 40, 32, 40); ctx.fillStyle = '#b0aca4'; ctx.fillRect(px - 20, ft - 44, 40, 6); }
+    if (pair && SAVE.den.ready) {   // the egg, glowing and wobbling
+      const ey = ft - (ped ? ped.height * PX : 44) - 14, wob = Math.sin(TIME * 8) * 0.12;
+      const g = ctx.createRadialGradient(px, ey, 2, px, ey, 40); g.addColorStop(0, 'rgba(255,240,180,0.6)'); g.addColorStop(1, 'rgba(255,240,180,0)'); ctx.fillStyle = g; ctx.fillRect(px - 40, ey - 40, 80, 80);
+      const egg = art('items/egg_' + pair[0].def.pet);
+      ctx.save(); ctx.translate(px, ey + 12); ctx.rotate(wob);
+      if (egg) { ctx.imageSmoothingEnabled = false; ctx.drawImage(egg, -egg.width, -egg.height * 2, egg.width * 2, egg.height * 2); }
+      else { ctx.fillStyle = '#f3e3c3'; ctx.beginPath(); ctx.ellipse(0, -12, 10, 13, 0, 0, 7); ctx.fill(); ctx.fillStyle = PETS[pair[0].def.pet].color; ctx.fillRect(-6, -16, 4, 4); ctx.fillRect(2, -8, 4, 4); }
+      ctx.restore();
+    }
+  }
+}
+function drawWardrobeProps(ft) {
+  const R = G.room;
+  const mirror = art('props/hub_mirror');
   for (const c of CLASS_ORDER) {
     const x = HUB_SPOTS.banners[c] * TILE, img = art('props/hub_banner_' + c), sel = G.cls === c;
     if (sel) { const gl = ctx.createRadialGradient(x, ft - 50, 4, x, ft - 50, 70); gl.addColorStop(0, CLASSES[c].color + '55'); gl.addColorStop(1, CLASSES[c].color + '00'); ctx.fillStyle = gl; ctx.fillRect(x - 70, ft - 120, 140, 120); }
     if (img) drawSprite(img, x, ft + 2, 1, { sy: 1 + Math.sin(TIME * 2 + x) * 0.01 }); else { ctx.fillStyle = CLASSES[c].color; ctx.fillRect(x - 14, ft - 90, 28, 50); ctx.fillStyle = '#4e342e'; ctx.fillRect(x - 2, ft - 96, 4, 96); }
   }
   if (mirror) drawSprite(mirror, HUB_SPOTS.mirror * TILE, ft + 2, 1); else { ctx.fillStyle = '#8d6e63'; rr(HUB_SPOTS.mirror * TILE - 16, ft - 76, 32, 76, 10); ctx.fill(); }
+  // the dye rack: bolts of cloth in every colour you can dye your outfit
+  const rack = art('props/dye_rack'), dx = HUB_SPOTS.dye * TILE;
+  if (rack) drawSprite(rack, dx, ft + 2, 1);
+  else { ctx.fillStyle = '#5d4037'; ctx.fillRect(dx - 34, ft - 80, 4, 80); ctx.fillRect(dx + 30, ft - 80, 4, 80); ctx.fillRect(dx - 34, ft - 80, 68, 4);
+    ['#c0392b', '#2e7d32', '#283593', '#37474f', '#f9a825', '#80deea'].forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(dx - 28 + i * 10, ft - 76, 8, 40 + (i % 2) * 10); }); }
+  const cur = DYES.find(d => d[0] === heroDyeId());
+  label(cur[1], dx, ft - 96, { align: 'center', size: 12, bold: true, color: PAL.gold });
 }
 // the bubble over whatever you're next to (drawn on top of everything, above both you and it)
 function drawHubBubble() {
@@ -1851,9 +2147,10 @@ function drawHubBubble() {
   let lines;
   if (s.kind === 'pet') {
     const d = s.pet.d, it = s.pet.item;
-    lines = [[d.name, '#5a2e0c', 'bold 15px'], [`${d.role} · level ${petLvl(it)}`, PAL.parchInk, '13px'], [petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
+    const g = it.g || {};
+    lines = [[(g.shiny ? '★ ' : '') + d.name + ' ' + sexSym(g), g.shiny ? '#8a5a00' : '#5a2e0c', 'bold 15px'], [`${d.role} · level ${petLvl(it)} · ${(NATURES[g.nat] || NATURES.calm).n}`, PAL.parchInk, '13px'], [`ATK ${grade(g.atk)[1]}  DEF ${grade(g.def)[1]}  HP ${grade(g.hp)[1]}  ·  bond ${Math.floor(g.bond || 0)}`, '#5a3a1a', '12px'], [petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
   } else if (s.kind === 'locked') lines = [['???', '#5a2e0c', 'bold 15px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Win a battle on its very first turn' : s.id === 'lakewyrm' ? 'Beat the Lake Wyrm on floor 30' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, PAL.parchInk, '13px']];
-  else lines = [[s.label, '#5a2e0c', 'bold 14px'], ['[E]', '#7a2e14', 'bold 13px']];
+  else lines = [[s.label, '#5a2e0c', 'bold 14px'], [s.kind === 'door' ? '[E] or [W]' : '[E]', '#7a2e14', 'bold 13px']];
   const top = Math.min(s.kind === 'pet' ? s.pet.y : s.y - 100, G.player.y) - 18 - lines.length * 17;
   const wdt = Math.max(...lines.map(([t, , f]) => { ctx.font = `${f} ${UI}`; return ctx.measureText(t).width; })) + 30;
   panel(s.x - wdt / 2, top, wdt, lines.length * 17 + 16, 'parch');
@@ -1863,15 +2160,15 @@ function drawHubBubble() {
 // the hub's screen overlay: who you are, controls, collection count, and the records board
 function drawHubHUD() {
   const have = ownedIds().length;
-  const who = `${CLASSES[G.cls].name} (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'})  ·  Pets: ${have} / ${PET_IDS.length}  ·  Team: ${petSlots.filter(Boolean).length}/3`;
+  const who = `${CLASSES[G.cls].name} (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'})  ·  ${HERD.length} animals, ${have}/${PET_IDS.length} species  ·  Team ${petSlots.filter(Boolean).length}/3`;
   ctx.font = `13px ${UI}`; panel(8, 6, Math.max(240, ctx.measureText(who).width + 40), 58, 'leather');
-  label('The Sanctuary', 24, 25, { title: true, size: 26, color: PAL.gold });
+  label(HUB_ROOMS[G.hubRoom || 'yard'].name, 24, 25, { title: true, size: 24, color: PAL.gold });
   label(who, 24, 47, { size: 13, color: PAL.cream });
   ctx.globalAlpha = 0.8;
-  label('A / D move  ·  W jump  ·  E use / pet  ·  pet beds: choose your team  ·  walk through the gate to start a run  ·  Esc title screen', W / 2, H - 12, { align: 'center', size: 12, color: PAL.cream });
+  label(HUB_ROOMS[G.hubRoom || 'yard'].hint + '  ·  P menu', W / 2, H - 12, { align: 'center', size: 12, color: PAL.cream });
   ctx.globalAlpha = 1;
   if (G.panel === 'records') {
-    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`],
+    const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`], ['Animals in your Sanctuary', HERD.length], ['Shinies found', r.shinies || 0], ['Animals bred', r.bred || 0],
       ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
     const bw = 400, bh = 96 + rows.length * 27, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10;
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
@@ -1886,6 +2183,9 @@ function drawHubHUD() {
     label('E or walk away to close', W / 2, by + bh - 18, { align: 'center', size: 12, color: '#6b4a2a' });
   }
   if (G.panel === 'team') drawRoster();
+  if (G.panel === 'trophies') drawTrophies();
+  if (G.panel === 'den') drawDen();
+  if (G.panel === 'newborn') drawNewborn();
   if (G.panel === 'starter') drawStarter();
   if (G.panel === 'acts') { if (G.actFlash) G.actFlash.t -= 1 / 60; drawActSelect(); }
   if (PK && PK.talent != null) drawTalents();
@@ -2364,6 +2664,7 @@ function bakeTerrain(R) {
   const tk = R.tileKey || R.type, tb = art('tiles/' + tk + '_block'), tt = art('tiles/' + tk + '_top');   // ChatGPT terrain blocks for this area
   for (let ty = 0; ty < R.rows; ty++) for (let tx = 0; tx < C; tx++) {
     const t = get(tx, ty), X = tx * TILE, Y = ty * TILE;
+    if (R.hubRoom && t === SOLID && ty < R.floorTop && (ty === 0 || tx === 0 || tx === C - 1)) continue;   // the Sanctuary's rooms: invisible walls and ceiling (the picture shows the room)
     if (t === SOLID && tb && tt) {
       const up = solidish(get(tx, ty - 1)), dn = solidish(get(tx, ty + 1)), lf = solidish(get(tx - 1, ty)), rt = solidish(get(tx + 1, ty));
       g.drawImage(up ? tb : tt, X, Y, TILE, TILE);            // walkable surfaces get the decorated "top" block
@@ -2580,6 +2881,10 @@ function drawParallax(R) {
   const img = art('bg/' + R.bgKey);
   ctx.fillStyle = R.theme.bg; ctx.fillRect(0, 0, W, H);
   if (!img) return;
+  if (R.hubRoom && R.hubRoom !== 'yard') {
+    const sh0 = BG_CROP[R.bgKey] || img.height; ctx.drawImage(img, 0, 0, img.width, sh0, 0, 0, W, R.bgKey === 'hub' ? R.floorTop * TILE + 4 : H);
+    ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); return;
+  }
   const sh = BG_CROP[R.bgKey] || img.height, bw = img.width * 3, bh = sh * 3;
   const fx = R.wpx > W ? G.cam.x / (R.wpx - W) : 0.5, fy = R.hpx > H ? G.cam.y / (R.hpx - H) : 1;
   ctx.drawImage(img, 0, 0, img.width, sh, Math.round(-(bw - W) * fx), Math.round(-(bh - H) * fy), bw, bh);
@@ -2731,7 +3036,7 @@ function updatePlayer(dt) {
   if (P.y > R.hpx + 100) { P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vy = 0; } // safety net
 
   // exit
-  if (G.hub) { if (G.mode === 'play' && overlap(P, exitRect(R))) { startRunFromHub(); if (G.hub) { P.x -= 40; } return; } if (G.panel === 'records' && Math.abs(P.vx) > 40) G.panel = null; }
+  if (G.hub) { if (G.mode === 'play' && G.hubRoom === 'yard' && overlap(P, exitRect(R))) { startRunFromHub(); if (G.hub) { P.x -= 40; } return; } if (G.panel === 'records' && Math.abs(P.vx) > 40) G.panel = null; }
   else if (G.mode === 'play' && overlap(P, exitRect(R)) && exitOpen()) {
     if (R.n >= FINAL_FLOOR && !G.endless) {
       G.mode = 'won'; G.wonT = 0; SFX.play('kill_boss'); logRun(true);
@@ -2764,7 +3069,7 @@ function updatePlayer(dt) {
     }
   }
   if (R.fire && !R.fire.used && !R.fire.hub && overlap(P, R.fire)) {
-    R.fire.used = true; for (const it of petSlots) if (it) RUN.petHp[it.def.pet] = 1; syncPets(); SFX.play('rest');
+    R.fire.used = true; for (const it of petSlots) if (it) RUN.petHp[it.pid] = 1; syncPets(); SFX.play('rest');
     showMsg('You rest by the fire: every pet is fully healed (even fainted ones).', 2.5);
   }
 }
@@ -3573,7 +3878,7 @@ function syncPets() {
   if (!G) return;
   G.pets = G.pets || [];
   const P = G.player, have = new Set(petSlots.filter(Boolean).map(i => i.def.pet));
-  const items = petSlots.filter(it => it && (runHp(it.def.pet) ?? 1) > 0);
+  const items = petSlots.filter(it => it && (runHp(it.pid) ?? 1) > 0);
   G.syn = Object.fromEntries(SYNERGIES.map(s => [s.id, s.pets.every(k => have.has(k))]));
   for (const it of petSlots) if (it) it.talV = it.talV || 0;
   G.team = teamMods();
@@ -3584,7 +3889,7 @@ function syncPets() {
                   ko: 0, cd: 0, atkT: 0, phase: rand(0, 6), onGround: false, inv: 0, slot: 0 });
     burst(P.x + P.w / 2, P.y, d.color, 12, 160);
   }
-  G.pets.forEach(p => { p.slot = petSlots.indexOf(p.item); p.maxHp = 1; p.hp = runHp(p.item.def.pet) ?? 1; });
+  G.pets.forEach(p => { p.slot = petSlots.indexOf(p.item); p.maxHp = 1; p.hp = runHp(p.item.pid) ?? 1; });
 }
 function petsEnterRoom() {
   const R = G.room;
@@ -3840,10 +4145,11 @@ function drawPets() {
     const y = p.d.fly && p.ko <= 0 ? p.y + p.h / 2 : p.y + p.h + 1;
     if (!p.d.fly || p.perched) footShadow(cx, p.y + p.h, p.w * 0.5, p.onGround || p.perched ? 0.8 : 0.4);
     const pf = p.vface ?? p.face;
-    if (p.item && PET_ITEMS[k] === p.item) o.scale = PX * babyScale(p.item);   // your babies grow up as they level
-    ctx.filter = standInTint(k, sheet);
+    if (p.item && p.item.pid) o.scale = PX * babyScale(p.item);   // your babies grow up as they level
+    ctx.filter = petFilter(k, sheet, p.item);
     if (!drawAnim(sheet, anim, i, cx, y, pf, o) && !drawAnim(speciesSheet(k), p.d.fly ? 'fly' : 'idle', i, cx, y, pf, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
     ctx.filter = 'none';
+    if (p.item && p.item.g && p.item.g.shiny) shinySparkle(p.x - 6, p.y - 8, p.w + 12, p.h + 4, p.slot || 0);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     if (p.ko > 0) { ctx.fillStyle = '#ffeb3b'; ctx.font = `bold 12px ${UI}`; ctx.fillText('z', cx + 8 + Math.sin(TIME * 3) * 3, p.y - 6 - (TIME * 10) % 10); }
     else if (!p.hub && p.hp < p.maxHp) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(cx - 12, p.y - 7, 24, 3); ctx.fillStyle = '#81c784'; ctx.fillRect(cx - 12, p.y - 7, 24 * p.hp / p.maxHp, 3); }
@@ -3936,7 +4242,7 @@ function drawWild() {
 function hurtTeam(frac, why) {
   let any = false;
   for (const it of petSlots) if (it) {
-    const k = it.def.pet, cur = runHp(k) ?? 1; if (cur <= 0) continue;
+    const k = it.pid, cur = runHp(k) ?? 1; if (cur <= 0) continue;
     RUN.petHp[k] = Math.max(0.01, cur - frac); any = true;
   }
   const P = G.player; P.inv = 0.9; P.hurtT = 0.22;
@@ -3945,7 +4251,7 @@ function hurtTeam(frac, why) {
   return any;
 }
 function healTeam(frac) {
-  for (const it of petSlots) if (it) { const k = it.def.pet; RUN.petHp[k] = Math.min(1, (runHp(k) ?? 1) <= 0 ? frac : (runHp(k) ?? 1) + frac); }
+  for (const it of petSlots) if (it) { const k = it.pid; RUN.petHp[k] = Math.min(1, (runHp(k) ?? 1) <= 0 ? frac : (runHp(k) ?? 1) + frac); }
   syncPets();
 }
 
@@ -3956,32 +4262,110 @@ function healTeam(frac) {
 //  Your turn: each pet picks an ability (and target); the hero may use a consumable. Then every foe acts.
 // =====================================================================
 // ---------- your pet collection (saved forever) ----------
-const PET_ITEMS = {};   // species -> its item (level, xp and talents live on it)
-const owned = k => !!PET_ITEMS[k];
-const ownedIds = () => PET_IDS.filter(owned);
-function petItem(k) {
-  if (!PET_ITEMS[k]) { const it = makeItem('pet_' + k); it.plvl = 1; it.xp = 0; it.talents = {}; PET_ITEMS[k] = it; }
-  return PET_ITEMS[k];
+// ---------- every animal is an individual: its own nature, rolled stats, bond, sex and maybe a shiny coat ----------
+// Natures nudge one stat up and another down. Attack, defense and health are rolled 0-100 (shown as grades F to S)
+// and scale the species' stats from -15% to +15%. Bond (0-100, starts at 0) grows over time and makes a pet dodge
+// more (up to +10%) and find its mark through misses and dodges (up to 30% of the time).
+const NATURES = {
+  calm:     { n: 'Calm',     d: 'Balanced: no strengths, no weaknesses' },
+  brave:    { n: 'Brave',    atk: 0.10, def: -0.10, d: '+10% attack, -10% defense' },
+  fierce:   { n: 'Fierce',   atk: 0.10, hp: -0.10, d: '+10% attack, -10% health' },
+  stubborn: { n: 'Stubborn', def: 0.10, atk: -0.10, d: '+10% defense, -10% attack' },
+  sturdy:   { n: 'Sturdy',   def: 0.10, crit: -0.05, d: '+10% defense, -5% crit chance' },
+  hardy:    { n: 'Hardy',    hp: 0.10, def: -0.10, d: '+10% health, -10% defense' },
+  hearty:   { n: 'Hearty',   hp: 0.10, atk: -0.08, d: '+10% health, -8% attack' },
+  lucky:    { n: 'Lucky',    crit: 0.06, hp: -0.08, d: '+6% crit chance, -8% health' },
+  nimble:   { n: 'Nimble',   dodge: 0.05, hp: -0.10, d: '+5% dodge chance, -10% health' },
+  jolly:    { n: 'Jolly',    crit: 0.03, dodge: 0.03, def: -0.10, d: '+3% crit and dodge, -10% defense' },
+  gentle:   { n: 'Gentle',   bondX: 0.5, atk: -0.08, d: 'bond grows 50% faster, -8% attack' },
+  loyal:    { n: 'Loyal',    bondX: 0.3, crit: -0.04, d: 'bond grows 30% faster, -4% crit chance' },
+};
+const NATURE_IDS = Object.keys(NATURES);
+const GRADES = [[90, 'S', '#ffd36b'], [75, 'A', '#a9d46b'], [60, 'B', '#81d4fa'], [45, 'C', '#e8dcc6'], [30, 'D', '#ffcc80'], [15, 'E', '#ff9e7a'], [0, 'F', '#ef7a6e']];
+const grade = v => GRADES.find(g => (v || 0) >= g[0]);
+const statMul = v => 1 + (clamp(v || 0, 0, 100) - 50) / 50 * 0.15;   // 0 -> -15%, 50 -> +0%, 100 -> +15%
+const SHINY_ODDS = { wild: 0.02, bred: [0.02, 0.4, 0.9] };            // wild drops · bred from 0, 1 or 2 shiny parents
+const rollStat = () => Math.round((Math.random() + Math.random() + Math.random()) / 3 * 100);   // a bell curve: most land around C, very few F or S
+function rollGenes(o = {}) {
+  return { nat: o.nat || pick(NATURE_IDS), atk: o.atk ?? rollStat(), def: o.def ?? rollStat(), hp: o.hp ?? rollStat(), bond: 0,
+           sex: o.sex || (Math.random() < 0.5 ? 'm' : 'f'), shiny: o.shiny ?? Math.random() < SHINY_ODDS.wild };
 }
+const sexSym = g => (g && g.sex === 'f' ? '♀' : '♂');
+const gradeLine = g => ['atk', 'def', 'hp'].map(s => grade(g[s])[1]).join('·');
+function addBond(it, n) {   // bond only ever grows, up to 100; Gentle and Loyal animals warm up faster
+  if (!it || !it.g) return 0;
+  const N = NATURES[it.g.nat] || {}, b = it.g.bond || 0; it.g.bond = Math.min(100, b + n * (1 + (N.bondX || 0)));
+  return it.g.bond - b;
+}
+// shiny animals: a rare recolour of the species, with a little sparkle
+const SHINY_HUE = k => { let h = 7; for (const c of k) h = (h * 31 + c.charCodeAt(0)) >>> 0; return 70 + h % 220; };
+const shinyFilter = k => `hue-rotate(${SHINY_HUE(k)}deg) saturate(1.45) brightness(1.08)`;
+function petFilter(k, sheet, it) {
+  const a = standInTint(k, sheet), s = it && it.g && it.g.shiny ? shinyFilter(k) : '';
+  return a === 'none' ? (s || 'none') : s ? a + ' ' + s : a;
+}
+function shinySparkle(x, y, w, h, seed = 0, sc = 1) {   // two twinkles that drift over a shiny animal
+  for (let i = 0; i < 2; i++) {
+    const t = TIME * 1.3 + seed * 1.7 + i * 0.5, ph = t % 1, k = Math.sin(ph * Math.PI);
+    if (k <= 0.05) continue;
+    const n = Math.floor(t) * 7 + i * 13 + seed * 3, px = x + ((n * 37) % 100) / 100 * w, py = y + ((n * 61) % 100) / 100 * h, s = Math.round((2 + 3 * k) * sc);
+    const img = art('props/sparkle_' + (n % 4));
+    ctx.save(); ctx.globalAlpha = 0.9 * k;
+    if (img) drawSprite(img, px, py + img.height * PX / 2, 1, { scale: PX * 0.6 * sc * (0.6 + 0.6 * k) });
+    else { ctx.fillStyle = i ? '#fff8e1' : '#ffe082'; ctx.fillRect(Math.round(px - s), Math.round(py), s * 2 + 1, 1); ctx.fillRect(Math.round(px), Math.round(py - s), 1, s * 2 + 1); }
+    ctx.restore();
+  }
+}
+// your animals (each one an item: level, xp, talents and its traits in it.g)
+const HERD = [];
+const owned = k => HERD.some(it => it.def.pet === k);
+const ownedIds = () => PET_IDS.filter(owned);
+const herdOf = k => HERD.filter(it => it.def.pet === k);
+const PET_ITEMS = new Proxy({}, {   // species -> your highest-level animal of that species (for older code and tests)
+  get: (_, k) => typeof k === 'string' ? herdOf(k).sort((a, b) => petLvl(b) - petLvl(a))[0] : undefined,
+  has: (_, k) => owned(k), ownKeys: () => ownedIds(),
+  deleteProperty: (_, k) => { for (let i = HERD.length - 1; i >= 0; i--) if (HERD[i].def.pet === k) HERD.splice(i, 1); return true; },
+  getOwnPropertyDescriptor: (_, k) => owned(k) ? { value: herdOf(k)[0], enumerable: true, configurable: true } : undefined,
+});
+let pidN = 0;
+const newPid = () => Date.now().toString(36) + '-' + (pidN++).toString(36) + Math.floor(Math.random() * 46656).toString(36);
+function newPet(k, lvl = 1, g) {
+  const it = makeItem('pet_' + k); it.pid = newPid(); it.plvl = lvl; it.xp = 0; it.talents = {}; it.talV = 1; it.g = g || rollGenes();
+  HERD.push(it); return it;
+}
+function petItem(k) { return PET_ITEMS[k] || newPet(k); }
+// pets from before animals were individuals keep everything, and get fair (never poor) traits
+function migratedGenes() { const g = rollGenes({ shiny: false }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
 function loadPets() {
-  for (const k in PET_ITEMS) delete PET_ITEMS[k];
-  for (const [k, r] of Object.entries(SAVE.pets || {})) if (ITEMS['pet_' + k]) { const it = petItem(k); it.plvl = clamp(r.lvl || 1, 1, PET_MAX_LVL); it.xp = r.xp || 0; it.talents = r.talents || {}; it.talV = 1; }
+  HERD.length = 0;
+  for (const r of SAVE.herd || []) if (r && ITEMS['pet_' + r.k]) {
+    const it = makeItem('pet_' + r.k);
+    Object.assign(it, { pid: r.pid || newPid(), plvl: clamp(r.lvl || 1, 1, PET_MAX_LVL), xp: r.xp || 0, talents: r.talents || {}, talV: 1, g: Object.assign(rollGenes(), r.g || {}) });
+    HERD.push(it);
+  }
+  const legacy = {};
+  if (!HERD.length && SAVE.pets && Object.keys(SAVE.pets).length) {   // an older save: each species you had becomes one animal
+    for (const [k, r] of Object.entries(SAVE.pets)) if (ITEMS['pet_' + k] && r) { const it = newPet(k, clamp(r.lvl || 1, 1, PET_MAX_LVL), migratedGenes()); it.xp = r.xp || 0; it.talents = r.talents || {}; legacy[k] = it; }
+  }
   petSlots = [null, null, null];
-  (SAVE.team || []).forEach((k, i) => { if (i < 3 && k && PET_ITEMS[k]) petSlots[i] = PET_ITEMS[k]; });
-  if (!petSlots.some(Boolean)) ownedIds().slice(0, 3).forEach((k, i) => { petSlots[i] = PET_ITEMS[k]; });
+  (SAVE.team || []).forEach((id, i) => { if (i < 3 && id) petSlots[i] = HERD.find(it => it.pid === id) || legacy[id] || null; });
+  if (!petSlots.some(Boolean)) HERD.slice(0, 3).forEach((it, i) => { petSlots[i] = it; });
+  if (Object.keys(legacy).length) savePets();
 }
 function savePets() {
-  SAVE.pets = Object.fromEntries(Object.entries(PET_ITEMS).map(([k, it]) => [k, { lvl: petLvl(it), xp: Math.floor(it.xp || 0), talents: it.talents || {} }]));
-  SAVE.team = petSlots.map(it => it ? it.def.pet : null);
+  SAVE.herd = HERD.map(it => ({ pid: it.pid, k: it.def.pet, lvl: petLvl(it), xp: Math.floor(it.xp || 0), talents: it.talents || {}, g: it.g }));
+  SAVE.team = petSlots.map(it => (it ? it.pid : null));
   saveData();
 }
 // a new animal joins your Sanctuary (it goes straight into the team if there's room)
 // newcomers grow up fast in the Sanctuary: they start at half the level of your strongest pet
-const newcomerLevel = (bonus = 0) => Math.max(1, Math.floor(Math.max(0, ...Object.values(PET_ITEMS).map(petLvl)) / 2) + bonus);
-function unlockPet(k, lvl = 1) {
-  const fresh = !owned(k), it = petItem(k);
-  if (fresh) { it.plvl = lvl; it.xp = 0; SAVE.coll[k] = (SAVE.coll[k] || 0) + 1; SAVE.rec.rescues++; if (!petSlots.includes(it)) addPet(it); }
-  savePets(); return fresh;
+const newcomerLevel = (bonus = 0) => Math.max(1, Math.floor(Math.max(0, ...HERD.map(petLvl)) / 2) + bonus);
+function unlockPet(k, lvl = 1, g) {
+  const fresh = !owned(k), it = newPet(k, lvl, g);
+  SAVE.coll[k] = (SAVE.coll[k] || 0) + 1; if (fresh) SAVE.rec.rescues++;
+  if (it.g.shiny) SAVE.rec.shinies = (SAVE.rec.shinies || 0) + 1;
+  if (!petSlots.includes(it)) addPet(it);
+  savePets(); return it;
 }
 const babyScale = it => 0.72 + 0.28 * Math.min(1, (petLvl(it) - 1) / 9);   // babies grow up over their first 10 levels
 const XP_NEED = L => 18 + 10 * (L - 1) + Math.round(0.6 * (L - 1) * (L - 1));   // levels come quickly at first, slowly near 30
@@ -3994,8 +4378,8 @@ function givePetXp(it, n) {
   return ups;
 }
 // HP carries over between fights during a run (fainted pets get up with a little HP after a win)
-const runHp = k => RUN.petHp[k];
-function teamAlive() { return petSlots.filter(it => it && (runHp(it.def.pet) ?? 1) > 0); }
+const runHp = id => RUN.petHp[id];   // keyed by each animal's id
+function teamAlive() { return petSlots.filter(it => it && (runHp(it.pid) ?? 1) > 0); }
 
 // ---------- building the fighters ----------
 function statLine(k, L) {
@@ -4016,9 +4400,22 @@ function petUnit(it, slot, n) {
     regenPct: s.regen + (f.regen || 0) + (M.regen || 0) + T.regen, thorns: s.thorns + (M.thorns || 0), dr: front ? s.frontDR : 0,
     abil: BS[k].abil.concat(M.ults || []), cd: {}, st: {}, slot, scale: babyScale(it),
   };
-  const frac = runHp(k); u.hp = frac === undefined ? u.maxHp : Math.max(0, Math.round(u.maxHp * frac));
+  applyGenes(u, it);
+  const frac = runHp(it.pid); u.hp = frac === undefined ? u.maxHp : Math.max(0, Math.round(u.maxHp * frac));
   u.fainted = u.hp <= 0;
   return u;
+}
+// an animal's own traits on top of its species, level, talents and items
+function applyGenes(u, it) {
+  const g = it && it.g; if (!g) return;
+  const N = NATURES[g.nat] || {};
+  u.maxHp = Math.max(1, Math.round(u.maxHp * statMul(g.hp) * (1 + (N.hp || 0))));
+  u.atk *= statMul(g.atk) * (1 + (N.atk || 0));
+  u.def *= statMul(g.def) * (1 + (N.def || 0));
+  u.crit += N.crit || 0;
+  u.dodge = Math.max(0, (N.dodge || 0) + (g.bond || 0) * 0.001);   // up to +10% dodge at bond 100
+  u.hitB = (g.bond || 0) * 0.003;                                    // up to 30% of misses and dodges still land
+  u.shiny = !!g.shiny;
 }
 function foeUnit(k, L, opt = {}) {
   const ramp = opt.boss ? 1 : Math.min(1, 0.8 + 0.07 * ((G && G.roomNum || 1) - 1));   // the first floors go easy on a new team
@@ -4099,7 +4496,7 @@ function buildFoes(ent, count) {
 let B = null;
 const BX = { ally: [505, 375, 245], foe: [610, 740, 870], hero: 110, ground: 404 };
 function startBattle(ent) {
-  const team = petSlots.filter(Boolean), alive = team.filter(it => (runHp(it.def.pet) ?? 1) > 0);
+  const team = petSlots.filter(Boolean), alive = team.filter(it => (runHp(it.pid) ?? 1) > 0);
   if (!alive.length) return;
   stats = computeStats(); G.team = teamMods();
   const allies = petSlots.map((it, i) => it ? petUnit(it, i, team.length) : null).filter(Boolean);
@@ -4158,9 +4555,11 @@ function atkOf(u) { return u.atk * (u.st.str ? 1.3 : 1) * (u.st.weak ? 0.7 : 1) 
 function dealDamage(src, tgt, pow, opt = {}) {
   if (tgt.fainted) return 0;
   if (!opt.dot) {
-    if (src && src.st.blind && Math.random() < 0.5) { bText(tgt, 'MISS', '#b0bec5', 16); return 0; }
-    if (tgt.st.evade) { if (--tgt.st.evade.v <= 0) delete tgt.st.evade; bText(tgt, 'DODGE', '#b39ddb', 16); return 0; }
-    if (tgt.M.evade && Math.random() < tgt.M.evade) { bText(tgt, 'DODGE', '#b39ddb', 16); return 0; }
+    const sure = !!(src && src.hitB && Math.random() < src.hitB);   // a well-bonded pet finds its mark anyway
+    if (src && src.st.blind && Math.random() < 0.5) { if (sure) bText(src, 'FOCUSED', '#ffd36b', 12); else { bText(tgt, 'MISS', '#b0bec5', 16); return 0; } }
+    if (tgt.st.evade && !sure) { if (--tgt.st.evade.v <= 0) delete tgt.st.evade; bText(tgt, 'DODGE', '#b39ddb', 16); return 0; }
+    const dodge = (tgt.M.evade || 0) + (tgt.dodge || 0);
+    if (dodge > 0 && !sure && Math.random() < dodge) { bText(tgt, 'DODGE', '#b39ddb', 16); return 0; }
   }
   let d = opt.flat !== undefined ? opt.flat : atkOf(src) * pow * rand(0.9, 1.1);
   let crit = false;
@@ -4472,16 +4871,15 @@ function winBattle() {
     const gain = Math.round(xpBase * (u.fainted ? 0.5 : 1)), ups = givePetXp(u.it, gain);
     R.xp.push({ u, gain, ups });
     if (u.fainted) { u.fainted = false; u.hp = Math.max(1, Math.round(u.maxHp * 0.15)); }
-    RUN.petHp[u.k] = ups.length ? 1 : u.hp / u.maxHp;   // a level-up heals fully
+    RUN.petHp[u.it.pid] = ups.length ? 1 : u.hp / u.maxHp;   // a level-up heals fully
+    R.bond = (R.bond || 0) + addBond(u.it, B.boss ? 3 : 1);   // fighting side by side builds bond
   }
   // offspring: a sure thing from animals you don't own yet; sometimes from ones you do
   const kinds = [...new Set(B.foes.filter(f => !f.boss && !f.summoned && f.k !== 'shade' && f.k !== 'elder' && BS[f.k].off).map(f => f.k))];   // the Elder Egg stays the floor-20 achievement
   for (const k of kinds) {
     const pending = pack.some(it => it.def.egg === k) || (PK && PK.staging.some(it => it.def.egg === k));
     if (!owned(k) && !pending) giveOffspring(k, R);
-    else if (owned(k) && Math.random() < (G.cls === 'rogue' ? 0.5 : 0.25) + stats.offspring) {
-      const it = PET_ITEMS[k], bonus = Math.round(XP_NEED(petLvl(it)) * 0.35); R.dupes.push({ k, bonus, ups: givePetXp(it, bonus) });
-    }
+    else if (owned(k) && Math.random() < (G.cls === 'rogue' ? 0.5 : 0.25) + stats.offspring) giveOffspring(k, R);   // another of its kind: a new animal with its own traits
   }
   if (B.boss === 'shadow') {
     if (B.turn <= 3) { R.ach.push('Defeat the Shadow Wolf in three turns'); if (!SAVE.ach.shadow) { SAVE.ach.shadow = true; } if (!owned('shadowwolf')) giveOffspring('shadowwolf', R); }
@@ -4491,7 +4889,7 @@ function winBattle() {
   }
   if (B.boss === 'wyrm') {   // the final boss: its Wyrmling joins you on the spot (the run ends here, so no egg to carry)
     R.ach.push('Defeat the Lake Wyrm'); SAVE.ach.wyrm = true;
-    if (!owned('lakewyrm')) { unlockPet('lakewyrm', newcomerLevel()); R.offspring.push('lakewyrm'); }
+    if (!owned('lakewyrm')) R.offspring.push(unlockPet('lakewyrm', newcomerLevel()));
   }
   if (B.turn <= 1) {   // a whole enemy team beaten on the first turn
     R.ach.push('Defeat an enemy team on the first turn of battle'); SAVE.ach.first = true;
@@ -4501,22 +4899,25 @@ function winBattle() {
   for (const it of pack.filter(i => i.def.egg)) {
     it.wins = (it.wins || 0) + 1;
     const need = Math.max(1, 2 - (stats.incubator ? 1 : 0) - (G.cls === 'rogue' ? 1 : 0));
-    if (it.wins >= need) { pack.splice(pack.indexOf(it), 1); unlockPet(it.def.egg, newcomerLevel(stats.incubator ? 2 : 0)); R.hatched.push(it.def.egg); }
+    if (it.wins >= need) { pack.splice(pack.indexOf(it), 1); R.hatched.push(unlockPet(it.def.egg, newcomerLevel(stats.incubator ? 2 : 0), it.g)); }
   }
   stats = computeStats(); savePets();
   B.rewards = R;
   G.battlesWon = (G.battlesWon || 0) + 1; G.kills += B.foes.length;
 }
+// 'a shiny Fox Kit ♀ (Brave, B·A·C)'
+const petBlurb = it => { const g = it.g || {}; return `${g.shiny ? 'A ★ SHINY ' : 'A '}${BS[it.def.pet].baby} ${sexSym(g)} (${(NATURES[g.nat] || NATURES.calm).n}, ${gradeLine(g)})`; };
 function giveOffspring(k, R) {
-  if (BS[k].off === 'egg') { const it = makeItem('egg_' + k); it.wins = 0; R.eggs.push(it); }
-  else { unlockPet(k, newcomerLevel()); R.offspring.push(k); }
+  const g = rollGenes();   // a brand-new animal: its own nature, stats, sex, and a small chance to be shiny
+  if (BS[k].off === 'egg') { const it = makeItem('egg_' + k); it.wins = 0; it.g = g; R.eggs.push(it); }
+  else R.offspring.push(unlockPet(k, newcomerLevel(), g));
 }
 function loseBattle() { B.phase = 'lost'; B.t = 0; SFX.play('death'); }
 function endBattle() {
   const R = B.rewards, ent = B.ent, lost = B.phase === 'lost';
   B = null;
   if (lost) {
-    for (const it of petSlots) if (it) RUN.petHp[it.def.pet] = 0;
+    for (const it of petSlots) if (it) RUN.petHp[it.pid] = 0;
     savePets(); G.mode = 'dead'; G.deadT = 0; logRun(false);
     if (G.roomNum > BEST) { BEST = G.roomNum; saveBest(BEST); G.newBest = true; }
     return;
@@ -4760,7 +5161,7 @@ function drawVsRow(list, x0, face) {
   list.forEach((u, i) => {
     const cx = x0 + i * 112, sheet = unitSheet(u), fly = unitFly(u), fr = (animFrames(sheet, fly ? 'fly' : 'idle') || animFrames(sheet, 'idle') || [])[0], aS = ANIM_SCALE[sheet] || 1;
     const sc = fr ? Math.min(2.6, 62 / (fr[3] * aS), 92 / (fr[2] * aS)) : 2.4;
-    ctx.filter = u.tint || standInTint(u.k, sheet);
+    ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet));
     drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 5 + i, cx, fly ? 238 : 268, face, { scale: sc });
     ctx.filter = 'none';
     label(fitText(u.name, 108), cx, 292, { align: 'center', size: 13, bold: true, color: u.side === 'ally' ? PAL.cream : u.elite ? '#ffb74d' : '#ffccbc' });
@@ -5249,11 +5650,12 @@ function drawBattleUnit(u) {
   if (down) o.alpha = Math.max(0.25, 1 - u.faintT * 2);
   if (hurt) o.flash = true;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, BX.ground + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
-  ctx.filter = standInTint(u.k, sheet);
+  ctx.filter = u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet);
   const anim = down ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = down ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
   if (!drawAnim(sheet, anim, fr, x, y, u.face, o) && !drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
     ctx.fillStyle = (PETS[u.k] || {}).color || '#888'; rr(x - 14 * s, y - 24 * s, 28 * s, 24 * s, 6); ctx.fill();
   }
+  if (u.shiny && !down) { const r = unitRect(u); ctx.filter = 'none'; shinySparkle(r.x, r.y, r.w, r.h, u.slot || 0, 1.3); }
   ctx.filter = 'none';
   if (down) return;
   // name, HP bar and statuses
@@ -5281,7 +5683,7 @@ function drawBattle() {
   ctx.fillStyle = R.theme.tile[0]; ctx.fillRect(0, BX.ground, W, H - BX.ground); ctx.fillStyle = R.theme.tile[3]; ctx.fillRect(0, BX.ground, W, 4);
   // the hero, behind the pets
   const hs = heroSheet(G.cls);
-  drawAnim(hs, 'idle', B.t * 5, BX.hero + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 });
+  ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, BX.hero + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
   B.heroAnim = Math.max(0, (B.heroAnim || 0) - 1 / 60);
   ctx.save(); if (B.shakeT > 0) ctx.translate(rand(-1, 1) * (B.shakeA || 4), rand(-1, 1) * (B.shakeA || 4) * 0.6);
   for (const u of [...B.allies, ...B.foes]) drawBattleUnit(u);
@@ -5358,9 +5760,10 @@ function drawRewards(R) {
   for (const a of R.ach) line(`★ ACHIEVEMENT: ${a}!`, PAL.gold);
   ctx.font = `13px ${UI}`;
   if (R.unicorn) line('The unicorn finds you formidable in battle and joins your Sanctuary!', '#f8bbd0');
-  for (const k of R.offspring) line(`New pet! A ${BS[k].baby} joins your Sanctuary.`, PAL.good);
+  for (const it of R.offspring) line(`New pet! ${petBlurb(it)} joins your Sanctuary.`, it.g && it.g.shiny ? PAL.gold : PAL.good);
+  if (R.bond) line(`Your team's bond grows (+${Math.round(R.bond * 10) / 10}).`, '#f8bbd0');
   for (const it of R.eggs) line(`The ${PETS[it.def.egg].name} left an egg: ${it.def.name}. Carry it to hatch it!`, PAL.gold);
-  for (const k of R.hatched) line(`An egg hatched! A ${BS[k].baby} joins your Sanctuary.`, PAL.good);
+  for (const it of R.hatched) line(`An egg hatched! ${petBlurb(it)} joins your Sanctuary.`, it.g && it.g.shiny ? PAL.gold : PAL.good);
   for (const d of R.dupes) line(`Another ${BS[d.k].baby}: your ${PETS[d.k].name} gains +${d.bonus} XP.`, PAL.sky);
   ctx.textAlign = 'right'; ctx.font = `12px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillText('Enter or click to continue', W - 14, H - 10);
 }
@@ -5372,25 +5775,27 @@ let rosterSel = 0;
 function rosterSlotRect(i) { return { x: ROSTER.x + 170 + i * 165, y: ROSTER.y + 56, w: 155, h: 110 }; }
 const ROSTER_GRID = { x: ROSTER.x + 14, y: ROSTER.y + 208, w: ROSTER.w - 42, h: ROSTER.h - 208 - 54 };   // the scrolling list of every pet you own
 let rosterScroll = 0, rosterDrag = null;
-const rosterMax = () => Math.max(0, Math.ceil(ownedIds().length / 7) * 112 + 6 - ROSTER_GRID.h);
+const rosterList = () => HERD.slice().sort((a, b) => PET_IDS.indexOf(a.def.pet) - PET_IDS.indexOf(b.def.pet) || petLvl(b) - petLvl(a));   // grouped by species, strongest first
+const rosterMax = () => Math.max(0, Math.ceil(HERD.length / 7) * 112 + 6 - ROSTER_GRID.h);
 function rosterCardRect(i) { const c = i % 7, r = Math.floor(i / 7); return { x: ROSTER.x + 20 + c * 112, y: ROSTER_GRID.y + 4 + r * 112 - rosterScroll, w: 106, h: 104 }; }
 const ROSTER_BAR = () => ({ x: ROSTER_GRID.x + ROSTER_GRID.w + 6, y: ROSTER_GRID.y + 2, w: 8, h: ROSTER_GRID.h - 4 });
 function rosterThumb() { const b = ROSTER_BAR(), M = rosterMax(), th = Math.max(28, b.h * ROSTER_GRID.h / (ROSTER_GRID.h + M)); return { x: b.x, y: b.y + (M ? (b.h - th) * rosterScroll / M : 0), w: b.w, h: th }; }
 function scrollRoster(dy) { rosterScroll = clamp(rosterScroll + dy, 0, rosterMax()); }
 const rosterOpen = () => !!G && ((!!PK && PK.roster && PK.talent == null) || (G.hub && G.panel === 'team' && !(PK && PK.talent != null)));
 function drawPetCard(it, r, opt = {}) {
-  const k = it.def.pet, d = PETS[k], hp = runHp(k) ?? 1, inTeam = petSlots.includes(it);
+  const k = it.def.pet, d = PETS[k], hp = runHp(it.pid) ?? 1, inTeam = petSlots.includes(it), g = it.g || {};
   panel(r.x, r.y, r.w, r.h, 'dark'); ctx.fillStyle = opt.sel ? 'rgba(255,211,107,0.16)' : opt.over ? 'rgba(255,230,180,0.08)' : 'rgba(0,0,0,0)'; rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.fill();
   ctx.strokeStyle = opt.sel ? PAL.gold : inTeam && !opt.slot ? PAL.good : 'rgba(255,255,255,0.15)'; ctx.lineWidth = opt.sel || (inTeam && !opt.slot) ? 2 : 1; ctx.stroke();
   // the pet's portrait: shrunk to fit the card if it's a big one, and never drawn past the card's edge
   const sheet = speciesSheet(k), anim = d.fly ? 'fly' : 'idle', fr = (animFrames(sheet, anim) || [])[0], aS = ANIM_SCALE[sheet] || 1;
   let sc = PX * 1.15 * babyScale(it); if (fr) sc = Math.min(sc, (r.w - 12) / (fr[2] * aS), (r.h - 40) / (fr[3] * aS));
-  ctx.save(); ctx.beginPath(); ctx.rect(r.x + 3, r.y + 3, r.w - 6, r.h - 6); ctx.clip(); ctx.filter = standInTint(k, sheet);
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x + 3, r.y + 3, r.w - 6, r.h - 6); ctx.clip(); ctx.filter = petFilter(k, sheet, it);
   drawAnim(sheet, anim, TIME * 5 + r.x, r.x + r.w / 2, d.fly ? r.y + r.h * 0.42 : r.y + r.h * 0.62, 1, { scale: sc });
-  ctx.filter = 'none'; ctx.restore();
+  ctx.filter = 'none'; if (g.shiny) shinySparkle(r.x + 10, r.y + 8, r.w - 20, r.h - 46, r.x * 0.01, 0.8); ctx.restore();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `bold 13px ${UI}`; ctx.fillStyle = RARITY[it.def.rarity].c; ctx.fillText(fitText(it.def.name, r.w - 8), r.x + r.w / 2, r.y + r.h - 28);
-  ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(fitText(`Lv${petLvl(it)} ${d.role}${talentPoints(it) > 0 ? ' ▲' : ''}`, r.w - 8), r.x + r.w / 2, r.y + r.h - 14);
+  ctx.font = `bold 13px ${UI}`; ctx.fillStyle = g.shiny ? PAL.gold : RARITY[it.def.rarity].c; ctx.fillText(fitText((g.shiny ? '★' : '') + it.def.name, r.w - 8), r.x + r.w / 2, r.y + r.h - 30);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(fitText(`Lv${petLvl(it)} ${sexSym(g)} ${gradeLine(g)}${talentPoints(it) > 0 ? ' ▲' : ''}`, r.w - 8), r.x + r.w / 2, r.y + r.h - 15);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(r.x + 10, r.y + r.h - 6, r.w - 20, 3); ctx.fillStyle = '#f48fb1'; ctx.fillRect(r.x + 10, r.y + r.h - 6, (r.w - 20) * (g.bond || 0) / 100, 3);   // bond
   if (hp < 1) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(r.x + 10, r.y + 6, r.w - 20, 5); ctx.fillStyle = hp <= 0 ? '#555' : '#66bb6a'; ctx.fillRect(r.x + 10, r.y + 6, (r.w - 20) * Math.max(0, hp), 5); }
   if (inTeam && !opt.slot) { ctx.font = `bold 10px ${UI}`; ctx.fillStyle = PAL.good; ctx.textAlign = 'right'; ctx.fillText(['FRONT', 'MID', 'BACK'][petSlots.indexOf(it)], r.x + r.w - 6, r.y + 16); }
 }
@@ -5398,7 +5803,7 @@ function drawRoster() {
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
   panel(ROSTER.x, ROSTER.y, ROSTER.w, ROSTER.h, 'leather');
   label('Your Pets', ROSTER.x + 26, ROSTER.y + 30, { title: true, size: 32, color: PAL.gold });
-  ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'left'; wrap('Click a slot, then a pet to put it there. Click a pet in its own slot to bench it. Right-click any pet for its talents.', ROSTER.x + 190, ROSTER.y + 22, ROSTER.w - 220, 15);
+  ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'left'; wrap('Click a slot, then a pet to put it there  ·  right-click a pet: talents', ROSTER.x + 220, ROSTER.y + 24, ROSTER.w - 250, 15);
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = PAL.good;
   ['FRONT  (hit most often)', 'MIDDLE', 'BACK'].forEach((l, i) => { const r = rosterSlotRect(i); ctx.textAlign = 'center'; ctx.fillText(l, r.x + r.w / 2, r.y - 10); });
   for (let i = 0; i < 3; i++) {
@@ -5408,12 +5813,12 @@ function drawRoster() {
   }
   const act = SYNERGIES.filter(sy => syn(sy.id));
   ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(act.length ? 'Synergies: ' + act.map(sy => `${sy.icon} ${sy.name} — ${sy.txt}`).join('   ') : '', ROSTER.x + 24, ROSTER.y + 186);
-  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(`All your pets (${ownedIds().length} of ${PET_IDS.length})`, ROSTER.x + 24, ROSTER.y + 202);
+  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(`Your animals (${HERD.length})  ·  ${ownedIds().length} of ${PET_IDS.length} species`, ROSTER.x + 24, ROSTER.y + 202);
   rosterScroll = clamp(rosterScroll, 0, rosterMax());
   if (rosterDrag) { const b = ROSTER_BAR(), th = rosterThumb().h; rosterScroll = clamp((mouse.y - rosterDrag.off - b.y) / Math.max(1, b.h - th) * rosterMax(), 0, rosterMax()); }
   const Gd = ROSTER_GRID, inGrid = inRect(mouse, Gd);
   ctx.save(); ctx.beginPath(); ctx.rect(Gd.x, Gd.y, Gd.w, Gd.h); ctx.clip();
-  ownedIds().forEach((k, i) => { const r = rosterCardRect(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return; drawPetCard(PET_ITEMS[k], r, { over: inGrid && inRect(mouse, r) }); });
+  rosterList().forEach((it, i) => { const r = rosterCardRect(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return; drawPetCard(it, r, { over: inGrid && inRect(mouse, r) }); });
   // soft shadows at the edges when more pets are hidden above or below
   if (rosterScroll > 0) { const g = ctx.createLinearGradient(0, Gd.y, 0, Gd.y + 16); g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(Gd.x, Gd.y, Gd.w, 16); }
   if (rosterScroll < rosterMax()) { const g = ctx.createLinearGradient(0, Gd.y + Gd.h - 16, 0, Gd.y + Gd.h); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = g; ctx.fillRect(Gd.x, Gd.y + Gd.h - 16, Gd.w, 16); }
@@ -5422,7 +5827,7 @@ function drawRoster() {
     const b = ROSTER_BAR(), t = rosterThumb(), hot = rosterDrag || inRect(mouse, { x: b.x - 4, y: b.y, w: b.w + 8, h: b.h });
     ctx.fillStyle = 'rgba(12,7,4,0.7)'; rr(b.x, b.y, b.w, b.h, 4); ctx.fill();
     ctx.fillStyle = hot ? PAL.gold : PAL.brass; rr(t.x + 1, t.y + 1, t.w - 2, t.h - 2, 3); ctx.fill();
-    label('scroll for more', ROSTER.x + 300, ROSTER.y + 202, { size: 12, color: PAL.dim });
+    label('scroll for more ▼', ROSTER.x + ROSTER.w - 30, ROSTER.y + 202, { align: 'right', size: 12, color: PAL.dim });
   }
   const over = inRect(mouse, ROSTER_DONE);
   button(ROSTER_DONE, 'Done', { hover: over, size: 16, color: PAL.gold });
@@ -5442,7 +5847,7 @@ function rosterClick(btn) {
     const b = ROSTER_BAR(), t = rosterThumb();
     if (inRect(mouse, { x: b.x - 6, y: b.y, w: b.w + 12, h: b.h })) { if (inRect(mouse, { x: t.x - 6, y: t.y, w: t.w + 12, h: t.h })) rosterDrag = { off: mouse.y - t.y }; else scrollRoster((mouse.y < t.y ? -1 : 1) * ROSTER_GRID.h * 0.8); return null; }
   }
-  if (inRect(mouse, ROSTER_GRID)) for (const [i, k] of ownedIds().entries()) if (inRect(mouse, rosterCardRect(i))) { if (btn === 2) return PET_ITEMS[k]; placeInSlot(PET_ITEMS[k], rosterSel); return null; }
+  if (inRect(mouse, ROSTER_GRID)) for (const [i, it] of rosterList().entries()) if (inRect(mouse, rosterCardRect(i))) { if (btn === 2) return it; placeInSlot(it, rosterSel); return null; }
   if (btn === 0 && (inRect(mouse, ROSTER_DONE) || !inRect(mouse, ROSTER))) return 'close';
   return null;
 }
@@ -5465,7 +5870,7 @@ function drawStarter() {
 }
 function starterClick() {
   STARTERS.forEach((k, i) => { if (inRect(mouse, STARTER_RECT(i))) {
-    unlockPet(k); petSlots = [PET_ITEMS[k], null, null]; savePets(); G.panel = null; spawnHubPets(G.room); SFX.play('chest', true);
+    const it = unlockPet(k, 1, rollGenes({ shiny: false })); petSlots = [it, null, null]; savePets(); G.panel = null; spawnHubPets(G.room); SFX.play('chest', true);
     showMsg(`A ${BS[k].baby} joins you! Walk through the gate when you're ready.`, 3);
   } });
 }
@@ -5575,7 +5980,14 @@ function onMouseUp(btn) {
   rosterDrag = null;
   if (btn !== 0 || !G || G.mode !== 'pack' || !PK || !PK.drag) return;
 
-  if (petSlotAt(mouse) !== null) showMsg('Only pets fit in the pet slots.', 1.5);
+  const ps = petSlotAt(mouse);
+  if (ps !== null && PK.drag.it.id === 'treats' && petSlots[ps]) {   // feed it: the treats are used up
+    const pet = petSlots[ps], got = addBond(pet, 5 * lvlMult(PK.drag.it)); savePets();
+    showMsg(got > 0 ? `${pet.def.name} ${sexSym(pet.g)} loves the treats! Bond +${Math.round(got * 10) / 10} (now ${Math.floor(pet.g.bond)}).` : `${pet.def.name}'s bond is already at 100.`, 2.2);
+    SFX.play(got > 0 ? 'chirp' : 'error'); if (got <= 0) { const d0 = PK.drag; if (d0.from === 'grid') { d0.it.shape = d0.oshape; d0.it.rot = d0.orot; d0.it.x = d0.ox; d0.it.y = d0.oy; pack.push(d0.it); } else PK.staging.push(d0.it); }
+    PK.drag = null; stats = computeStats(); return;
+  }
+  if (ps !== null) showMsg('Only pets fit in the pet slots (drop Pet Treats on a pet to feed it).', 1.8);
   const d = PK.drag, it = d.it, { gx, gy } = dropTarget();
   const mc = mergeCheck(it);
   if (mc && mc.ok) { // merge: the item you dropped onto levels up, the dragged copy is used up
@@ -5792,11 +6204,11 @@ function drawWorldDynamic(R) {
     }
   }
   // gates: the entrance behind you stays shut; the exit opens once the floor is cleared
-  const gate = art('props/gate');
+  const roomOnly = G.hub && G.hubRoom && G.hubRoom !== 'yard', gate = roomOnly ? null : art('props/gate');
   const gw = gate ? gate.width * PX : 60, gh = gate ? gate.height * PX : 90, gx = (R.cols - 1) * TILE - gw / 2 + 6;
   if (gate) { if (!G.hub) drawSprite(gate, TILE + gw / 2 - 6, R.entry.y + 2, -1); drawSprite(gate, gx, R.exitY + 2, 1); }
-  else { ctx.fillStyle = '#1a1a20'; ctx.fillRect(gx - gw / 2, R.exitY - gh, gw, gh); }
-  if (exitOpen()) {
+  else if (!roomOnly) { ctx.fillStyle = '#1a1a20'; ctx.fillRect(gx - gw / 2, R.exitY - gh, gw, gh); }
+  if (exitOpen() && !roomOnly) {
     const t = Math.min(1, R.openT / 0.7), ix = gx - gw * 0.27, iw = gw * 0.54, ih = gh * 0.68, itop = R.exitY + 2 - ih;
     ctx.fillStyle = '#040406'; ctx.fillRect(ix, itop + ih * (1 - t), iw, ih * t);
     if (t >= 1) {
@@ -5918,7 +6330,8 @@ function drawPlayerAnim(P) {
 }
 function drawPlayer() {
   const P = G.player;
-  if (drawPlayerAnim(P)) return;
+  ctx.filter = heroDye(); const drew = drawPlayerAnim(P); ctx.filter = 'none';
+  if (drew) return;
   if (G.mode === 'dead') return;
   if (P.inv > 0 && Math.floor(P.inv * 20) % 2 === 0) return;
   const f = P.face, cx = P.x + P.w / 2, top = P.y;
@@ -5994,7 +6407,7 @@ function drawHUD() {
     const x = 10 + i * 158, y = 6;
     panel(x, y, 152, 42, 'leather');
     if (!it) { label('empty slot', x + 76, y + 21, { align: 'center', size: 12, color: PAL.dim }); return; }
-    const hp = runHp(it.def.pet) ?? 1, fainted = hp <= 0;
+    const hp = runHp(it.pid) ?? 1, fainted = hp <= 0;
     const lv = 'Lv' + petLvl(it) + (talentPoints(it) > 0 ? ' ▲' : '');
     ctx.font = `bold 13px ${UI}`; const lvW = ctx.measureText(lv).width;
     label(fitText(it.def.name, 118 - lvW), x + 12, y + 14, { size: 13, bold: true, color: fainted ? PAL.bad : PAL.cream });
@@ -6069,7 +6482,7 @@ function drawPack() {
     const r = petSlotRect(i), pet = petSlots[i], over = dragPet && inRect(mouse, r);
     panel(r.x, r.y, r.w, r.h, 'slot'); if (over) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 2; rr(r.x, r.y, r.w, r.h, 4); ctx.stroke(); }
     if (pet) {
-      { const k = pet.def.pet, d = PETS[k], sh = speciesSheet(k); ctx.save(); rr(r.x, r.y, r.w, r.h, 8); ctx.clip(); ctx.filter = standInTint(k, sh);
+      { const k = pet.def.pet, d = PETS[k], sh = speciesSheet(k); ctx.save(); rr(r.x, r.y, r.w, r.h, 8); ctx.clip(); ctx.filter = petFilter(k, sh, pet);
         if (!drawAnim(sh, d.fly ? 'fly' : 'idle', TIME * 5 + i, r.x + r.w / 2, d.fly ? r.y + r.h * 0.45 : r.y + r.h - 6, 1, { scale: PX * 0.85 * babyScale(pet) })) drawItem(pet, r.x, r.y, r.w / 2);
         ctx.filter = 'none'; ctx.restore(); }
       ctx.font = `bold 11px ${UI}`; ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(r.x + 2, r.y + r.h - 13, 26, 11);
@@ -6082,7 +6495,7 @@ function drawPack() {
   const act = SYNERGIES.filter(sy => syn(sy.id));
   if (act.length) { ctx.fillStyle = PAL.gold; ctx.font = `bold 12px ${UI}`; ctx.fillText(act.map(sy => sy.icon + ' ' + sy.name).join('  '), PETBOX.x + PETBOX.w / 2, PETBOX.y + PETBOX.h - 30); }
   ctx.font = `12px ${UI}`; ctx.fillStyle = 'rgba(200,230,201,0.7)';
-  ctx.fillText(fitText('Right-click a pet: talents', PETBOX.w - 16), PETBOX.x + PETBOX.w / 2, PETBOX.y + PETBOX.h - 14);
+  ctx.fillText(fitText('Right-click a pet: talents', PETBOX.w - 16), PETBOX.x + PETBOX.w / 2, PETBOX.y + PETBOX.h - 18);
   const overTrash = PK.drag && inRect(mouse, TRASH);
   panel(TRASH.x, TRASH.y, TRASH.w, TRASH.h, 'leather');
   if (overTrash) { ctx.fillStyle = 'rgba(201,74,58,0.35)'; rr(TRASH.x + 6, TRASH.y + 6, TRASH.w - 12, TRASH.h - 12, 6); ctx.fill(); }
@@ -6136,9 +6549,9 @@ function drawPack() {
     else if (hv.boosted && pack.includes(hv)) { ctx.fillStyle = PAL.gold; wrap('✦ Boosted by a neighbouring item.', IX + 12, y + 6, IW - 24, 18); }
   } else {
     ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('How to pack', IX + 12, GY + 2);
-    ctx.font = `13.5px ${UI}`; ctx.fillStyle = PAL.cream;
-    let y = GY + 26;
-    for (const t of ['Drag items with the mouse; R or right-click rotates them.', 'Only items in the backpack count: they power up your PETS.', 'Drop an item onto an identical one of the same level to MERGE it (up to level V).', 'Consumables are used by the hero in battle.', 'Eggs hatch after you win 2 fights carrying them.', 'Click the team box to swap pets; right-click a pet for talents.', 'Hover any item to see what it does.']) y = wrap('• ' + t, IX + 12, y, IW - 24, 17) + 4;
+    ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.cream;
+    let y = GY + 24;
+    for (const t of ['Drag items with the mouse; R or right-click rotates them.', 'Only items in the backpack count: they power up your PETS.', 'Drop an item onto an identical one of the same level to MERGE it (up to level V).', 'Consumables are used by the hero in battle.', 'Eggs hatch after you win 2 fights carrying them.', 'Click the team box to swap pets; right-click a pet for talents.', 'Pet Treats: drop them on a pet in the team box to feed it (+5 bond).', 'Hover any item to see what it does.']) y = wrap('• ' + t, IX + 12, y, IW - 24, 15) + 3;
   }
 
   // drag ghost
@@ -6202,6 +6615,26 @@ function talentClick() {
   if (inRect(mouse, TAL_RESET)) { resetTalents(it); return; }
   if (inRect(mouse, TAL_CLOSE) || !inRect(mouse, TAL)) { PK.talent = null; SFX.play('pick'); }
 }
+// an animal's traits: sex, shiny, nature, its three graded stats and its bond
+function drawTraits(it, x, y, w) {
+  const g = it.g || {}, N = NATURES[g.nat] || NATURES.calm;
+  label(`${g.sex === 'f' ? '♀ Female' : '♂ Male'}${g.shiny ? '   ★ SHINY' : ''}`, x, y, { size: 12, bold: true, color: g.shiny ? PAL.gold : g.sex === 'f' ? '#f8a5c2' : '#8fc3e0' }); y += 16;
+  label(N.n + ' nature', x, y, { size: 13, bold: true, color: PAL.cream }); y += 14;
+  label(fitText(N.d, w), x, y, { size: 11, color: PAL.dim }); y += 17;
+  for (const [key, nm] of [['atk', 'Attack'], ['def', 'Defense'], ['hp', 'Health']]) {
+    const v = Math.round(g[key] || 0), gr = grade(v);
+    label(nm, x, y, { size: 12, color: PAL.dim });
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x + 56, y - 3, w - 92, 6); ctx.fillStyle = gr[2]; ctx.fillRect(x + 56, y - 3, (w - 92) * v / 100, 6);
+    label(String(v), x + w - 18, y, { align: 'right', size: 11, color: PAL.dim });
+    label(gr[1], x + w, y, { align: 'right', size: 14, bold: true, color: gr[2] }); y += 15;
+  }
+  const b = g.bond || 0;
+  label('Bond', x, y, { size: 12, color: '#f8a5c2' });
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x + 56, y - 3, w - 92, 6); ctx.fillStyle = '#f48fb1'; ctx.fillRect(x + 56, y - 3, (w - 92) * b / 100, 6);
+  label(String(Math.floor(b)), x + w, y, { align: 'right', size: 12, bold: true, color: '#f8a5c2' }); y += 13;
+  label(`+${(b * 0.1).toFixed(1)}% dodge · ${Math.round(b * 0.3)}% sure hits`, x, y, { size: 11, color: PAL.dim });
+  return y + 6;
+}
 function drawTalents() {
   const it = talIt(); if (!it) { PK.talent = null; return; }
   const d = PETS[it.def.pet], L = petLvl(it), pts = talentPoints(it), rc = RARITY[it.def.rarity].c, trees = PET_TREES[it.def.pet];
@@ -6212,9 +6645,11 @@ function drawTalents() {
   panel(lx + 2, TAL.y + 14, lw - 4, TAL.h - 28, 'dark');
   const g = ctx.createRadialGradient(lx + lw / 2, TAL.y + 80, 4, lx + lw / 2, TAL.y + 80, 70); g.addColorStop(0, d.color + '55'); g.addColorStop(1, d.color + '00');
   ctx.fillStyle = g; ctx.fillRect(lx, TAL.y + 16, lw, 130);
+  ctx.filter = petFilter(it.def.pet, d.anim, it);
   if (!drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5, lx + lw / 2, d.fly ? TAL.y + 82 : TAL.y + 122, 1, { scale: 3.5 })) drawItem(it, lx + lw / 2 - 36, TAL.y + 40, 36);
+  ctx.filter = 'none'; if (it.g && it.g.shiny) shinySparkle(lx + 30, TAL.y + 30, lw - 60, 100, 1, 1.4);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `26px ${TITLE}`; ctx.fillStyle = rc; ctx.fillText(it.def.name, lx + lw / 2, TAL.y + 146);
+  ctx.font = `22px ${TITLE}`; ctx.fillStyle = it.g && it.g.shiny ? PAL.gold : rc; ctx.fillText(fitText((it.g && it.g.shiny ? '★' : '') + it.def.name, lw - 10), lx + lw / 2, TAL.y + 146);
   ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(fitText(`${RARITY[it.def.rarity].label} ${d.role}`, lw - 12), lx + lw / 2, TAL.y + 164);
   ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(`Level ${L} / ${PET_MAX_LVL}`, lx + lw / 2, TAL.y + 188);
   const need = petXpNeed(L), xp = L >= PET_MAX_LVL ? need : Math.floor(it.xp || 0);
@@ -6223,24 +6658,16 @@ function drawTalents() {
   ctx.font = `bold 15px ${UI}`; ctx.fillStyle = pts > 0 ? PAL.gold : '#8a7458'; ctx.fillText(`Talent points: ${pts}`, lx + lw / 2, TAL.y + 242);
   const nextTier = TIER_LVL.findIndex(l => l > L);
   ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText(nextTier > 0 ? `Tier ${nextTier} opens at level ${TIER_LVL[nextTier]}` : 'All tiers open', lx + lw / 2, TAL.y + 260);
-  ctx.textAlign = 'left'; let sy = TAL.y + 284;
+  let sy = drawTraits(it, lx + 10, TAL.y + 274, lw - 20) + 2;
+  ctx.textAlign = 'left';
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('Synergies', lx + 10, sy); sy += 16;
   const mine = SYNERGIES.filter(x => x.pets.includes(it.def.pet));
   if (!mine.length) { ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; wrap('None for this pet yet.', lx + 10, sy, lw - 20, 13); }
   for (const x of mine) {
     const partner = x.pets.filter(k => k !== it.def.pet).map(k => PETS[k].name).join(' + ');
-    ctx.font = `bold 12px ${UI}`; ctx.fillStyle = syn(x.id) ? PAL.gold : PAL.dim;
-    ctx.fillText(`${x.icon} ${x.name} (+ ${partner})${syn(x.id) ? ' ✓' : ''}`, lx + 10, sy); sy += 13;
-    ctx.font = `11px ${UI}`; ctx.fillStyle = syn(x.id) ? PAL.cream : '#8a7458'; sy = wrap(x.txt, lx + 10, sy, lw - 20, 12) + 4;
-  }
-  if (G.msgT > 0 && G.msg) {   // feedback for the last click (learned, locked, reset...)
-    ctx.globalAlpha = Math.min(1, G.msgT * 2); panel(lx + 4, TAL_RESET.y - 64, lw - 8, 58, 'parch');
-    ctx.textAlign = 'center'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.parchInk;
-    const words = G.msg.split(' '), lines = []; let cur = '';
-    for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > lw - 20 && cur) { lines.push(cur); cur = w; } else cur = t; }
-    if (cur) lines.push(cur);
-    lines.slice(0, 4).forEach((l, i) => ctx.fillText(l, lx + lw / 2, TAL_RESET.y - 35 + (i - (Math.min(4, lines.length) - 1) / 2) * 12));
-    ctx.globalAlpha = 1;
+    if (sy > TAL.y + TAL.h - 104) break;   // keep clear of the buttons below
+    ctx.font = `bold 11px ${UI}`; ctx.fillStyle = syn(x.id) ? PAL.gold : PAL.dim;
+    ctx.fillText(fitText(`${x.icon} ${x.name} (+ ${partner})${syn(x.id) ? ' ✓' : ''}`, lw - 20), lx + 10, sy); sy += 14;
   }
   for (const [b, label, col] of [[TAL_RESET, 'Reset talents (free)', '#8d6e63'], [TAL_CLOSE, 'Back  [B]', '#43a047']]) {
     const over = inRect(mouse, b);
@@ -6305,6 +6732,7 @@ function drawTalents() {
     ctx.font = `13.5px ${UI}`; ctx.fillStyle = PAL.dim;
     wrap('Spend points from the top of a tree down. Each tier opens at the level on the left and needs a point in the tier above it. Mix trees or go deep for the ultimates; reset any time for free.', DX + 12, DY + 22, DW - 24, 16);
   }
+  if (G.msgT > 0 && G.msg) drawToast(G.msg, TAL.y + TAL.h - 40);   // feedback for the last click (learned, locked, reset...)
 }
 
 function drawTitle() {
@@ -6385,7 +6813,7 @@ function abandonRun() {
   if (!G || G.hub) return;
   B = null; PK = null;
   const R = SAVE.rec; R.kills += G.kills - (G.loggedKills || 0); G.loggedKills = G.kills;
-  R.abandoned = (R.abandoned || 0) + 1; R.bestFloor = Math.max(R.bestFloor || 0, G.roomNum);
+  R.abandoned = (R.abandoned || 0) + 1; R.bestFloor = Math.max(R.bestFloor || 0, G.roomNum); denRunEnded();
   savePets(); saveData();
 }
 function pauseDo(k) {
@@ -6475,7 +6903,7 @@ function draw() {
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('Your team fainted', `Floor ${G.roomNum} · ${G.battlesWon || 0} battles won · your pets keep every level they earned${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to return to the Sanctuary' : '');
 }
 function drawHUDMessageOnly() {
-  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team') return;   // full-screen panels cover the middle of the screen
+  if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies') return;   // full-screen panels cover the middle of the screen
   if (G.msgT > 0 && G.msg) drawToast(G.msg, 86);
 }
 // a message on a slip of parchment
@@ -6518,6 +6946,8 @@ function update(dt) {
         G.gateHintT = (G.gateHintT || 0) - dt;
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
+        if (G.panel === 'den' || G.panel === 'trophies' || G.panel === 'newborn') { if (hit('Escape', 'e')) G.panel = null; break; }
+        if (!G.panel && hit('w', 'ArrowUp')) { const s = hubNearest(); if (s && s.kind === 'door') { goHubRoom(s.to); break; } }
         if (G.panel === 'acts') { if (hit('Escape')) G.panel = null; else for (let a = 1; a <= actsOpen(); a++) if (hit(String(a))) { startRunFromHub(a); break; } break; }
         if (G.panel === 'team') { if (hit('Escape', 'e')) G.panel = null; if (hit('ArrowDown', 'PageDown')) scrollRoster(112); if (hit('ArrowUp', 'PageUp')) scrollRoster(-112); break; }
         if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
@@ -6552,7 +6982,7 @@ function update(dt) {
       break;
     case 'trans':
       G.fade += dt * 3.5 * G.fadeDir;
-      if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; if (!G.hub) nextRoom(); G.fadeDir = -1; }
+      if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; if (!G.hub) nextRoom(); else if (G.hubTo) { buildHubRoom(G.hubTo.room, G.hubTo.from); G.hubTo = null; } G.fadeDir = -1; }
       else if (G.fadeDir < 0 && G.fade <= 0) { G.fade = 0; G.fadeDir = 0; G.mode = 'play'; }
       updateFx(dt);
       break;

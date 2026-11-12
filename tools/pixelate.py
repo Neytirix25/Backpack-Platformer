@@ -625,3 +625,44 @@ def do_feyterrain():
 
 if __name__ == '__main__' and sys.argv[1] == 'feyterrain':
     do_feyterrain()
+
+
+# ---------- Sanctuary room props: one 4x2 sheet, cut as a grid; sparkles for shiny animals: one row of 4 ----------
+SANCT_PROPS = [('door_wardrobe', 36), ('door_records', 36), ('door_den', 36), ('door_out', 36),
+               ('nest', 12), ('pedestal', 20), ('trophy_shelf', 36), ('dye_rack', 34)]   # name, height in art px (1 art px = 2 game px)
+
+
+def cut_grid(path, cols, rows):
+    im = Image.open(path).convert('RGBA')
+    a = im.getchannel('A').point(lambda v: 255 if v > 40 else 0)
+    x0, y0, x1, y1 = a.getbbox(); out = []
+    for r in range(rows):
+        for c in range(cols):
+            cell = im.crop((x0 + (x1 - x0) * c // cols, y0 + (y1 - y0) * r // rows, x0 + (x1 - x0) * (c + 1) // cols, y0 + (y1 - y0) * (r + 1) // rows))
+            bb = cell.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox(); assert bb, f'empty cell {r},{c}'
+            out.append(cell.crop(bb))
+    return out
+
+
+def do_sanctprops():
+    for (name, h), src in zip(SANCT_PROPS, cut_grid(os.path.join(RAW, 'sanctprops_sheet.png'), 4, 2)):
+        spr = pixelate_scale(src, h / src.height); spr.save(os.path.join(OUT, 'props', name + '.png')); print(name, spr.size)
+
+
+def do_sparkles():
+    for i, src in enumerate(cut_grid(os.path.join(RAW, 'sparkles_sheet.png'), 4, 1)):
+        spr = pixelate(src, 9, 9, colors=12); spr.save(os.path.join(OUT, 'props', f'sparkle_{i}.png')); print('sparkle', i, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] in ('sanctprops', 'sparkles'):
+    {'sanctprops': do_sanctprops, 'sparkles': do_sparkles}[sys.argv[1]]()
+
+
+def do_house():   # the Sanctuary house front: its three archways line up with the Yard's doors (4.5 tiles apart)
+    im = Image.open(os.path.join(RAW, 'sanct_house.png')).convert('RGBA')
+    src = im.crop(im.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox())
+    spr = pixelate_scale(src, 245 / src.width, colors=40); spr.save(os.path.join(OUT, 'props', 'sanct_house.png')); print('sanct_house', spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'house':
+    do_house()
