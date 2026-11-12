@@ -667,3 +667,13 @@ def do_house():   # the Sanctuary house front: its three archways line up with t
 
 if __name__ == '__main__' and sys.argv[1] == 'house':
     do_house()
+
+
+def do_friendpost():   # the friend post in the Yard (multiplayer): mailbox, lantern, arrow sign and a carrier pigeon on top
+    im = Image.open(os.path.join(RAW, 'friend_post.png')).convert('RGBA')
+    src = im.crop(im.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox())
+    spr = pixelate_scale(src, 52 / src.height, colors=40); spr.save(os.path.join(OUT, 'props', 'friend_post.png')); print('friend_post', spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'friendpost':
+    do_friendpost()
