@@ -29,7 +29,7 @@ def is_key(p):   # magenta key skin (any shade)
     r, g, b, a = p
     if a < 128: return False
     h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-    return s > 0.35 and v > 0.25 and (h > 0.78 or h < 0.02) and r > g * 1.5 and b > g * 1.2
+    return s > 0.16 and v > 0.25 and 0.76 < h < 0.93 and r > g * 1.12 and b > g * 1.08   # magenta to pale pink (rogue sheets are brightened); never reds
 
 
 def is_skin(p):   # natural skin on the classic sheets (faces, a few hands)

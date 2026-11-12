@@ -222,7 +222,7 @@ OUTFITS = {'warrior': ['stone', 'flame', 'thorn'], 'archer': ['scout', 'ember', 
 for _c, _ids in OUTFITS.items():
     for _o in _ids:
         for _sx in ('', '_f'):
-            SPECS[f'{_c}{_sx}_{_o}'] = dict(rows=HERO_ROWS, height=28)
+            SPECS[f'{_c}{_sx}_{_o}'] = dict(rows=HERO_ROWS, height=28, match=_c + _sx, **({'bright': 1.45} if _c == 'rogue' else {}))   # as big as the classic outfit (rogues lifted like the classic)
 
 ROW_FIX = {"pet_dog": {"run": 1.274, "attack": 1.039, "ko": 1.073}, "pet_dog_rest": {"rest": 1.166}, "pet_catgray": {"run": 1.095, "ko": 0.903}, "pet_catcalico": {"ko": 1.009}, "pet_catcalico_rest": {"rest": 0.842}, "pet_dragon": {"ko": 0.953}, "pet_fox": {"run": 1.163, "ko": 0.921}, "pet_fox_rest": {"rest": 0.89}, "pet_owl": {"attack": 0.896, "ko": 0.885}, "pet_owl_rest": {"rest": 1.149}, "pet_ferret": {"run": 1.36, "attack": 1.063, "ko": 1.021}, "pet_ferret_rest": {"rest": 1.043}, "pet_boar": {"run": 1.066, "attack": 1.051, "ko": 1.106}, "pet_boar_rest": {"rest": 1.106}, "pet_toad": {"run": 1.208, "attack": 1.065, "ko": 1.063}, "pet_toad_rest": {"rest": 1.069}, "shadowwolf": {"run": 1.35}, "unicorn": {"run": 1.2}, "pet_hellhound": {"run": 1.484, "attack": 1.063, "ko": 1.143, "rest": 1.08}, "pet_salamander": {"run": 1.401, "attack": 1.063, "ko": 1.063, "rest": 1.081}, "pet_tortoise": {"run": 1.304, "ko": 1.114, "rest": 1.087}, "pet_qilin": {"run": 1.357, "ko": 1.07, "rest": 1.102}, "pet_chimera": {"run": 1.28, "ko": 1.046, "rest": 1.063}, "pet_lion": {"run": 1.469, "ko": 1.094, "rest": 1.115}, "pet_moth": {"rest": 0.964}, "pet_mossbear": {"run": 1.109, "ko": 1.064, "rest": 1.151}, "pet_fairydragon": {"ko": 0.957, "rest": 1.053}, "pet_wolpertinger": {"run": 1.072, "rest": 1.052}, "pet_moonstag": {"run": 1.208, "attack": 1.038, "ko": 1.058}, "pet_cusith": {"run": 1.313}, "pet_puca": {"run": 1.374, "ko": 1.078, "rest": 1.08}, "pet_spiritwolf": {"run": 1.357, "rest": 1.088}, "pet_lakewyrm": {"attack": 0.881, "ko": 0.879, "rest": 0.868}}
 
@@ -238,6 +238,13 @@ def process(name):
     ref_frames = rows[names.index(ref)]
     hs = sorted(c[1].height for c in ref_frames)
     s = spec['height'] / hs[len(hs) // 2]
+    if spec.get('match') and os.path.exists(os.path.join(OUT, spec['match'] + '.png')):   # same size as another sheet: match the idle pose's body area
+        with open(os.path.join(OUT, spec['match'] + '.json')) as fh: mf = json.load(fh)['anims'][ref]
+        msheet = Image.open(os.path.join(OUT, spec['match'] + '.png')).convert('RGBA')
+        area = lambda im: sum(1 for a in im.getchannel('A').getdata() if a >= 110)
+        ma = sorted(area(msheet.crop((f[0], f[1], f[0] + f[2], f[1] + f[3]))) for f in mf)[len(mf) // 2]
+        ra = sorted(area(c[1]) for c in ref_frames)[len(ref_frames) // 2]
+        s = (ma / max(1, ra)) ** 0.5
     # 1) shrink every frame by the same factor
     small = []
     for (aname, _), row in zip(spec['rows'], rows):
