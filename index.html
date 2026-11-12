@@ -3356,7 +3356,7 @@ const BS = {
   catgray:    { hp: 32, atk: 10, def: 2, crit: 0.05, abil: ['scratch', 'pounce', 'lick'],      ult: ['shadowstrike', 'ninthlife', 'flurry'],  off: 'baby', baby: 'Gray Kitten' },
   catcalico:  { hp: 34, atk: 8,  def: 2, crit: 0.05, abil: ['hexclaw', 'jinx', 'fortune'],     ult: ['calamity', 'ladyluck', 'chaos'],        off: 'baby', baby: 'Calico Kitten' },
   sunday:     { hp: 34, atk: 8,  def: 2, crit: 0.05, abil: ['sunpeck', 'brightsong', 'featherward'], ult: ['goldenchorus', 'rainbowwings', 'sunrisecall'], off: 'egg', baby: 'Sunday Chick' },
-  rhino:      { hp: 58, atk: 9,  def: 5, crit: 0,    abil: ['stomp', 'gore', 'rhinocharge'], ult: ['ironhide', 'stampede', 'skewer'], off: 'baby', baby: 'Rhino Calf' },
+  rhino:      { hp: 58, atk: 9,  def: 5, crit: 0,    abil: ['stomp', 'gore', 'rhinocharge'], ult: ['ironhide', 'stampede', 'skewer'], off: 'baby', baby: 'Rhino Calf', fey: 1 },
   cockatiel:  { hp: 32, atk: 8,  def: 2, crit: 0,    abil: ['peck', 'song', 'chorus'],         ult: ['anthem', 'cyclone', 'aegis'],           off: 'egg',  baby: 'Cockatiel Chick' },
   dragon:     { hp: 40, atk: 11, def: 3, crit: 0,    abil: ['fireball', 'flamebreath', 'emberscales'], ult: ['inferno', 'wyrmhide', 'starfall'], off: 'egg', baby: 'Dragon Whelp' },
   fox:        { hp: 33, atk: 10, def: 2, crit: 0.15, abil: ['quickbite', 'feint', 'ambush'],   ult: ['foxfire', 'whirlwind', 'ninetails'],    off: 'baby', baby: 'Fox Kit' },
@@ -3489,7 +3489,7 @@ const ABIL = {
   goldenchorus:{ n: 'Golden Chorus', t: 'allies', cd: 5, allySt: [['str', 3], ['lucky', 3], ['regen', 2]], ult: 1, d: 'A loud, happy chorus: every ally gains Strength and Luck for 3 turns and Regenerates for 2.' },
   rainbowwings:{ n: 'Rainbow Wings', t: 'allies', cd: 6, allySt: [['evade', 1], ['guard', 2], ['undying', 1]], ult: 1, d: 'Spreads its bright wings over the team: every ally dodges the next attack, is Guarded for 2 turns and can\'t drop below 1 HP for a turn.' },
   sunrisecall: { n: 'Sunrise Call', t: 'allies', cd: 6, shieldOf: 0.2, cleanse: 1, allySt: [['regen', 3], ['str', 2]], ult: 1, d: 'Greets the sun: every ally is cured of its curses, shielded for 20% of the Sunday\'s max HP, Regenerates for 3 turns and gains Strength for 2.' },
-  // Rhino (Act I guardian: bleeds, and a charge that winds up for a turn)
+  // Rhino (Act III guardian of the Wilds: bleeds, and a charge that winds up for a turn)
   stomp:       { n: 'Stomp', t: 'foe', pow: 1.0, d: 'Stomp on one foe (100%).' },
   gore:        { n: 'Gore', t: 'foe', cd: 2, pow: 1.2, st: [['bleed', 2]], d: 'Gore one foe with its horn (120%) and make it Bleed for 2 turns.' },
   rhinocharge: { n: 'Charge', t: 'foes', cd: 3, pow: 1.5, windup: 1, d: 'Lowers its horn this turn (Charging), then next turn thunders into EVERY foe (150%). Stunning it while it charges breaks the charge.' },
@@ -4693,17 +4693,17 @@ function foeUnit(k, L, opt = {}) {
 
 // ---------- wild compositions: as many foes as you have pets ----------
 const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (11-20): only the mythical beasts · Act III (21-30): the fey
-  hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel', 'sunday', 'rhino'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel', 'sunday'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad', 'rhino'],
+  hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel', 'sunday'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel', 'sunday'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad'],
   forge: ['dragon', 'hellhound', 'salamander', 'tortoise', 'lion', 'phoenix'], hollow: ['shadowwolf', 'moth', 'chimera', 'salamander', 'tortoise', 'hellhound'],
   sanctum: ['qilin', 'phoenix', 'lion', 'chimera', 'dragon', 'moth', 'shadowwolf'],
   // Act III (21-30): only the fey creatures — and the Elder Dragon now roams wild
-  thornwood: ['mossbear', 'viper', 'wolpertinger', 'cusith', 'puca', 'elder'], glade: ['fairydragon', 'wolpertinger', 'moonstag', 'puca', 'spiritwolf', 'mossbear'],
-  lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder'],
+  thornwood: ['mossbear', 'viper', 'wolpertinger', 'cusith', 'puca', 'elder'], glade: ['fairydragon', 'wolpertinger', 'moonstag', 'puca', 'spiritwolf', 'mossbear', 'rhino'],
+  lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder', 'rhino'],
 };
 const ACT_ROLES = [
-  { tank: ['dog', 'boar', 'rhino'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel', 'sunday'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
+  { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel', 'sunday'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
   { tank: ['tortoise', 'lion'], dps: ['hellhound', 'lion', 'dragon', 'chimera', 'shadowwolf'], heal: ['phoenix', 'qilin'], hex: ['chimera', 'moth', 'shadowwolf'], venom: ['salamander', 'dragon'] },
-  { tank: ['mossbear', 'puca'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
+  { tank: ['mossbear', 'puca', 'rhino'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
 ];
 const ROLE_OF = new Proxy({}, { get: (_, role) => ACT_ROLES[G && G.room && G.room.n ? Math.min(ACT_ROLES.length, actOf(G.room.n)) - 1 : 0][role] });
 const COMPS = {
