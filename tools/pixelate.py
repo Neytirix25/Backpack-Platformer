@@ -213,7 +213,7 @@ def shape_mask(shape):
     return m
 
 
-FILL_SHEETS = {'pets4', 'pets5', 'pets6'}   # icons ChatGPT drew to match their odd shapes: fill the whole block, trim what spills
+FILL_SHEETS = {'pets4', 'pets5', 'pets6', 'pets7'}   # icons ChatGPT drew to match their odd shapes: fill the whole block, trim what spills
 
 
 def fit_fill(src, shape):
@@ -471,6 +471,7 @@ CLASS_ITEMS = {
               ('hexcharm', [[1, 0, 1], [0, 1, 0], [1, 0, 1]]), ('alphafang', [[1, 1], [1, 0], [1, 0]]), ('bogmoss', [[1, 1, 0], [0, 1, 1]]), ('truffle', [[1, 1], [1, 0]])],
     # the fire beasts' eggs (items_pets6_sheet.png)
     'pets6': [('egg_phoenix', T2), ('egg_salamander', W3), ('egg_tortoise', SQ), ('egg_moth', T3)],
+    'pets7': [('egg_fairydragon', W2), ('egg_viper', [[1, 0], [1, 1]])],   # Act III eggs
     'beastmaster': [('barbwhip', W3), ('alphahorn', W2), ('collar', T1), ('totem', T2), ('poultice', T1),
                     ('falconglove', W2), ('whistle', T1), ('wolfcloak', SQ), ('bearclaw', T1), ('crown', W3)],
 }
@@ -500,6 +501,8 @@ VFX_SHEETS = {
              ('wisp', 16), ('rune', 26), ('eye', 16), ('drop', 8), ('stars', 14), ('lava', 18)],
     'vfx3': [('rock', 10), ('dust', 14), ('coin', 9), ('swirl', 20), ('tongue', 20), ('shard', 12),
              ('rainbow', 22), ('orb', 16), ('crack', 26), ('heart', 10), ('ray', 18), ('leaf', 10)],
+    'vfx4': [('vine', 22), ('thorn', 10), ('petal', 10), ('lily', 20), ('splash', 14), ('whirl', 22),
+             ('spore', 10), ('pixie', 10), ('antler', 18), ('paw', 12), ('mist', 22), ('acorn', 10)],   # the Fey Wilds
 }
 
 
@@ -584,3 +587,82 @@ def do_uikit():
 
 if __name__ == '__main__' and sys.argv[1] == 'uikit':
     do_uikit()
+
+
+# ---------- Fey Wilds terrain (Act III): one 4x3 sheet, cut as a grid ----------
+# row 1: thornwood block, thornwood top, glade block, glade top · row 2: lake block, lake top, thornwood ledge, glade ledge
+# row 3: lake ledge, thorn bramble, bounce mushroom, hanging vine segment
+FEY_TERRAIN = [('tiles', 'thornwood_block'), ('tiles', 'thornwood_top'), ('tiles', 'glade_block'), ('tiles', 'glade_top'),
+               ('tiles', 'lake_block'), ('tiles', 'lake_top'), ('ledge', 'thornwood_ledge'), ('ledge', 'glade_ledge'),
+               ('ledge', 'lake_ledge'), ('props', 'thorns'), ('props', 'shroom'), ('props', 'vine')]
+
+
+def do_feyterrain():
+    im = Image.open(os.path.join(RAW, 'feyterrain_sheet.png')).convert('RGBA')
+    a = im.getchannel('A').point(lambda v: 255 if v > 40 else 0)
+    x0, y0, x1, y1 = a.getbbox()
+    for i, (kind, name) in enumerate(FEY_TERRAIN):
+        r, c = divmod(i, 4)
+        cell = im.crop((x0 + (x1 - x0) * c // 4, y0 + (y1 - y0) * r // 3, x0 + (x1 - x0) * (c + 1) // 4, y0 + (y1 - y0) * (r + 1) // 3))
+        bb = cell.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox(); assert bb, f'empty cell {name}'
+        src = cell.crop(bb)
+        if kind == 'tiles':   # a square terrain block, 15x15 art px like the other areas
+            w, h = src.size; s = min(w, h)
+            sq = src.crop(((w - s) // 2, (h - s) // 2, (w - s) // 2 + s, (h - s) // 2 + s)).convert('RGB')
+            spr = sq.resize((15, 15), Image.BOX).quantize(20, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert('RGBA')
+            spr.save(os.path.join(OUT, 'tiles', name + '.png'))
+        elif kind == 'ledge':
+            spr = pixelate_scale(src, 12 / src.height); spr.save(os.path.join(OUT, 'tiles', name + '.png'))
+        elif name == 'vine':  # one tile of vine that repeats down the column
+            spr = pixelate(src, max(4, round(15 * src.width / src.height)), 15); out = Image.new('RGBA', (15, 15)); out.alpha_composite(spr, ((15 - spr.width) // 2, 0))
+            spr = out; spr.save(os.path.join(OUT, 'props', name + '.png'))
+        else:
+            mw, mh = {'thorns': (15, 15), 'shroom': (20, 17)}[name]
+            s = min(mw / src.width, mh / src.height); spr = pixelate(src, max(1, round(src.width * s)), max(1, round(src.height * s)))
+            spr.save(os.path.join(OUT, 'props', name + '.png'))
+        print(name, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'feyterrain':
+    do_feyterrain()
+
+
+# ---------- Sanctuary room props: one 4x2 sheet, cut as a grid; sparkles for shiny animals: one row of 4 ----------
+SANCT_PROPS = [('door_wardrobe', 36), ('door_records', 36), ('door_den', 36), ('door_out', 36),
+               ('nest', 12), ('pedestal', 20), ('trophy_shelf', 36), ('dye_rack', 34)]   # name, height in art px (1 art px = 2 game px)
+
+
+def cut_grid(path, cols, rows):
+    im = Image.open(path).convert('RGBA')
+    a = im.getchannel('A').point(lambda v: 255 if v > 40 else 0)
+    x0, y0, x1, y1 = a.getbbox(); out = []
+    for r in range(rows):
+        for c in range(cols):
+            cell = im.crop((x0 + (x1 - x0) * c // cols, y0 + (y1 - y0) * r // rows, x0 + (x1 - x0) * (c + 1) // cols, y0 + (y1 - y0) * (r + 1) // rows))
+            bb = cell.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox(); assert bb, f'empty cell {r},{c}'
+            out.append(cell.crop(bb))
+    return out
+
+
+def do_sanctprops():
+    for (name, h), src in zip(SANCT_PROPS, cut_grid(os.path.join(RAW, 'sanctprops_sheet.png'), 4, 2)):
+        spr = pixelate_scale(src, h / src.height); spr.save(os.path.join(OUT, 'props', name + '.png')); print(name, spr.size)
+
+
+def do_sparkles():
+    for i, src in enumerate(cut_grid(os.path.join(RAW, 'sparkles_sheet.png'), 4, 1)):
+        spr = pixelate(src, 9, 9, colors=12); spr.save(os.path.join(OUT, 'props', f'sparkle_{i}.png')); print('sparkle', i, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] in ('sanctprops', 'sparkles'):
+    {'sanctprops': do_sanctprops, 'sparkles': do_sparkles}[sys.argv[1]]()
+
+
+def do_house():   # the Sanctuary house front: its three archways line up with the Yard's doors (4.5 tiles apart)
+    im = Image.open(os.path.join(RAW, 'sanct_house.png')).convert('RGBA')
+    src = im.crop(im.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox())
+    spr = pixelate_scale(src, 245 / src.width, colors=40); spr.save(os.path.join(OUT, 'props', 'sanct_house.png')); print('sanct_house', spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'house':
+    do_house()
