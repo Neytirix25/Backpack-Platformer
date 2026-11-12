@@ -133,3 +133,5 @@ syntax-check after edits: `node --check` on the extracted script. To preview vis
 `python -P -m http.server 8765 --bind 127.0.0.1` in this folder and open it in a new Chrome tab (freeze the
 loop with `window.__U = update; window.update = () => {}` and step `__U(1/60)` + `draw()` manually, because
 background tabs throttle animation frames).
+
+- **Releases / browser cache:** `BUILD` (top of the game script) and the `?v=` on the anims.js / looks.js script tags must match; bump both whenever art or data files change. GitHub Pages lets browsers cache files for ~10 minutes, and without the bump a new page can run with an old cached anims.js (e.g. no outfits).
