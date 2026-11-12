@@ -56,12 +56,16 @@ const VFX_SPR = ['star', 'fireball', 'flame', 'spark', 'meteor', 'sun', 'moon', 
   'claw', 'bite', 'impact', 'poison', 'acid', 'skull', 'wisp', 'rune', 'eye', 'drop', 'stars', 'lava',
   'rock', 'dust', 'coin', 'swirl', 'tongue', 'shard', 'rainbow', 'orb', 'crack', 'heart', 'ray', 'leaf',
   'vine', 'thorn', 'petal', 'lily', 'splash', 'whirl', 'spore', 'pixie', 'antler', 'paw', 'mist', 'acorn'];   // vfx4: the Fey Wilds
+// backgrounds cut into three depth layers for parallax: assets/bg/<key>_far / _mid / _near (same size as <key>.png;
+// far is complete, mid and near are transparent around their pieces)
+const BG_LAYERED = [];
+const BG_DEPTH = [0.35, 0.65, 1];   // how far each layer travels (far, mid, near): the near layer moves like the old single backdrop
 const ART_FILES = {
   vfx: VFX_SPR,
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'],
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -3098,7 +3102,15 @@ function drawParallax(R) {
   }
   const sh = BG_CROP[R.bgKey] || img.height, bw = img.width * 3, bh = sh * 3;
   const fx = R.wpx > W ? G.cam.x / (R.wpx - W) : 0.5, fy = R.hpx > H ? G.cam.y / (R.hpx - H) : 1;
-  ctx.drawImage(img, 0, 0, img.width, sh, Math.round(-(bw - W) * fx), Math.round(-(bh - H) * fy), bw, bh);
+  const L = BG_LAYERED.includes(R.bgKey) ? ['far', 'mid', 'near'].map(n => art('bg/' + R.bgKey + '_' + n)) : null;
+  if (L && L.every(Boolean)) {
+    // three depths: they line up exactly like the original at the middle of the level (and at the bottom, where rooms
+    // that don't scroll up and down sit); the further a layer is, the less it travels as you move
+    BG_DEPTH.forEach((k, i) => {
+      const ox = (bw - W) * (0.5 + k * (fx - 0.5)), oy = (bh - H) * (1 - k * (1 - fy));
+      ctx.drawImage(L[i], 0, 0, L[i].width, Math.min(sh, L[i].height), -Math.round(ox), -Math.round(oy), bw, bh);
+    });
+  } else ctx.drawImage(img, 0, 0, img.width, sh, Math.round(-(bw - W) * fx), Math.round(-(bh - H) * fy), bw, bh);
   ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); // push the backdrop back so the terrain reads
 }
 function drawTerrain(R) {
