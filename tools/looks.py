@@ -77,59 +77,6 @@ def make_mask(name, keyed):
     return mask
 
 
-EYE = (36, 26, 24)
-
-
-def rebuild_faces(name, mask, hd):
-    """Give every upright frame the same clean face: the stray lines ChatGPT drew inside the face become skin, the skin
-    gets one smooth shading (lit front, shaded back and jaw) and a single eye pixel sits at the same spot every frame."""
-    path = os.path.join(OUT, name + '.png'); im = Image.open(path).convert('RGBA'); px = im.load()
-    mask = mask.convert('RGBA'); mp = mask.load()
-    hs = sorted(h[3] for h in hd.get('idle', []) if h); hh = hs[len(hs) // 2] if hs else 7
-    for anim, frs in frames_of(name).items():
-        for i, (fx, fy, fw, fh, ax, ay) in enumerate(frs):
-            h = hd.get(anim, [None] * (i + 1))[i]
-            if not h or (anim == 'death' and i >= 2): continue
-            x0, y0, w = fx + h[0], fy + h[1], h[2]; y1 = y0 + hh   # the head box (rows y0..y1-1)
-            inbox = lambda x, y: x0 - 1 <= x <= x0 + w and y0 <= y < min(y1, fy + fh)
-            skin = lambda x, y: mp[x, y][3] > 0
-            warm = lambda c: c[3] > 128 and c[0] >= c[2] and (lum(c) < 120 or c[0] > c[1] > c[2])
-            # 1. fill the face: anything warm-dark sandwiched between skin, across a row or down a column
-            for _ in range(2):
-                add = []
-                for y in range(y0, min(y1, fy + fh)):
-                    for x in range(x0 - 1, x0 + w + 1):
-                        if skin(x, y) or not warm(px[x, y]): continue
-                        row = any(skin(a, y) for a in range(x0 - 1, x)) and any(skin(a, y) for a in range(x + 1, x0 + w + 1))
-                        col = any(skin(x, b) for b in range(y0, y)) and any(skin(x, b) for b in range(y + 1, min(y1, fy + fh)))
-                        if row and col: add.append((x, y))
-                for c in add: mp[c] = (200, 200, 200, 255)
-            # 2. one smooth shading over the head
-            rows = {}
-            for y in range(y0, min(y1, fy + fh)):
-                xs = [x for x in range(x0 - 1, x0 + w + 1) if skin(x, y)]
-                if xs: rows[y] = (min(xs), max(xs))
-            if not rows: continue
-            top, bot = min(rows), max(rows)
-            for y, (a, b) in rows.items():
-                for x in range(a, b + 1):
-                    if not skin(x, y): continue
-                    g = 226
-                    if x == b: g = 240                         # the lit front of the face
-                    if x == a and b - a >= 3: g = 196           # the back of the head
-                    if y == top: g = max(g, 236)
-                    if y == bot and bot - top >= 3: g = 198     # under the jaw
-                    mp[x, y] = (g, g, g, 255)
-                    px[x, y] = tuple(round(c * g / 255) for c in DEFAULT_SKIN[0]) + (255,)
-            # 3. the eye: same height and same distance from the front every frame
-            ey = top + round(hh * 0.5)
-            if ey in rows:
-                a, b = rows[ey]; ex = b - max(1, round(w * 0.3))
-                if ex > a: mp[ex, ey] = (0, 0, 0, 0); px[ex, ey] = EYE + (255,)
-    im.save(path); mask.save(os.path.join(OUT, name + '_skin.png'))
-    return mask
-
-
 def heads(name, mask):
     """The head in every frame: the top-most blob of skin. [x, y, w, h] inside the frame, or None."""
     mp = mask.load(); out = {}
@@ -137,7 +84,7 @@ def heads(name, mask):
         out[anim] = []
         for fx, fy, fw, fh, ax, ay in frs:
             pts = {(x, y) for y in range(fh) for x in range(fw) if mp[fx + x, fy + y][3] > 0}
-            if not pts: out[anim].append([]); continue
+            if not pts: out[anim].append(None); continue
             blobs, left = [], set(pts)
             while left:   # every separate patch of skin (the head, and bare hands on some outfits)
                 b, todo = set(), [next(iter(left))]
@@ -146,17 +93,11 @@ def heads(name, mask):
                     if p in b or p not in left: continue
                     b.add(p); x, y = p; todo += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1), (x + 1, y + 1), (x - 1, y - 1), (x + 1, y - 1), (x - 1, y + 1)]
                 left -= b; blobs.append(b)
-            out[anim].append(blobs)
-    def pick(blobs, need):   # the head: the top-most patch big enough to be a head (a raised hand is higher, but small)
-        if not blobs: return None
-        cand = [b for b in blobs if len(b) >= need] or blobs
-        top = min(min(p[1] for p in b) for b in cand)
-        blob = max([b for b in cand if min(p[1] for p in b) <= top + 4], key=len)
-        xs, ys = [p[0] for p in blob], [p[1] for p in blob]
-        return [min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1]
-    sizes = sorted(len(max(bl, key=len)) for bl in out.get('idle', []) if bl)
-    need = 0.55 * sizes[len(sizes) // 2] if sizes else 0
-    out = {anim: [pick(bl, need) for bl in frs] for anim, frs in out.items()}
+            top = min(min(p[1] for p in b) for b in blobs)
+            # the head: the biggest patch near the top (a raised hand can be higher, but it is smaller)
+            blob = max([b for b in blobs if min(p[1] for p in b) <= top + 4], key=len)
+            xs, ys = [p[0] for p in blob], [p[1] for p in blob]
+            out[anim].append([min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1])
     # give every upright frame this outfit's usual head width (a raised arm can merge into the head blob);
     # the face looks right, so keep the right edge and the top
     ws = sorted(h[2] for h in out.get('idle', []) if h)
@@ -250,7 +191,7 @@ def main():
     for n in KEYED:
         m = make_mask(n, True)
         if m is None: continue
-        L['masks'].append(n); L['heads'][n] = heads(n, m); rebuild_faces(n, m, L['heads'][n])
+        L['masks'].append(n); L['heads'][n] = heads(n, m)
         widths += [h[2] for h in L['heads'][n].get('idle', []) if h]
         print(n, 'heads', {k: [h for h in v][:2] for k, v in L['heads'][n].items() if k == 'idle'})
     allw = sorted({h[2] for n in L['heads'] for fr in L['heads'][n].values() for h in fr if h})
