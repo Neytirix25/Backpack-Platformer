@@ -60,7 +60,7 @@ const ART_FILES = {
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'],
-  anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.keys(window.LOOKS.hair).map(h => 'hair_' + h)) : []),   // + skin masks and hair pieces (Wardrobe)
+  anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
 };
@@ -1662,10 +1662,13 @@ function lookSheet(base, L) {
   const heads = LK.heads[base], hs = heads && L.h !== 'bald' && LK.hair[L.h] ? L.h : null;
   const key = `look:${base}:${L.s}:${hs || '-'}:${hs ? L.hc : '-'}`;
   if (window.ANIMS[key] && ART['anim/' + key]) return key;
-  const img = art('anim/' + base), mask = art('anim/' + base + '_skin'), hairImg = hs ? art('anim/hair_' + hs) : null, meta = window.ANIMS[base];
-  if (!img || !mask || !meta || (hs && !hairImg)) return null;   // still loading: draw the plain sheet meanwhile
+  const img = art('anim/' + base), mask = art('anim/' + base + '_skin'), meta = window.ANIMS[base];
+  const HV = hs ? LK.hair[hs] : null, sizes = HV ? Object.keys(HV).map(Number) : [];   // the style, cut for every head width
+  const fitW = w => sizes.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a), sizes[0]);
+  const needW = hs ? [...new Set(Object.values(heads).flat().filter(Boolean).map(h => fitW(h[2])))] : [];
+  if (!img || !mask || !meta || needW.some(w => !art('anim/hair_' + hs + '_' + w))) return null;   // still loading: draw the plain sheet meanwhile
   const tone = (SKIN_TONES.find(t => t[0] === L.s) || SKIN_TONES[1])[2], hcol = (HAIR_COLORS.find(t => t[0] === L.hc) || HAIR_COLORS[1])[2];
-  const skin = tintedArt('skin:' + base, mask, tone), hair = hs ? tintedArt('hair:' + hs, hairImg, hcol) : null, HP = hs ? LK.hair[hs] : null;
+  const skin = tintedArt('skin:' + base, mask, tone), hairOf = w => { const k = fitW(w); return { im: tintedArt('hair:' + hs + ':' + k, art('anim/hair_' + hs + '_' + k), hcol), V: HV[k] }; };
   const PAD = 8, rows = Object.entries(meta.anims);
   const cw = Math.max(...rows.map(([, fr]) => fr.reduce((a, f) => a + f[2] + 2 * PAD, 0))), ch = rows.reduce((a, [, fr]) => a + Math.max(...fr.map(f => f[3])) + 2 * PAD, 0);
   const c = document.createElement('canvas'); c.width = cw; c.height = ch; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
@@ -1675,8 +1678,13 @@ function lookSheet(base, L) {
     fr.forEach(([fx, fy, fw, fh, ax, ay], i) => {
       g.drawImage(img, fx, fy, fw, fh, x + PAD, y + PAD, fw, fh);
       g.drawImage(skin, fx, fy, fw, fh, x + PAD, y + PAD, fw, fh);
-      const hd = hair && heads[an] && heads[an][i];
-      if (hd && !(an === 'death' && i >= 2)) g.drawImage(hair, x + PAD + hd[0] + Math.round((hd[2] - HP.hw) / 2) - HP.hx, y + PAD + hd[1] - HP.hy);
+      const hd = hs && heads[an] && heads[an][i];
+      if (hd && !(an === 'death' && i >= 2)) { const hp = hairOf(hd[2]); g.drawImage(hp.im, x + PAD + hd[0] - hp.V.hx, y + PAD + hd[1] - hp.V.hy); }   // the hair, sized to this head
+      else if (hd) {   // lying on the ground: the head points right, so the hair lies on its side too
+        const hw = Math.min(hd[2], hd[3]), hp = hairOf(hw), k = fitW(hw);
+        g.save(); g.translate(x + PAD + hd[0] + hd[2] / 2, y + PAD + hd[1] + hd[3] / 2); g.rotate(Math.PI / 2);
+        g.drawImage(hp.im, Math.round(-hp.V.hx - k / 2), Math.round(-hp.V.hy - k / 2)); g.restore();
+      }
       anims[an].push([x, y, fw + 2 * PAD, fh + 2 * PAD, ax + PAD, ay + PAD]);
       x += fw + 2 * PAD;
     });
