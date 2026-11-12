@@ -2032,7 +2032,7 @@ function hubInteract() {
     SAVE.skin[G.cls + 'Dye'] = nx[0]; saveData(); burst(P.x + P.w / 2, P.y + P.h / 2, '#ffd36b', 18, 160); SFX.play('merge'); showMsg(`Outfit dye: ${nx[1]}`, 1.4);
   }
   else if (s.kind === 'nest' || s.kind === 'pedestal') { openDen(); }
-  else if (s.kind === 'team') { G.panel = 'team'; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
+  else if (s.kind === 'team') { G.panel = 'team'; rosterSel = 0; rosterScroll = 0; GIVE = null; SFX.play('pick'); }
   else if (s.kind === 'pet') {
     const p = s.pet; p.happyT = 2.4; p.wander = null; p.face = Math.sign(P.x + P.w / 2 - (p.x + p.w / 2)) || p.face;
     for (let k = 0; k < 4; k++) addText(p.x + p.w / 2 + rand(-14, 14), p.y - 4 - k * 9, '❤', '#ff80ab', 13 + k * 2);
@@ -6078,6 +6078,34 @@ let rosterSel = 0;
 function rosterSlotRect(i) { return { x: ROSTER.x + 170 + i * 165, y: ROSTER.y + 56, w: 155, h: 110 }; }
 const ROSTER_GRID = { x: ROSTER.x + 14, y: ROSTER.y + 208, w: ROSTER.w - 42, h: ROSTER.h - 208 - 54 };   // the scrolling list of every pet you own
 let rosterScroll = 0, rosterDrag = null;
+// ---------- giving animals up (the Sanctuary's Your Pets screen): pick several, then Release (back to the wild) or Donate (team XP) ----------
+let GIVE = null;   // { picked: Set of pids, confirm: null | 'release' | 'donate', shinyStep: false }
+const GIVE_BTN = { x: ROSTER.x + 24, y: ROSTER.y + ROSTER.h - 46, w: 190, h: 34 };
+const GIVE_REL = { x: ROSTER.x + 24, y: ROSTER.y + ROSTER.h - 46, w: 150, h: 34 }, GIVE_DON = { x: ROSTER.x + 184, y: ROSTER.y + ROSTER.h - 46, w: 150, h: 34 };
+const GIVE_DLG = { x: W / 2 - 230, y: H / 2 - 95, w: 460, h: 190 }, GIVE_YES = { x: W / 2 - 160, y: H / 2 + 40, w: 150, h: 36 }, GIVE_NO = { x: W / 2 + 10, y: H / 2 + 40, w: 150, h: 36 };
+const canGive = () => !!(G && G.hub && !G.visit && G.panel === 'team');
+function giveLock(it) {   // why an animal can't be given up right now (null when it can)
+  if (petSlots.includes(it)) return 'In your team';
+  const D = SAVE.den || {}; if (it.pid === D.m || it.pid === D.f) return 'In the Den';
+  return null;
+}
+function donateXp(it) {   // a donated animal is worth a quarter of the experience it took to raise it (and a little for a baby)
+  const L = petLvl(it); let tot = it.xp || 0; for (let l = 1; l < L; l++) tot += XP_NEED(l);
+  return Math.round(12 + 0.25 * tot);
+}
+const givePicked = () => HERD.filter(it => GIVE && GIVE.picked.has(it.pid));
+function giveDo(kind) {
+  const list = givePicked().filter(it => !giveLock(it)); if (!list.length) { GIVE.confirm = null; return; }
+  const xp = kind === 'donate' ? list.reduce((a, it) => a + donateXp(it), 0) : 0;
+  for (const it of list) { const i = HERD.indexOf(it); if (i >= 0) HERD.splice(i, 1); }
+  const team = petSlots.filter(Boolean);
+  if (xp && team.length) { const each = Math.round(xp / team.length); for (const it of team) givePetXp(it, each); }
+  stats = computeStats(); syncPets(); savePets(); if (G.hub) spawnHubPets(G.room);
+  const n = list.length, who = n === 1 ? `${list[0].def.name} goes` : `${n} animals go`;
+  if (kind === 'donate') { SFX.play('chest', true); showMsg(`${who} to a good home. Your team shares ${xp} experience!`, 3); }
+  else { SFX.play('merge'); showMsg(`${who} back to the wild. Farewell!`, 2.6); }
+  GIVE = null; rosterScroll = clamp(rosterScroll, 0, rosterMax());
+}
 const rosterList = () => HERD.slice().sort((a, b) => PET_IDS.indexOf(a.def.pet) - PET_IDS.indexOf(b.def.pet) || petLvl(b) - petLvl(a));   // grouped by species, strongest first
 const rosterMax = () => Math.max(0, Math.ceil(HERD.length / 7) * 112 + 6 - ROSTER_GRID.h);
 function rosterCardRect(i) { const c = i % 7, r = Math.floor(i / 7); return { x: ROSTER.x + 20 + c * 112, y: ROSTER_GRID.y + 4 + r * 112 - rosterScroll, w: 106, h: 104 }; }
@@ -6106,7 +6134,7 @@ function drawRoster() {
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
   panel(ROSTER.x, ROSTER.y, ROSTER.w, ROSTER.h, 'leather');
   label('Your Pets', ROSTER.x + 26, ROSTER.y + 30, { title: true, size: 32, color: PAL.gold });
-  ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'left'; wrap('Click a slot, then a pet to put it there  ·  right-click a pet: talents', ROSTER.x + 220, ROSTER.y + 24, ROSTER.w - 250, 15);
+  ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'left'; wrap(GIVE ? 'Click animals to give them up (again to keep one)  ·  team and Den animals stay' : 'Click a slot, then a pet to put it there  ·  right-click a pet: talents', ROSTER.x + 220, ROSTER.y + 24, ROSTER.w - 250, 15);
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = PAL.good;
   ['FRONT  (hit most often)', 'MIDDLE', 'BACK'].forEach((l, i) => { const r = rosterSlotRect(i); ctx.textAlign = 'center'; ctx.fillText(l, r.x + r.w / 2, r.y - 10); });
   for (let i = 0; i < 3; i++) {
@@ -6121,7 +6149,16 @@ function drawRoster() {
   if (rosterDrag) { const b = ROSTER_BAR(), th = rosterThumb().h; rosterScroll = clamp((mouse.y - rosterDrag.off - b.y) / Math.max(1, b.h - th) * rosterMax(), 0, rosterMax()); }
   const Gd = ROSTER_GRID, inGrid = inRect(mouse, Gd);
   ctx.save(); ctx.beginPath(); ctx.rect(Gd.x, Gd.y, Gd.w, Gd.h); ctx.clip();
-  rosterList().forEach((it, i) => { const r = rosterCardRect(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return; drawPetCard(it, r, { over: inGrid && inRect(mouse, r) }); });
+  rosterList().forEach((it, i) => {
+    const r = rosterCardRect(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return;
+    drawPetCard(it, r, { over: inGrid && inRect(mouse, r) });
+    if (GIVE) {   // giving animals up: dim the ones that stay, mark the picked ones
+      const lock = giveLock(it), on = GIVE.picked.has(it.pid);
+      if (lock) { ctx.fillStyle = 'rgba(10,6,4,0.62)'; rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.fill(); label(lock, r.x + r.w / 2, r.y + 18, { align: 'center', size: 11, bold: true, color: PAL.good }); }
+      else if (on) { ctx.strokeStyle = '#ff8a65'; ctx.lineWidth = 3; rr(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 7); ctx.stroke(); ctx.fillStyle = 'rgba(255,112,67,0.16)'; ctx.fill();
+        ctx.fillStyle = '#ff7043'; ctx.beginPath(); ctx.arc(r.x + r.w - 16, r.y + 16, 10, 0, 7); ctx.fill(); label('✓', r.x + r.w - 16, r.y + 17, { align: 'center', size: 13, bold: true, color: '#fff' }); }
+    }
+  });
   // soft shadows at the edges when more pets are hidden above or below
   if (rosterScroll > 0) { const g = ctx.createLinearGradient(0, Gd.y, 0, Gd.y + 16); g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(Gd.x, Gd.y, Gd.w, 16); }
   if (rosterScroll < rosterMax()) { const g = ctx.createLinearGradient(0, Gd.y + Gd.h - 16, 0, Gd.y + Gd.h); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = g; ctx.fillRect(Gd.x, Gd.y + Gd.h - 16, Gd.w, 16); }
@@ -6133,7 +6170,34 @@ function drawRoster() {
     label('scroll for more ▼', ROSTER.x + ROSTER.w - 30, ROSTER.y + 202, { align: 'right', size: 12, color: PAL.dim });
   }
   const over = inRect(mouse, ROSTER_DONE);
+  if (GIVE) {
+    const list = givePicked(), n = list.length, xp = list.reduce((a, it) => a + donateXp(it), 0);
+    button(GIVE_REL, 'Release', { hover: n > 0 && inRect(mouse, GIVE_REL), size: 15, color: n ? '#ffab91' : PAL.dim });
+    button(GIVE_DON, 'Donate', { hover: n > 0 && inRect(mouse, GIVE_DON), size: 15, color: n ? PAL.gold : PAL.dim });
+    label(n ? `${n} picked  ·  Donate: your team shares ${xp} XP` : 'Nothing picked yet', ROSTER.x + 350, ROSTER.y + ROSTER.h - 29, { size: 13, bold: true, color: n ? PAL.cream : PAL.dim });
+    button(ROSTER_DONE, 'Cancel', { hover: over, size: 16, color: PAL.cream });
+    if (GIVE.confirm) drawGiveConfirm(list, xp);
+    return;
+  }
+  if (canGive() && HERD.length) button(GIVE_BTN, 'Release / Donate…', { hover: inRect(mouse, GIVE_BTN), size: 14, color: PAL.cream });
   button(ROSTER_DONE, 'Done', { hover: over, size: 16, color: PAL.gold });
+}
+function drawGiveConfirm(list, xp) {
+  const n = list.length, shinies = list.filter(it => it.g && it.g.shiny).length, don = GIVE.confirm === 'donate';
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
+  panel(GIVE_DLG.x, GIVE_DLG.y, GIVE_DLG.w, GIVE_DLG.h, 'leather');
+  const cx = W / 2; let title, lines;
+  if (GIVE.shinyStep) { title = `Give up ${shinies} shin${shinies === 1 ? 'y' : 'ies'}?`; lines = ['Shinies are very rare.', 'Are you really sure?']; }
+  else {
+    title = don ? `Donate ${n} animal${n === 1 ? '' : 's'}?` : `Release ${n} animal${n === 1 ? '' : 's'}?`;
+    const they = n === 1 ? 'It goes' : 'They go';
+    lines = [don ? `${they} to a good home, and your team shares ${xp} experience.` : `${they} back to the wild. You get nothing back.`, 'This can\'t be undone.'];
+    if (shinies) lines.push(`(${shinies} of them ${shinies === 1 ? 'is a ★ shiny' : 'are ★ shinies'})`);
+  }
+  label(title, cx, GIVE_DLG.y + 34, { align: 'center', size: 22, bold: true, color: PAL.gold });
+  lines.forEach((l, i) => label(l, cx, GIVE_DLG.y + 66 + i * 18, { align: 'center', size: 13, color: l.startsWith('(') ? PAL.gold : PAL.cream }));
+  button(GIVE_YES, don ? 'Yes, donate' : 'Yes, release', { hover: inRect(mouse, GIVE_YES), size: 15, color: don ? PAL.gold : '#ffab91' });
+  button(GIVE_NO, 'No', { hover: inRect(mouse, GIVE_NO), size: 15, color: PAL.cream });
 }
 function placeInSlot(it, i) {
   const cur = petSlots.indexOf(it);
@@ -6144,7 +6208,30 @@ function placeInSlot(it, i) {
   if (G && G.hub) spawnHubPets(G.room);
 }
 // returns the pet to show talents for, if the click was a right-click on a pet
+function giveClick(btn) {
+  if (btn !== 0) return null;
+  if (GIVE.confirm) {   // the yes / no box
+    if (inRect(mouse, GIVE_YES)) {
+      const shinies = givePicked().some(it => it.g && it.g.shiny);
+      if (shinies && !GIVE.shinyStep) { GIVE.shinyStep = true; SFX.play('error'); } else giveDo(GIVE.confirm);
+    } else if (inRect(mouse, GIVE_NO) || !inRect(mouse, GIVE_DLG)) { GIVE.confirm = null; GIVE.shinyStep = false; SFX.play('pick'); }
+    return null;
+  }
+  if (inRect(mouse, ROSTER_DONE)) { GIVE = null; SFX.play('pick'); return null; }
+  const n = givePicked().length;
+  if (inRect(mouse, GIVE_REL) || inRect(mouse, GIVE_DON)) { if (n) { GIVE.confirm = inRect(mouse, GIVE_DON) ? 'donate' : 'release'; GIVE.shinyStep = false; SFX.play('pick'); } else SFX.play('error'); return null; }
+  if (rosterMax() > 0) { const b = ROSTER_BAR(), t = rosterThumb();
+    if (inRect(mouse, { x: b.x - 6, y: b.y, w: b.w + 12, h: b.h })) { if (inRect(mouse, { x: t.x - 6, y: t.y, w: t.w + 12, h: t.h })) rosterDrag = { off: mouse.y - t.y }; else scrollRoster((mouse.y < t.y ? -1 : 1) * ROSTER_GRID.h * 0.8); return null; } }
+  if (inRect(mouse, ROSTER_GRID)) for (const [i, it] of rosterList().entries()) if (inRect(mouse, rosterCardRect(i))) {
+    const lock = giveLock(it); if (lock) { showMsg(`${it.def.name}: ${lock.toLowerCase()}, so it stays.`, 1.6); SFX.play('error'); return null; }
+    if (GIVE.picked.has(it.pid)) GIVE.picked.delete(it.pid); else GIVE.picked.add(it.pid); SFX.play('place'); return null;
+  }
+  return null;
+}
 function rosterClick(btn) {
+  if (GIVE && !canGive()) GIVE = null;
+  if (GIVE) return giveClick(btn);
+  if (btn === 0 && canGive() && HERD.length && inRect(mouse, GIVE_BTN)) { GIVE = { picked: new Set(), confirm: null, shinyStep: false }; SFX.play('pick'); return null; }
   for (let i = 0; i < 3; i++) if (inRect(mouse, rosterSlotRect(i))) { if (btn === 2) return petSlots[i] || null; rosterSel = i; SFX.play('pick'); return null; }
   if (rosterMax() > 0 && btn === 0) {   // scrollbar: drag the thumb, or click the track to jump a page
     const b = ROSTER_BAR(), t = rosterThumb();
@@ -8072,7 +8159,7 @@ function update(dt) {
         if (G.panel === 'den' || G.panel === 'trophies' || G.panel === 'newborn') { if (hit('Escape', 'e')) G.panel = null; break; }
         if (!G.panel && hit('w', 'ArrowUp')) { const s = hubNearest(); if (s && s.kind === 'door') { goHubRoom(s.to); break; } }
         if (G.panel === 'acts') { if (hit('Escape')) G.panel = null; else for (let a = 1; a <= actsOpen(); a++) if (hit(String(a))) { startRunFromHub(a); break; } break; }
-        if (G.panel === 'team') { if (hit('Escape', 'e')) G.panel = null; if (hit('ArrowDown', 'PageDown')) scrollRoster(112); if (hit('ArrowUp', 'PageUp')) scrollRoster(-112); break; }
+        if (G.panel === 'team') { if (GIVE && hit('Escape')) { if (GIVE.confirm) { GIVE.confirm = null; GIVE.shinyStep = false; } else GIVE = null; } else if (hit('Escape', 'e')) { G.panel = null; GIVE = null; } if (hit('ArrowDown', 'PageDown')) scrollRoster(112); if (hit('ArrowUp', 'PageUp')) scrollRoster(-112); break; }
         if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
         if (hit('p')) { openPause(); break; }
         if (hit('f')) { openNetPanel(); break; }
