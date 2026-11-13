@@ -901,6 +901,7 @@ const SFX = (() => {
     alert: () => { tone({ type: 'square', f0: 880, f1: 1320, dur: 0.07, vol: 0.09 }); tone({ type: 'square', f0: 1320, f1: 1760, dur: 0.1, vol: 0.09, delay: 0.08 }); noise({ dur: 0.12, vol: 0.14, f0: 3000, f1: 1200, q: 1.2, delay: 0.06 }); },
     wipe1: () => { V.stone(0, 1.3); V.rumble(0.3, 1.2, 0.9); for (let i = 0; i < 6; i++) V.thud(0.45 + i * 0.08, 0.7 - i * 0.06); },
     wipe2: () => { V.whoosh(0, 1.3, 0.7); V.fire(0.05, 1.8, 1.0); V.boom(0.12, 0.45); },
+    wipe4: () => { V.whoosh(0, 1.2, 0.6); V.rumble(0.05, 1, 0.8); V.boom(0.36, 0.7); noise({ dur: 0.6, vol: 0.22, f0: 2500, f1: 500, delay: 0.36 }); V.bubbles(0.5, 1, 10, 260); V.wind(0.7, 0.9, 0.7); },
     wipe3: () => { V.whoosh(0, 1.1, 0.35); V.dig(0.05, 0.45, 6); V.sparkle(0.45, 1, [1319, 1568, 2093, 2637], 0.06); V.wind(0.55, 0.8, 0.6); },
     vs: () => { V.boom(0, 1.1); tone({ type: 'square', f0: 330, f1: 110, dur: 0.22, vol: 0.09 }); noise({ dur: 0.3, vol: 0.18, f0: 5000, f1: 1500, filter: 'highpass' }); },
   };
@@ -1011,6 +1012,16 @@ const SONGS = {
       'E5 - - - G5 - - - B5 - - - E6 - - -', 'C6 - - - - - - - B5 - A5 - E5 - - -',
       'D#5 - - - - - - - F#5 - - - B5 - - -', 'A5 - - - - - - - F#5 - - - D#5 - - -'] },
   ] },
+  act4: { title: 'The Drowned Deep', bpm: 80, chords: ['Am', 'F', 'C', 'G', 'Am', 'F', 'E', 'E'], parts: [
+    { inst: 'pad', vol: 0.8, dark: true },
+    { inst: 'pluck', arp: '0 . 2 . 1 . 2 . 0 . 2 . 1 . 3 .', vol: 0.5 },
+    { inst: 'bass', pat: 'r - - - r - - - r - - - r - o -', vol: 0.7 },
+    { inst: 'bell', loops: [1, 1, 0], mel: [
+      'E5 - - - - - - - A5 - - - C6 - - -', 'C6 - - - - - - - A5 - - - F5 - - -',
+      'G5 - - - - - - - E5 - - - C5 - - -', 'D5 - - - - - - - G5 - - - B5 - - -',
+      'A5 - - - C6 - - - E6 - - - A5 - - -', 'F5 - - - - - - - C6 - - - A5 - - -',
+      'G#5 - - - - - - - B5 - - - E6 - - -', 'D6 - - - - - - - B5 - - - G#5 - - -'] },
+  ] },
   // ----- battle music: one theme per act -----
   battle1: { title: 'Clash in the Dark', bpm: 140, chords: ['Dm', 'Dm', 'Bb', 'C', 'Dm', 'Dm', 'Gm', 'A'], parts: [
     { inst: 'pad', vol: 0.5, dark: true },
@@ -1044,6 +1055,17 @@ const SONGS = {
       'B5 - G5 - D5 - G5 - B5 - C6 - D6 - B5 -', 'G#5 - - - E5 - - - B4 - - - E5 - G#5 -',
       'C6 - B5 - A5 - E5 - C6 - B5 - A5 - E5 -', 'F5 - A5 - C6 - A5 - F5 - - - E5 - F5 -',
       'F#5 - - - A5 - - - D6 - - - C6 - A5 -', 'G#5 - - - B5 - - - E6 - - - - - - -'] },
+  ] },
+  battle4: { title: 'Tide and Rune', bpm: 150, chords: ['Em', 'C', 'D', 'B', 'Em', 'C', 'Am', 'B'], parts: [
+    { inst: 'pad', vol: 0.6, dark: true },
+    { inst: 'bell', arp: '0 2 1 2 0 2 1 2 0 2 3 2 0 2 3 2', vol: 0.45 },
+    { inst: 'bass', pat: 'r . r . . r . . r . r . . r o .', vol: 0.9 },
+    { inst: 'drums', kick: 'x . . x x . . . x . . x x . . .', snare: '. . . . x . . . . . . . x . . x', hat: 'x x . x x x . x x x . x x x . x', fill: true },
+    { inst: 'flute', mel: [
+      'E5 - G5 - B5 - G5 - E5 - F#5 - G5 - - -', 'C6 - B5 - G5 - E5 - C5 - E5 - G5 - - -',
+      'D5 - F#5 - A5 - D6 - C6 - A5 - F#5 - - -', 'D#5 - - - F#5 - - - B5 - - - A5 - F#5 -',
+      'E5 - G5 - B5 - E6 - D6 - B5 - G5 - E5 -', 'C6 - - - G5 - - - E5 - - - G5 - C6 -',
+      'A5 - C6 - E6 - C6 - A5 - - - G5 - A5 -', 'B5 - - - D#6 - - - F#6 - - - - - - -'] },
   ] },
   // ----- the bosses: each its own theme, and a second, wilder half when it's down to half health -----
   boss_shadow: { title: 'The Shadow Wolf', bpm: 144, chords: ['F#m', 'F#m', 'D', 'E', 'F#m', 'Bm', 'C#', 'C#'], parts: [
@@ -1346,7 +1368,7 @@ const Music = (() => {
   return { play, setOn, setDuck, set intensity(v) { intensity = v; }, get on() { return on; }, get song() { return cur && cur.name; },
            get loops() { return cur ? Math.floor(step / (SONGS[cur.name].chords.length * 16)) : 0; }, SONGS };
 })();
-const LEVEL_POOLS = { 1: ['act1', 'halls', 'caves', 'march'], 2: ['act2', 'ember', 'hollowdeep', 'march'], 3: ['act3', 'glimmer', 'moonlake', 'march'] };
+const LEVEL_POOLS = { 1: ['act1', 'halls', 'caves', 'march'], 2: ['act2', 'ember', 'hollowdeep', 'march'], 3: ['act3', 'glimmer', 'moonlake', 'march'], 4: ['act4', 'moonlake', 'caves', 'march'] };
 const SONG_HISTORY = [];   // across runs too, so a new run doesn't open with the song you just heard
 function pickLevelSong(R) {
   const pool = LEVEL_POOLS[R.act] || LEVEL_POOLS[1];
@@ -1362,7 +1384,7 @@ function battleSong() {
   if (B && B.phase === 'lost') return 'blose';
   const boss = (B && B.boss) || (G.enc && G.enc.e.boss);
   if (boss && SONGS['boss_' + boss]) { const u = B && B.foes.find(f => f.boss); return 'boss_' + boss + (u && (u.enraged || u.hp < u.maxHp * 0.5) ? '2' : ''); }
-  return 'battle' + clamp((G.room && G.room.act) || 1, 1, 3);
+  return 'battle' + clamp((G.room && G.room.act) || 1, 1, 4);
 }
 // picks the song for what's happening and feeds the "danger" level to the drums
 function musicDirector(dt) {
@@ -1836,6 +1858,10 @@ const THEMES = {
   thornwood: { name: 'Thornwood',     act: 3, dim: 0.3,  bg: '#101a12', tile: ['#3b3326', '#241e16', '#5a4a34', '#6a9a3a'], deco: 'mush', w: {} },
   glade:     { name: 'Glimmer Glade', act: 3, dim: 0.25, bg: '#12162a', tile: ['#34402e', '#1f2a1c', '#4f6a42', '#9ad06a'], deco: 'fairy', w: {} },
   lake:      { name: 'Moonlit Lake',  act: 3, dim: 0.3,  bg: '#0c1424', tile: ['#2e3a46', '#1a232c', '#4a5c6c', '#7ec8d8'], deco: 'fairy', w: {} },
+  // Act IV (floors 31-40): the Drowned Deep — under the sea, but no swimming: dripping water and drifting bubbles show it
+  temple:    { name: 'Sunken Temple', act: 4, dim: 0.3,  bg: '#0a1820', tile: ['#38484e', '#232f34', '#56686e', '#7fc0b4'], w: {} },
+  coral:     { name: 'Coral Grotto',  act: 4, dim: 0.2,  bg: '#0c2030', tile: ['#4a3a44', '#2e2430', '#6a5260', '#f0906a'], deco: 'mush', w: {} },
+  trench:    { name: 'Abyssal Trench', act: 4, dim: 0.45, bg: '#050c16', tile: ['#242a36', '#141821', '#384152', '#5fd0e8'], deco: 'fairy', w: {} },
 };
 // Act I backgrounds have a floor band baked in; only the rows above it are used for the parallax backdrop
 const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236, hub: 229 };
@@ -1843,16 +1869,18 @@ const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236, hub: 2
 // ---------- tiles ----------
 const TILE = 30, EMPTY = 0, SOLID = 1, ONEWAY = 2, SPIKES = 3, LAVA = 4, CRUMBLE = 5, PHASE = 6;   // PHASE = arcane barrier: solid unless you dash through it
 const THORN = 7, VINE = 8;   // Fey Wilds: brambles hurt on touch; vines hang from ledges and can be climbed (neither is solid)
-const FINAL_FLOOR = 30;
-const BOSS_OF = n => ['wyrm', 'shadow', 'elder'][Math.floor(n / 10) % 3];   // floor 10 the Shadow Wolf, 20 the Elder Dragon, 30 the Lake Wyrm (then round again in endless)
+const FINAL_FLOOR = 40;
+const BOSS_OF = n => ['rune', 'shadow', 'elder', 'wyrm'][Math.floor(n / 10) % 4];   // floor 10 the Shadow Wolf, 20 the Elder Dragon, 30 the Lake Wyrm, 40 the Runeshell Leviathan (then round again in endless)
 const BOSS_INFO = { shadow: { k: 'shadowwolf', name: 'The Shadow Wolf', floor: 10, lair: 'Shadow Den' }, elder: { k: 'elder', name: 'The Elder Dragon', floor: 20, lair: "Elder Dragon's Roost" },
-                    wyrm: { k: 'lakewyrm', name: 'The Lake Wyrm', floor: 30, lair: "The Wyrm's Lake" } };
+                    wyrm: { k: 'lakewyrm', name: 'The Lake Wyrm', floor: 30, lair: "The Wyrm's Lake" },
+                    // Act IV's boss: an ancient colossal turtle with a runic shell (stand-in: a rune-tinted Tortoise until its own art and kit exist)
+                    rune: { k: 'tortoise', name: 'The Runeshell Leviathan', floor: 40, lair: 'The Rune Vault', tint: 'hue-rotate(150deg) saturate(1.5) brightness(1.1)' } };
 const isOpenT = t => t === EMPTY || t === VINE;
 const isSolidT = t => t === SOLID || t === CRUMBLE || t === PHASE;
 const solidFor = (o, t) => isSolidT(t) && !(t === PHASE && o.phasing);
 function tileAt(tx, ty) { const R = G.room; if (tx < 0 || ty < 0 || tx >= R.cols) return SOLID; if (ty >= R.rows) return EMPTY; return R.grid[ty * R.cols + tx]; }   // below the map = open air (chasms)
 function setTile(R, tx, ty, v) { if (tx >= 0 && ty >= 0 && tx < R.cols && ty < R.rows) R.grid[ty * R.cols + tx] = v; }
-const actOf = n => (n <= 10 ? 1 : n <= 20 ? 2 : 3);
+const actOf = n => (n <= 10 ? 1 : n <= 20 ? 2 : n <= 30 ? 3 : 4);
 const hash2 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
 
 let G = null;
@@ -1866,7 +1894,7 @@ function newGame(cls = selClass, startAct = 1) {
               dropT: 0, walk: 0, dashT: 0, dashCd: 0, dashDir: 1, airDashed: false, trail: [] },
     enemies: [], proj: [], parts: [], texts: [], corpses: [], pets: [], wolves: [], room: null, cam: { x: 0, y: 0 },
   };
-  G.cls = cls; G.wild = []; G.startAct = startAct; G.roomNum = (startAct - 1) * 10;   // Act II starts on floor 11, Act III on 21
+  G.cls = cls; G.wild = []; G.startAct = startAct; G.roomNum = (startAct - 1) * 10;   // Act II starts on floor 11, Act III on 21, Act IV on 31
   stats = computeStats(); G.team = teamMods();
   nextRoom();
   SFX.play('start');
@@ -2052,16 +2080,17 @@ function hubInteract() {
 const ACT_INFO = [null,
   { name: 'Act I', sub: 'The Dungeon', floors: 'Floors 1-10', bg: 'hall', col: '#e0c890', need: 0 },
   { name: 'Act II', sub: 'The Burning Depths', floors: 'Floors 11-20', bg: 'forge', col: '#ff8a50', need: 11 },
-  { name: 'Act III', sub: 'The Fey Wilds', floors: 'Floors 21-30', bg: 'glade', col: '#9ad06a', need: 21 }];
+  { name: 'Act III', sub: 'The Fey Wilds', floors: 'Floors 21-30', bg: 'glade', col: '#9ad06a', need: 21 },
+  { name: 'Act IV', sub: 'The Drowned Deep', floors: 'Floors 31-40', bg: 'temple', col: '#7fe0d0', need: 31 }];
 const bestFloorEver = () => Math.max(SAVE.rec.bestFloor || 0, BEST || 0);
 const actsOpen = () => ACT_INFO.filter(a => a && bestFloorEver() >= a.need).length;
-const ACT_CARD = a => ({ x: W / 2 - 444 + (a - 1) * 300, y: 136, w: 288, h: 292 });
+const ACT_N = ACT_INFO.length - 1, ACT_CARD = a => ({ x: W / 2 - (ACT_N * 222 + (ACT_N - 1) * 12) / 2 + (a - 1) * 234, y: 136, w: 222, h: 292 });
 function drawActSelect() {
   ctx.fillStyle = 'rgba(8,5,3,0.75)'; ctx.fillRect(0, 0, W, H);
   banner('Where to?', W / 2, 62, { size: 38, h: 56, pad: 130 });
   label('Your pets keep every level · every act starts with just your class kit', W / 2, 108, { align: 'center', size: 14, color: PAL.dim });
   const fl = G.actFlash && G.actFlash.t > 0 ? G.actFlash : null;
-  for (let a = 1; a <= 3; a++) {
+  for (let a = 1; a <= ACT_N; a++) {
     const r = ACT_CARD(a), I = ACT_INFO[a], open = a <= actsOpen(), over = open && inRect(mouse, r);
     panel(r.x, r.y, r.w, r.h, 'leather');
     const img = art('bg/' + I.bg), ix = r.x + 14, iy = r.y + 14, iw = r.w - 28, ih = 142;
@@ -2072,16 +2101,16 @@ function drawActSelect() {
     ctx.restore();
     if (over) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 3; rr(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 10); ctx.stroke(); }
     if (fl && fl.a === a) { ctx.globalAlpha = Math.min(1, fl.t * 2); ctx.strokeStyle = '#e05038'; ctx.lineWidth = 3; rr(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 10); ctx.stroke(); ctx.globalAlpha = 1; }
-    label(I.name, r.x + r.w / 2, r.y + 182, { align: 'center', title: true, size: 32, color: open ? I.col : '#7a6a58' });
+    label(I.name, r.x + r.w / 2, r.y + 182, { align: 'center', title: true, size: 30, color: open ? I.col : '#7a6a58' });
     label(I.sub, r.x + r.w / 2, r.y + 214, { align: 'center', size: 16, bold: true, color: open ? PAL.cream : '#8a7a68' });
     label(I.floors, r.x + r.w / 2, r.y + 236, { align: 'center', size: 13, color: PAL.dim });
-    label(open ? `[${a}]  ${a === 1 ? 'Start from the top' : 'Start here'}` : `Reach floor ${I.need} in a run to unlock`, r.x + r.w / 2, r.y + 266,
+    label(open ? `[${a}]  ${a === 1 ? 'Start from the top' : 'Start here'}` : `Reach floor ${I.need} to unlock`, r.x + r.w / 2, r.y + 266,
       { align: 'center', size: 14, bold: true, color: open ? PAL.good : fl && fl.a === a ? '#ff8a70' : '#b08060' });
   }
-  label('Click an act or press 1-3  ·  Esc to stay in the Sanctuary', W / 2, 466, { align: 'center', size: 13, color: PAL.dim });
+  label(`Click an act or press 1-${ACT_N}  ·  Esc to stay in the Sanctuary`, W / 2, 466, { align: 'center', size: 13, color: PAL.dim });
 }
 function actSelectClick() {
-  for (let a = 1; a <= 3; a++) if (inRect(mouse, ACT_CARD(a))) {
+  for (let a = 1; a <= ACT_N; a++) if (inRect(mouse, ACT_CARD(a))) {
     if (a <= actsOpen()) startRunFromHub(a); else { SFX.play('error'); G.actFlash = { a, t: 1.2 }; }
     return;
   }
@@ -2100,6 +2129,7 @@ function trophyList() {
     { n: 'Dragonheart', d: 'Beat the Elder Dragon with no pet fainting', done: !!a.elder },
     { n: 'Lightning Strike', d: 'Win a battle on its very first turn', done: !!a.first },
     { n: 'Wyrmslayer', d: 'Beat the Lake Wyrm on floor 30', done: !!a.wyrm },
+    { n: 'Runebreaker', d: 'Beat the Runeshell Leviathan on floor 40', done: !!a.rune },
     { n: 'Into the Depths', d: 'Reach floor 11', done: best >= 11 },
     { n: 'Into the Wilds', d: 'Reach floor 21', done: best >= 21 },
     { n: 'Champion', d: 'Win a run', done: (r.wins || 0) > 0 },
@@ -2418,7 +2448,7 @@ function nextRoom() {
   if (n % 10 === 0) type = 'boss';            // the Shadow Wolf on 10, the Elder Dragon on 20, the Lake Wyrm on 30 (and round again in endless)
   else if (n % 5 === 0) type = 'camp';
   else {
-    let opts = act === 1 ? ['hall', 'cave', 'crypt'] : act === 2 ? ['forge', 'hollow', 'sanctum'] : ['thornwood', 'glade', 'lake'];
+    let opts = act === 1 ? ['hall', 'cave', 'crypt'] : act === 2 ? ['forge', 'hollow', 'sanctum'] : act === 3 ? ['thornwood', 'glade', 'lake'] : ['temple', 'coral', 'trench'];
     const prev = G.room && G.room.type;
     if (opts.includes(prev) && Math.random() < 0.65) opts = opts.filter(o => o !== prev);
     type = pick(opts);
@@ -2436,8 +2466,9 @@ function nextRoom() {
   }
   if (type === 'boss') {
     R.boss = BOSS_OF(n);
-    R.theme = Object.assign({}, R.boss === 'wyrm' ? THEMES.lake : THEMES.boss, { name: BOSS_INFO[R.boss].lair });
-    if (R.boss === 'wyrm') { R.bgKey = 'lake'; R.tileKey = 'lake'; }   // the final lair: the moonlit lake itself
+    R.theme = Object.assign({}, R.boss === 'wyrm' ? THEMES.lake : R.boss === 'rune' ? THEMES.temple : THEMES.boss, { name: BOSS_INFO[R.boss].lair });
+    if (R.boss === 'wyrm') { R.bgKey = 'lake'; R.tileKey = 'lake'; }   // the Wyrm's lair: the moonlit lake itself
+    if (R.boss === 'rune') { R.bgKey = 'temple'; R.tileKey = 'temple'; }   // the Leviathan waits in the deepest hall of the sunken temple
   }
   G.room = R; G.enemies = []; G.proj = []; G.texts = []; G.corpses = []; G.wild = [];
   populate(R);
@@ -2475,13 +2506,13 @@ function buildArena(R, C, RO) {
 // Ledges always sit at 3, 6, 9 or 12 tiles above the floor, so every jump is a clean 3-tile hop.
 const SEGMENTS = {
   // ----- traversal pieces -----
-  steps:     { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '', '', '', '.....####.....', '...########...', '.############.', '##############'] },
-  walkway:   { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '....======....', '', '', '..==========..', '', '', '##############'] },
-  tower:     { acts: [1, 2, 3], rows: ['', '', '', '', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
-  pillars:   { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '', '', '', '', '..##..##..##..', '..##..##..##..', '##############'] },
-  floaters:  { acts: [1, 2, 3], rows: ['', '', '', '', '', '', '', '.....####.....', '', '', '.####....####.', '', '', '##############'] },
-  pyramid:   { acts: [1, 2, 3], rows: ['', '', '', '', '.....====.....', '', '', '...========...', '', '', '.============.', '', '', '##############'] },
-  spikepit:  { acts: [1],    rows: ['', '', '', '', '', '', '', '', '', '', '...==....==...', '', '..^^^^^^^^^^..', '##############'] },
+  steps:     { acts: [1, 2, 3, 4], rows: ['', '', '', '', '', '', '', '', '', '', '.....####.....', '...########...', '.############.', '##############'] },
+  walkway:   { acts: [1, 2, 3, 4], rows: ['', '', '', '', '', '', '', '....======....', '', '', '..==========..', '', '', '##############'] },
+  tower:     { acts: [1, 2, 3, 4], rows: ['', '', '', '', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
+  pillars:   { acts: [1, 2, 3, 4], rows: ['', '', '', '', '', '', '', '', '', '', '', '..##..##..##..', '..##..##..##..', '##############'] },
+  floaters:  { acts: [1, 2, 3, 4], rows: ['', '', '', '', '', '', '', '.....####.....', '', '', '.####....####.', '', '', '##############'] },
+  pyramid:   { acts: [1, 2, 3, 4], rows: ['', '', '', '', '.....====.....', '', '', '...========...', '', '', '.============.', '', '', '##############'] },
+  spikepit:  { acts: [1, 4],    rows: ['', '', '', '', '', '', '', '', '', '', '...==....==...', '', '..^^^^^^^^^^..', '##############'] },
   lavapit:   { acts: [2],    rows: ['', '', '', '', '', '', '', '', '', '', '...==....==...', '', '', '##~~~~~~~~~~##'] },
   stones:    { acts: [2],    rows: ['', '', '', '', '', '', '', '', '', '', '', '', '....x..x..x...', '#~~~~~~~~~~~~#'] },
   ventrun:   { acts: [2],    rows: ['', '', '', '', '', '', '', '', '', '', '', '', '..v...v...v...', '##############'] },
@@ -2490,17 +2521,17 @@ const SEGMENTS = {
   shroomhop: { acts: [3],    rows: ['', '', '', '', '...======.....', '', '', '..........====', '', '', '', '', '..m.......m...', '##############'] },
   vineclimb: { acts: [3],    rows: ['', '', '', '', '....======....', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '##############'] },
   // ----- challenge pieces: a fun obstacle with a treasure chest at the end -----
-  parkour:   { acts: [1, 2, 3], chest: true, rows: ['......C.......', '.....====.....', '', '', '..........====', '', '', '.....====.....', '', '', '.====.........', '', '', '##############'] },
-  gauntlet:  { acts: [1],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '...==...==....', '', '.^^^^^^^^^^^C.', '##############'] },
-  stairs:    { acts: [1],    chest: true, rows: ['............C.', '...........===', '', '', '.........===..', '', '', '.....===......', '', '', '.===..........', '', '', '##############'] },
-  crumbles:  { acts: [2],    chest: true, rows: ['............C.', '...........xxx', '', '', '.........xxx..', '', '', '.....xxx......', '', '', '.xxx..........', '', '', '##############'] },
-  island:    { acts: [1],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '......C.......', '..==..##..==..', '......##......', '.^^^^^##^^^^^.', '##############'] },
+  parkour:   { acts: [1, 2, 3, 4], chest: true, rows: ['......C.......', '.....====.....', '', '', '..........====', '', '', '.....====.....', '', '', '.====.........', '', '', '##############'] },
+  gauntlet:  { acts: [1, 4],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '...==...==....', '', '.^^^^^^^^^^^C.', '##############'] },
+  stairs:    { acts: [1, 4],    chest: true, rows: ['............C.', '...........===', '', '', '.........===..', '', '', '.....===......', '', '', '.===..........', '', '', '##############'] },
+  crumbles:  { acts: [2, 4],    chest: true, rows: ['............C.', '...........xxx', '', '', '.........xxx..', '', '', '.....xxx......', '', '', '.xxx..........', '', '', '##############'] },
+  island:    { acts: [1, 4],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '......C.......', '..==..##..==..', '......##......', '.^^^^^##^^^^^.', '##############'] },
   lavaisle:  { acts: [2],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '......C.......', '......##......', '......##......', '...x..##..x...', '#~~~~~##~~~~~#'] },
   flames:    { acts: [2],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '', '', '..v..v..v..vC.', '##############'] },
   shroomtop: { acts: [3],    chest: true, rows: ['', '', '.........C....', '.......=====..', '', '', '', '', '', '', '', '', '...m..........', '##############'] },
   vinetower: { acts: [3],    chest: true, rows: ['.......C......', '....======....', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '##############'] },
   thornrun:  { acts: [3],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '...==...==....', '', '.tttttttttttC.', '##############'] },
-  towertop:  { acts: [1, 2, 3], chest: true, rows: ['', '', '', '......C.......', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
+  towertop:  { acts: [1, 2, 3, 4], chest: true, rows: ['', '', '', '......C.......', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
 };
 const SEG_W = 16, NSEG = 18;                  // 18 segments in one long storey (3 old storeys' worth)
 const SEG_STARTS = Array.from({ length: NSEG }, (_, k) => 1 + k * SEG_W);
@@ -2838,7 +2869,7 @@ function populate(R) {
   const spaced = (x, y, d) => placed.every(([px, py]) => Math.abs(px - x) > d || Math.abs(py - y) > 2);
   for (const [x, y] of shuffled) {
     if (placed.length > (R.type === 'camp' ? 3 : 18)) break;
-    if (deco === 'mush' && spaced(x, y, 5)) { placed.push([x, y]); R.decor.push({ kind: 'mush', x: (x + 0.5) * TILE, y: (y + 1) * TILE, s: rand(0.7, 1.3), c: pick(R.act === 3 ? ['#f48fb1', '#b388ff', '#80deea'] : R.act === 2 ? ['#b388ff', '#a0e86a', '#80cbc4'] : ['#7cf0c8', '#a0e86a', '#6ad0f0']) }); }
+    if (deco === 'mush' && spaced(x, y, 5)) { placed.push([x, y]); R.decor.push({ kind: 'mush', x: (x + 0.5) * TILE, y: (y + 1) * TILE, s: rand(0.7, 1.3), c: pick(R.act === 4 ? ['#ff8a65', '#f48fb1', '#ffd180'] : R.act === 3 ? ['#f48fb1', '#b388ff', '#80deea'] : R.act === 2 ? ['#b388ff', '#a0e86a', '#80cbc4'] : ['#7cf0c8', '#a0e86a', '#6ad0f0']) }); }
     else if (deco === 'fairy' && spaced(x, y, 3)) { placed.push([x, y]); R.decor.push({ kind: 'fairy', x: (x + 0.5) * TILE, y: (y + 1) * TILE - rand(30, 90), c: pick(['#fff59d', '#b2ff59', '#80deea', '#f8bbd0']), ph: rand(0, 6.28) }); }
     else if (deco === 'candle' && spaced(x, y, 5)) { placed.push([x, y]); R.decor.push({ kind: 'candle', x: (x + 0.5) * TILE, y: (y + 1) * TILE }); }
   }
@@ -4548,7 +4579,7 @@ function placeWild(R, cells, etx, ety) {
   const ft = R.floorTop * TILE;
   if (R.type === 'boss') {
     const boss = R.boss || BOSS_OF(R.n), k = BOSS_INFO[boss].k;
-    const e = wildEntity(k, (R.cols - 16) * TILE, ft, { boss }); e.face = -1; if (e.fly) e.y = ft - e.h - 40;
+    const e = wildEntity(k, (R.cols - 16) * TILE, ft, { boss, tint: BOSS_INFO[boss].tint }); e.face = -1; if (e.fly) e.y = ft - e.h - 40;
     G.wild.push(e); return;
   }
   const count = Math.min(7, 3 + Math.floor(R.n / 4)), pool = THEME_POOL[R.type] || ['dog', 'fox'];
@@ -4663,7 +4694,7 @@ function drawWild() {
     if (e.beaten || !inView(e.x, e.y, 120)) continue;
     const sheet = speciesSheet(e.k), moving = Math.abs(e.vx) > 8, big = e.boss ? 2 : 1, cx = e.x + e.w / 2;
     footShadow(cx, e.fly ? groundBelow(cx, e.y) : e.y + e.h, e.w * 0.5, e.fly ? 0.35 : 0.8);
-    ctx.filter = standInTint(e.k, sheet);
+    ctx.filter = e.tint || standInTint(e.k, sheet);
     const o = { scale: PX * big };
     if (!drawAnim(sheet, e.fly ? 'fly' : moving ? 'run' : 'idle', e.t * (moving ? 10 : 5), cx, e.fly ? e.y + e.h / 2 : e.y + e.h + 1, e.face, o)) { ctx.fillStyle = PETS[e.k].color; rr(e.x, e.y, e.w, e.h, 6); ctx.fill(); }
     ctx.filter = 'none';
@@ -4882,11 +4913,15 @@ const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (
   // Act III (21-30): only the fey creatures — and the Elder Dragon now roams wild
   thornwood: ['mossbear', 'viper', 'wolpertinger', 'cusith', 'puca', 'elder'], glade: ['fairydragon', 'wolpertinger', 'moonstag', 'puca', 'spiritwolf', 'mossbear', 'rhino'],
   lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder', 'rhino'],
+  // Act IV (31-40): STAND-INS — water-loving animals from earlier acts, until the Kelpie, Kappa, Axolotl, Coral Crab, Hydra and Selkie exist
+  temple: ['tortoise', 'viper', 'moonstag', 'spiritwolf', 'toad', 'qilin'], coral: ['toad', 'tortoise', 'fairydragon', 'viper', 'rhino', 'mossbear'],
+  trench: ['salamander', 'spiritwolf', 'puca', 'viper', 'cusith', 'moth'],
 };
 const ACT_ROLES = [
   { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel', 'sunday'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
   { tank: ['tortoise', 'lion'], dps: ['hellhound', 'lion', 'dragon', 'chimera', 'shadowwolf'], heal: ['phoenix', 'qilin'], hex: ['chimera', 'moth', 'shadowwolf'], venom: ['salamander', 'dragon'] },
   { tank: ['mossbear', 'puca', 'rhino'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
+  { tank: ['tortoise', 'mossbear', 'rhino'], dps: ['cusith', 'spiritwolf', 'salamander'], heal: ['moonstag', 'qilin'], hex: ['puca', 'fairydragon', 'moth'], venom: ['viper', 'toad'] },   // Act IV stand-ins
 ];
 const ROLE_OF = new Proxy({}, { get: (_, role) => ACT_ROLES[G && G.room && G.room.n ? Math.min(ACT_ROLES.length, actOf(G.room.n)) - 1 : 0][role] });
 const COMPS = {
@@ -4897,7 +4932,7 @@ const COMPS = {
   hex:    { n: 'Hexers',        pick: (lead, i) => i % 2 ? pick(ROLE_OF.dps) : pick(ROLE_OF.hex) },
   venom:  { n: 'Venom',         pick: (lead, i) => pick(ROLE_OF.venom) },
 };
-const wildLevel = n => Math.max(1, Math.round(n <= 20 ? 1 + (n - 1) * 1.15 + (n > 10 ? 2 : 0) : 24.85 + (n - 20) * 0.8));   // past floor 20 it climbs more gently (pets top out at 30)
+const wildLevel = n => Math.max(1, Math.round(n <= 20 ? 1 + (n - 1) * 1.15 + (n > 10 ? 2 : 0) : n <= 30 ? 24.85 + (n - 20) * 0.8 : 32.85 + (n - 30) * 0.4));   // past floor 20 it climbs more gently, past 30 gentler still (pets top out at 30)
 function rollComp(R) {
   const n = R.n, opts = [['pack', 3], ['mixed', 4]];
   if (n >= 3) opts.push(['wall', 2], ['hex', 2]);
@@ -4923,6 +4958,12 @@ function buildFoes(ent, count) {
     out.push(foeUnit('lakewyrm', wildLevel(30) + 2, { boss: 'wyrm', name: 'The Lake Wyrm', acts: 2, scale: 1.9, mul: { hp: 7.0, atk: 1.2, def: 3 },
       abil: ['wyrmcoil', 'tidalwave', 'glamourmist', 'lilyrest'] }));
     for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'fairydragon' : 'spiritwolf', wildLevel(30) - 2, { scale: 0.85 }));
+    return out;
+  }
+  if (ent.boss === 'rune') {   // Act IV's boss — STAND-IN: a rune-tinted giant Tortoise with tidal abilities, two deep-sea minions
+    out.push(foeUnit('tortoise', wildLevel(40) + 2, { boss: 'rune', name: 'The Runeshell Leviathan', acts: 2, scale: 2.0, tint: 'hue-rotate(150deg) saturate(1.5) brightness(1.1)',
+      mul: { hp: 8.0, atk: 1.25, def: 3 }, abil: ['shellbash', 'tidalwave', 'lavaward', 'whirlpool'] }));
+    for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'viper' : 'toad', wildLevel(40) - 2, { scale: 0.85 }));
     return out;
   }
   const L = wildLevel(n), C = COMPS[ent.comp] || COMPS.mixed;
@@ -5363,7 +5404,8 @@ function winBattle() {
   if (B.boss === 'elder') {
     if (B.faints === 0) { R.ach.push('Defeat the Elder Dragon without a single pet fainting'); SAVE.ach.elder = true; if (!owned('elder') && !pack.some(it => it.def.egg === 'elder')) giveOffspring('elder', R); }
   }
-  if (B.boss === 'wyrm') {   // the final boss: its Wyrmling joins you on the spot (the run ends here, so no egg to carry)
+  if (B.boss === 'rune') { R.ach.push('Defeat the Runeshell Leviathan'); SAVE.ach.rune = true; }
+  if (B.boss === 'wyrm') {   // Act III's boss: its Wyrmling joins you on the spot
     R.ach.push('Defeat the Lake Wyrm'); SAVE.ach.wyrm = true;
     if (!owned('lakewyrm')) R.offspring.push(unlockPet('lakewyrm', newcomerLevel()));
   }
@@ -5470,13 +5512,15 @@ function pickValid(u) {
 // =====================================================================
 //  INTO BATTLE — touch a wild animal: '!' pops up and the world freezes, then an act-themed wipe tears the frozen
 //  frame away to reveal the battlefield (Act I: cracks and falling stone blocks · II: a wall of flame burns it away
-//  · III: vine curtains whip shut, then part in a swirl of petals), then a VS card (or a boss's own cinematic).
+//  · III: vine curtains whip shut, then part in a swirl of petals · IV: a great wave crashes over the screen and drains
+//  away), then a VS card (or a boss's own cinematic).
 // =====================================================================
 const ease = k => (k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k));
 const easeOut = k => (k <= 0 ? 0 : k >= 1 ? 1 : 1 - (1 - k) * (1 - k) * (1 - k));
 const BOSS_CINE = { shadow: { epithet: 'Terror of the Dark Den', roar: 'dreadhowl', col: '#b39ddb' },
                     elder: { epithet: 'Ancient Flame of the Roost', roar: 'ancientroar', col: '#ff8a50' },
-                    wyrm: { epithet: 'Sovereign of the Moonlit Lake', roar: 'tidalwave', col: '#80deea' } };
+                    wyrm: { epithet: 'Sovereign of the Moonlit Lake', roar: 'tidalwave', col: '#80deea' },
+                    rune: { epithet: 'Keeper of the Drowned Runes', roar: 'tidalwave', col: '#7fe0d0' } };
 function startEncounter(e) {
   G.mode = 'encounter'; G.enc = { e, t: 0 }; G.player.vx = 0; SFX.play('alert');
 }
@@ -5509,7 +5553,7 @@ function drawEncounterAlert() {   // in world coordinates: '!' over the hero and
   for (let i = 0; i < 14; i++) { const an = i / 14 * 6.283 + 0.2, r0 = 40 + E.t * 90, r1 = r0 + 22; ctx.beginPath(); ctx.moveTo(cx + Math.cos(an) * r0, cy + Math.sin(an) * r0 * 0.7); ctx.lineTo(cx + Math.cos(an) * r1, cy + Math.sin(an) * r1 * 0.7); ctx.stroke(); }
 }
 function beginIntro(snap, e) {
-  const act = clamp(G.room.act || 1, 1, 3), P = G.player;
+  const act = clamp(G.room.act || 1, 1, 4), P = G.player;
   const I = B.intro = { t: 0, act, snap, boss: e.boss || null, ent: e, end: e.boss ? 4.3 : 2.75, vsAt: 0.95, cineAt: 1.0, parts: [], slam: false, roared: false, shakeT: 0 };
   I.ox = clamp(P.x + P.w / 2 - G.cam.x, 80, W - 80); I.oy = clamp(P.y + P.h / 2 - G.cam.y, 80, H - 80);   // where you ran into it
   if (act === 1) {
@@ -5527,6 +5571,8 @@ function beginIntro(snap, e) {
       const d = Math.hypot(cx - I.ox, cy - I.oy);
       I.blocks.push({ x: bx, y: by, w: bw, h: bh, d: 0.4 + d / 2200 + rand(0, 0.05), vx: (cx - I.ox) * 0.35 + rand(-40, 40), vy: rand(-160, -40), vr: rand(-2.2, 2.2), dust: false });
     }
+  } else if (act === 4) {
+    I.wave = { dir: I.ox < W / 2 ? 1 : -1 };   // the wave rolls in from the side nearest where you touched the animal
   } else if (act === 3) {
     I.curt = [0, 1].map(side => makeVineCurtain(side));
     for (let i = 0; i < 70; i++) I.parts.push({ kind: 'petal', x: rand(-60, W + 60), y: rand(-40, H), vx: rand(-40, 40), vy: rand(20, 70), r: rand(0, 6.28), vr: rand(-6, 6), w: rand(0.6, 1.4), ph: rand(0, 6.28), d: rand(0, 0.5), life: rand(1.3, 2.0), c: pick(['#f8bbd0', '#f48fb1', '#fff3e0', '#e1bee7']) });
@@ -5641,14 +5687,48 @@ function updateIntro(dt) {
   if (I.act === 1 && I.blocks) for (const b of I.blocks) if (!b.dust && I.t > b.d) {   // a little rubble from each block as it breaks loose
     b.dust = true; for (let k = 0; k < 2; k++) I.parts.push({ kind: 'dust', x: b.x + rand(0, b.w), y: b.y + b.h, vx: rand(-40, 40), vy: rand(-40, 30), life: 0.7, age: 0, s: rand(2, 5) });
   }
+  if (I.act === 4 && I.wave) {
+    const fr = waveFront(I.t);
+    if (I.t < 0.55) for (let k = 0; k < 3; k++) { const y = rand(0, H), x = waveX(I, fr + WAVE_LEAN * (1 - y / H) ** 2); I.parts.push({ kind: 'spray', x, y, vx: I.wave.dir * rand(60, 220), vy: rand(-200, -40), life: rand(0.3, 0.6), age: 0, s: rand(2, 4), c: pick(['#e8fbff', '#bfefff', '#ffffff']) }); }
+    if (I.t > 0.3 && I.t < 1.25) for (let k = 0; k < 3; k++) { const lvl = waveLevel(I.t), y = rand(Math.max(lvl, 0), H); if (y < H) I.parts.push({ kind: 'bubble', x: rand(0, W), y, vx: rand(-10, 10), vy: rand(-160, -60), life: rand(0.4, 0.9), age: 0, s: pick([3, 4, 6]), c: '#cfefff' }); }
+  }
   if (I.act === 2 && I.t < 1.3) for (let k = 0; k < 4; k++) I.parts.push({ kind: 'ember', x: rand(0, W), y: fireFront(I.t) + rand(-10, 30), vx: rand(-30, 30), vy: rand(-260, -120), life: rand(0.5, 0.9), age: 0, s: rand(2, 4), c: pick(['#ffb74d', '#ffe082', '#ff7043']) });
-  for (const p of I.parts) { if (p.kind === 'petal') { if (I.t < p.d) continue; p.ph += dt * 3; p.x += (p.vx + Math.sin(p.ph) * 50) * dt; p.y += p.vy * dt; p.r += p.vr * dt; } else { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.kind === 'dust' ? 300 : -60) * dt; } }
+  for (const p of I.parts) { if (p.kind === 'petal') { if (I.t < p.d) continue; p.ph += dt * 3; p.x += (p.vx + Math.sin(p.ph) * 50) * dt; p.y += p.vy * dt; p.r += p.vr * dt; } else { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.kind === 'dust' ? 300 : p.kind === 'spray' ? 500 : p.kind === 'bubble' ? -40 : -60) * dt; } }
   I.parts = I.parts.filter(p => p.kind === 'petal' ? I.t < p.d + p.life : p.age < p.life);
   if (!I.boss && !I.slam && I.t > I.vsAt + 0.3) { I.slam = true; I.shakeT = 0.25; SFX.play('vs'); }
   if (I.boss && !I.roared && I.t > I.cineAt + 1.25) { I.roared = true; I.shakeT = 0.6; SFX.play('ab_' + BOSS_CINE[I.boss].roar, 0.85); }
   if (I.t >= I.end || (I.t > 0.5 && (hit('Enter', ' ') || B.introSkip))) { B.intro = null; B.introSkip = false; B.lock = Math.max(B.lock, 0.2); }
 }
 const fireFront = t => H + 70 - (H + 260) * ease(t / 1.05);
+// Act IV: the wave's crest sweeps across (accelerating, like a breaking wave), then the sea drains down out of the bottom
+const WAVE_LEAN = 110;   // the crest leans forward at the top
+const waveFront = t => -WAVE_LEAN - 40 + (W + WAVE_LEAN * 2 + 80) * Math.min(1, (t / 0.5) ** 1.6);
+const waveX = (I, x) => (I.wave.dir > 0 ? x : W - x);   // measured from the side it comes in on
+const waveLevel = t => (t < 0.62 ? -20 : -20 + (H + 60) * ease((t - 0.62) / 0.62));   // the water's surface once it drains
+function drawWave(I, t) {
+  const fr = waveFront(t), lvl = waveLevel(t), B4 = 4, d = I.wave.dir;
+  const water = y => { const k = y / H; return k < 0.25 ? '#1d6f9c' : k < 0.5 ? '#175f88' : k < 0.75 ? '#114d74' : '#0c3d5e'; };   // deeper is darker
+  for (let y = 0; y < H; y += B4) {
+    if (y + B4 < lvl) continue;   // drained
+    // the leading edge: the crest leans forward at the top and churns
+    const edge = t < 0.55 ? fr + WAVE_LEAN * (1 - y / H) ** 2 + Math.sin(y * 0.05 + t * 20) * 10 + Math.sin(y * 0.13 - t * 31) * 5 : W + 999;
+    const len = Math.max(0, Math.min(W, edge));
+    if (len <= 0) continue;
+    ctx.fillStyle = water(y); ctx.fillRect(d > 0 ? 0 : W - len, y, len, B4);
+    if (t < 0.55 && edge > -20 && edge < W + 40) {   // foam riding the crest
+      const fw = 10 + 8 * Math.abs(Math.sin(y * 0.09 + t * 14));
+      ctx.fillStyle = '#9fdff0'; ctx.fillRect(Math.round(waveX(I, edge - fw - 8) - (d > 0 ? 0 : fw)), y, fw, B4);
+      ctx.fillStyle = '#e8fbff'; ctx.fillRect(Math.round(waveX(I, edge - fw * 0.6) - (d > 0 ? 0 : fw * 0.6)), y, fw * 0.6, B4);
+    }
+  }
+  // light streaks in the water
+  if (lvl < H) { ctx.fillStyle = 'rgba(160,230,255,0.10)'; for (let i = 0; i < 6; i++) { const x = (i * 173 + t * 60) % (W + 80) - 40; ctx.fillRect(Math.round(x), Math.max(0, lvl), 18, H); } }
+  // the draining surface: a foamy line with little waves
+  if (t >= 0.62 && lvl > -10 && lvl < H + 10) for (let x = 0; x < W; x += B4) {
+    const y = Math.round(lvl + Math.sin(x * 0.04 + t * 9) * 5 + Math.sin(x * 0.11 - t * 13) * 2);
+    ctx.fillStyle = '#e8fbff'; ctx.fillRect(x, y - 3, B4, 3); ctx.fillStyle = '#9fdff0'; ctx.fillRect(x, y, B4, 3);
+  }
+}
 function drawIntro() {
   const I = B.intro, t = I.t;
   ctx.save();
@@ -5691,6 +5771,10 @@ function drawIntro() {
       });
     }
   }
+  if (I.act === 4 && I.wave) {
+    if (t < 0.52 && I.snap) ctx.drawImage(I.snap, 0, 0);   // the frozen frame until the wave has covered it
+    drawWave(I, t);
+  }
   if (I.act === 3 && I.curt) {
     const CW = W / 2 + 50, cover = t < 0.42 ? easeOut(t / 0.42) : t < 0.58 ? 1 : 1 - ease((t - 0.58) / 0.7);
     const vc = art('props/vine_curtain');
@@ -5711,7 +5795,11 @@ function drawIntro() {
       if (wpx > 2) { ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(x + VPX, y, VPX, VPX); }   // a glint
     }
   }
-  for (const p of I.parts) if (p.kind !== 'petal') { ctx.globalAlpha = Math.max(0, 1 - p.age / p.life); ctx.fillStyle = p.kind === 'dust' ? '#8d7b68' : p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s); }
+  for (const p of I.parts) if (p.kind !== 'petal') {
+    ctx.globalAlpha = Math.max(0, 1 - p.age / p.life);
+    if (p.kind === 'bubble') { ctx.strokeStyle = p.c; ctx.lineWidth = 1; ctx.strokeRect(Math.round(p.x) + 0.5, Math.round(p.y) + 0.5, p.s, p.s); ctx.fillStyle = '#ffffff'; ctx.fillRect(Math.round(p.x) + 1, Math.round(p.y) + 1, 1, 1); continue; }   // a hollow pixel bubble with a glint
+    ctx.fillStyle = p.kind === 'dust' ? '#8d7b68' : p.c; ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s);
+  }
   ctx.globalAlpha = 1;
   // ----- after the wipe: the VS card, or the boss's entrance -----
   if (I.boss) drawBossCinematic(I); else drawVsCard(I);
@@ -5770,7 +5858,7 @@ function drawBossCinematic(I) {
   else if (I.boss === 'elder') { x = W + 260 - (W + 260 - W * 0.74) * k; y = -160 + (H * 0.6 + 160) * k; }  // swoops down
   else { alpha *= Math.min(1, Math.max(0, tau - 0.1) / 1.2); filt = `brightness(${0.15 + 0.85 * ease((tau - 0.6) / 1.0)})`; } // emerges from the dark
   if (alpha > 0.01) {
-    ctx.save(); ctx.globalAlpha = alpha; ctx.filter = filt;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.filter = [u.tint, filt === 'none' ? '' : filt].filter(Boolean).join(' ') || 'none';   // keeps a stand-in boss's tint
     drawAnim(sheet, fly ? 'fly' : 'idle', B.t * 4, x, fly ? y - 40 : y + 60, -1, { scale: sc });
     ctx.filter = 'none'; ctx.restore();
   }
@@ -6228,7 +6316,7 @@ function drawBattleUnit(u) {
   if (down) o.alpha = Math.max(0.25, 1 - u.faintT * 2);
   if (hurt) o.flash = true;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, BX.ground + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
-  ctx.filter = u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet);
+  ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet));   // a unit's own tint (e.g. a stand-in boss) wins
   const anim = down ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = down ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
   if (!drawAnim(petSheet(sheet, u.it), anim, fr, x, y, u.face, o) && !drawAnim(petSheet(sheet, u.it), fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
     ctx.fillStyle = (PETS[u.k] || {}).color || '#888'; rr(x - 14 * s, y - 24 * s, 28 * s, 24 * s, 6); ctx.fill();
@@ -6366,7 +6454,7 @@ function drawBattle() {
   if (boss) {
     panel(W / 2 - 228, 44, 456, 34, 'dark');
     meter(W / 2 - 212, 63, 424, 8, boss.hp / boss.maxHp, boss.enraged ? '#e0503a' : '#9d6fd6', { ticks: 10 });
-    ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#f2c3a8'; ctx.fillText(boss.name.toUpperCase() + (boss.boss === 'shadow' ? `   ·   Achievement: win by the end of turn 3 (${B.turn <= 3 ? 'still possible' : 'missed'})` : boss.boss === 'wyrm' ? '   ·   The final battle: beat it and its Wyrmling joins you' : `   ·   Achievement: no pet faints (${B.faints ? 'missed' : 'still possible'})`), W / 2, 53);
+    ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#f2c3a8'; ctx.fillText(boss.name.toUpperCase() + (boss.boss === 'shadow' ? `   ·   Achievement: win by the end of turn 3 (${B.turn <= 3 ? 'still possible' : 'missed'})` : boss.boss === 'wyrm' ? '   ·   Beat it and its Wyrmling joins you' : boss.boss === 'rune' ? '   ·   The final battle of the Drowned Deep' : `   ·   Achievement: no pet faints (${B.faints ? 'missed' : 'still possible'})`), W / 2, 53);
   }
   ctx.textAlign = 'left'; ctx.font = `13px ${UI}`;
   B.log.forEach((t, i) => { ctx.globalAlpha = 0.35 + 0.65 * (i + 1) / B.log.length; ctx.fillStyle = PAL.cream; ctx.fillText(t, 14, 84 + i * 16); });
