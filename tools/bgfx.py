@@ -98,14 +98,14 @@ FX = {
                 dict(k='scroll', L=1, s='fog', y=205, speed=5, a=0.4, tint='hue-rotate(240deg) saturate(1.3)'),
                 dict(k='drift', L=2, s='firefly', fps=6, count=10, area=[20, 30, 440, 190], vx=1, vy=-3, wob=5, a=0.25, add=1, sc=0.5, tint='hue-rotate(220deg) saturate(1.4)')],   # faint little motes
     'thornwood': [dict(k='scroll', L=0, s='fog', y=165, speed=4, a=0.35, tint='hue-rotate(70deg)'),
-                  dict(k='drift', L=2, s='firefly', fps=6, count=18, area=[20, 50, 440, 180], vx=2, vy=-1, wob=7, a=0.9, add=1)],
+                  dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 50, 440, 180], vx=2, vy=-1, wob=7, a=0.25, add=1, sc=0.5)],   # faint little fireflies
     'glade': [dict(W_([236, 134, 30, 52]), L=1), dict(W_([292, 104, 28, 76]), L=1), dict(W_([344, 98, 26, 56]), L=1), dict(W_([291, 180, 26, 44]), L=1),
               dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 40, 440, 190], vx=2, vy=-1, wob=7, a=0.25, add=1, sc=0.5, tint='hue-rotate(280deg) saturate(1.2)'),   # faint little fireflies
               dict(k='drift', L=3, s='butterfly', fps=10, count=4, area=[40, 90, 400, 130], vx=8, vy=0, wob=10, a=1)],
     'lake': [dict(W_([192, 116, 36, 42]), L=0), dict(W_([386, 96, 42, 62]), L=0),
              dict(k='flow', L=0, s='moonflow', fps=6, rule='moon', rect=[282, 148, 72, 122], a=0.55, add=1),   # sparkles added as light over the moon path
              dict(k='drift', L=0, s='cloud', fps=0, count=4, area=[0, 6, 480, 60], vx=2.5, vy=0, wob=0, a=0.9),
-             dict(k='drift', L=1, s='firefly', fps=5, count=10, area=[60, 140, 360, 60], vx=1, vy=-0.5, wob=4, a=0.8, add=1, tint='hue-rotate(160deg) saturate(0.6)')],
+             dict(k='drift', L=1, s='firefly', fps=5, count=10, area=[60, 140, 360, 60], vx=1, vy=-0.5, wob=4, a=0.25, add=1, sc=0.5, tint='hue-rotate(160deg) saturate(0.6)')],   # faint little lights over the water
     'camp': [DUST, dict(k='glow', L=1, x=110, y=190, r=70, c='255,170,90', a=0.18, period=3.2)],
     'boss': [dict(k='sprite', L=1, s='banner_boss', fps=6, cx=140, top=42, cut=[118, 42, 46, 125]),
              dict(k='sprite', L=1, s='banner_boss', fps=6, cx=340, top=42, cut=[318, 42, 46, 125], t0=0.4),
