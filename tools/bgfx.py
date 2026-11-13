@@ -57,7 +57,9 @@ def build(name, n, height, green=False, keep_bg=False, body=None, out_name=None,
 # all three). Kinds: flow (an animated texture tiled inside the art's own pixels: lava, waterfalls, moonlight, runes; the
 # mask is made here from the layer's colours inside the rect), sprite (frames at a spot; cut = where the still art is
 # erased so the moving one replaces it), drift (particles that float about), scroll (a seamless strip sliding sideways),
-# glow (a soft light that breathes).
+# glow (a soft light that breathes), ripple (rows y0..y1 of the layer itself redrawn with a small moving sideways wave:
+# water and its reflections waver; amp in background pixels, bigger toward y1), sway (pixels matching rule in rect are lifted
+# out of the layer and swing sideways, still at the top and most at the bottom: hanging willow strands).
 # ---------------------------------------------------------------------------------------------------------------------
 RULES = {
     'lava': lambda r, g, b: r > 175 and g > 60 and b < 110 and r - b > 100,
@@ -65,6 +67,8 @@ RULES = {
     'cavewater': lambda r, g, b: g > 118 and b > r + 12 and g >= b,   # the cave's muted teal falls
     'moon': lambda r, g, b: (r + g + b) / 3 > 150,
     'rune': lambda r, g, b: r > 130 and b > 165 and g < 170 and b - g > 40,
+    'leaf': lambda r, g, b: (r + g + b) / 3 > 150 and b >= r + 5,   # the lake willows' pale hanging strands
+    'all': lambda r, g, b: True,
 }
 STRIPS = {   # sheet name: (raw strip fx_<name>.png, frames, height in background pixels, options)
     'lavaflow': ('lavafall', 6, 48, dict(body=(0.3, 0.7, 0.2, 0.78), tile=True)),
@@ -102,7 +106,12 @@ FX = {
     'glade': [dict(W_([236, 134, 30, 52]), L=1), dict(W_([292, 104, 28, 76]), L=1), dict(W_([344, 98, 26, 56]), L=1), dict(W_([291, 180, 26, 44]), L=1),
               dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 40, 440, 190], vx=2, vy=-1, wob=7, a=0.25, add=1, sc=0.5, tint='hue-rotate(280deg) saturate(1.2)'),   # faint little fireflies
               dict(k='drift', L=3, s='butterfly', fps=10, count=4, area=[40, 90, 400, 130], vx=8, vy=0, wob=10, a=1)],
-    'lake': [dict(W_([192, 116, 36, 42]), L=0), dict(W_([386, 96, 42, 62]), L=0),
+    'lake': [dict(k='ripple', L=0, y0=150, y1=270, amp=1.2, freq=0.45, speed=2.0),   # the lake surface (and its reflections) waver gently
+             dict(k='sway', L=2, rule='all', rect=[100, 0, 140, 112], amp=2.2, speed=1.3),   # the big willow's hanging curtain (right of the trunk)
+             dict(k='sway', L=0, rule='leaf', rect=[55, 78, 112, 64], amp=0.7, speed=1.1, ph=1),   # the far willow islands, gently
+             dict(k='sway', L=0, rule='leaf', rect=[200, 66, 78, 48], amp=0.6, speed=1.2, ph=2),
+             dict(k='sway', L=0, rule='leaf', rect=[428, 30, 52, 80], amp=0.6, speed=1.0, ph=3),
+             dict(W_([192, 116, 36, 42]), L=0), dict(W_([386, 96, 42, 62]), L=0),
              dict(k='flow', L=0, s='moonflow', fps=6, rule='moon', rect=[282, 148, 72, 122], a=0.55, add=1),   # sparkles added as light over the moon path
              dict(k='drift', L=0, s='cloud', fps=0, count=4, area=[0, 6, 480, 60], vx=2.5, vy=0, wob=0, a=0.9),
              dict(k='drift', L=1, s='firefly', fps=5, count=10, area=[60, 140, 360, 60], vx=1, vy=-0.5, wob=4, a=0.25, add=1, sc=0.5, tint='hue-rotate(160deg) saturate(0.6)')],   # faint little lights over the water
@@ -134,9 +143,47 @@ def mask(area, layer, rect, rule):
     return n, [x + bb[0], y + bb[1], bb[2] - bb[0], bb[3] - bb[1]]
 
 
+PRISTINE = os.path.join(ROOT, 'assets_raw', 'bg_layers', 'pristine')
+
+
+def layer_path(area, layer):
+    """The layer file; the first time a layer is edited here an untouched copy is kept, and every build starts from it."""
+    names = ['far', 'mid', 'near']; p = os.path.join(ROOT, 'assets', 'bg', f'{area}_{names[layer]}.png')
+    keep = os.path.join(PRISTINE, f'{area}_{names[layer]}.png'); os.makedirs(PRISTINE, exist_ok=True)
+    if not os.path.exists(keep): Image.open(p).save(keep)
+    return p, keep
+
+
+def sway_cut(area, layer, rect, rule):
+    """Lift the pixels matching rule inside rect out of the layer into their own image (bgfx/sway_<area>_<k>), so the
+    game can sway them without the still copy showing underneath."""
+    p, _ = layer_path(area, layer); im = Image.open(p).convert('RGBA'); px = im.load()
+    x, y, w, h = rect; part = Image.new('RGBA', (w, h)); pp = part.load(); test = RULES[rule]; gone = set()
+    for j in range(h):
+        for i in range(w):
+            X, Y = x + i, y + j
+            if 0 <= X < im.width and 0 <= Y < im.height:
+                r, g, b, a = px[X, Y]
+                if a > (0 if rule == 'all' else 60) and test(r, g, b): pp[i, j] = (r, g, b, a); px[X, Y] = (0, 0, 0, 0); gone.add((X, Y))
+    # fill the gaps they leave from the darker leaves and sky around them, so nothing shows through as they swing
+    for _ in range(12 if rule != 'all' else 0):   # (a see-through layer just keeps its gaps: what's behind shows, as it should)
+        filled = {}
+        for X, Y in gone:
+            near = [px[X + dx, Y + dy] for dx in (-1, 0, 1) for dy in (-1, 0, 1) if (dx or dy) and 0 <= X + dx < im.width and 0 <= Y + dy < im.height
+                    and (X + dx, Y + dy) not in gone and px[X + dx, Y + dy][3] > 200]
+            if len(near) >= 2: filled[(X, Y)] = tuple(sum(c[k] for c in near) // len(near) for k in range(3)) + (255,)
+        if not filled: break
+        for q, c in filled.items(): px[q] = c; gone.discard(q)
+    bb = part.getbbox()
+    if not bb: raise SystemExit(f'nothing to sway {area} {rect}')
+    k = sum(1 for f in os.listdir(OUT) if f.startswith(f'sway_{area}_'))
+    n = f'sway_{area}_{k}'; part.crop(bb).save(os.path.join(OUT, n + '.png')); im.save(p)
+    return n, [x + bb[0], y + bb[1], bb[2] - bb[0], bb[3] - bb[1]]
+
+
 def cut(area, layer, rect, keep_top=0):
     """Erase the still art inside rect (below keep_top rows) so a moving version can replace it."""
-    names = ['far', 'mid', 'near']; p = os.path.join(ROOT, 'assets', 'bg', f'{area}_{names[layer]}.png')
+    p, _ = layer_path(area, layer)
     im = Image.open(p).convert('RGBA'); px = im.load(); x, y, w, h = rect
     for j in range(keep_top, h):
         for i in range(w):
@@ -147,7 +194,9 @@ def cut(area, layer, rect, keep_top=0):
 def write_js():
     import json
     for f in os.listdir(OUT):
-        if f.startswith('mask_'): os.remove(os.path.join(OUT, f))
+        if f.startswith('mask_') or f.startswith('sway_'): os.remove(os.path.join(OUT, f))
+    if os.path.isdir(PRISTINE):   # every cut starts again from the untouched layers
+        for f in os.listdir(PRISTINE): Image.open(os.path.join(PRISTINE, f)).save(os.path.join(ROOT, 'assets', 'bg', f))
     frames = {}
     for name, (src, n, h, opt) in STRIPS.items():
         if os.path.exists(os.path.join(RAW, f'fx_{src}.png')): frames[name] = build(src, n, h, out_name=name, **opt)
@@ -159,6 +208,7 @@ def write_js():
             if e.get('s') and e['s'] not in frames: continue          # its strip isn't made yet
             if e['k'] == 'flow': e['m'], e['r'] = mask(area, e['L'], e.pop('rect'), e.pop('rule'))
             if e.get('cut'): cut(area, e['L'], e['cut'], e.pop('keepTop', 0)); e.pop('cut')
+            if e['k'] == 'sway': e['m'], e['r'] = sway_cut(area, e['L'], e.pop('rect'), e.pop('rule'))
             if e.get('s'): e['n'] = frames[e['s']]
             out[area].append(e)
     with open(os.path.join(OUT, 'bgfx.js'), 'w') as fh:

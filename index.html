@@ -68,7 +68,7 @@ const ART_FILES = {
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
-  bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],
+  bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
@@ -3138,6 +3138,18 @@ function drawBgFx(area, layer, tf) {
     } else if (e.k === 'scroll') {   // a seamless strip (fog) sliding sideways across the whole layer
       const w = img.width, off = ((TIME * e.speed) % w + w) % w;
       for (let x = -off; x < 480; x += w) ctx.drawImage(img, Math.round(tf.x + x * sx), Math.round(tf.y + e.y * sy), Math.round(w * sx) + 1, Math.round(img.height * sy));
+    } else if (e.k === 'ripple') {   // the layer's own water, redrawn in thin bands nudged sideways by a moving wave
+      const lim = art('bg/' + area + '_' + ['far', 'mid', 'near'][e.L]);
+      if (lim) for (let y = e.y0; y < e.y1; y += 2) {
+        const depth = (y - e.y0) / (e.y1 - e.y0), dx = e.amp * (0.35 + 0.65 * depth) * Math.sin(y * e.freq - TIME * e.speed);
+        ctx.drawImage(lim, 0, y, lim.width, 2, tf.x + dx * sx, tf.y + y * sy, lim.width * sx, 2 * sy);
+      }
+    } else if (e.k === 'sway') {   // hanging strands lifted out of the layer: still at the top, swinging most at the tips
+      const part = art('bgfx/' + e.m);
+      if (part) { const [rx, ry, rw, rh] = e.r; for (let y = 0; y < rh; y += 2) {
+        const t = y / rh, dx = e.amp * Math.pow(t, 1.4) * Math.sin(TIME * e.speed + (e.ph || 0) + y * 0.04);
+        ctx.drawImage(part, 0, y, rw, 2, tf.x + (rx + dx) * sx, tf.y + (ry + y) * sy, rw * sx, 2 * sy);
+      } }
     } else if (e.k === 'glow') {   // a soft light that breathes
       const k = 0.6 + 0.4 * Math.sin(TIME * Math.PI * 2 / (e.period || 3)), cx = tf.x + e.x * sx, cy = tf.y + e.y * sy, r = e.r * sx;
       const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, r); gr.addColorStop(0, `rgba(${e.c},${(e.a || 0.2) * k})`); gr.addColorStop(1, `rgba(${e.c},0)`);
