@@ -14,9 +14,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, 'assets_raw', 'bg_layers', 'raw')
 OUT = os.path.join(ROOT, 'assets', 'bg')
 CROP = {'hall': 236, 'cave': 236, 'crypt': 236, 'camp': 236, 'boss': 236}   # BG_CROP in index.html: rows the game shows
-DEPTH = {'default': [0.35, 0.65, 1.0], 'hall': [0.35, 0.42, 1.0], 'crypt': [0.35, 0.55, 1.0], 'boss': [0.35, 0.45, 1.0], 'yard': [0.35, 1.0, 1.0]}   # BG_DEPTH in index.html
+DEPTH = {'default': [0.35, 0.65, 1.0], 'hall': [0.35, 0.42, 1.0], 'crypt': [0.35, 0.55, 1.0], 'boss': [0.35, 0.45, 1.0]}   # BG_DEPTH in index.html
 HAZE = {'thornwood': 0.25}   # middle layers that sit in fog: blended this much toward the far layer's average colour
-NO_NEAR = {'yard'}   # backgrounds whose near layer is empty (the Yard's foreground is the seamless grass strip, bg/yard_grass)
+NO_NEAR = set()   # backgrounds whose near layer is empty
 MIST = {'crypt': 236}   # near layers whose pieces above this row are mist: made soft and see-through (the ledge below stays solid)
 GREEN_KEY = {'crypt', 'sanctum', 'glade', 'boss'}   # purple / pink art: these layers are made on flat green #00FF00 instead of magenta
 
@@ -171,31 +171,54 @@ def preview(key, orig, layers):
     p = os.path.join(ROOT, 'assets_raw', 'bg_layers', f'preview_{key}.png'); out.save(p); print('preview', p)
 
 
-def grass_strip(width=360, overlap=40):
-    """The Yard's foreground grass (raw/yard_grass.png, grass on magenta) -> assets/bg/yard_grass.png: keyed, scaled so its
-    pixels match the backgrounds, cropped to the grass, and made seamless: the right end is laid under the left end, so the
-    grass of both joins and copies placed side by side never show a seam."""
-    src = keyed(Image.open(os.path.join(RAW, 'yard_grass.png')))
-    h = round(src.height * width / src.width)
-    im = despeckle(shrink(src, (width, h)))
-    bb = im.getbbox(); im = im.crop((0, bb[1], width, bb[3]))
-    W, H = im.size; o = overlap
-    tile = Image.new('RGBA', (W - o, H))
-    tile.alpha_composite(im.crop((W - o, 0, W, H)), (0, 0))        # the right end first...
-    tile.alpha_composite(im.crop((0, 0, W - o, H)), (0, 0))        # ...the left part over it
-    # fill any see-through gaps in the solid bottom rows from the pixel above, so the base is one unbroken band of grass
-    px = tile.load()
-    for y in range(H - 4, H):
+def seamless(im, o):
+    """Make a strip tile: the last o columns are cross-faded into the first o, so tile N's right edge runs straight into
+    tile N+1's left edge. Where only one side has something (a grass blade, a post) it is kept as it is."""
+    W, H = im.size; src = im.load(); out = Image.new('RGBA', (W - o, H)); px = out.load()
+    for y in range(H):
         for x in range(W - o):
+            if x >= o: px[x, y] = src[x, y]; continue
+            a, b = src[W - o + x, y], src[x, y]; t = (x + 0.5) / o      # a: the end it continues from, b: its own start
+            if a[3] and b[3]: px[x, y] = tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(4))
+            else: px[x, y] = b if b[3] else a
+    return out
+
+
+def strip(name, width, overlap, fill_base=0):
+    """A seamless strip for the Yard (raw/<name>.png, art on magenta) -> assets/bg/<name>.png, its pixels matching the
+    backgrounds (width = background pixels), cropped to the art, seamless; fill_base rows at the bottom are made solid."""
+    src = keyed(Image.open(os.path.join(RAW, name + '.png')))
+    im = despeckle(shrink(src, (width, round(src.height * width / src.width))))
+    bb = im.getbbox(); im = im.crop((0, bb[1], width, bb[3]))
+    if overlap == 'posts':   # a fence: cut from the middle of the first post to the middle of the last, so posts repeat evenly
+        ap = im.load(); row = 2
+        cols = [x for x in range(im.width) if ap[x, row][3] > 128]
+        runs, cur = [], None
+        for x in range(im.width + 1):
+            on = x < im.width and ap[x, row][3] > 128
+            if on and cur is None: cur = x
+            if not on and cur is not None: runs.append((cur + x - 1) / 2); cur = None
+        c0, c1 = round(runs[0]), round(runs[-1]); print('posts at', [round(r) for r in runs])
+        tile = im.crop((c0, 0, c1, im.height))
+    else: tile = seamless(im, overlap)
+    px = tile.load(); W, H = tile.size
+    for y in range(H - fill_base, H):
+        for x in range(W):
             if px[x, y][3] < 255: px[x, y] = px[x, y - 1][:3] + (255,)
-    tile.save(os.path.join(OUT, 'yard_grass.png')); print('grass strip', tile.size)
-    # preview: three copies side by side over the yard, to check the seam
-    prev = Image.new('RGBA', (tile.width * 3, tile.height + 20), (60, 120, 60, 255))
-    for i in range(3): prev.alpha_composite(tile, (i * tile.width, 20))
-    prev.resize((prev.width * 2, prev.height * 2), Image.NEAREST).save(os.path.join(ROOT, 'assets_raw', 'bg_layers', 'preview_grass.png'))
+    tile.save(os.path.join(OUT, name + '.png')); print(name, tile.size)
+    prev = Image.new('RGBA', (W * 3, H + 20), (124, 196, 244, 255))
+    for i in range(3): prev.alpha_composite(tile, (i * W, 20))
+    prev.resize((prev.width * 2, prev.height * 2), Image.NEAREST).save(os.path.join(ROOT, 'assets_raw', 'bg_layers', f'preview_{name}.png'))
+
+
+def yard():
+    """The Sanctuary Yard: castle far layer (yard2_far, full picture) + the fields, fence and front-grass strips."""
+    Image.open(os.path.join(RAW, 'yard2_far.png')).convert('RGB').resize((480, 270), Image.BOX).save(os.path.join(OUT, 'yard_far.png'))
+    for name, w, o, base in (('yard_fields', 360, 40, 3), ('yard_fence', 320, 'posts', 0), ('yard_grass', 360, 40, 4)):
+        if os.path.exists(os.path.join(RAW, name + '.png')): strip(name, w, o, base)
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == '--grass': grass_strip(); sys.exit()
+    if sys.argv[1] == '--yard': yard(); sys.exit()
     key = sys.argv[1]; o, L = build(key)
     if '--preview' in sys.argv: preview(key, o, L)
