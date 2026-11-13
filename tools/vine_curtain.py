@@ -17,6 +17,7 @@ from bglayers import keyed   # magenta key with despill
 SRC = os.path.join(ROOT, 'assets_raw', 'bg_layers', 'raw', 'vine_curtain.png')
 OUT = os.path.join(ROOT, 'assets', 'props', 'vine_curtain.png')
 HEIGHT = 270
+HEM = 14   # the game's VINE_HEM
 
 
 def main():
@@ -40,8 +41,17 @@ def main():
     for x in range(solid):
         for y in range(HEIGHT):
             if px[x, y][3] == 0: px[x, y] = (16, 40, 20, 255)
-    small.save(OUT)
-    print('vine curtain', small.size, 'SOLID', solid)
+    # a ragged leafy hem below the picture (HEM rows: the bottom rows mirrored, then torn off unevenly), so the drape's
+    # leading edge isn't a straight line while it comes down; when closed it sits below the screen
+    import math
+    out = Image.new('RGBA', (w, HEIGHT + HEM)); out.alpha_composite(small, (0, 0)); op = out.load()
+    for r in range(HEM):
+        for x in range(w): op[x, HEIGHT + r] = px[x, HEIGHT - 1 - r]
+    for x in range(w):
+        cut = HEIGHT + int(round(3 + 4 * abs(math.sin(x * 0.21)) + 3 * math.sin(x * 0.57 + 1.3) + 2 * math.sin(x * 1.3)))
+        for y in range(max(HEIGHT, cut), HEIGHT + HEM): op[x, y] = (0, 0, 0, 0)
+    out.save(OUT)
+    print('vine curtain', out.size, 'SOLID', solid, 'HEM', HEM)
 
 
 if __name__ == '__main__':
