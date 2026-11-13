@@ -2868,8 +2868,14 @@ function drawThorn(g, X, Y, tx, ty) {
   g.fillStyle = '#d7ccc8'; for (let i = 0; i < 7; i++) g.fillRect(X + 3 + Math.floor(hash2(tx * 5 + i, ty) * 24), Y + 4 + Math.floor(hash2(tx, ty * 3 + i) * 22), 2, 2);
   g.fillStyle = '#558b2f'; for (let i = 0; i < 3; i++) g.fillRect(X + 4 + i * 9, Y + 10 + (i % 2) * 8, 4, 3);
 }
-function drawVine(g, X, Y, top, tx, ty) {
+function drawVine(g, X, Y, top, tx, ty, underLedge) {
   const img = art('props/vine');
+  // the top piece of a vine hanging from a one-way ledge reaches up under the plank (the ledges are drawn afterwards,
+  // over it), so the vine hangs from the ledge instead of starting a gap below it
+  if (top && underLedge) {
+    if (img) g.drawImage(img, X, Y - TILE + 8, TILE, TILE);
+    else { g.strokeStyle = '#33691e'; g.lineWidth = 3; g.beginPath(); g.moveTo(X + 15, Y - TILE + 8); g.lineTo(X + 15, Y + 2); g.stroke(); }
+  }
   if (img) { g.drawImage(img, X, Y, TILE, TILE); return; }
   g.strokeStyle = '#33691e'; g.lineWidth = 3; g.beginPath(); g.moveTo(X + 15, Y + (top ? 0 : 0)); g.bezierCurveTo(X + 8, Y + 10, X + 22, Y + 20, X + 15, Y + TILE); g.stroke();
   g.fillStyle = '#7cb342'; g.fillRect(X + 7, Y + 6 + (ty % 2) * 10, 6, 4); g.fillRect(X + 17, Y + 14 - (ty % 2) * 6, 6, 4);
@@ -2894,7 +2900,7 @@ function bakeTerrain(R) {
     }
     if (t === SPIKES && art('props/spikes')) { drawSprite(art('props/spikes'), X + TILE / 2, Y + TILE, 1, { g }); continue; }
     if (t === THORN) { drawThorn(g, X, Y, tx, ty); continue; }
-    if (t === VINE) { drawVine(g, X, Y, get(tx, ty - 1) !== VINE, tx, ty); continue; }
+    if (t === VINE) { drawVine(g, X, Y, get(tx, ty - 1) !== VINE, tx, ty, get(tx, ty - 1) === ONEWAY); continue; }
     if (t === SOLID) {
       g.fillStyle = base; g.fillRect(X, Y, TILE, TILE);
       // stone blocks (2 courses per tile, offset every other row)
