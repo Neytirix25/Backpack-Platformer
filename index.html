@@ -3755,9 +3755,9 @@ const ABIL = {
 };
 // statuses: good ones help the unit they sit on, bad ones (curses) hurt it
 const STATUS = {
-  burn:    { n: 'Burn',    c: '#ff7043', bad: true,  d: 'Takes fire damage every turn.' , ab: 'Bu' },
-  poison:  { n: 'Poison',  c: '#9ccc65', bad: true,  d: 'Takes poison damage every turn (stacks).' , ab: 'Po' },
-  bleed:   { n: 'Bleed',   c: '#e53935', bad: true,  d: 'Takes bleed damage every turn.' , ab: 'Bd' },
+  burn:    { n: 'Burn',    c: '#ff7043', bad: true,  d: 'Takes fire damage every turn (stacks up to 10).' , ab: 'Bu' },
+  poison:  { n: 'Poison',  c: '#9ccc65', bad: true,  d: 'Takes poison damage every turn (stacks up to 10).' , ab: 'Po' },
+  bleed:   { n: 'Bleed',   c: '#e53935', bad: true,  d: 'Takes bleed damage every turn (stacks up to 10).' , ab: 'Bd' },
   stun:    { n: 'Stun',    c: '#ffeb3b', bad: true,  d: 'Skips its next action.' , ab: 'St' },
   blind:   { n: 'Blind',   c: '#90a4ae', bad: true,  d: 'Misses half its attacks.' , ab: 'Bl' },
   weak:    { n: 'Weak',    c: '#bcaaa4', bad: true,  d: 'Deals 30% less damage.' , ab: 'Wk' },
@@ -3772,7 +3772,7 @@ const STATUS = {
   undying: { n: 'Undying', c: '#f48fb1', bad: false, d: 'Can\'t drop below 1 HP.' , ab: 'Ud' },
   charging: { n: 'Charging', c: '#ffb74d', bad: false, d: 'Winding up a charge: it strikes on its next turn. A stun breaks it.', ab: 'Ch' },
 };
-const DOTK = { burn: 0.4, poison: 0.3, bleed: 0.35 };
+const DOTK = { burn: 0.4, poison: 0.3, bleed: 0.35 }, DOT_MAX = 10;   // damage per dose (x attack); how many doses can stack
 
 // ---- TALENT TREES (read top to bottom) ----
 // Every pet has three trees. Each tree has 5 tiers: tier 1 opens at pet level 1, tier 2 at 5, tier 3 (keystone) at 10,
@@ -4981,9 +4981,14 @@ function addSt(u, k, turns, v) {
   if (u.fainted) return;
   if (k === 'stun' && u.boss) { if (u.st.stunImm > 0) { bText(u, 'RESISTED', '#ffeb3b', 14); return; } turns = 1; u.st.stunImm = 3; }
   const cur = u.st[k];
-  if (k === 'poison' && cur) { cur.v = Math.min(cur.v + v, v * 4); cur.t = Math.max(cur.t, turns); return; }
+  if (DOTK[k] && cur && v !== undefined) {   // burn, poison, bleed stack: each dose adds its damage, up to DOT_MAX stacks on one shared timer
+    const n = cur.n || 1;
+    if (n < DOT_MAX) { cur.v = (cur.v || 0) + v; cur.n = n + 1; }
+    else if (v > cur.v / n) cur.v += v - cur.v / n;   // full: a stronger dose replaces an average one
+    cur.t = Math.max(cur.t, turns); return;
+  }
   if (cur) { cur.t = Math.max(cur.t, turns); if (v !== undefined) cur.v = Math.max(cur.v || 0, v); }
-  else u.st[k] = { t: turns, v };
+  else u.st[k] = DOTK[k] ? { t: turns, v, n: 1 } : { t: turns, v };
 }
 function addShield(u, amt) { amt = Math.round(amt); if (amt <= 0 || u.fainted) return; const s = u.st.shield; if (s) { s.v += amt; s.t = Math.max(s.t, 3); } else u.st.shield = { t: 3, v: amt }; bText(u, '+' + amt, '#81d4fa', 15); }
 function healUnit(u, amt, src) {
@@ -6254,7 +6259,7 @@ function stIcons(u) {
     return { u, k, x: u.x - (n * ST_ICON + (n - 1) * gap) / 2 + col * (ST_ICON + gap), y: top - 12 - 3 - ST_ICON - row * (ST_ICON + gap), w: ST_ICON, h: ST_ICON };
   });
 }
-const stCount = (u, k) => { const st = u.st[k]; return k === 'shield' || k === 'evade' ? st.v : k === 'charging' ? '' : st.t; };   // the corner number
+const stCount = (u, k) => { const st = u.st[k]; return DOTK[k] ? 'x' + (st.n || 1) : k === 'shield' || k === 'evade' ? st.v : k === 'charging' ? '' : st.t; };   // the corner number (stacks for burn / poison / bleed)
 function drawStIcon(u, r) {
   const img = art('ui/st_' + r.k), S = STATUS[r.k], pinned = B.stPin && B.stPin.u === u && B.stPin.k === r.k, over = inRect(mouse, r);
   if (img) ctx.drawImage(img, r.x, r.y, r.w, r.h);
@@ -6273,8 +6278,9 @@ function stInfo(u, k) {
   const S = STATUS[k], st = u.st[k], L = [], pct = v => Math.round(v * 100) + '%';
   const dot = { burn: ['fire', 0.4], poison: ['poison', 0.3], bleed: ['bleed', 0.35] }[k];
   if (dot) {
-    L.push(`Takes ${dotTick(u, k)} ${dot[0]} damage at the start of each of its turns (${pct(dot[1])} of the attacker's attack when it was ${k === 'burn' ? 'burned' : k === 'poison' ? 'poisoned' : 'cut'}).`);
-    if (k === 'poison') L.push('Poison stacks: each new dose adds more damage, up to 4 doses.');
+    const n = st.n || 1;
+    L.push(`Takes ${dotTick(u, k)} ${dot[0]} damage at the start of each of its turns, from ${n} stack${n > 1 ? 's' : ''} (each ${pct(dot[1])} of its attacker's attack).`);
+    L.push(n < DOT_MAX ? `Every new ${S.n.toLowerCase()} adds another stack and resets the timer to the longer one (up to ${DOT_MAX} stacks).` : `It is at the most stacks (${DOT_MAX}); a stronger dose still replaces a weaker one.`);
     if (wildfireOn(u)) L.push('Wildfire: burned AND poisoned, so burn, poison and bleed all deal double.');
     if (u.boss) L.push('Bosses shrug off half of it.');
     L.push('It ignores defense, Mark and Guard, and can\'t be dodged; a Shield soaks it up.');
@@ -8056,7 +8062,7 @@ function cleanSt(st) {
   const o = {}; if (!st || typeof st !== 'object') return o;
   for (const k of Object.keys(st)) if ((STATUS[k] || k === 'stunImm') && st[k] !== null) {
     if (k === 'stunImm') { o[k] = numIn(st[k], 0, 9, 0); continue; }
-    const v = st[k] || {}; o[k] = { t: numIn(v.t, 0, 99, 1) }; if (v.v !== undefined && v.v !== null) o[k].v = numIn(v.v, 0, 99999, 0);
+    const v = st[k] || {}; o[k] = { t: numIn(v.t, 0, 99, 1) }; if (v.v !== undefined && v.v !== null) o[k].v = numIn(v.v, 0, 99999, 0); if (v.n) o[k].n = numIn(v.n, 1, 10, 1);
   }
   return o;
 }
