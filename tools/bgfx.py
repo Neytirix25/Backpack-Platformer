@@ -100,7 +100,7 @@ FX = {
     'thornwood': [dict(k='scroll', L=0, s='fog', y=165, speed=4, a=0.35, tint='hue-rotate(70deg)'),
                   dict(k='drift', L=2, s='firefly', fps=6, count=18, area=[20, 50, 440, 180], vx=2, vy=-1, wob=7, a=0.9, add=1)],
     'glade': [dict(W_([236, 134, 30, 52]), L=1), dict(W_([292, 104, 28, 76]), L=1), dict(W_([344, 98, 26, 56]), L=1), dict(W_([291, 180, 26, 44]), L=1),
-              dict(k='drift', L=2, s='firefly', fps=6, count=16, area=[20, 40, 440, 190], vx=2, vy=-1, wob=7, a=0.9, add=1, tint='hue-rotate(280deg) saturate(1.2)'),
+              dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 40, 440, 190], vx=2, vy=-1, wob=7, a=0.25, add=1, sc=0.5, tint='hue-rotate(280deg) saturate(1.2)'),   # faint little fireflies
               dict(k='drift', L=3, s='butterfly', fps=10, count=4, area=[40, 90, 400, 130], vx=8, vy=0, wob=10, a=1)],
     'lake': [dict(W_([192, 116, 36, 42]), L=0), dict(W_([386, 96, 42, 62]), L=0),
              dict(k='flow', L=0, s='moonflow', fps=6, rule='moon', rect=[282, 148, 72, 122], a=0.55, add=1),   # sparkles added as light over the moon path
