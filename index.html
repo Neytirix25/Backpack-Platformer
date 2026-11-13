@@ -4555,28 +4555,92 @@ function placeWild(R, cells, etx, ety) {
     G.wild.push(e);
   }
 }
+// ---- how wild animals roam ----
+// Walkers know the stretch of floor they stand on (their span: no ledges, walls or hazards, at most 8 tiles either side of home).
+// They pick a spot on it, ease into a walk, slow down as they arrive, rest a moment (glancing about), then pick another.
+// When you come close (and only then: interest starts at 190 px and fades past 280, so it doesn't flicker) they trot
+// over to sniff at you, but never leave their own floor; standing next to you they stop and watch instead of jittering.
+// Flyers glide between waypoints around their perch the same way, and swoop over to you when you're close.
+const WILD_HAZ = [SPIKES, LAVA, THORN], WILD_RANGE = 8 * TILE;
+function wildSpan(e) {
+  const ty = Math.floor((e.y + e.h + 2) / TILE), tx0 = Math.floor((e.x + e.w / 2) / TILE), tall = Math.max(1, Math.ceil(e.h / TILE));
+  const ok = tx => {
+    const g = tileAt(tx, ty); if (!(g === SOLID || g === ONEWAY || g === CRUMBLE)) return false;   // firm floor under it
+    for (let k = 1; k <= tall; k++) { const t = tileAt(tx, ty - k); if (isSolidT(t) || WILD_HAZ.includes(t)) return false; }   // room to stand, nothing sharp
+    return true;
+  };
+  if (!ok(tx0)) return null;
+  let a = tx0, b = tx0;
+  while (a > 1 && ok(a - 1) && tx0 - a < 30) a--;
+  while (b < G.room.cols - 2 && ok(b + 1) && b - tx0 < 30) b++;
+  let min = a * TILE + 2, max = Math.max(min, (b + 1) * TILE - e.w - 2);   // the range for e.x
+  const hx = e.homeX - e.w / 2;   // and it stays near where it was placed (WILD_RANGE), so the groups stay spread along the floor
+  if (max - min > 2 * WILD_RANGE) { const c = clamp(hx, min + WILD_RANGE, max - WILD_RANGE); min = c - WILD_RANGE; max = c + WILD_RANGE; }
+  return { min, max };
+}
+function wildBlocked(e, dir) {   // a ledge or a hazard right in front of its paws?
+  const fx = Math.floor((dir > 0 ? e.x + e.w + 3 : e.x - 3) / TILE), fy = Math.floor((e.y + e.h + 4) / TILE), g = tileAt(fx, fy);
+  return !(isSolidT(g) || g === ONEWAY) || WILD_HAZ.includes(tileAt(fx, fy - 1)) || WILD_HAZ.includes(g);
+}
+function curiosity(e, P, dx, dy, near, far) {   // with a gap between noticing you and losing interest, so it doesn't flicker
+  if (!e.curious && Math.abs(dx) < near && dy < 90) e.curious = true;
+  else if (e.curious && (Math.abs(dx) > far || dy > 150)) { e.curious = false; e.goal = null; e.pause = rand(0.4, 1.1); }
+  return e.curious;
+}
+function roamWalker(e, dt, P) {
+  const cx = e.x + e.w / 2, dxp = P.x + P.w / 2 - cx, dyp = Math.abs(P.y + P.h - (e.y + e.h));
+  if (e.onGround && (!e.span || e.x < e.span.min - TILE || e.x > e.span.max + TILE)) { e.span = wildSpan(e); e.goal = null; }   // landed somewhere new
+  const S = e.span, cur = curiosity(e, P, dxp, dyp, 190, 280);
+  let tx = null, speed = 42;
+  if (cur) { speed = 88; if (S) tx = clamp(P.x + P.w / 2 - e.w / 2, S.min, S.max); }
+  else if (e.pause > 0) e.pause -= dt;
+  else if (S) {
+    if (e.goal == null) {
+      if (S.max - S.min >= TILE * 1.5) {   // somewhere worth walking to, not a step away
+        let g = e.x; for (let k = 0; k < 8; k++) { g = rand(S.min, S.max); if (Math.abs(g - e.x) > TILE * 1.5) break; }
+        e.goal = g;
+      } else e.pause = rand(1.5, 3.5);   // a tiny ledge: just sit there and look about
+    }
+    tx = e.goal;
+  }
+  let want = 0;
+  if (tx != null) {
+    const d = tx - e.x;
+    if (Math.abs(d) > (cur ? 10 : 3)) want = Math.sign(d) * speed * Math.min(1, 0.3 + Math.abs(d) / 30);   // slow down on the way in
+    else if (!cur) { e.goal = null; e.pause = rand(0.8, 2.8); }
+  }
+  // safety net: whatever it wanted, it never walks off a ledge, into a hazard or keeps pushing a wall
+  if (want && e.onGround && (wildBlocked(e, Math.sign(want)) || e.hitWall === Math.sign(want))) {
+    want = 0; e.vx = 0;
+    if (!cur) { e.goal = null; e.pause = rand(0.6, 1.5); e.span = wildSpan(e); }
+  }
+  e.vx += clamp(want - e.vx, -320 * dt, 320 * dt);   // ease in and out instead of snapping
+  if (!want && Math.abs(e.vx) < 6) e.vx = 0;
+  moveBody(e, dt);
+  if (Math.abs(e.vx) > 12) e.face = Math.sign(e.vx);
+  else if (cur && Math.abs(dxp) > 14) e.face = Math.sign(dxp);   // stopped by you: watch you (not when you're right overhead)
+  else if (!cur && e.pause > 0 && (e.lookT = (e.lookT || 0) - dt) <= 0) { e.lookT = rand(1.2, 2.6); if (Math.random() < 0.5) e.face = -e.face; }   // glance about
+}
+function roamFlyer(e, dt, P) {
+  const dxp = P.x + P.w / 2 - (e.x + e.w / 2), dyp = Math.abs(P.y - e.y), cur = curiosity(e, P, dxp, dyp, 200, 300);
+  if (!e.wp || (e.wpT -= dt) <= 0) { e.wp = { x: e.homeX - e.w / 2 + rand(-100, 100), y: e.homeY + rand(-30, 20) }; e.wpT = rand(2.5, 5); }
+  const tx = cur ? P.x + P.w / 2 - e.w / 2 : e.wp.x, ty = (cur ? P.y - 10 : e.wp.y) + Math.sin(e.t * 1.7) * 5;
+  const wx = clamp((tx - e.x) * 1.2, -110, 110), wy = clamp((ty - e.y) * 1.2, -80, 80);
+  e.vx += clamp(wx - e.vx, -240 * dt, 240 * dt); e.vy = (e.vy || 0) + clamp(wy - (e.vy || 0), -240 * dt, 240 * dt);
+  e.x += e.vx * dt; e.y += e.vy * dt;
+  if (Math.abs(e.vx) > 18) e.face = Math.sign(e.vx);
+}
 function updateWild(dt) {
   const P = G.player, R = G.room;
   G.graceT = (G.graceT || 0) - dt;
   for (const e of G.wild || []) {
     if (e.beaten) continue;
     e.t += dt;
-    const near = Math.abs(P.x - e.x) < 220 && Math.abs(P.y - e.y) < 120;
     if (e.boss) { e.face = Math.sign(P.x - e.x) || e.face; if (!e.fly) { e.vx = 0; moveBody(e, dt); } else e.y = e.homeY + Math.sin(e.t * 1.2) * 8; }
-    else if (e.fly) {   // flyers circle their perch, and drift toward you when you come close
-      const tx = near ? P.x : e.homeX + Math.sin(e.t * 0.6) * 60, ty = near ? P.y - 10 : e.homeY + Math.sin(e.t * 1.3) * 12;
-      e.vx = clamp((tx - e.x) * 1.5, -110, 110); e.x += e.vx * dt; e.y += clamp((ty - e.y) * 1.5, -80, 80) * dt;
-      if (Math.abs(e.vx) > 8) e.face = Math.sign(e.vx);
-    } else {   // walkers pace their ledge, and come over to sniff at you
-      const want = near ? Math.sign(P.x + P.w / 2 - (e.x + e.w / 2)) * 85 : e.dir * 40;
-      const dir = Math.sign(want), fx = dir > 0 ? e.x + e.w + 2 : e.x - 2, fy = Math.floor((e.y + e.h + 4) / TILE);
-      const ledge = !isSolidT(tileAt(Math.floor(fx / TILE), fy)) && tileAt(Math.floor(fx / TILE), fy) !== ONEWAY;
-      const hazard = [SPIKES, LAVA, THORN].includes(tileAt(Math.floor(fx / TILE), fy - 1)) || [SPIKES, LAVA, THORN].includes(tileAt(Math.floor(fx / TILE), fy));
-      e.vx = e.onGround && (ledge || hazard) ? 0 : want;
-      if (e.onGround && (ledge || hazard || e.hitWall) && !near) e.dir = -e.dir;
-      moveBody(e, dt);
-      if (Math.abs(e.vx) > 5) e.face = Math.sign(e.vx);
-      if (e.y > R.hpx) { e.x = e.homeX; e.y = e.homeY; e.vy = 0; }
+    else if (e.fly) roamFlyer(e, dt, P);   // flyers glide between spots around their perch
+    else {   // walkers roam their stretch of floor
+      roamWalker(e, dt, P);
+      if (e.y > R.hpx) { e.x = e.homeX - e.w / 2; e.y = e.homeY; e.vy = 0; e.vx = 0; e.span = null; }
     }
     if (G.mode === 'play' && !(G.graceT > 0) && overlap(P, e) && teamAlive().length) { startEncounter(e); return; }
   }
