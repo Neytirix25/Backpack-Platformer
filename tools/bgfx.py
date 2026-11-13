@@ -93,7 +93,7 @@ FX = {
               LAVA(0, [194, 68, 30, 80]), LAVA(0, [242, 102, 20, 40]),
               dict(k='drift', L=3, s='ember', fps=8, count=34, area=[0, 60, 480, 210], vx=2, vy=-14, wob=5, a=0.9, add=1)],
     'hollow': [dict(k='scroll', L=0, s='fog', y=140, speed=4, a=0.5), dict(k='scroll', L=1, s='fog', y=200, speed=9, a=0.4),
-               dict(k='drift', L=2, s='firefly', fps=5, count=8, area=[30, 60, 420, 160], vx=1, vy=-1, wob=8, a=0.7, add=1, tint='saturate(0.2) brightness(1.2)')],
+               dict(k='drift', L=2, s='firefly', fps=5, count=8, area=[30, 60, 420, 160], vx=1, vy=-1, wob=8, a=0.25, add=1, sc=0.5, tint='saturate(0.2) brightness(1.2)')],   # faint little ghost-lights
     'sanctum': [dict(k='flow', L=0, s='runeflow', fps=8, rule='rune', rect=[278, 32, 116, 116], add=1),
                 dict(k='scroll', L=1, s='fog', y=205, speed=5, a=0.4, tint='hue-rotate(240deg) saturate(1.3)'),
                 dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 30, 440, 190], vx=1, vy=-3, wob=5, a=0.8, add=1, tint='hue-rotate(220deg) saturate(1.4)')],
