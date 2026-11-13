@@ -5460,7 +5460,7 @@ function beginIntro(snap, e) {
 }
 // a curtain of hanging vines, leaves and little glowing flowers (drawn once, then slid across the screen). It is pixel
 // art: drawn at 1/VPX size, every pixel snapped to a small palette with hard edges, then blown up without smoothing.
-const VPX = 3;
+const VPX = 3, CPX = 2;   // petals' pixel size, and the curtains' (finer, so the vines' curves read smoothly)
 const VINE_PAL = ['#0b2010', '#0e2713', '#112e16', '#143619', '#173d1c', '#1f4a18', '#33691e', '#4a8a2c', '#4e8a2a', '#5c9a34', '#7cb342',
   '#f8bbd0', '#fff59d', '#b3e5fc', '#ffeb3b', '#5d4a52', '#5f6146', '#4b6060'].map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
 function pixelSnap(c) {   // hard alpha, nearest palette colour
@@ -5475,24 +5475,24 @@ function pixelSnap(c) {   // hard alpha, nearest palette colour
   g.putImageData(d, 0, 0);
 }
 function makeVineCurtain(side) {
-  const CW = W / 2 + 50, c = document.createElement('canvas'); c.width = Math.ceil(CW / VPX); c.height = Math.ceil(H / VPX);
+  const CW = W / 2 + 50, c = document.createElement('canvas'); c.width = Math.ceil(CW / CPX); c.height = Math.ceil(H / CPX);
   const g = c.getContext('2d'); if (!g || !g.fillRect) return c;
-  g.scale(1 / VPX, 1 / VPX);   // drawn in full-size units, landing on the small canvas
-  const bg = g.createLinearGradient(0, 0, CW, 0); bg.addColorStop(0, '#0b2010'); bg.addColorStop(1, '#173d1c');
-  g.fillStyle = bg; g.fillRect(0, 0, CW - 8, H);   // solid nearly to the edge: closed, the two curtains overlap with no gap
+  g.scale(1 / CPX, 1 / CPX);   // drawn in full-size units, landing on the small canvas
+  const bands = ['#0b2010', '#0e2713', '#112e16', '#143619', '#173d1c'];   // the dark backing, in flat pixel bands (a gradient would speckle)
+  bands.forEach((c, i) => { g.fillStyle = c; g.fillRect(Math.floor(i * (CW - 8) / bands.length), 0, Math.ceil((CW - 8) / bands.length) + 1, H); });   // solid nearly to the edge: closed, the two curtains overlap with no gap
   for (let i = 0; i < 16; i++) {
     const x0 = 12 + i * (CW - 30) / 16 + rand(-6, 6), amp = rand(6, 14), ph = rand(0, 6.28);
     g.strokeStyle = '#1f4a18'; g.lineWidth = 6; g.beginPath();
-    for (let y = -10; y <= H + 10; y += 10) { const x = x0 + Math.sin(y * 0.03 + ph) * amp; if (y < 0) g.moveTo(x, y); else g.lineTo(x, y); } g.stroke();
-    g.strokeStyle = '#4a8a2c'; g.lineWidth = VPX; g.stroke();   // at least one pixel wide
+    for (let y = -10; y <= H + 10; y += 4) {   /* traced finely so the curve steps gently */ const x = x0 + Math.sin(y * 0.03 + ph) * amp; if (y < 0) g.moveTo(x, y); else g.lineTo(x, y); } g.stroke();
+    g.strokeStyle = '#4a8a2c'; g.lineWidth = CPX; g.stroke();   // at least one pixel wide
     for (let y = rand(0, 20); y < H; y += rand(18, 30)) {
       const x = x0 + Math.sin(y * 0.03 + ph) * amp, dir = Math.random() < 0.5 ? -1 : 1;
       g.fillStyle = pick(['#5c9a34', '#7cb342', '#4e8a2a']); g.beginPath(); g.ellipse(x + dir * 8, y, 10, 5, dir * 0.6, 0, 7); g.fill();
       if (Math.random() < 0.08) {   // a little pixel flower: a soft halo, four petals round a yellow middle
-        const fc = pick(['#f8bbd0', '#fff59d', '#b3e5fc']), X0 = Math.round(x / VPX) * VPX, Y0 = Math.round(y / VPX) * VPX;
+        const fc = pick(['#f8bbd0', '#fff59d', '#b3e5fc']), X0 = Math.round(x / CPX) * CPX, Y0 = Math.round(y / CPX) * CPX;
         g.fillStyle = fc + '55'; g.beginPath(); g.arc(X0, Y0, 10, 0, 7); g.fill();
-        g.fillStyle = fc; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillRect(X0 + dx * VPX * 1.5 - VPX / 2, Y0 + dy * VPX * 1.5 - VPX / 2, VPX * 1.5, VPX * 1.5);
-        g.fillStyle = '#ffeb3b'; g.fillRect(X0 - VPX / 2, Y0 - VPX / 2, VPX, VPX);
+        g.fillStyle = fc; for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillRect(X0 + dx * CPX * 1.5 - CPX / 2, Y0 + dy * CPX * 1.5 - CPX / 2, CPX * 1.5, CPX * 1.5);
+        g.fillStyle = '#ffeb3b'; g.fillRect(X0 - CPX / 2, Y0 - CPX / 2, CPX, CPX);
       }
     }
   }
@@ -5505,7 +5505,8 @@ function makeVineCurtain(side) {
   const m = document.createElement('canvas'); m.width = c.width; m.height = c.height; const mg = m.getContext('2d');   // the right curtain is the mirror image
   mg.translate(c.width, 0); mg.scale(-1, 1); mg.drawImage(c, 0, 0); return m;
 }
-const vsnap = v => Math.round(v / VPX) * VPX;   // onto the curtain's pixel grid
+const vsnap = v => Math.round(v / VPX) * VPX;   // onto the petals' pixel grid
+const csnap = v => Math.round(v / CPX) * CPX;   // onto the curtains' pixel grid
 function updateIntro(dt) {
   const I = B.intro; I.t += dt; I.shakeT = Math.max(0, I.shakeT - dt);
   if (I.act === 1 && I.blocks) for (const b of I.blocks) if (!b.dust && I.t > b.d) {   // a little rubble from each block as it breaks loose
@@ -5567,7 +5568,7 @@ function drawIntro() {
     if (cover > 0) {
       const ox = (CW - 10) * (1 - cover), sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
       const lap = 16 * cover;   // closed, they overlap a little so their leafy edges interlock
-      for (const [im, x] of [[I.curt[0], -ox - 50 + lap], [I.curt[1], W / 2 + ox - lap]]) ctx.drawImage(im, vsnap(x), 0, im.width * (im.width < CW ? VPX : 1), im.height * (im.width < CW ? VPX : 1));
+      for (const [im, x] of [[I.curt[0], -ox - 50 + lap], [I.curt[1], W / 2 + ox - lap]]) ctx.drawImage(im, csnap(x), 0, im.width * (im.width < CW ? CPX : 1), im.height * (im.width < CW ? CPX : 1));
       ctx.imageSmoothingEnabled = sm;
     }
     for (const p of I.parts) if (p.kind === 'petal' && t >= p.d) {   // pixel petals: they flutter wide and narrow instead of spinning
