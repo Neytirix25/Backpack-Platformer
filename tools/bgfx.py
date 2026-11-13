@@ -101,7 +101,8 @@ FX = {
     'sanctum': [dict(k='flow', L=0, s='runeflow', fps=8, rule='rune', rect=[278, 32, 116, 116], add=1),
                 dict(k='scroll', L=1, s='fog', y=205, speed=5, a=0.4, tint='hue-rotate(240deg) saturate(1.3)'),
                 dict(k='drift', L=2, s='firefly', fps=6, count=10, area=[20, 30, 440, 190], vx=1, vy=-3, wob=5, a=0.25, add=1, sc=0.5, tint='hue-rotate(220deg) saturate(1.4)')],   # faint little motes
-    'thornwood': [dict(k='scroll', L=0, s='fog', y=165, speed=4, a=0.35, tint='hue-rotate(70deg)'),
+    'thornwood': [dict(k='scroll', L=3, s='fogband', y=196, speed=5, a=0.22, tint='sepia(0.4) hue-rotate(40deg) saturate(0.8)'),   # ground mist rolling in front of every layer
+                  dict(k='scroll', L=3, s='fogband', y=222, speed=9, a=0.3, tint='sepia(0.4) hue-rotate(40deg) saturate(0.8)'),
                   dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 50, 440, 180], vx=2, vy=-1, wob=7, a=0.25, add=1, sc=0.5)],   # faint little fireflies
     'glade': [dict(W_([236, 134, 30, 52]), L=1), dict(W_([292, 104, 28, 76]), L=1), dict(W_([344, 98, 26, 56]), L=1), dict(W_([291, 180, 26, 44]), L=1),
               dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 40, 440, 190], vx=2, vy=-1, wob=7, a=0.25, add=1, sc=0.5, tint='hue-rotate(280deg) saturate(1.2)'),   # faint little fireflies
@@ -200,6 +201,12 @@ def write_js():
     frames = {}
     for name, (src, n, h, opt) in STRIPS.items():
         if os.path.exists(os.path.join(RAW, f'fx_{src}.png')): frames[name] = build(src, n, h, out_name=name, **opt)
+    if 'fog' in frames:   # fogband: the fog strip fading out at the bottom as well, for mist that floats mid-scene
+        fog = Image.open(os.path.join(OUT, 'fog.png')).convert('RGBA'); r, g, b, a = fog.split(); ap = a.load(); H = fog.height
+        for y in range(H):
+            k = min(1.0, (H - 1 - y) / (H * 0.45))
+            for x in range(fog.width): ap[x, y] = int(ap[x, y] * k)
+        Image.merge('RGBA', (r, g, b, a)).save(os.path.join(OUT, 'fogband.png')); frames['fogband'] = 1
     out = {}
     for area, effects in FX.items():
         out[area] = []
