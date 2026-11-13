@@ -17,7 +17,12 @@ from bglayers import keyed, shrink, despeckle, seamless, RAW, ROOT
 OUT = os.path.join(ROOT, 'assets', 'bgfx')
 
 
-def build(name, n, height, green=False, keep_bg=False, body=None, out_name=None, row=None, loop=0):
+def seamless_v(im, o):
+    """seamless() top to bottom: the last o rows cross-fade into the first o."""
+    return seamless(im.transpose(Image.Transpose.TRANSPOSE), o).transpose(Image.Transpose.TRANSPOSE)
+
+
+def build(name, n, height, green=False, keep_bg=False, body=None, out_name=None, row=None, loop=0, tile=False):
     src = Image.open(os.path.join(RAW, f'fx_{name}.png'))
     im = src.convert('RGBA') if keep_bg else keyed(src, green)
     if row:   # one row of a sheet with several rows: row = (index, rows)
@@ -32,6 +37,8 @@ def build(name, n, height, green=False, keep_bg=False, body=None, out_name=None,
     fw, fh = x1 - x0, y1 - y0
     tw = max(1, round(fw * height / fh))
     frames = [despeckle(shrink(c.crop((x0, y0, x1, y1)), (tw, height)), 1) for c in cells]
+    if tile:   # a texture that is tiled: seamless left-right and top-bottom, so copies show no lines
+        frames = [seamless_v(seamless(f, max(2, f.width // 4)), max(4, f.height // 5)) for f in frames]; tw = frames[0].width; height = frames[0].height
     if loop:   # a single strip that scrolls forever: cross-fade its ends so copies join with no seam
         frames = [seamless(f, loop) for f in frames]; tw = frames[0].width
     sheet = Image.new('RGBA', (tw * n, height))
@@ -60,8 +67,8 @@ RULES = {
     'rune': lambda r, g, b: r > 130 and b > 165 and g < 170 and b - g > 40,
 }
 STRIPS = {   # sheet name: (raw strip fx_<name>.png, frames, height in background pixels, options)
-    'lavaflow': ('lavafall', 6, 40, dict(body=(0.36, 0.64, 0.2, 0.78))),
-    'waterflow': ('waterfall', 6, 40, dict(body=(0.36, 0.64, 0.2, 0.78))),
+    'lavaflow': ('lavafall', 6, 48, dict(body=(0.3, 0.7, 0.2, 0.78), tile=True)),
+    'waterflow': ('waterfall', 6, 48, dict(body=(0.3, 0.7, 0.2, 0.78), tile=True)),
     'moonflow': ('moonwater', 6, 32, {}),
     'runeflow': ('runes', 6, 48, dict(green=True)),
     'ember': ('particles', 4, 5, dict(row=(1, 4))),
@@ -80,7 +87,7 @@ FX = {
     'hall': [dict(k='sprite', L=1, s='banner_hall', fps=6, cx=146, top=42, cut=[124, 42, 46, 120]),
              dict(k='sprite', L=1, s='banner_hall', fps=6, cx=335, top=42, cut=[313, 42, 46, 120], t0=0.4), DUST],
     'cave': [dict(W_([131, 90, 26, 60]), L=1, rule='cavewater'), dict(W_([155, 150, 24, 70]), L=1, rule='cavewater'), dict(W_([284, 115, 22, 78]), L=1, rule='cavewater'),
-             dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 40, 440, 170], vx=2, vy=-1, wob=6, a=0.8, add=1, tint='hue-rotate(60deg)')],
+             dict(k='drift', L=2, s='firefly', fps=6, count=10, area=[20, 40, 440, 170], vx=2, vy=-1, wob=6, a=0.28, add=1, sc=0.5, tint='hue-rotate(60deg)')],   # faint little spores
     'crypt': [dict(k='scroll', L=2, s='fog', y=184, speed=6, a=0.45, tint='hue-rotate(250deg) saturate(0.8)'), DUST],
     'forge': [LAVA(1, [186, 52, 36, 120]), LAVA(1, [290, 148, 44, 120]), LAVA(1, [298, 112, 44, 44]), LAVA(1, [355, 165, 80, 95]), LAVA(1, [112, 195, 50, 70]),
               LAVA(0, [194, 68, 30, 80]), LAVA(0, [242, 102, 20, 40]),

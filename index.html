@@ -3116,7 +3116,8 @@ function drawBgFx(area, layer, tf) {
         let c = FXC.get(key); if (!c) { c = document.createElement('canvas'); c.width = rw; c.height = rh; FXC.set(key, c); }
         const g = c.getContext('2d'), f = fxFrame(e, n);
         g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, rw, rh);
-        for (let y = 0; y < rh; y += fh) for (let x = 0; x < rw; x += Math.max(1, Math.floor(fw))) g.drawImage(img, f * fw, 0, fw, fh, x, y, fw, fh);
+        const cw = Math.max(1, Math.floor(fw));
+        for (let x = 0, col = 0; x < rw; x += cw, col++) for (let y = col % 2 ? -Math.floor(fh / 2) : 0; y < rh; y += fh) g.drawImage(img, f * fw, 0, fw, fh, x, y, fw, fh);   // seamless tiles, every other column half a tile down
         g.globalCompositeOperation = 'destination-in'; g.drawImage(m, 0, 0);
         ctx.drawImage(c, Math.round(tf.x + rx * sx), Math.round(tf.y + ry * sy), Math.round(rw * sx), Math.round(rh * sy));
       }
@@ -3131,7 +3132,8 @@ function drawBgFx(area, layer, tf) {
         const x = ax + ((((p.x * aw + e.vx * p.v * TIME + Math.sin(TIME * 0.7 + p.ph) * e.wob) % aw) + aw) % aw);
         const y = ay + ((((p.y * ah + e.vy * p.v * TIME + Math.cos(TIME * 0.9 + p.ph) * e.wob * 0.6) % ah) + ah) % ah);
         const f = e.fps ? Math.floor(TIME * e.fps + p.ph * 3) % n : p.i % n;
-        ctx.drawImage(img, f * fw, 0, fw, fh, Math.round(tf.x + (x - fw / 2) * sx), Math.round(tf.y + (y - fh / 2) * sy), Math.round(fw * sx), Math.round(fh * sy));
+        const k = e.sc || 1;   // sc: draw the particle smaller
+        ctx.drawImage(img, f * fw, 0, fw, fh, Math.round(tf.x + (x - fw * k / 2) * sx), Math.round(tf.y + (y - fh * k / 2) * sy), Math.max(1, Math.round(fw * k * sx)), Math.max(1, Math.round(fh * k * sy)));
       }
     } else if (e.k === 'scroll') {   // a seamless strip (fog) sliding sideways across the whole layer
       const w = img.width, off = ((TIME * e.speed) % w + w) % w;
@@ -5600,10 +5602,6 @@ function drawBossCinematic(I) {
   if (I.boss === 'wyrm' && tau > 0.2 && tau < 2.9) {   // ripples where it broke the surface
     const wy = H * 0.86;
     for (let i = 0; i < 4; i++) { const r = ((tau * 140 + i * 60) % 260); ctx.strokeStyle = `rgba(178,235,242,${0.5 * (1 - r / 260) * (1 - out)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(W * 0.74, wy, r, r * 0.18, 0, 0, 7); ctx.stroke(); }
-  }
-  if (I.boss === 'shadow' && tau > 1.1 && tau < 2.9) {   // its eyes catch the light
-    const gl = Math.sin(Math.min(1, (tau - 1.1) / 0.3) * Math.PI / 2) * (1 - out);
-    for (const dx of [-14, 14]) { const g = ctx.createRadialGradient(W * 0.6 + dx, H * 0.4, 0, W * 0.6 + dx, H * 0.4, 26); g.addColorStop(0, `rgba(255,80,80,${0.9 * gl})`); g.addColorStop(1, 'rgba(255,80,80,0)'); ctx.fillStyle = g; ctx.fillRect(W * 0.6 + dx - 26, H * 0.4 - 26, 52, 52); }
   }
   if (I.roared && tau < 1.6) { ctx.fillStyle = `rgba(255,255,255,${0.35 * (1 - (tau - 1.25) / 0.35)})`; if (tau < 1.6) ctx.fillRect(0, 0, W, H); }
   // letterbox bars
