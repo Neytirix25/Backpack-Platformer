@@ -5571,6 +5571,44 @@ function makeVineCurtain(side) {
   mg.translate(c.width, 0); mg.scale(-1, 1); mg.drawImage(c, 0, 0); return m;
 }
 const vsnap = v => Math.round(v / VPX) * VPX;   // onto the petals' pixel grid
+// the vine curtain (props/vine_curtain and its mirror), cut into thin strips that each hang from the top:
+//  · falling in: strips drop from above, the screen's outer edges first and the middle last, land with a little bounce
+//    and swing (anchored at the top, so the bottom swings most) until they settle;
+//  · hold: they sway very gently;
+//  · pulled apart: each side is drawn open from its inner edge like a stage curtain, the strands and inner strips setting off
+//    first and bunching over the wall, their bottoms trailing toward the middle, until the whole bunch slides off the side.
+// The left curtain's strands are drawn again over the right wall, so the two sides interweave.
+const VF = { strip: 8, band: 15, fall: 0.24, stagger: 0.2, landBy: 0.52, pull: 0.6, pullLag: 0.16, pullDur: 0.55 };
+function drawVineFall(I, vc, t) {
+  const S = H / vc.height, se = VINE_SOLID * S, lap = clamp(se - W / 2, 0, 24), x0 = W / 2 + lap - se;   // the left curtain's closed spot
+  const n = Math.ceil(vc.width / VF.strip), away = x0 + vc.width * S + 60;
+  if (!I.vstrip) I.vstrip = [0, 1].map(() => Array.from({ length: n }, () => ({ j: rand(-0.025, 0.025), ph: rand(0, 6.28), a: rand(0.8, 1.2) })));
+  const sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+  const pass = (side, from) => {
+    ctx.save(); if (side) { ctx.translate(W, 0); ctx.scale(-1, 1); }   // the right curtain is the left one mirrored
+    for (let i = from; i < n; i++) {
+      const P = I.vstrip[side][i], sx = i * VF.strip, sw = Math.min(VF.strip + 2, vc.width - sx), X = x0 + sx * S;   // 2 px of overlap hides seams
+      const mid = clamp(1 - Math.abs(X + VF.strip * S / 2 - W / 2) / (W / 2), 0, 1);   // 0 at the screen's edge, 1 in the middle
+      // falling in
+      const d = 0.03 + VF.stagger * mid + P.j, k = clamp((t - d) / VF.fall, 0, 1);
+      if (k <= 0) continue;
+      let y; if (k < 0.7) { const q = k / 0.7; y = -H * (1 - q * q); } else { const q = (k - 0.7) / 0.3; y = -12 * P.a * Math.sin(Math.PI * q) * (1 - q * 0.5); }
+      const land = d + VF.fall * 0.7;
+      let swing = t < land ? 4 * Math.sin(t * 10 + P.ph) : 9 * P.a * Math.exp(-(t - land) * 3.5) * Math.sin((t - land) * 13 + P.ph) + 1.2 * Math.sin(t * 3 + P.ph);
+      // pulled apart from the middle: the inner edge leads and bunches over the rest (so no gaps open), the outer strips go last
+      let dx = 0; const o = t - VF.pull - VF.pullLag * (1 - mid) - Math.abs(P.j) * 0.3;
+      if (o > 0) { const q = clamp(o / VF.pullDur, 0, 1); dx = -away * q * q * (3 - 2 * q); swing += 22 * P.a * Math.sin(Math.PI * Math.min(1, q * 1.4)); }
+      if (X + dx + sw * S < -40) continue;   // gone off the side
+      for (let ry = 0; ry < vc.height; ry += VF.band) {   // bands down the strip, each nudged by the swing (more toward the bottom)
+        const bh = Math.min(VF.band, vc.height - ry), f = (ry + bh / 2) / vc.height;
+        ctx.drawImage(vc, sx, ry, sw, bh, csnap(X + dx + swing * f * f), csnap(y + ry * S), sw * S, bh * S + 1);
+      }
+    }
+    ctx.restore();
+  };
+  pass(0, 0); pass(1, 0); pass(0, Math.floor(VINE_SOLID / VF.strip));   // left, right, then the left strands over the right wall
+  ctx.imageSmoothingEnabled = sm;
+}
 const csnap = v => Math.round(v / CPX) * CPX;   // onto the curtains' pixel grid
 function updateIntro(dt) {
   const I = B.intro; I.t += dt; I.shakeT = Math.max(0, I.shakeT - dt);
@@ -5629,16 +5667,10 @@ function drawIntro() {
   }
   if (I.act === 3 && I.curt) {
     const CW = W / 2 + 50, cover = t < 0.42 ? easeOut(t / 0.42) : t < 0.58 ? 1 : 1 - ease((t - 0.58) / 0.7);
-    if (t < 0.47 && I.snap) ctx.drawImage(I.snap, 0, 0);   // the frozen frame is still behind the curtains as they close
     const vc = art('props/vine_curtain');
-    if (vc && cover > 0) {   // ChatGPT's curtain: a vine wall breaking into hanging strands, and its mirror from the right
-      const S = H / vc.height, cw = vc.width * S, se = VINE_SOLID * S, lap = clamp(se - W / 2, 0, 24);   // closed, the walls overlap a little past the middle (the outer edge stays off-screen)
-      const x = csnap(-cw + (W / 2 + lap - se + cw) * cover), sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(vc, x, 0, cw, H);
-      ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1); ctx.drawImage(vc, x, 0, cw, H); ctx.restore();   // the right curtain: its strands hang over the left wall
-      ctx.drawImage(vc, VINE_SOLID, 0, vc.width - VINE_SOLID, vc.height, x + se, 0, cw - se, H);   // and the left strands over the right wall, so they interweave
-      ctx.imageSmoothingEnabled = sm;
-    } else if (cover > 0) {   // (the drawn curtain, if the art isn't loaded)
+    if (t < (vc ? VF.landBy : 0.47) && I.snap) ctx.drawImage(I.snap, 0, 0);   // the frozen frame is still behind the curtains as they close
+    if (vc) drawVineFall(I, vc, t);   // ChatGPT's curtain, falling into place strip by strip, then pulled apart
+    else if (cover > 0) {   // (the drawn curtain, if the art isn't loaded)
       const ox = (CW - 10) * (1 - cover), sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
       const lap = 16 * cover;   // closed, they overlap a little so their leafy edges interlock
       for (const [im, x] of [[I.curt[0], -ox - 50 + lap], [I.curt[1], W / 2 + ox - lap]]) ctx.drawImage(im, csnap(x), 0, im.width * (im.width < CW ? CPX : 1), im.height * (im.width < CW ? CPX : 1));
