@@ -105,7 +105,7 @@ FX = {
              dict(k='scroll', L=0, s='fog', y=200, speed=7, a=0.5, tint='hue-rotate(320deg) saturate(1.6) brightness(0.8)'),
              dict(k='drift', L=3, s='ember', fps=8, count=12, area=[0, 60, 480, 180], vx=1, vy=-8, wob=5, a=0.7, add=1, tint='saturate(0.6) brightness(0.8)')],
     'yard': [dict(k='drift', L=0, s='cloud', fps=0, count=5, area=[0, 6, 480, 70], vx=3, vy=0, wob=0, a=0.95),
-             dict(k='drift', L=3, s='butterfly', fps=10, count=5, area=[0, 120, 480, 90], vx=10, vy=0, wob=12, a=1)],
+             dict(k='drift', L=3, s='butterfly', fps=10, count=9, area=[0, 120, 960, 90], vx=10, vy=0, wob=12, a=1)],   # spread over the whole Yard (it is 1800 px wide)
 }
 
 

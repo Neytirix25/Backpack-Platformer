@@ -3164,7 +3164,7 @@ function drawYardDepth(R) {
   };
   strip(fields, YARD.fields, ground + 6);
   strip(fence, YARD.fence, ground + 4);
-  drawBgFx('yard', 3, { x: 0, y: 0, s: 2 });   // butterflies over the fields
+  drawBgFx('yard', 3, { x: -Math.round(cx), y: 0, s: 2 });   // butterflies over the fields: part of the Yard, so they stay put as you walk
   return true;
 }
 function drawParallax(R) {
