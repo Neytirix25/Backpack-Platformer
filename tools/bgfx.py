@@ -96,7 +96,7 @@ FX = {
                dict(k='drift', L=2, s='firefly', fps=5, count=8, area=[30, 60, 420, 160], vx=1, vy=-1, wob=8, a=0.25, add=1, sc=0.5, tint='saturate(0.2) brightness(1.2)')],   # faint little ghost-lights
     'sanctum': [dict(k='flow', L=0, s='runeflow', fps=8, rule='rune', rect=[278, 32, 116, 116], add=1),
                 dict(k='scroll', L=1, s='fog', y=205, speed=5, a=0.4, tint='hue-rotate(240deg) saturate(1.3)'),
-                dict(k='drift', L=2, s='firefly', fps=6, count=12, area=[20, 30, 440, 190], vx=1, vy=-3, wob=5, a=0.8, add=1, tint='hue-rotate(220deg) saturate(1.4)')],
+                dict(k='drift', L=2, s='firefly', fps=6, count=10, area=[20, 30, 440, 190], vx=1, vy=-3, wob=5, a=0.25, add=1, sc=0.5, tint='hue-rotate(220deg) saturate(1.4)')],   # faint little motes
     'thornwood': [dict(k='scroll', L=0, s='fog', y=165, speed=4, a=0.35, tint='hue-rotate(70deg)'),
                   dict(k='drift', L=2, s='firefly', fps=6, count=18, area=[20, 50, 440, 180], vx=2, vy=-1, wob=7, a=0.9, add=1)],
     'glade': [dict(W_([236, 134, 30, 52]), L=1), dict(W_([292, 104, 28, 76]), L=1), dict(W_([344, 98, 26, 56]), L=1), dict(W_([291, 180, 26, 44]), L=1),
