@@ -61,13 +61,13 @@ const VFX_SPR = ['star', 'fireball', 'flame', 'spark', 'meteor', 'sun', 'moon', 
 const BG_LAYERED = ['hall', 'cave', 'crypt', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'camp', 'boss', 'yard'];
 // how far each layer travels (far, mid, near): the near layer moves like the old single backdrop; a background whose middle pieces
 // sit close to its back wall (banners on a wall) gives them a number close to the far one, so they don't slide across it
-const BG_DEPTH = { default: [0.35, 0.65, 1], hall: [0.35, 0.42, 1], crypt: [0.35, 0.55, 1], boss: [0.35, 0.45, 1] };
+const BG_DEPTH = { default: [0.35, 0.65, 1], hall: [0.35, 0.42, 1], crypt: [0.35, 0.55, 1], boss: [0.35, 0.45, 1], yard: [0.35, 1, 1] };   // the Yard: sky and hills behind, the whole meadow as one piece
 const ART_FILES = {
   vfx: VFX_SPR,
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])),
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'],
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -3114,6 +3114,13 @@ function drawParallax(R) {
     });
   } else ctx.drawImage(img, 0, 0, img.width, sh, Math.round(-(bw - W) * fx), Math.round(-(bh - H) * fy), bw, bh);
   ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); // push the backdrop back so the terrain reads
+}
+// the Yard's foreground grass: one seamless strip, repeated, drawn in front of everything and rising from the bottom of
+// the screen; it slides a little faster than the ground, as grass right in front of you would
+function drawFrontGrass(camX) {
+  const img = art('bg/yard_grass'); if (!img) return;
+  const s = 2, w = img.width * s, h = img.height * s, off = ((camX * 1.15) % w + w) % w;   // 2x: it fills the ground band, the tallest tufts just reach the feet
+  for (let x = -off; x < W; x += w) ctx.drawImage(img, Math.round(x), H - h, w, h);
 }
 function drawTerrain(R) {
   const sx = clamp(Math.floor(G.cam.x), 0, Math.max(0, R.wpx - W)), sy = clamp(Math.floor(G.cam.y), 0, Math.max(0, R.hpx - H));
@@ -7299,6 +7306,7 @@ function draw() {
   if (G.mode === 'encounter') drawEncounterAlert();
   if (G.hub) drawHubBubble();
   ctx.restore();
+  if (G.hub && G.room.bgKey === 'yard') drawFrontGrass(camX);
   drawVignette();
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
   if (G.hub) drawHubHUD(); else drawHUD();
