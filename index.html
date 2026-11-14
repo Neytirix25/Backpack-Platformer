@@ -1073,6 +1073,7 @@ const SFX = (() => {
     kill_boss: () => { S.bomb(); tone({ type: 'sawtooth', f0: 200, f1: 30, dur: 1.4, vol: 0.22 }); notes([523, 659, 784, 1047, 1319], 'square', 0.09, 0.12, 0.25, 0.9); },
     // --- world & UI ---
     clear: () => notes([523, 659, 784, 1047], 'square', 0.07, 0.08, 0.14),
+    coin: () => { tone({ type: 'triangle', f0: 1500, f1: 2100, dur: 0.07, vol: 0.06 }); tone({ type: 'triangle', f0: 1900, f1: 2500, dur: 0.05, vol: 0.04, delay: 0.09 }); },
     xptick: () => tone({ type: 'square', f0: 900, f1: 1150, dur: 0.03, vol: 0.022 }),
     levelup: () => { tone({ type: 'sine', f0: 330, f1: 990, dur: 0.22, vol: 0.07 }); notes([523, 659, 784, 1047, 1319], 'triangle', 0.1, 0.06, 0.22, 0.12); },
     heart: () => tone({ type: 'sine', f0: 700, f1: 1050, dur: 0.09, vol: 0.05 }),
@@ -5431,24 +5432,30 @@ const petXpNeed = L => XP_NEED(L);
 // everything a pet's talents add up to (cached until its talents change)
 function petMods(it) {
   if (it._M && it._Mv === (it.talV || 0)) return it._M;
-  const M = {};
-  for (const tr of PET_TREES[it.def.pet] || []) for (const row of tr.tiers) for (const n of row) {
-    const r = tal(it, n.id); if (!r) continue;
-    if (typeof n.fx === 'function') n.fx(M, r); else for (const k in n.fx) M[k] = (M[k] || 0) + n.fx[k] * r;
-  }
-  if ((it.def.pet === 'catgray' || it.def.pet === 'catcalico') && G && syn('clowder')) M.crit = (M.crit || 0) + 0.15;
-  if ((it.def.pet === 'lion' || it.def.pet === 'chimera') && G && syn('pride')) { M.hp = (M.hp || 0) + 0.15; M.atk = (M.atk || 0) + 0.1; }
-  if ((it.def.pet === 'salamander' || it.def.pet === 'tortoise') && G && syn('magmaflow')) M.regen = (M.regen || 0) + 0.04;
-  if ((it.def.pet === 'cusith' || it.def.pet === 'spiritwolf') && G && syn('huntpack')) { M.atk = (M.atk || 0) + 0.1; M.crit = (M.crit || 0) + 0.1; }
-  if ((it.def.pet === 'fairydragon' || it.def.pet === 'puca') && G && syn('fairyring')) M.dur = (M.dur || 0) + 1;
-  if ((it.def.pet === 'mossbear' || it.def.pet === 'viper') && G && syn('oldgrowth')) M.thorns = (M.thorns || 0) + 0.2;
+  const M = speciesMods(it.def.pet, it.talents || {}, (G && G.syn) || {});
   it._M = M; it._Mv = it.talV || 0; return M;
 }
+// what a set of talents (and its team's synergies) add up to, for any animal: yours or a wild one
+function speciesMods(k, talents, synMap) {
+  const M = {}, S = id => !!(synMap && synMap[id]);
+  for (const tr of PET_TREES[k] || []) for (const row of tr.tiers) for (const n of row) {
+    const r = talents[n.id] || 0; if (!r) continue;
+    if (typeof n.fx === 'function') n.fx(M, r); else for (const key in n.fx) M[key] = (M[key] || 0) + n.fx[key] * r;
+  }
+  if ((k === 'catgray' || k === 'catcalico') && S('clowder')) M.crit = (M.crit || 0) + 0.15;
+  if ((k === 'lion' || k === 'chimera') && S('pride')) { M.hp = (M.hp || 0) + 0.15; M.atk = (M.atk || 0) + 0.1; }
+  if ((k === 'salamander' || k === 'tortoise') && S('magmaflow')) M.regen = (M.regen || 0) + 0.04;
+  if ((k === 'cusith' || k === 'spiritwolf') && S('huntpack')) { M.atk = (M.atk || 0) + 0.1; M.crit = (M.crit || 0) + 0.1; }
+  if ((k === 'fairydragon' || k === 'puca') && S('fairyring')) M.dur = (M.dur || 0) + 1;
+  if ((k === 'mossbear' || k === 'viper') && S('oldgrowth')) M.thorns = (M.thorns || 0) + 0.2;
+  return M;
+}
 // talents that help the whole team (summed over every pet in the team)
-function teamMods() {
+function teamMods() { return sideTeamMods(petSlots.filter(Boolean).map(petMods)); }
+function sideTeamMods(Ms) {   // talents that help the whole team (any team: yours or a wild one)
   const T = { atk: 0, crit: 0, hp: 0, def: 0, xp: 0, stunAmp: 0, regen: 0, firstStrike: 0, shieldStart: 0, blindAmp: 0, poisonAmp: 0, startSt: [], foeStartSt: [], n: 0 };
-  for (const it of petSlots) if (it) {
-    const M = petMods(it); T.n++;
+  for (const M of Ms) {
+    T.n++;
     T.atk += M.teamAtk || 0; T.crit += M.teamCrit || 0; T.hp += M.teamHp || 0; T.def += M.teamDef || 0; T.xp += M.petXp || 0;
     T.stunAmp += M.stunAmp || 0; T.regen += M.teamRegen || 0; T.firstStrike += M.teamFirstStrike || 0; T.shieldStart += M.teamShieldStart || 0;
     T.blindAmp += M.blindAmp || 0; T.poisonAmp += M.poisonAmp || 0;
@@ -6198,11 +6205,10 @@ function applyGenes(u, it) {
   u.shiny = !!g.shiny;
 }
 function foeUnit(k, L, opt = {}) {
-  const ramp = opt.boss ? 1 : Math.min(1, 0.8 + 0.07 * ((G && G.roomNum || 1) - 1));   // the first floors go easy on a new team
-  const base = statLine(k, L), mul = Object.assign({}, opt.mul || {}); mul.hp = (mul.hp || 1) * ramp; mul.atk = (mul.atk || 1) * ramp;
+  const base = statLine(k, L), mul = Object.assign({}, opt.mul || {});   // (no easy early floors and no hidden damage cut: wild animals fight like yours)
   const u = {
     side: 'foe', k, name: opt.name || PETS[k].name, lvl: L, M: {}, elite: !!opt.elite, boss: opt.boss || null,
-    maxHp: Math.round(base.hp * (mul.hp || 1)), atk: base.atk * (mul.atk || 1) * 0.95, def: base.def + (mul.def || 0),
+    maxHp: Math.round(base.hp * (mul.hp || 1)), atk: base.atk * (mul.atk || 1), def: base.def + (mul.def || 0),
     crit: 0.05 + BS[k].crit, critMul: 1.5, heal: 1, dot: 1, regenPct: 0, thorns: 0, dr: 0,
     abil: opt.abil || BS[k].abil.slice(), cd: {}, st: {}, acts: opt.acts || 1, scale: opt.scale || 1, sheet: opt.sheet, tint: opt.tint,
   };
@@ -6314,10 +6320,14 @@ function startBattle(ent) {
   const foes = buildFoes(ent, team.length);
   for (const f of foes) if (!f.boss && !f.coat && COATS[f.k] && f.k !== 'shade') f.coat = rollCoat();
   { const lead = foes.find(f => f.k === ent.k && !f.boss); if (lead && ent.coat) lead.coat = ent.coat; }
+  const foeSide = kitFoes(foes);
   foes.forEach((u, i) => { u.slot = i; u.x = u.lx = u.boss ? 845 : BX_LAND.foe[i]; u.face = -1; });
   if (foes.length > 1 && foes[0].boss) { foes[1].x = foes[1].lx = 605; if (foes[2]) foes[2].x = foes[2].lx = 705; }   // the boss looms at the back, its minions in front
   B = { ent, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
         boss: foes[0].boss, rewards: null, reviveUsed: false, t: 0 };
+  B.side = { ally: { syn: G.syn || {}, first: G.team.firstStrike || 0, amp: G.team, dur: (stats.dur || 0) + (G.cls === 'rogue' ? 1 : 0) }, foe: foeSide };
+  B.first = Math.random() < 0.5 ? 'ally' : 'foe';   // a coin decides who acts first
+  waitUlts([...allies, ...foes]);
   // battle-start effects: Rally Whistle, Guardian Bell, Warrior's front shield, talents
   const front = allies.find(u => !u.fainted);
   for (const u of allies) if (!u.fainted) {
@@ -6328,6 +6338,14 @@ function startBattle(ent) {
     for (const [k, t] of (u.M.startSt || []).concat(G.team.startSt)) addSt(u, k, t + 1, k === 'regen' ? Math.round(u.maxHp * 0.08) : undefined);
   }
   for (const f of foes) for (const [k, t] of G.team.foeStartSt) addSt(f, k, t);
+  { const FT = foeSide.T;   // ...and the wild team's own start-of-battle talents
+    for (const f of foes) if (!f.fainted && f.M) {
+      if (f.M.shieldStart) addShield(f, f.maxHp * f.M.shieldStart);
+      if (f.M.tauntStart) addSt(f, 'taunt', f.M.tauntStart + 1);
+      if (FT.shieldStart) addShield(f, f.maxHp * FT.shieldStart);
+      for (const [k, t] of (f.M.startSt || []).concat(FT.startSt)) addSt(f, k, t + 1, k === 'regen' ? Math.round(f.maxHp * 0.08) : undefined);
+    }
+    for (const a of allies) if (!a.fainted) for (const [k, t] of FT.foeStartSt) addSt(a, k, t); }
   if (front) {
     if (stats.frontShield) addShield(front, front.maxHp * stats.frontShield);
     if (stats.frontTaunt) addSt(front, 'taunt', stats.frontTaunt + 1);
@@ -6368,7 +6386,7 @@ function healUnit(u, amt, src) {
 }
 function cleanse(u) { for (const k in u.st) if (STATUS[k] && STATUS[k].bad) delete u.st[k]; }
 // raw damage from an attacker's attack stat (Strength, Weak, first-turn talents)
-function atkOf(u) { return u.atk * (u.st.str ? 1.3 : 1) * (u.st.weak ? 0.7 : 1) * (B.turn === 1 ? 1 + (u.M.firstStrike || 0) + (B.pvp ? B.pvp.side[u.side].first : u.side === 'ally' ? TEAM().firstStrike : 0) : 1); }
+function atkOf(u) { return u.atk * (u.st.str ? 1.3 : 1) * (u.st.weak ? 0.7 : 1) * (B.turn === 1 ? 1 + (u.M.firstStrike || 0) + (sideOf(u.side).first || 0) : 1); }
 function dealDamage(src, tgt, pow, opt = {}) {
   if (tgt.fainted) return 0;
   if (!opt.dot) {
@@ -6382,8 +6400,8 @@ function dealDamage(src, tgt, pow, opt = {}) {
   let crit = false;
   if (!opt.dot && opt.flat === undefined) {
     if (opt.finisher && tgt.hp < tgt.maxHp * (0.5 + (src.M.finPct || 0))) { d *= 2 + (src.M.finMul || 0); bText(tgt, 'FINISHER', '#cfd8dc', 13); }
-    if (tgt.st.burn && (src.k === 'hellhound' || src.k === 'phoenix') && (B.pvp ? B.pvp.side[src.side].syn.hellfire : src.side === 'ally' && syn('hellfire'))) d *= 1.25;
-    const ch = src.crit + (src.st.lucky ? 0.3 : 0) + (opt.crit || 0) + ((B.pvp ? B.pvp.side[src.side].syn.packhunt : syn('packhunt')) && src.k === 'fox' && tgt.st.stun ? 1 : 0);
+    if (tgt.st.burn && (src.k === 'hellhound' || src.k === 'phoenix') && sideOf(src.side).syn.hellfire) d *= 1.25;
+    const ch = src.crit + (src.st.lucky ? 0.3 : 0) + (opt.crit || 0) + (sideOf(src.side).syn.packhunt && src.k === 'fox' && tgt.st.stun ? 1 : 0);
     if (opt.alwaysCrit || Math.random() < ch) { crit = true; d *= src.critMul; }
     if (src.M.execute && !tgt.boss && tgt.hp - d < tgt.maxHp * src.M.execute) d = tgt.hp + (tgt.st.shield ? tgt.st.shield.v : 0);
   }
@@ -6394,7 +6412,7 @@ function dealDamage(src, tgt, pow, opt = {}) {
   if (tgt.st.charging && tgt.M && tgt.M.windDR) d *= 1 - Math.min(0.6, tgt.M.windDR);
   if (tgt.st.mark) d *= 1.3 + (tgt.st.mark.v || 0);
   if (tgt.st.guard) d *= 0.6;
-  const AMP = B.pvp ? (src ? B.pvp.side[src.side].amp : null) : tgt.side === 'foe' ? TEAM() : null;
+  const AMP = sideOf(src ? src.side : tgt.side === 'ally' ? 'foe' : 'ally').amp;
   if (AMP) {   // team talents: Shake Down / Undermine, Keen Sight, Corrode
     const T = AMP;
     if (tgt.st.stun || tgt.st.weak) d *= 1 + T.stunAmp;
@@ -6405,7 +6423,7 @@ function dealDamage(src, tgt, pow, opt = {}) {
   if (!opt.dot && opt.flat === undefined) d *= 30 / (30 + tgt.def * 3);
   d = Math.max(1, Math.round(d));
   // guarding allies take part of the hit
-  if (!opt.dot && (B.pvp || tgt.side === 'ally')) {
+  if (!opt.dot) {   // (both sides)
     const gs = sameSide(tgt).filter(o => o !== tgt && !o.fainted && o.M.guard);
     for (const g of gs) { const part = Math.round(d * Math.min(0.5, g.M.guard)); if (part > 0) { d -= part; applyDamage(g, part, src, false, true); } }
   }
@@ -6473,7 +6491,7 @@ function act(u, ab, tgt) {
     return;
   }
   const releasing = !!(A.windup && u.st.charging); if (releasing) delete u.st.charging;
-  const pow = (A.pow || 0) + (up.pow || 0), dur = B.pvp ? (B.pvp.side[u.side].dur || 0) + (M.dur || 0) : u.side === 'ally' ? stats.dur + (G.cls === 'rogue' ? 1 : 0) + (M.dur || 0) : 0;
+  const pow = (A.pow || 0) + (up.pow || 0), dur = (sideOf(u.side).dur || 0) + (M.dur || 0);
   if (!releasing) u.cd[ab] = (A.cd || 0) > 0 ? Math.max(1, A.cd - (up.cd || 0)) + 1 : 0;
   u.atkT = 0.4; u.killed = false;
   // every ability has its own animal sound (howls, growls, squawks...); it carries its own impact, so the plain hit thud stays quiet
@@ -6527,7 +6545,7 @@ function act(u, ab, tgt) {
     }
   } else if (A.t === 'foes') {
     for (let r = 0; r < (A.repeat || 1); r++) for (const t of foes.filter(o => !o.fainted)) {
-      if (pow) strike(t, pow); else { B.hits.push(t); curse(t, sts); }
+      if (pow) strike(t, pow * AOE_MUL); else { B.hits.push(t); curse(t, sts); }   // (each foe takes 60% of a single hit)
       if (A.chaos && !t.fainted) curse(t, [pick([['stun', 1], ['blind', 2], ['burn', 2], ['poison', 2], ['weak', 2], ['mark', 2]])]);
     }
   } else if (A.t === 'rand') {
@@ -6567,26 +6585,100 @@ function summonShade(u) {
   s.x = s.lx = spot; s.face = -1; s.slot = B.foes.length; s.summoned = true; B.foes.push(s); bText(s, 'SUMMONED', '#b39ddb', 15);
 }
 // foes think: heal a hurt friend, buff when safe, curse what isn't cursed, otherwise hit hardest
+// ---------- fair fights: both sides play by the same rules; only your backpack items set you apart ----------
+const AOE_MUL = 0.6;   // an attack that hits every foe hits each one for 60% (three of them can't wipe a team on turn 1)
+const ULT_WAIT = 3;    // ultimates are ready from turn 3
+const sideOf = s => (B.pvp ? B.pvp.side[s] : (B.side && B.side[s]) || { syn: {}, first: 0, amp: null, dur: 0 });
+function waitUlts(units) { for (const u of units) for (const a of u.abil || []) if (ABIL[a] && ABIL[a].ult) u.cd[a] = Math.max(u.cd[a] || 0, ULT_WAIT); }
+// a wild animal's talents: deep into one tree (opening its ultimate as soon as its level allows), then the next, like a good player
+function foeTalents(k, L) {
+  const trees = PET_TREES[k] || [], T = {}; let pts = Math.max(0, L - 1);
+  const put = n => { if (pts > 0 && (T[n.id] || 0) < n.max) { T[n.id] = (T[n.id] || 0) + 1; pts--; return true; } return false; };
+  const open = (tiers, t) => L >= TIER_LVL[t + 1] && (t === 0 || tiers[t - 1].some(n => T[n.id]));
+  for (const ti of trees.map((_, i) => i).sort(() => Math.random() - 0.5)) {
+    const tiers = trees[ti].tiers;
+    for (let t = 0; t < tiers.length && pts > 0 && open(tiers, t); t++) if (!tiers[t].some(n => T[n.id])) put(pick(tiers[t]));   // one point down each tier first
+    for (let t = 0; t < tiers.length && pts > 0 && open(tiers, t); t++) for (const n of tiers[t].slice().sort(() => Math.random() - 0.5)) while (put(n));   // then fill it
+  }
+  return T;
+}
+// every wild animal (bosses too) gets a full talent build, its team's synergies and team talents; wild ones also a nature and genes
+function kitFoes(foes) {
+  const real = foes.filter(f => f.k !== 'shade' && !f.summoned && PET_TREES[f.k]);
+  const have = new Set(real.map(f => f.k)), synMap = Object.fromEntries(SYNERGIES.map(x => [x.id, x.pets.every(k => have.has(k))]));
+  for (const f of real) { f.talents = foeTalents(f.k, f.lvl); f.M = speciesMods(f.k, f.talents, synMap); }
+  const T = sideTeamMods(real.map(f => f.M));
+  for (const f of real) {
+    const M = f.M;
+    f.maxHp = Math.max(1, Math.round(f.maxHp * (1 + (M.hp || 0) + T.hp))); f.atk *= 1 + (M.atk || 0) + T.atk; f.def += (M.def || 0) + T.def;
+    f.crit += (M.crit || 0) + T.crit; f.critMul += M.critMul || 0; f.heal += M.heal || 0; f.dot += M.dot || 0;
+    f.regenPct += (M.regen || 0) + T.regen; f.thorns += M.thorns || 0;
+    if (!f.boss) { for (const a of M.ults || []) if (ABIL[a] && !f.abil.includes(a)) f.abil.push(a); f.g = rollGenes({ shiny: false }); f.g.bond = 0; applyGenes(f, { g: f.g }); }
+    f.hp = f.maxHp;
+  }
+  return { syn: synMap, first: T.firstStrike, amp: T, dur: 0, T };
+}
+// the enemy's mind: weigh every ready move by what it would do right now, then (usually) take the best
 function aiChoose(u) {
-  const ready = u.abil.filter(a => !(u.cd[a] > 0) && (ABIL[a].n));
-  const friends = sameSide(u).filter(o => !o.fainted), hurt = friends.filter(o => o.hp < o.maxHp * 0.5);
   if (u.boss === 'wyrm' && u.hp < u.maxHp * 0.5 && !u.enraged) { u.enraged = true; u.abil.push('moontide'); addSt(u, 'str', 99); bLog('The Lake Wyrm calls up the moon tide!'); bText(u, 'MOON TIDE', '#80deea', 20); }
   if (u.boss === 'rune' && u.hp < u.maxHp * 0.5 && !u.enraged) { u.enraged = true; u.abil.push('abyssalrune'); addSt(u, 'str', 99); bLog('The runes on the Leviathan\'s shell blaze!'); bText(u, 'RUNES BLAZE', '#7fe0d0', 20); }
   if (u.boss === 'elder' && u.hp < u.maxHp * 0.5 && !u.enraged) { u.enraged = true; u.abil.push('meteorrain'); addSt(u, 'str', 99); bLog('The Elder Dragon is ENRAGED!'); bText(u, 'ENRAGED', '#ff5252', 20); }
+  const ready = u.abil.filter(a => !(u.cd[a] > 0) && ABIL[a] && ABIL[a].n);
+  const friends = sameSide(u).filter(o => !o.fainted), foesA = otherSide(u).filter(o => !o.fainted), down = sameSide(u).filter(o => o.fainted);
+  if (!ready.length || !foesA.length) return [u.abil[0], null];
+  const miss = o => 1 - o.hp / o.maxHp, avgHp = foesA.reduce((a, o) => a + o.maxHp, 0) / foesA.length;
+  const eff = (t, pw) => atkOf(u) * pw * 30 / (30 + t.def * 3);   // about what a hit of this power does to t
+  const badOn = o => Object.keys(o.st).filter(k => STATUS[k] && STATUS[k].bad).length;
+  const info = a => { const A = ABIL[a], up = (u.M && u.M.up && u.M.up[a]) || {}; return { A, pw: (A.pow || 0) + (up.pow || 0), hits: ((A.hits || 1) + (A.hits ? up.hits || 0 : 0)) * (A.repeat || 1) }; };
+  const stuns = A => (A.st || []).some(x => x[0] === 'stun');
   const opts = [];
   for (const a of ready) {
-    const A = ABIL[a]; let w = 1;
-    if (A.heal || A.healPct) w = hurt.length ? 4 : A.healPct && u.hp < u.maxHp * 0.6 ? 3 : 0.1;
-    else if (A.t === 'self' || A.allySt || A.shieldOf || A.shieldAtk) w = A.summon ? (friends.length < 3 ? 2.5 : 0) : 1.2;
-    else if (!A.pow) w = 1.6;
-    else w = 1 + (A.pow || 0) * (A.t === 'foes' ? 1.3 : 1) + (A.cd ? 0.8 : 0);
-    if (A.t === 'weakest') w = 3;
-    opts.push([a, w]);
+    const { A, pw, hits } = info(a); let w = 0.3;
+    if (A.reviveAll) w = down.length ? 6 + down.length : 0.02;
+    else if (A.devour) w = foesA.some(t => !t.boss && t.hp < t.maxHp * A.devour) ? 9 : 0.1;
+    else if ((A.heal || A.healPct) && !pw) {   // heal whoever needs it; never waste it on a healthy team
+      const need = A.t === 'allies' ? friends.reduce((x, o) => x + Math.max(0, miss(o) - 0.15), 0) : Math.max(0, ...friends.map(miss)) - 0.2;
+      w = need > 0 ? 1.5 + need * 8 : 0.03;
+    } else if (A.cleanse && !pw) { const bad = friends.reduce((x, o) => x + badOn(o), 0); w = bad ? 1.4 + bad * 0.9 : 0.05; }
+    else if (A.summon) w = friends.length < 3 ? 2.5 : 0.01;
+    else if (A.steal) w = foesA.some(t => Object.keys(t.st).some(k => STATUS[k] && !STATUS[k].bad && k !== 'charging')) ? 3.5 : 0.8;
+    else if (pw) {   // damage: what it would really take off, a bonus for a kill, and more for a stun on a dangerous foe
+      let dmg = 0;
+      if (A.t === 'foes') for (const t of foesA) dmg += Math.min(t.hp, eff(t, pw * AOE_MUL) * hits);
+      else { let best = 0; for (const t of foesA) { const d = eff(t, pw) * hits * (A.finisher && t.hp < t.maxHp * 0.5 ? 2 : 1); best = Math.max(best, Math.min(t.hp, d) + (d >= t.hp ? t.maxHp * 0.6 : 0)); } dmg = best; }
+      w = 0.6 + 14 * dmg / Math.max(1, avgHp);   // (a usual hit takes ~10% of a foe: ~2, a kill much more)
+      if (stuns(A) && foesA.some(t => !t.st.stun)) w += 1.2;
+      if (A.heal || A.drain) w += friends.some(o => miss(o) > 0.3) ? 1 : 0;
+    } else if (A.st && A.t !== 'self' && A.t !== 'ally' && A.t !== 'allies') {   // curses: worth it only on someone who doesn't have it yet
+      const k0 = A.st[0][0], fresh = (A.t === 'foes' ? foesA : foesA).filter(t => !t.st[k0]).length;
+      w = fresh ? (stuns(A) ? 2.4 : 1.4) * (A.t === 'foes' ? Math.min(2, 0.6 + fresh * 0.4) : 1) : 0.1;
+    } else {   // shields and buffs: when the team is under pressure, and not twice
+      const pressed = friends.some(o => miss(o) > 0.35) ? 1 : 0, k0 = ((A.allySt || A.self || [])[0] || [])[0];
+      const already = k0 ? friends.every(o => o.st[k0]) : (A.shieldOf || A.shieldAtk || A.shieldPct) ? !!u.st.shield : false;
+      w = already ? 0.15 : 1.2 + pressed;
+    }
+    if (A.ult) w *= 1.35;
+    opts.push([a, Math.max(0.01, w)]);
   }
-  const ab = opts.length ? wpick(opts) : u.abil[0];
+  opts.sort((x, y) => y[1] - x[1]);
+  const ab = Math.random() < 0.75 ? opts[0][0] : wpick(opts.map(([a, w]) => [a, w * w]));
+  const { A, pw, hits } = info(ab);
   let tgt = null;
-  if (ABIL[ab].t === 'foe') tgt = pickTarget(u, otherSide(u));
-  if (ABIL[ab].t === 'ally') tgt = friends.sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+  if (A.t === 'foe') {   // taunts first; then a sure kill, a stun on the biggest threat, a fresh curse, or whoever is easiest to finish
+    const taunt = foesA.filter(o => o.st.taunt);
+    if (taunt.length) tgt = pick(taunt);
+    else {
+      const kill = pw ? foesA.filter(t => eff(t, pw) * hits * (A.finisher && t.hp < t.maxHp * 0.5 ? 2 : 1) >= t.hp).sort((x, y) => y.atk - x.atk)[0] : null;
+      if (kill) tgt = kill;
+      else if (stuns(A)) tgt = foesA.filter(t => !t.st.stun).sort((x, y) => y.atk - x.atk)[0] || foesA[0];
+      else if (!pw && A.st) tgt = foesA.find(t => !t.st[A.st[0][0]]) || foesA[0];
+      else tgt = foesA.slice().sort((x, y) => x.hp * (30 + x.def * 3) - y.hp * (30 + y.def * 3))[0];
+    }
+  }
+  if (A.t === 'ally') {
+    if (A.heal || A.healPct || A.cleanse) tgt = friends.slice().sort((x, y) => x.hp / x.maxHp - y.hp / y.maxHp)[0];
+    else { const k0 = ((A.allySt || [])[0] || [])[0]; tgt = friends.filter(o => !k0 || !o.st[k0]).sort((x, y) => y.atk - x.atk)[0] || friends[0]; }
+  }
   return [ab, tgt];
 }
 // start of a side's turn: damage over time, regeneration, cooldowns
@@ -6604,7 +6696,7 @@ function tickSide(side) {
   }
 }
 // one turn of burn / poison / bleed on u: Wildfire doubles it while burn and poison are both on; bosses shrug off half
-const wildfireOn = u => (B.pvp ? B.pvp.side[u.side === 'ally' ? 'foe' : 'ally'].syn.wildfire : syn('wildfire')) && u.st.burn && u.st.poison;
+const wildfireOn = u => !!sideOf(u.side === 'ally' ? 'foe' : 'ally').syn.wildfire && u.st.burn && u.st.poison;
 const dotTick = (u, k) => Math.max(1, Math.round(u.st[k].v * (wildfireOn(u) ? 2 : 1) * (u.boss ? 0.5 : 1)));
 // end of a side's turn: statuses wear off
 function expireSide(side) {
@@ -6622,7 +6714,8 @@ function nextAlly() {
   return false;
 }
 function beginPlayerTurn() {
-  B.turn++; B.phase = 'player'; B.cur = -1; B.heroUses = 0; B.pick = null;
+  if (B.pvp || B.first !== 'foe') B.turn++;   // (a round starts with whoever won the coin toss)
+  B.phase = 'player'; B.cur = -1; B.heroUses = 0; B.pick = null;
   tickSide('ally');
   if (B.pvp) { pvpOpening('ally'); pvpPhaseSent('ally'); }
   if (checkEnd()) return;
@@ -6633,8 +6726,9 @@ function beginPlayerTurn() {
   }
   if (!nextAlly()) endPlayerTurn();
 }
-function endPlayerTurn() {
-  expireSide('ally');
+function endPlayerTurn() { expireSide('ally'); beginFoeTurn(); }
+function beginFoeTurn() {
+  if (!B.pvp && B.first === 'foe') B.turn++;
   B.phase = 'foe'; B.queue = [];
   tickSide('foe');
   if (B.pvp) { pvpOpening('foe'); pvpPhaseSent('foe'); }
@@ -6669,9 +6763,18 @@ function updateBattle(dt) {
     if (u.hpWait > 0) u.hpWait -= dt; else { const sh = u.showHp ?? u.hp; u.showHp = Math.abs(u.hp - sh) < 0.5 ? u.hp : sh + (u.hp - sh) * Math.min(1, dt * 10); }
   }
   if (B.intro) { updateIntro(dt); return; }
+  if (B.coin) B.coin.t += dt;   // (the coin keeps fading out while the first turn begins)
   if (B.lock > 0) { B.lock -= dt; return; }
   if (B.pvp && !B.pvp.host && B.phase !== 'won' && B.phase !== 'lost') { pvpGuestStep(); if (B && B.phase === 'player') battleInput(); return; }
-  if (B.phase === 'start') { beginPlayerTurn(); return; }
+  if (B.phase === 'start') {
+    if (!B.pvp && B.first) {   // the coin toss
+      if (!B.coin) { B.coin = { t: 0, side: B.first }; SFX.play('coin'); }
+      if (B.coin.t < COIN_T) return;
+      if (!B.coin.landed) { B.coin.landed = true; SFX.play(B.first === 'ally' ? 'clear' : 'alert'); bLog(B.first === 'ally' ? 'The coin says: you go first!' : 'The coin says: they go first!'); }
+      if (B.first === 'foe') { beginFoeTurn(); return; }
+    }
+    beginPlayerTurn(); return;
+  }
   if (B.phase === 'foe') {
     if (B.pvp) { pvpHostFoeStep(); return; }
     while (B.queue.length && B.queue[0].fainted) B.queue.shift();
@@ -6759,6 +6862,30 @@ function winBattle() {
   stats = computeStats(); savePets();
   B.rewards = R; B.vic = { i: 0, t: 0, list: vicScreens(R), shown: -1 };
   G.battlesWon = (G.battlesWon || 0) + 1; G.kills += B.foes.length;
+}
+// ---------- the coin toss at the start of a battle ----------
+const COIN_T = 1.5;
+function drawCoin() {
+  const C = B.coin, t = C.t; if (t > COIN_T + 1.2) return;
+  const keepW = W, keepH = H; W = VIEW.w; H = VIEW.h;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.textBaseline = 'middle'; ctx.filter = 'none';
+  try {
+    const fade = t > COIN_T + 0.8 ? Math.max(0, 1 - (t - COIN_T - 0.8) / 0.4) : 1; ctx.globalAlpha = fade;
+    const k = Math.min(1, t / COIN_T), cx = W / 2, base = VIEW.portrait ? 230 : 200, cy = base - Math.sin(k * Math.PI) * 80;
+    const ang = (1 - Math.pow(1 - k, 3)) * 7 * Math.PI * 2 + (C.side === 'foe' ? Math.PI : 0), sx = Math.cos(ang), face = sx >= 0 ? 'ally' : 'foe', R = 30;
+    ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(cx, base + 44, 26 * (0.6 + 0.4 * (1 - Math.sin(k * Math.PI))), 6, 0, 0, 7); ctx.fill();
+    const rim = face === 'ally' ? '#b8860b' : '#6a1b1b', fill = face === 'ally' ? '#ffd36b' : '#c0504d', w = Math.max(3, R * Math.abs(sx));
+    ctx.fillStyle = rim; ctx.beginPath(); ctx.ellipse(cx, cy, w + 2, R + 2, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = fill; ctx.beginPath(); ctx.ellipse(cx, cy, w, R, 0, 0, 7); ctx.fill();
+    if (Math.abs(sx) > 0.35) {   // a paw for you, claw marks for them
+      ctx.save(); ctx.translate(cx, cy); ctx.scale(Math.abs(sx), 1); ctx.fillStyle = rim; ctx.strokeStyle = rim;
+      if (face === 'ally') { ctx.beginPath(); ctx.ellipse(0, 6, 9, 7, 0, 0, 7); ctx.fill(); for (const [x, y] of [[-10, -5], [-4, -11], [4, -11], [10, -5]]) { ctx.beginPath(); ctx.ellipse(x, y, 3.5, 4.5, 0, 0, 7); ctx.fill(); } }
+      else { ctx.lineWidth = 4; ctx.lineCap = 'round'; for (const x of [-9, 0, 9]) { ctx.beginPath(); ctx.moveTo(x - 5, -13); ctx.lineTo(x + 5, 13); ctx.stroke(); } }
+      ctx.restore();
+    }
+    if (t < COIN_T) label('Who goes first?', cx, base + 66, { align: 'center', size: 15, bold: true, color: PAL.cream });
+    else { const s2 = 1 + 0.15 * Math.max(0, 1 - (t - COIN_T) / 0.25); ctx.save(); ctx.translate(cx, base + 72); ctx.scale(s2, s2); banner(C.side === 'ally' ? 'You go first!' : 'They go first!', 0, 0, { size: 28, h: 46, pad: 80 }); ctx.restore(); }
+  } finally { ctx.restore(); W = keepW; H = keepH; }
 }
 // ---------- the victory screens: XP and bond for each pet, then achievements, new animals, eggs and the rest ----------
 const vicEase = k => 1 - (1 - k) * (1 - k);
@@ -9812,6 +9939,7 @@ function draw() {
     return;
   }
   drawScreen();
+  if (G && B && B.coin && !B.pvp && !B.intro && (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle'))) drawCoin();
   if (G && B && B.vic && B.phase === 'won' && B.rewards && !B.pvp && (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle'))) { drawVictory(); if (G.mode === 'pause') drawPauseMenu(); }
   if (G && G.coll) drawColl();
 }
