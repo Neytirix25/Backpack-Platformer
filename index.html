@@ -105,7 +105,7 @@ const ART_FILES = {
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'pond_bank'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'].concat(['burn', 'poison', 'bleed', 'stun', 'blind', 'weak', 'mark', 'shield', 'regen', 'str', 'guard', 'taunt', 'evade', 'lucky', 'undying', 'charging'].map(k => 'st_' + k)),   // st_*: status icons
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'temple', 'coral', 'trench'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -3805,13 +3805,39 @@ function drawParallax(R) {
 }
 // the Yard's foreground grass: one seamless strip, repeated, drawn in front of everything and rising from the bottom of
 // the screen; it slides a little faster than the ground, as grass right in front of you would
+// the Yard's foreground grass: fixed to the ground (it never slides as you walk), all along the Yard, swaying in a light
+// breeze; at the pond it gives way to a grassy bank that slopes down into the water on each side
+const swayAt = wx => (Math.sin(TIME * 1.3 + wx * 0.012) * 0.6 + Math.sin(TIME * 2.2 + wx * 0.035) * 0.4) * 2.4;   // how far the tops lean (px)
+function drawSwaying(img, wx, yb, s, camX, keep) {   // a world-anchored picture, bottom at yb on screen, in leaning 2-pixel slices
+  const h = img.height * s;
+  for (let c = 0; c < img.width; c += 2) {
+    const cw = Math.min(2, img.width - c), wxc = wx + c * s, dx = Math.round(wxc - camX);
+    if (dx + cw * s < 0 || dx > W || (keep && !keep(wxc))) continue;
+    const k = swayAt(wxc) / h;   // lean the slice: its foot stays put, its top moves
+    ctx.setTransform(1, 0, -k, 1, k * yb, 0);
+    ctx.drawImage(img, c, 0, cw, img.height, dx, yb - h, cw * s, h);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+let BANK_FLIP = null;
 function drawFrontGrass(camX) {
   const img = art('bg/yard_grass'); if (!img) return;
-  const s = 2, w = img.width * s, h = img.height * s, off = ((camX * 1.15) % w + w) % w;   // 2x: it fills the ground band, the tallest tufts just reach the feet
-  const px0 = POND.w0 * TILE - camX, px1 = (POND.dock1 + 1) * TILE - camX;   // (not over the pond and its dock)
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, Math.max(0, px0), H); ctx.rect(px1, 0, W, H); ctx.clip();
-  for (let x = -off; x < W; x += w) ctx.drawImage(img, Math.round(x), H - h, w, h);
-  ctx.restore();
+  ctx.imageSmoothingEnabled = false;
+  const s = 2, w = img.width * s, bank = art('bg/pond_bank');
+  // the pond's two banks (land on the outside, sloping down into the water) and where the plain grass stops
+  let keep = null, banks = [];
+  if (G.room.fishes) {
+    const wl = POND.w0 * TILE, wr = (POND.dock1 + 1) * TILE;
+    if (bank) {
+      const bw = bank.width * s, land = Math.round(bw * 50 / 129), into = bw - land;   // (its first 50 columns are full-height grass over the ground; the rest slopes down over the water)
+      if (!BANK_FLIP) { BANK_FLIP = document.createElement('canvas'); BANK_FLIP.width = bank.width; BANK_FLIP.height = bank.height; const g = BANK_FLIP.getContext('2d'); g.translate(bank.width, 0); g.scale(-1, 1); g.drawImage(bank, 0, 0); }
+      banks = [[bank, wl - land], [BANK_FLIP, wr - into]];   // left bank: land to its left; right bank (mirrored): land to its right
+      const gl = wl - land + 6, gr = wr + land - 6;
+      keep = x => x < gl || x > gr;
+    } else keep = x => x < wl || x > wr;
+  }
+  for (let x = Math.floor(camX / w) * w; x < camX + W; x += w) drawSwaying(img, x, H, s, camX, keep);
+  for (const [im, x] of banks) drawSwaying(im, x, H, s, camX);
 }
 function drawTerrain(R) {
   const sx = clamp(Math.floor(G.cam.x), 0, Math.max(0, R.wpx - W)), sy = clamp(Math.floor(G.cam.y), 0, Math.max(0, R.hpx - H));
