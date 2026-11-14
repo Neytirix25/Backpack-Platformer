@@ -103,7 +103,7 @@ const ART_FILES = {
   vfx: VFX_SPR,
   items: ['dish_minnow', 'dish_bluegill', 'dish_crawdad', 'dish_perch', 'dish_sunfish', 'dish_carp', 'dish_pike', 'dish_catfish', 'dish_pufferfish', 'dish_eel', 'dish_sturgeon', 'dish_goldkoi', 'fish_minnow', 'fish_bluegill', 'fish_crawdad', 'fish_perch', 'fish_sunfish', 'fish_carp', 'fish_pike', 'fish_catfish', 'fish_pufferfish', 'fish_eel', 'fish_sturgeon', 'fish_goldkoi', 'pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['doghouse', 'oven', 'creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
+  props: ['dashwall_wood', 'dashwall_fire', 'dashwall_thorn', 'dashwall_coral', 'doghouse', 'oven', 'creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'pond_bank'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
@@ -3389,6 +3389,9 @@ function buildArena(R, C, RO) {
 // Template legend (14 wide x 14 tall, bottom row = the floor):
 //   # stone   = one-way ledge   ^ spikes   ~ lava (in the floor)   x crumbling block   v flame vent   C treasure chest
 //   t thorns (Fey Wilds)   m bounce mushroom   | climbing vine
+//   D smash wall (dash through it; a run from the top row reaches the ceiling)   % stone up to the ceiling
+//   M a gliding platform's track (it rides the row from end to end)   L a lift's shaft (it rides the column up and down)
+//   R the reward at the end of a hard section: a gold chest (an item, team experience, a plant, sometimes a caged animal)
 // Ledges always sit at 3, 6, 9 or 12 tiles above the floor, so every jump is a clean 3-tile hop.
 const SEGMENTS = {
   // ----- traversal pieces -----
@@ -3417,6 +3420,17 @@ const SEGMENTS = {
   shroomtop: { acts: [3],    chest: true, rows: ['', '', '.........C....', '.......=====..', '', '', '', '', '', '', '', '', '...m..........', '##############'] },
   vinetower: { acts: [3],    chest: true, rows: ['.......C......', '....======....', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '....|.........', '##############'] },
   thornrun:  { acts: [3],    chest: true, rows: ['', '', '', '', '', '', '', '', '', '', '...==...==....', '', '.tttttttttttC.', '##############'] },
+  // ----- hard sections (Acts III-IV): mazes, precision jumps, gliders and lifts, each ending in a reward -----
+  switchback: { acts: [3, 4], hard: true, rows: ['.............D', '..==========.D', '......##.....D', '......##.....D', '.===..##..===D', '......##.....D', '......##.....D',
+                                                 '...===##.===.D', '......##.....D', '......##..R..D', '.===..##.===.D', '......##.....D', '.^^^^.##.....D', '##############'] },
+  chimney:    { acts: [3, 4], hard: true, rows: ['..........%...', '======....#...', '...#......#...', '...#......#...', '==.#...===#...', '...#......#...', '...#......#...',
+                                                 '.==#===...#...', '...#......#...', '...#......#...', '==.#...===#...', '...#......D...', '...#^^^...DR..', '##############'] },
+  pinstones:  { acts: [3, 4], hard: true, rows: ['', '', '', '', '', '', '', '.............R', '............##', '...........#..', '.....#........', '..#.....#.....', '.^^^^^^^^^^^..', '##############'] },
+  crumblehop: { acts: [3, 4], hard: true, rows: ['', '', '', '', '', '', '.............R', '...........###', '.........x....', '......x.......', '...x..........', '', '.^^^^^^^^^^^^.', '##############'] },
+  moverpit:   { acts: [3, 4], hard: true, rows: ['', '', '', '', '', '', '', '', '', '.............R', '==MMMMMMMMMM##', '', '.^^^^^^^^^^^..', '##############'] },
+  liftwall:   { acts: [3, 4], hard: true, rows: ['..............', '...LLL........', '...LLL##......', '...LLL##.R....', '...LLL##.===..', '...LLL##......', '...LLL##......',
+                                                 '...LLL##......', '...LLL##......', '...LLL##......', '...LLL##......', '...LLL##......', '...LLL##......', '##############'] },
+  glider:     { acts: [3, 4], rows: ['', '', '', '', '', '', '', '', '', '', '==MMMMMMMMMM==', '', '.^^^^^^^^^^^^.', '##############'] },
   towertop:  { acts: [1, 2, 3, 4], chest: true, rows: ['', '', '', '......C.......', '.....####.....', '.....####.....', '.....####.....', '..===####===..', '.....####.....', '.....####.....', '===..####..===', '.....####.....', '.....####.....', '##############'] },
 };
 const SEG_W = 16, NSEG = 18;                  // 18 segments in one long storey (3 old storeys' worth)
@@ -3427,7 +3441,7 @@ function buildLevel(R) {
 }
 function tryBuild(R, features) {
   const C = NSEG * SEG_W, RO = 18, act = R.act, f = 16;   // floor-top row
-  const g = new Uint8Array(C * RO), bases = new Map(), vents = [], shrooms = [], chestSpots = [], dashSpots = [];
+  const g = new Uint8Array(C * RO), bases = new Map(), vents = [], shrooms = [], chestSpots = [], dashSpots = [], smash = [], mRows = {}, lCells = [], movers = [];
   const ok = (x, y) => x >= 1 && y >= 1 && x <= C - 2 && y <= RO - 1;
   const set = (x, y, v) => { if (ok(x, y)) g[y * C + x] = v; };
   const fill = (x0, y0, x1, y1, v) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, v); };
@@ -3443,13 +3457,14 @@ function tryBuild(R, features) {
     kinds.forEach((kind, i) => { plan[clamp(1 + Math.floor(span * i + rand(0.5, span - 0.5)), 1, NSEG - 2)] = kind; });
   }
   // the rest: 2-3 challenge segments (each ends in a chest or a cage), the others traversal pieces
-  const pool = n => Object.keys(SEGMENTS).filter(k => SEGMENTS[k].acts.includes(act) && !!SEGMENTS[k].chest === n);
+  const pool = n => Object.keys(SEGMENTS).filter(k => SEGMENTS[k].acts.includes(act) && !SEGMENTS[k].hard && !!SEGMENTS[k].chest === n);
+  const hardPool = Object.keys(SEGMENTS).filter(k => SEGMENTS[k].hard && SEGMENTS[k].acts.includes(act));
   const open = []; for (let k = 1; k < NSEG - 1; k++) if (!plan[k]) open.push(k);
   open.sort(() => Math.random() - 0.5);
-  const nChal = features ? randi(2, 3) : 0;
+  const nHard = features && hardPool.length ? randi(2, 3) : 0, nChal = features ? (nHard ? randi(1, 2) : randi(2, 3)) : 0;   // (Acts III-IV: 2-3 hard sections too)
   open.forEach((k, i) => {
     if (!features) { plan[k] = 'flat'; return; }
-    const list = pool(i < nChal);
+    const list = i < nHard ? hardPool : pool(i < nHard + nChal);
     let name; do { name = pick(list); } while (list.length > 1 && (plan[k - 1] === name || plan[k + 1] === name));
     plan[k] = name;
   });
@@ -3461,10 +3476,10 @@ function tryBuild(R, features) {
       dashSpots.push({ kind: 'chasm', x0: gx, x1: gx + 7 });
       continue;
     }
-    if (name === 'barrier') {      // an arcane wall from floor to ceiling: only a dash gets you through
+    if (name === 'barrier') {      // a wall from floor to ceiling (the area's own: barricade, fire, thorns, coral): a dash smashes it
       const bx = x0 + 7;
       fill(bx, 1, bx, f - 1, PHASE);
-      dashSpots.push({ kind: 'barrier', x0: bx, x1: bx });
+      dashSpots.push({ kind: 'barrier', x0: bx, x1: bx, y0: 1, y1: f - 1 });
       continue;
     }
     const T = SEGMENTS[name]; if (!T) continue;
@@ -3483,13 +3498,50 @@ function tryBuild(R, features) {
         else if (ch === '|') set(x, y, VINE);
         else if (ch === 'm') shrooms.push({ tx: x, ty: y, sq: 0 });
         else if (ch === 'C') chestSpots.push([x, y]);
+        else if (ch === 'R') chestSpots.push([x, y, 'hard']);
+        else if (ch === 'D') { set(x, y, PHASE); smash.push([x, y, r]); }
+        else if (ch === '%') fill(x, 1, x, y, SOLID);
+        else if (ch === 'M') (mRows[y] = mRows[y] || []).push(x);
+        else if (ch === 'L') lCells.push([x, y]);
       }
+      if (T.hard && act === 3) for (let c = 0; c < row.length; c++) if (row[c] === '^') set(x0 + off + c, y, THORN);   // (the Fey Wilds' pits are brambles)
     });
+    // this section's smash walls: each column's run is one wall (a run from the top row reaches the ceiling, so you can't hop over it)
+    const byCol = new Map(); for (const [x, y, r] of smash) { if (x < x0 || x > x0 + 15) continue; (byCol.get(x) || byCol.set(x, []).get(x)).push([y, r]); }
+    for (const [x, ys] of byCol) {
+      ys.sort((a, b) => a[0] - b[0]);
+      let a = ys[0];
+      for (let i = 1; i <= ys.length; i++) {
+        if (i < ys.length && ys[i][0] === ys[i - 1][0] + 1) continue;
+        const top = a[1] === 0 ? 1 : a[0], bot = ys[i - 1][0];
+        if (top < a[0]) fill(x, top, x, a[0] - 1, PHASE);
+        dashSpots.push({ kind: 'barrier', x0: x, x1: x, y0: top, y1: bot });
+        a = ys[i];
+      }
+    }
+    smash.length = 0;
+    // gliders (a row of M: the platform's left edge rides from the first M to the last but two) and lifts (the L columns, bottom to top)
+    for (const y in mRows) { const xs = mRows[y].sort((a, b) => a - b); movers.push({ kind: 'h', x0: xs[0], x1: xs[xs.length - 1], ty: +y }); }
+    for (const y in mRows) delete mRows[y];
+    if (lCells.length) { const xs = lCells.map(c => c[0]), ys = lCells.map(c => c[1]); movers.push({ kind: 'v', x0: Math.min(...xs), x1: Math.max(...xs), ty0: Math.min(...ys), ty1: Math.max(...ys) }); lCells.length = 0; }
+  }
+  // checking the level can be finished: a glider's track and a lift's shaft count as somewhere to stand while the graph is built
+  const virt = [];
+  const vset = (x, y) => { if (ok(x, y) && g[y * C + x] === EMPTY) { g[y * C + x] = ONEWAY; virt.push(y * C + x); } };
+  for (const m of movers) {
+    if (m.kind === 'h') for (let x = m.x0; x <= m.x1; x++) vset(x, m.ty);
+    else for (let y = m.ty1 + 1 - 3; y >= m.ty0; y -= 3) for (let x = m.x0; x <= m.x1; x++) vset(x, y);
+    if (m.kind === 'v') for (let x = m.x0; x <= m.x1; x++) vset(x, m.ty0);
   }
   Object.assign(R, { cols: C, rows: RO, grid: g, wpx: C * TILE, hpx: RO * TILE, shrooms });
-  const nav = buildNav(R);
+  let nav = buildNav(R);
   const reach = navReach(nav, (f - 1) * C + 2);
+  for (const i of virt) g[i] = EMPTY;   // (the movers' stand-ins come out again)
   if (!reach.has((f - 1) * C + (C - 3))) return false;  // exit must be reachable (dashing allowed), otherwise regenerate
+  if (virt.length) nav = buildNav(R);   // the animals' paths: the real tiles only
+  R.movers = movers.map(m => m.kind === 'h'
+    ? { kind: 'h', ax: m.x0 * TILE, bx: (m.x1 - 2) * TILE, x: m.x0 * TILE, y: m.ty * TILE, w: 3 * TILE, h: 14, period: 2 * (m.x1 - m.x0 - 2) * TILE / 70 + 2, t: rand(0, 4), dx: 0, dy: 0 }
+    : { kind: 'v', x: m.x0 * TILE, w: (m.x1 - m.x0 + 1) * TILE, ay: (m.ty1 + 1) * TILE, by: m.ty0 * TILE, y: (m.ty1 + 1) * TILE, h: 14, period: 2 * (m.ty1 + 1 - m.ty0) * TILE / 70 + 2.4, t: 0, dx: 0, dy: 0 });
   Object.assign(R, { reach, nav, vents, crumbleBase: bases, plan, dashSpots, floorTop: f, entry: { x: 2.5 * TILE, y: f * TILE }, exitY: f * TILE,
                      chestSpots: chestSpots.filter(([x, y]) => reach.has(y * C + x)) });
   return true;
@@ -3735,7 +3787,18 @@ function updateBuffs(dt) {
   }
 }
 // what a chest holds (rolled once, so a level III lantern can show it before you open it)
-const chestLoot = (C, R) => C.loot || (C.loot = rollItem(R.type === 'boss' && !C.bonus && !C.secret, C.secret ? 3 : C.bonus ? 1 : 0));
+const chestLoot = (C, R) => {
+  if (C.loot) return C.loot;
+  if (C.hard) { let id = rollItem(false, 3); for (let i = 0; i < 8 && ITEMS[id].rarity === 'common'; i++) id = rollItem(false, 3); return (C.loot = id); }   // a hard section's chest: never common
+  return (C.loot = rollItem(R.type === 'boss' && !C.bonus && !C.secret, C.secret ? 3 : C.bonus ? 1 : 0));
+};
+function hardReward(C) {   // on top of the item: the team learns from it, a plant for the next fight, and sometimes a caged animal set free
+  for (const it of petSlots) if (it) givePetXp(it, Math.round(XP_NEED(petLvl(it)) * 0.35));
+  savePets(); syncPets();
+  const kind = pick(['ember', 'stone', 'catnip', 'swift']); pickPlant({ kind, x: C.x + C.w / 2, y: C.y + C.h, taken: false });
+  let freed = null; if (C.cage && PETS[C.cage] && ITEMS['pet_' + C.cage]) { freed = unlockPet(C.cage, newcomerLevel()); burst(C.x - 24, C.y, '#fff59d', 20, 200); }
+  return `Challenge cleared! Team +XP, ${PLANTS[kind].name}${freed ? `, and you freed a caged ${PETS[C.cage].name}! It's waiting in your Sanctuary.` : '.'}`;
+}
 
 function populate(R) {
   const flip = () => (Math.random() < 0.5 ? 1 : -1);
@@ -3747,7 +3810,7 @@ function populate(R) {
     R.chests.push({ x: mid + 70, y: ft - 30, w: 38, h: 30, open: false, seen: true });
   } else {
     placeWild(R, cells, etx, ety);
-    if (R.type !== 'boss') for (const [cx, cy] of R.chestSpots || []) R.chests.push({ x: (cx + 0.5) * TILE - 19, y: (cy + 1) * TILE - 30, w: 38, h: 30, open: false, bonus: true, seen: false });
+    if (R.type !== 'boss') for (const [cx, cy, kind] of R.chestSpots || []) { const hard = kind === 'hard', pool = THEME_POOL[R.type] || []; R.chests.push({ x: (cx + 0.5) * TILE - 19, y: (cy + 1) * TILE - 30, w: 38, h: 30, open: false, bonus: true, seen: false, hard, cage: hard && pool.length && Math.random() < 0.3 ? pick(pool) : null }); }
   }
   if (R.type !== 'camp') plantPlants(R, cells, etx, ety);
   // decorations
@@ -3919,6 +3982,69 @@ function moveBody(o, dt, drop = false, noGrav = false) {
     for (let tx = tx0; tx <= tx1; tx++) if (solidFor(o, tileAt(tx, ty))) { ny = (ty + 1) * TILE; o.vy = 0; break; }
   }
   o.y = ny;
+}
+// ---------- moving platforms: gliders go side to side, lifts up and down, pausing a moment at each end ----------
+function moverPhase(m) {   // 0 at one end, 1 at the other
+  const u = ((m.t / m.period) % 1 + 1) % 1, ease = k => k * k * (3 - 2 * k);
+  return u < 0.08 ? 0 : u < 0.5 ? ease((u - 0.08) / 0.42) : u < 0.58 ? 1 : 1 - ease((u - 0.58) / 0.42);
+}
+function updateMovers(dt) {
+  for (const m of G.room.movers || []) {
+    m.t += dt; const k = moverPhase(m), nx = m.kind === 'h' ? m.ax + (m.bx - m.ax) * k : m.x, ny = m.kind === 'v' ? m.ay + (m.by - m.ay) * k : m.y;
+    m.dx = nx - m.x; m.dy = ny - m.y; m.x = nx; m.y = ny;
+  }
+}
+function moverLand(o, prevFeet, drop) {   // after a body has moved: did it come down on (or ride along with) a moving platform?
+  o.onMover = null;
+  if (o.vy < 0 || drop) return;
+  for (const m of G.room.movers || []) {
+    if (o.x + o.w > m.x + 3 && o.x < m.x + m.w - 3 && prevFeet <= m.y + 7 && o.y + o.h >= m.y - 1) {
+      o.y = m.y - o.h; o.vy = 0; o.onGround = true; o.support = ONEWAY; o.onMover = m; o.airDashed = false; return;
+    }
+  }
+}
+function drawMovers(R) {
+  const led = art('tiles/' + (R.tileKey || R.type) + '_ledge') || art('props/ledge');
+  for (const m of R.movers || []) {
+    if (!inView(m.x, m.y, 200)) continue;
+    if (m.kind === 'v') {   // the lift's ropes up to its pulley
+      ctx.strokeStyle = 'rgba(120,96,60,0.8)'; ctx.lineWidth = 2;
+      for (const rx of [m.x + 6, m.x + m.w - 6]) { ctx.beginPath(); ctx.moveTo(rx, m.by - 18); ctx.lineTo(rx, m.y); ctx.stroke(); }
+      ctx.fillStyle = '#5d4037'; ctx.fillRect(m.x - 2, m.by - 24, m.w + 4, 8); ctx.fillStyle = '#8d6e63'; ctx.fillRect(m.x - 2, m.by - 24, m.w + 4, 2);
+    } else {                // the glider's rail
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.setLineDash([4, 6]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(m.ax + 6, m.y + 7); ctx.lineTo(m.bx + m.w - 6, m.y + 7); ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (led) { const lh = led.height * 2; for (let x = 0; x < m.w; x += TILE) ctx.drawImage(led, 0, 0, led.width, led.height, Math.round(m.x + x), Math.round(m.y - 2), TILE, lh); }
+    else { ctx.fillStyle = '#8d6e63'; ctx.fillRect(m.x, m.y, m.w, m.h); ctx.fillStyle = '#bcaaa4'; ctx.fillRect(m.x, m.y, m.w, 3); }
+    ctx.fillStyle = 'rgba(255,230,150,0.55)'; ctx.fillRect(Math.round(m.x + m.w / 2) - 2, Math.round(m.y + 4), 4, 4);   // a little brass stud: this one moves
+  }
+}
+// the cage beside a hard section's chest: the animal inside until you open the chest, then the door hangs open
+function drawCage(C) {
+  const w = 30, h = 34, x = C.x - w - 6, by = C.y + C.h, k = C.cage, d = PETS[k];
+  if (!C.open && d) { const sh = speciesSheet(k); ctx.save(); ctx.beginPath(); ctx.rect(x, by - h, w, h); ctx.clip(); ctx.filter = standInTint(k, sh); drawAnim(sh, d.fly ? 'fly' : 'idle', TIME * 4, x + w / 2, by - 2, 1, { scale: 1.3 }); ctx.filter = 'none'; ctx.restore(); }
+  ctx.fillStyle = '#4e4036'; ctx.fillRect(x - 2, by - h - 4, w + 4, 4); ctx.fillRect(x - 2, by - 3, w + 4, 3);   // top and base
+  ctx.fillStyle = '#9e8e7e';
+  for (let i = 0; i <= 5; i++) { const bx = x + i * (w / 5); if (C.open && i >= 3) continue; ctx.fillRect(Math.round(bx) - 1, by - h, 2, h - 3); }   // the bars (the door's gone once it's open)
+  if (C.open) { ctx.save(); ctx.translate(x + w * 0.6, by - h); ctx.rotate(-0.9); ctx.fillStyle = '#9e8e7e'; for (let i = 0; i < 3; i++) ctx.fillRect(i * 6, 0, 2, h - 6); ctx.restore(); }
+  ctx.fillStyle = '#c8b28a'; ctx.fillRect(x + w / 2 - 3, by - h - 8, 6, 4);   // the handle
+}
+// ---------- smash walls: a dash breaks the area's wall for good ----------
+const DASHWALL = { 1: { art: 'wood', name: 'A wooden barricade', bits: ['#8d6e63', '#6d4c41', '#bcaaa4'] }, 2: { art: 'fire', name: 'A wall of fire', bits: ['#ff9100', '#ffd54f', '#ff5722'] },
+                   3: { art: 'thorn', name: 'A thorn thicket', bits: ['#33691e', '#558b2f', '#ce93d8'] }, 4: { art: 'coral', name: 'A coral wall', bits: ['#26a69a', '#f48fb1', '#80deea'] } };
+const dashWallOf = R => DASHWALL[clamp(R.act || 1, 1, 4)];
+function smashWalls(P) {
+  const R = G.room, d = P.dashDir || P.face, box = { x: P.x - 6 + (d > 0 ? 6 : -6), y: P.y, w: P.w + 12, h: P.h };
+  for (const sp of R.dashSpots || []) {
+    if (sp.kind !== 'barrier' || sp.broken) continue;
+    const wr = { x: sp.x0 * TILE, y: (sp.y0 ?? 1) * TILE, w: (sp.x1 - sp.x0 + 1) * TILE, h: ((sp.y1 ?? R.floorTop - 1) - (sp.y0 ?? 1) + 1) * TILE };
+    if (!overlap(box, wr)) continue;
+    sp.broken = true;
+    for (let y = sp.y0 ?? 1; y <= (sp.y1 ?? R.floorTop - 1); y++) for (let x = sp.x0; x <= sp.x1; x++) if (tileAt(x, y) === PHASE) R.grid[y * R.cols + x] = EMPTY;
+    const W0 = dashWallOf(R);
+    for (let i = 0; i < 26; i++) { const yy = rand(Math.max(wr.y, P.y - 60), Math.min(wr.y + wr.h, P.y + P.h + 40)); G.parts.push({ x: wr.x + rand(0, wr.w), y: yy, vx: d * rand(60, 260) + rand(-40, 40), vy: rand(-260, -40), life: rand(0.5, 1), max: 1, color: pick(W0.bits), size: rand(3, 6), grav: 900 }); }
+    G.shake = Math.max(G.shake || 0, 5); SFX.play(R.act === 2 ? 'flame' : 'thud');
+  }
 }
 // y of the floor under a point (for dropping chests etc.)
 function groundBelow(x, y) {
@@ -4297,9 +4423,12 @@ function updatePlayer(dt) {
   P.landT = (P.landT || 0) - dt; P.hurtT = (P.hurtT || 0) - dt; P.atkAnim = (P.atkAnim || 0) - dt;
   P.kb *= Math.pow(0.003, dt);
   if (P.climbing) { P.vx = mv * 110; P.vy = down('w', 'ArrowUp', 'k') ? -170 : down('s', 'ArrowDown') ? 230 : 0; P.airDashed = false; }
+  if (R.movers && R.movers.length) { updateMovers(dt); if (P.onMover) { P.x += P.onMover.dx; P.y += P.onMover.dy; } }   // riding a platform: it carries you
   const keep = P.vx, wasGround = P.onGround, fallV = P.vy, prevFeet = P.y + P.h;
   P.phasing = dashing;
   P.vx += P.kb; moveBody(P, dt, P.dropT > 0 || (P.climbing && down('s', 'ArrowDown')), dashing || P.climbing); P.vx = keep;
+  if (R.movers && R.movers.length && !P.climbing) moverLand(P, prevFeet, P.dropT > 0);
+  if (dashing) smashWalls(P);
   if (P.climbing && P.onGround && !down('w', 'ArrowUp', 'k')) P.climbing = false;   // slid down to the ground
   if (!P.climbing && !dashing) shroomBounce(P, prevFeet);
   // remember the last solid footing, and fall back to it from a chasm
@@ -4307,7 +4436,7 @@ function updatePlayer(dt) {
   if (P.y > R.hpx + 40) fellInChasm();
   for (const sp of R.dashSpots || []) if (!(G.hints && G.hints[sp.kind]) && Math.abs((sp.x0 + sp.x1) / 2 * TILE - (P.x + P.w / 2)) < 280) {
     G.hints = G.hints || {}; G.hints[sp.kind] = true;
-    showMsg(sp.kind === 'chasm' ? 'A chasm! Jump, then DASH (Shift) across it.' : 'An arcane barrier! DASH (Shift) straight through it.', 3.2);
+    showMsg(sp.kind === 'chasm' ? `A chasm! Jump, then ${TOUCH.on ? 'flick to DASH' : 'DASH (Shift)'} across it.` : `${dashWallOf(R).name}! ${TOUCH.on ? 'Flick to DASH' : 'DASH (Shift)'} into it to smash through.`, 3.2);
   }
   if (dashing && P.hitWall) P.dashT = 0;
   // Winged Boots IV+: hold jump while falling to glide down slowly
@@ -4354,7 +4483,7 @@ function updatePlayer(dt) {
       burst(C.x + C.w / 2, C.y, RARITY[it.def.rarity].c, 24, 260);
       SFX.play('chest', it.def.rarity === 'rare');
       openPack([it]);
-      if (C.secret) showMsg(`Secret stash: ${it.def.name}!`, 2.8); else if (C.bonus) showMsg(`Hidden treasure: ${it.def.name}!`, 2.5);
+      if (C.hard) showMsg(`${it.def.name}! ${hardReward(C)}`, 4); else if (C.secret) showMsg(`Secret stash: ${it.def.name}!`, 2.8); else if (C.bonus) showMsg(`Hidden treasure: ${it.def.name}!`, 2.5);
       break;
     }
   }
@@ -8190,6 +8319,7 @@ function drawTorch(x, y, col = '#ff9a3c') {
 }
 // everything in the level that moves or glows (drawn in world coordinates, only near the camera)
 function drawWorldDynamic(R) {
+  drawMovers(R);
   for (const d of R.decor) {
     if (!inView(d.x, d.y, 120)) continue;
     if (d.kind === 'torch') drawTorch(d.x, d.y, R.theme.torch || '#ff9a3c');
@@ -8313,6 +8443,8 @@ function drawWorldDynamic(R) {
       gl.addColorStop(0, C.rare ? 'rgba(255,179,0,0.45)' : 'rgba(255,230,140,0.3)'); gl.addColorStop(1, 'rgba(255,230,140,0)');
       ctx.fillStyle = gl; ctx.fillRect(C.x - 60, C.y - 60, C.w + 120, 120);
     }
+    if (C.hard && C.cage) drawCage(C);   // a caged animal waits beside a hard section's chest
+    if (C.hard && !C.open) for (let k = 0; k < 3; k++) { const ph = (TIME * 0.8 + k / 3) % 1; ctx.fillStyle = `rgba(255,236,150,${1 - ph})`; ctx.fillRect(C.x + 6 + ((k * 13 + Math.floor(TIME * 0.8 + k / 3) * 7) % 26), C.y - ph * 22, 2, 2); }   // (a golden twinkle: a challenge's prize)
     const chs = art(C.open ? 'props/chest_open' : C.secret && art('props/chest_secret') ? 'props/chest_secret' : C.bonus && art('props/chest_gold') ? 'props/chest_gold' : 'props/chest_closed'); // treasure-course chests are golden
     if (!C.open && stats.reveal >= 3) {   // level III lantern: a gem in the colour of what's inside
       const rc = RARITY[ITEMS[chestLoot(C, R)].rarity].c, gy = C.y - 16 + Math.sin(TIME * 3 + C.x) * 3, cx = C.x + C.w / 2;
@@ -8333,14 +8465,23 @@ function drawDashObstacles(R) {
       gr.addColorStop(0, 'rgba(0,0,0,0.15)'); gr.addColorStop(1, 'rgba(0,0,0,0.95)');
       ctx.fillStyle = gr; ctx.fillRect(x, top, x1 - x, R.hpx - top);
       if (Math.random() < 0.15) G.parts.push({ x: x + rand(0, x1 - x), y: R.hpx, vx: 0, vy: -rand(30, 70), life: 1.2, max: 1.2, color: 'rgba(120,120,140,0.5)', size: rand(2, 3), grav: 0 });
-    } else {                     // shimmering arcane barrier
-      const top = TILE, bot = R.floorTop * TILE, cx = x + TILE / 2, img = art('props/barrier');
-      const gl = ctx.createLinearGradient(x - 20, 0, x1 + 20, 0);
-      gl.addColorStop(0, 'rgba(124,77,255,0)'); gl.addColorStop(0.5, `rgba(179,136,255,${0.35 + 0.12 * Math.sin(TIME * 4)})`); gl.addColorStop(1, 'rgba(124,77,255,0)');
-      ctx.fillStyle = gl; ctx.fillRect(x - 20, top, x1 - x + 40, bot - top);
-      if (img) { ctx.save(); ctx.globalAlpha = 0.85; ctx.imageSmoothingEnabled = false; const ih = img.height * PX, off = (TIME * 30) % ih; for (let yy = top - off; yy < bot; yy += ih) ctx.drawImage(img, cx - img.width * PX / 2, Math.max(top, yy), img.width * PX, Math.min(ih, bot - Math.max(top, yy))); ctx.restore(); }
-      else { ctx.fillStyle = `rgba(206,147,216,${0.55 + 0.2 * Math.sin(TIME * 6)})`; ctx.fillRect(x + 8, top, TILE - 16, bot - top); }
-      if (Math.random() < 0.5) G.parts.push({ x: cx + rand(-10, 10), y: rand(top, bot), vx: rand(-10, 10), vy: -rand(20, 60), life: 0.8, max: 0.8, color: pick(['#ea80fc', '#b388ff', '#e1bee7']), size: rand(2, 4), grav: 0 });
+    } else {                     // the area's smash wall (barricade, fire, thorns, coral), or what's left of it
+      if (sp.y0 != null && !inView(x, (sp.y0 + sp.y1) / 2 * TILE, 300)) continue;
+      const top = (sp.y0 ?? 1) * TILE, bot = ((sp.y1 ?? R.floorTop - 1) + 1) * TILE, W0 = dashWallOf(R), img = art('props/dashwall_' + W0.art), fire = R.act === 2;
+      if (sp.broken) {   // rubble at its foot
+        if (bot >= R.floorTop * TILE - 2) for (let i = 0; i < 6; i++) { ctx.fillStyle = W0.bits[i % 3]; ctx.fillRect(x - 6 + hash2(sp.x0, i) * 36, bot - 4 - hash2(i, sp.x0) * 6, 5 + (i % 3), 3 + (i % 2)); }
+        continue;
+      }
+      if (img) {
+        const s2 = TILE / img.width, ih = img.height * s2, off = fire ? (TIME * 40) % ih : 0;
+        ctx.save(); ctx.beginPath(); ctx.rect(x - 4, top, TILE + 8, bot - top); ctx.clip(); ctx.imageSmoothingEnabled = false;
+        for (let yy = top - (fire ? ih - off : 0); yy < bot; yy += ih) ctx.drawImage(img, x, Math.round(yy), TILE, Math.ceil(ih));
+        ctx.restore();
+      } else { ctx.fillStyle = W0.bits[0]; ctx.fillRect(x + 4, top, TILE - 8, bot - top); ctx.fillStyle = W0.bits[1]; for (let yy = top; yy < bot; yy += 12) ctx.fillRect(x + 4, yy, TILE - 8, 2); }
+      if (fire) {   // the fire wall flickers and throws sparks
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(255,140,40,${0.12 + 0.08 * Math.sin(TIME * 13)})`; ctx.fillRect(x - 10, top, TILE + 20, bot - top); ctx.restore();
+        if (Math.random() < 0.4) G.parts.push({ x: x + rand(4, 26), y: rand(top, bot), vx: rand(-10, 10), vy: -rand(40, 90), life: 0.6, max: 0.6, color: pick(W0.bits), size: rand(2, 3), grav: 0 });
+      }
     }
   }
 }
