@@ -1073,6 +1073,9 @@ const SFX = (() => {
     kill_boss: () => { S.bomb(); tone({ type: 'sawtooth', f0: 200, f1: 30, dur: 1.4, vol: 0.22 }); notes([523, 659, 784, 1047, 1319], 'square', 0.09, 0.12, 0.25, 0.9); },
     // --- world & UI ---
     clear: () => notes([523, 659, 784, 1047], 'square', 0.07, 0.08, 0.14),
+    xptick: () => tone({ type: 'square', f0: 900, f1: 1150, dur: 0.03, vol: 0.022 }),
+    levelup: () => { tone({ type: 'sine', f0: 330, f1: 990, dur: 0.22, vol: 0.07 }); notes([523, 659, 784, 1047, 1319], 'triangle', 0.1, 0.06, 0.22, 0.12); },
+    heart: () => tone({ type: 'sine', f0: 700, f1: 1050, dur: 0.09, vol: 0.05 }),
     merge: () => { tone({ type: 'sine', f0: 220, f1: 880, dur: 0.22, vol: 0.12 }); notes([659, 784, 988, 1319, 1568], 'triangle', 0.11, 0.05, 0.2, 0.12); noise({ dur: 0.3, vol: 0.06, f0: 5000, filter: 'highpass', delay: 0.12 }); },
     chest: rare => { noise({ dur: 0.15, vol: 0.12, f0: 300, f1: 900, q: 3 }); notes(rare ? [784, 988, 1175, 1568, 1976] : [880, 1109, 1319], 'triangle', 0.12, 0.07, 0.2, 0.12); },
     rest: () => notes([392, 494, 587, 784], 'triangle', 0.12, 0.15, 0.35),
@@ -6680,7 +6683,12 @@ function updateBattle(dt) {
     return;
   }
   if (B.phase === 'player') { const cu = B.allies[B.cur]; if (cu && windingAb(cu) && !(B.pvp && !B.pvp.host)) playerAct(windingAb(cu), null); else battleInput(); }
-  if (B.phase === 'won' || B.phase === 'lost') {
+  if (B.phase === 'won' && B.vic && !B.pvp) {   // the victory screens
+    vicTick(dt);
+    const go = B.t > 0.35 && (hit('Enter', ' ', 'e') || B.clicked);
+    B.clicked = false;
+    if (go) vicNext();   // (B is gone after the last one)
+  } else if (B.phase === 'won' || B.phase === 'lost') {
     const go = B.t > 0.6 && (hit('Enter', ' ', 'e') || B.clicked);
     B.clicked = false;
     if (go) endBattle();   // (B is gone after this)
@@ -6713,11 +6721,12 @@ function winBattle() {
   tallyBattle(true);
   const xpBase = B.foes.reduce((a, f) => a + (4 + 2 * f.lvl) * (f.boss ? 4 : f.elite ? 1.6 : 1), 0) * (1 + stats.xp) * (G.cls === 'beastmaster' ? 1.5 : 1) * (1 + TEAM().xp);
   for (const u of B.allies) {
+    const lvl0 = petLvl(u.it), xp0 = u.it.xp || 0, bond0 = (u.it.g && u.it.g.bond) || 0, fainted = u.fainted;
     const gain = Math.round(xpBase * (u.fainted ? 0.5 : 1)), ups = givePetXp(u.it, gain);
-    R.xp.push({ u, gain, ups });
     if (u.fainted) { u.fainted = false; u.hp = Math.max(1, Math.round(u.maxHp * 0.15)); }
     RUN.petHp[u.it.pid] = ups.length ? 1 : u.hp / u.maxHp;   // a level-up heals fully
-    R.bond = (R.bond || 0) + addBond(u.it, B.boss ? 3 : 1);   // fighting side by side builds bond
+    const bg = addBond(u.it, B.boss ? 3 : 1); R.bond = (R.bond || 0) + bg;   // fighting side by side builds bond
+    R.xp.push({ u, gain, ups, lvl0, xp0, bond0, fainted, lvl1: petLvl(u.it), xp1: u.it.xp || 0, bond1: (u.it.g && u.it.g.bond) || 0 });   // (the victory screen animates from before to after)
   }
   // offspring: a sure thing from animals you don't own yet; sometimes from ones you do
   const kinds = [...new Set(B.foes.filter(f => !f.boss && !f.summoned && f.k !== 'shade' && f.k !== 'elder' && BS[f.k].off).map(f => f.k))];   // the Elder Egg stays the floor-20 achievement
@@ -6727,19 +6736,19 @@ function winBattle() {
     else if (owned(k) && Math.random() < (G.cls === 'rogue' ? 0.5 : 0.25) + stats.offspring) giveOffspring(k, R);   // another of its kind: a new animal with its own traits
   }
   if (B.boss === 'shadow') {
-    if (B.turn <= 3) { R.ach.push('Defeat the Shadow Wolf in three turns'); if (!SAVE.ach.shadow) { SAVE.ach.shadow = true; } if (!owned('shadowwolf')) giveOffspring('shadowwolf', R); }
+    if (B.turn <= 3) { if (!SAVE.ach.shadow) R.ach.push('Defeat the Shadow Wolf in three turns'); if (!SAVE.ach.shadow) { SAVE.ach.shadow = true; } if (!owned('shadowwolf')) giveOffspring('shadowwolf', R); }
   }
   if (B.boss === 'elder') {
-    if (B.faints === 0) { R.ach.push('Defeat the Elder Dragon without a single pet fainting'); SAVE.ach.elder = true; if (!owned('elder') && !pack.some(it => it.def.egg === 'elder')) giveOffspring('elder', R); }
+    if (B.faints === 0) { if (!SAVE.ach.elder) R.ach.push('Defeat the Elder Dragon without a single pet fainting'); SAVE.ach.elder = true; if (!owned('elder') && !pack.some(it => it.def.egg === 'elder')) giveOffspring('elder', R); }
   }
-  if (B.boss === 'rune') { R.ach.push('Defeat the Runeshell Leviathan'); SAVE.ach.rune = true; if (!owned('runeshell')) R.offspring.push(unlockPet('runeshell', newcomerLevel())); }   // its hatchling joins you
+  if (B.boss === 'rune') { if (!SAVE.ach.rune) R.ach.push('Defeat the Runeshell Leviathan'); SAVE.ach.rune = true; if (!owned('runeshell')) R.offspring.push(unlockPet('runeshell', newcomerLevel())); }   // its hatchling joins you
   if (B.boss === 'wyrm') {   // Act III's boss: its Wyrmling joins you on the spot
-    R.ach.push('Defeat the Lake Wyrm'); SAVE.ach.wyrm = true;
+    if (!SAVE.ach.wyrm) R.ach.push('Defeat the Lake Wyrm'); SAVE.ach.wyrm = true;
     if (!owned('lakewyrm')) R.offspring.push(unlockPet('lakewyrm', newcomerLevel()));
   }
   if (B.turn <= 1) {   // a whole enemy team beaten on the first turn
-    R.ach.push('Defeat an enemy team on the first turn of battle'); SAVE.ach.first = true;
-    if (!owned('unicorn')) { unlockPet('unicorn', newcomerLevel()); R.unicorn = true; }
+    if (!SAVE.ach.first) R.ach.push('Defeat an enemy team on the first turn of battle'); SAVE.ach.first = true;   // (each achievement is celebrated once)
+    if (!owned('unicorn')) { R.unicornIt = unlockPet('unicorn', newcomerLevel()); R.unicorn = true; }
   }
   // eggs in the backpack get closer to hatching
   for (const it of pack.filter(i => i.def.egg)) {
@@ -6748,8 +6757,195 @@ function winBattle() {
     if (it.wins >= need) { pack.splice(pack.indexOf(it), 1); const h = unlockPet(it.def.egg, newcomerLevel(stats.incubator ? 2 : 0), it.g); h.born = { how: 'hatched', at: Date.now(), floor: it.laid || G.roomNum }; R.hatched.push(h); }
   }
   stats = computeStats(); savePets();
-  B.rewards = R;
+  B.rewards = R; B.vic = { i: 0, t: 0, list: vicScreens(R), shown: -1 };
   G.battlesWon = (G.battlesWon || 0) + 1; G.kills += B.foes.length;
+}
+// ---------- the victory screens: XP and bond for each pet, then achievements, new animals, eggs and the rest ----------
+const vicEase = k => 1 - (1 - k) * (1 - k);
+const vicBack = k => { const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+function vicScreens(R) {
+  const L = [{ k: 'xp' }];
+  for (const a of R.ach) L.push({ k: 'ach', a });
+  for (const it of newbies(R)) L.push({ k: 'pet', it });
+  for (const it of R.eggs) L.push({ k: 'egg', it });
+  const lines = [];
+  const need = Math.max(1, 2 - (stats.incubator ? 1 : 0) - (G.cls === 'rogue' ? 1 : 0));
+  for (const it of pack.filter(i => i.def.egg)) { const left = Math.max(1, need - (it.wins || 0)); lines.push([`${it.def.name}: warming in your backpack, hatches after ${left} more win${left > 1 ? 's' : ''}`, PAL.gold]); }
+  for (const d of R.dupes || []) lines.push([`Another ${BS[d.k].baby}: your ${PETS[d.k].name} gains +${d.bonus} XP.`, PAL.sky]);
+  if (lines.length) L.push({ k: 'loot', lines });
+  return L;
+}
+// XP card timing: each pet's bars start a beat after the one before
+const vicFill = x => 1.1 + 0.35 * Math.min(4, x.ups.length);
+const vicDelay = i => 0.3 + i * 0.28;
+function vicLen(scr) {
+  if (scr.k === 'xp') return Math.max(0.6, ...B.rewards.xp.map((x, i) => vicDelay(i) + vicFill(x) + 0.9));
+  return scr.k === 'pet' ? 0.9 : 0.6;
+}
+const vicCur = () => (B && B.vic ? B.vic.list[B.vic.i] : null);
+const vicNameList = () => { const c = vicCur(); return c && c.k === 'pet' && mine(c.it) ? [c.it] : []; };
+function vicTick(dt) {
+  const V = B.vic, scr = vicCur(); if (!scr) return;
+  if (V.shown !== V.i) {   // a new screen: its sound
+    V.shown = V.i;
+    if (scr.k === 'ach') SFX.play('chest', true);
+    else if (scr.k === 'pet') SFX.play('chest', !!(scr.it.g && (scr.it.g.shiny || coatOf(scr.it.def.pet, scr.it.g).rare)));
+    else if (scr.k === 'egg') SFX.play('chest');
+  }
+  const t0 = V.t; V.t += dt;
+  if (scr.k !== 'xp') return;
+  B.rewards.xp.forEach((x, i) => {   // ticks while the bars fill, a fanfare on each level, a pop when bond grows
+    const a = vicDelay(i), f = vicFill(x), lv = t => Math.floor(vicP(x, clamp((t - a) / f, 0, 1)));
+    if (V.t > a && t0 < a + f && Math.floor(V.t * 14) !== Math.floor(t0 * 14) && i === 0) SFX.play('xptick');
+    if (lv(V.t) > lv(t0)) SFX.play('levelup');
+    const hb = a + f * 0.65; if (x.bond1 > x.bond0 && t0 < hb && V.t >= hb) SFX.play('heart');
+  });
+}
+function vicP(x, k) {   // a pet's progress in levels (level + fraction of the bar), k of the way from before to after
+  const frac = (L, xp) => (L >= PET_MAX_LVL ? 1 : clamp(xp / petXpNeed(L), 0, 1));
+  const p0 = x.lvl0 + frac(x.lvl0, x.xp0) * (x.lvl0 >= PET_MAX_LVL ? 0 : 1), p1 = x.lvl1 + (x.lvl1 >= PET_MAX_LVL ? 0 : frac(x.lvl1, x.xp1));
+  return p0 + (p1 - p0) * vicEase(k);
+}
+function vicNext() {   // a click: finish the animation first, then the next screen; after the last, back to the floor
+  const V = B.vic, scr = vicCur();
+  if (scr && V.t < vicLen(scr)) { V.t = vicLen(scr) + 0.01; return; }
+  V.i++; V.t = 0;
+  if (V.i >= V.list.length) endBattle();
+}
+function drawVictory() {
+  const V = B.vic, scr = vicCur(); if (!scr) return;
+  const keepW = W, keepH = H; W = VIEW.w; H = VIEW.h;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.textBaseline = 'middle';
+  NAME_BTN_R = null;
+  try {
+    const dim = VIEW.portrait ? 0.9 : 0.82; ctx.fillStyle = `rgba(8,5,3,${V.i ? dim : Math.min(dim, 0.3 + V.t * 2)})`; ctx.fillRect(0, 0, W, H);
+    if (scr.k === 'xp') drawVicXp(); else if (scr.k === 'ach') drawVicAch(scr); else if (scr.k === 'pet') drawVicPet(scr.it); else if (scr.k === 'egg') drawVicEgg(scr.it); else drawVicLoot(scr);
+    // the way on, and how many screens there are
+    const n = V.list.length, done = V.t >= vicLen(scr);
+    if (n > 1) for (let i = 0; i < n; i++) { ctx.fillStyle = i === V.i ? PAL.gold : i < V.i ? 'rgba(255,211,107,0.45)' : 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(W / 2 + (i - (n - 1) / 2) * 16, H - 34, i === V.i ? 5 : 4, 0, 7); ctx.fill(); }
+    label(done ? (TOUCH.on ? 'Tap to continue' : 'Click or Enter to continue') : (TOUCH.on ? 'Tap to skip' : 'Click or Enter to skip'), W / 2, H - 14, { align: 'center', size: 12, color: done ? PAL.cream : PAL.dim });
+  } finally { ctx.restore(); W = keepW; H = keepH; }
+}
+function vicSprite(it, cx, footY, maxW, maxH, sc0 = 3) {   // an animal, in its coat, fitted to a box
+  const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), anim = d.fly ? 'fly' : 'idle', fr = (animFrames(sheet, anim) || [])[0], aS = ANIM_SCALE[sheet] || 1;
+  let sc = sc0 * babyScale(it); if (fr) sc = Math.min(sc, maxW / (fr[2] * aS), maxH / (fr[3] * aS));
+  ctx.filter = petFilter(k, sheet, it); drawAnim(petSheet(sheet, it), anim, TIME * 5 + cx * 0.01, cx, d.fly ? footY - maxH * 0.45 : footY, 1, { scale: sc }); ctx.filter = 'none';
+  if (it.g && it.g.shiny) shinySparkle(cx - maxW / 2 + 10, footY - maxH, maxW - 20, maxH - 10, cx * 0.01, 1.1, k);
+}
+function drawVicXp() {
+  const V = B.vic, R = B.rewards, port = VIEW.portrait, n = R.xp.length;
+  banner('Victory!', W / 2, port ? 60 : 52, { size: 40, h: 60, pad: port ? 90 : 130 });
+  const cw = port ? W - 40 : 240, ch = port ? 168 : 300, gap = port ? 14 : 22;
+  const x0 = port ? 20 : W / 2 - (n * cw + (n - 1) * gap) / 2, y0 = port ? 112 : 104;
+  R.xp.forEach((x, i) => {
+    const it = x.u.it, g = it.g || {}, a = vicDelay(i), f = vicFill(x), k = clamp((V.t - a) / f, 0, 1);
+    const cx = port ? x0 : x0 + i * (cw + gap), cy = port ? y0 + i * (ch + gap) : y0;
+    const slide = vicBack(clamp((V.t - i * 0.12) / 0.45, 0, 1)), oy = (1 - slide) * 60; ctx.globalAlpha = clamp((V.t - i * 0.12) / 0.25, 0, 1);
+    const p = vicP(x, k), Lv = Math.min(PET_MAX_LVL, Math.floor(p)), frac = Lv >= PET_MAX_LVL ? 1 : p - Math.floor(p);
+    const lvT = Lv > x.lvl0 ? (() => { for (let t = a; t <= a + f; t += 0.02) if (Math.floor(vicP(x, clamp((t - a) / f, 0, 1))) >= Lv) return V.t - t; return 9; })() : 9;   // seconds since its last level-up
+    const flash = lvT < 0.9 ? 1 - lvT / 0.9 : 0;
+    const r = { x: cx, y: cy + oy, w: cw, h: ch };
+    ctx.fillStyle = '#1c140e'; rr(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 7); ctx.fill(); panel(r.x, r.y, r.w, r.h, 'dark');   /* (solid: the battle doesn't show through) */
+    if (flash) { ctx.fillStyle = `rgba(255,211,107,${0.35 * flash})`; rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.fill(); }
+    if (Lv > x.lvl0) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 2; rr(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 7); ctx.stroke(); }
+    // portrait
+    const px = port ? r.x + 70 : r.x + r.w / 2, pf = port ? r.y + r.h - 22 : r.y + 132, pw = port ? 120 : r.w - 40, ph = port ? 130 : 118;
+    ctx.save(); ctx.beginPath(); ctx.rect(r.x + 4, r.y + 4, port ? 136 : r.w - 8, port ? r.h - 8 : 134); ctx.clip(); vicSprite(it, px, pf, pw, ph, 4.2); ctx.restore();
+    // name, level, bars
+    const ix = port ? r.x + 150 : r.x + 18, iw = port ? r.w - 168 : r.w - 36;
+    let y = port ? r.y + 22 : r.y + 150;
+    label((ctx.font = `bold 16px ${UI}`, fitText((g.shiny ? '★ ' : '') + petName(it), iw)), port ? ix : r.x + r.w / 2, y, { align: port ? 'left' : 'center', size: 16, bold: true, color: g.shiny ? PAL.gold : RARITY[it.def.rarity].c }); y += 26;
+    const lvTxt = Lv >= PET_MAX_LVL ? `Level ${Lv} (max)` : `Level ${Lv}`;
+    label(lvTxt, ix, y, { size: flash ? 22 : 19, bold: true, color: flash || Lv > x.lvl0 ? PAL.gold : PAL.good });
+    label(`+${Math.round(x.gain * vicEase(k))} XP`, ix + iw, y, { align: 'right', size: 15, bold: true, color: PAL.good }); y += 16;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(ix, y, iw, 10); ctx.fillStyle = flash ? '#fff3c4' : PAL.good; ctx.fillRect(ix, y, iw * frac, 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.fillRect(ix, y, iw * frac, 2); y += 22;
+    if (Lv < PET_MAX_LVL) label(`${Math.floor(frac * petXpNeed(Lv))} / ${petXpNeed(Lv)} XP`, ix + iw, y - 2, { align: 'right', size: 11, color: PAL.dim });
+    y += 12;
+    // bond: fills after most of the XP, hearts float up
+    const hb = a + f * 0.65, kb = clamp((V.t - hb) / 0.6, 0, 1), b = x.bond0 + (x.bond1 - x.bond0) * vicEase(kb);
+    label('Bond', ix, y, { size: 13, bold: true, color: '#f8a5c2' });
+    const bx = ix + 46, bw = iw - 96;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(bx, y - 4, bw, 8); ctx.fillStyle = '#f48fb1'; ctx.fillRect(bx, y - 4, bw * b / 100, 8);
+    label(`${Math.floor(b)}${x.bond1 > x.bond0 ? `  +${Math.round((x.bond1 - x.bond0) * 10) / 10}` : ''}`, ix + iw, y, { align: 'right', size: 13, bold: true, color: '#f8a5c2' });
+    if (x.bond1 > x.bond0 && V.t > hb) for (let h = 0; h < 4; h++) {   // little hearts drifting up from the bar
+      const ht = V.t - hb - h * 0.15; if (ht < 0 || ht > 1.1) continue;
+      ctx.globalAlpha = Math.max(0, 1 - ht / 1.1) * clamp((V.t - i * 0.12) / 0.25, 0, 1);
+      label('♥', bx + bw * b / 100 + (h - 1.5) * 9 + Math.sin(ht * 6 + h) * 4, y - 8 - ht * 34, { align: 'center', size: 13 + h % 2 * 3, color: '#ff8fb8' });
+      ctx.globalAlpha = clamp((V.t - i * 0.12) / 0.25, 0, 1);
+    }
+    y += 22;
+    // what it adds up to
+    const upsNow = Lv - x.lvl0;
+    if (upsNow > 0) label(`▲ +${upsNow} talent point${upsNow > 1 ? 's' : ''}${x.lvl1 > x.lvl0 ? ' · fully healed' : ''}`, ix, y, { size: 12, bold: true, color: PAL.good });
+    else if (x.fainted) label('Fainted: half XP, back on its feet', ix, y, { size: 12, color: PAL.dim });
+    if (flash > 0.05) {   // LEVEL UP!
+      const s = 1 + 0.25 * Math.sin(Math.min(1, lvT / 0.25) * Math.PI);
+      ctx.save(); ctx.translate(port ? r.x + 72 : r.x + r.w / 2, port ? r.y + 30 - lvT * 14 : r.y + 70 - lvT * 30); ctx.scale(s, s); ctx.globalAlpha = Math.min(1, flash * 1.6) * ctx.globalAlpha;
+      label('LEVEL UP!', 0, 0, { align: 'center', size: 24, bold: true, color: PAL.gold }); ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  });
+  if (R.bond) label(`Your team's bond grows (+${Math.round(R.bond * 10) / 10})`, W / 2, port ? y0 + n * (ch + gap) + 10 : y0 + ch + 28, { align: 'center', size: 14, color: '#f8bbd0' });
+}
+function vicRays(cx, cy, rad, col) {   // slow light rays behind a reveal
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(TIME * 0.25); ctx.fillStyle = col;
+  for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(rad, -rad * 0.13); ctx.lineTo(rad, rad * 0.13); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+  const gl = ctx.createRadialGradient(cx, cy, 4, cx, cy, rad * 0.8); gl.addColorStop(0, col.replace(/[\d.]+\)$/, '0.55)')); gl.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gl; ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+}
+function drawVicAch(scr) {
+  const V = B.vic, port = VIEW.portrait, cy = port ? H / 2 - 40 : H / 2 - 30;
+  banner('Achievement!', W / 2, port ? 90 : 70, { size: 40, h: 60, pad: port ? 90 : 130 });
+  vicRays(W / 2, cy - 30, 140, 'rgba(255,211,107,0.12)');
+  const seal = art('ui/seal'), s = vicBack(clamp(V.t / 0.5, 0, 1)) * 3;
+  if (seal) { ctx.imageSmoothingEnabled = false; ctx.drawImage(seal, W / 2 - seal.width * s / 2, cy - 30 - seal.height * s / 2, seal.width * s, seal.height * s); }
+  const pw = Math.min(W - 40, 600);
+  panel(W / 2 - pw / 2, cy + 50, pw, 70, 'parch');
+  label((ctx.font = `bold 18px ${UI}`, fitText(scr.a + '!', pw - 30)), W / 2, cy + 85, { align: 'center', size: 18, bold: true, color: PAL.parchInk });
+  label('Recorded in the Records Hall', W / 2, cy + 140, { align: 'center', size: 13, color: PAL.dim });
+}
+function drawVicPet(it) {
+  const V = B.vic, port = VIEW.portrait, g = it.g || {}, k = it.def.pet, cb = coatOf(k, g), d = PETS[k];
+  const title = g.shiny ? '★ A shiny one! ★' : cb.rare ? `★ ${cb.i === COAT_ALBINO ? 'An albino' : 'A melanistic'} one! ★` : 'A new friend!';
+  banner(title, W / 2, port ? 70 : 56, { size: 34, h: 54, pad: port ? 80 : 120 });
+  const pw = port ? W - 30 : 600, ph = port ? 560 : 360, px = W / 2 - pw / 2, py = port ? 110 : 96;
+  panel(px, py, pw, ph, 'leather');
+  const cx = port ? W / 2 : px + 160, cy = port ? py + 150 : py + 160;
+  vicRays(cx, cy - 10, 130, g.shiny || cb.rare ? 'rgba(255,211,107,0.14)' : 'rgba(255,240,200,0.08)');
+  const s = vicBack(clamp(V.t / 0.55, 0, 1));
+  ctx.save(); ctx.translate(cx, cy + 60); ctx.scale(s, s); vicSprite(it, 0, 0, 230, 190, 4); ctx.restore();
+  let ty = port ? py + 250 : py + 250;
+  label(it.nick || BS[k].baby, cx, ty, { align: 'center', size: 20, bold: true, color: g.shiny || cb.rare ? PAL.gold : PAL.cream }); ty += 22;
+  label(`${it.nick ? BS[k].baby + ' · ' : ''}${RARITY[it.def.rarity].label} ${d.role} · level ${petLvl(it)}`, cx, ty, { align: 'center', size: 13, color: RARITY[it.def.rarity].c }); ty += 22;
+  const how = it.born && it.born.how === 'hatched' ? 'An egg hatched in your backpack!' : B.rewards.unicornIt === it ? 'The unicorn finds you formidable in battle and joins your Sanctuary!' : k === 'runeshell' || k === 'lakewyrm' ? 'Its hatchling joins your Sanctuary!' : 'Rescued as a baby: it follows you home.';
+  label((ctx.font = `13px ${UI}`, fitText(how, port ? pw - 30 : 280)), cx, ty, { align: 'center', size: 13, color: PAL.dim }); ty += 26;
+  if (mine(it) && !it.nick) drawNameBtn({ x: cx - 80, y: ty - 6, w: 160, h: 32 }, 1);
+  ctx.globalAlpha = clamp((V.t - 0.3) / 0.4, 0, 1);
+  drawTraits(it, port ? px + 30 : px + 320, port ? py + 370 : py + 50, port ? pw - 60 : 250);
+  ctx.globalAlpha = 1;
+}
+function drawVicEgg(it) {
+  const V = B.vic, port = VIEW.portrait, k = it.def.egg, need = Math.max(1, 2 - (stats.incubator ? 1 : 0) - (G.cls === 'rogue' ? 1 : 0));
+  banner('An egg!', W / 2, port ? 90 : 70, { size: 40, h: 60, pad: port ? 90 : 130 });
+  const cy = port ? H / 2 - 60 : H / 2 - 40;
+  vicRays(W / 2, cy, 130, 'rgba(255,240,200,0.10)');
+  const img = art('items/' + it.id), s = vicBack(clamp(V.t / 0.5, 0, 1)) * 4, wob = Math.sin(TIME * 7) * 0.08 * (Math.sin(TIME * 1.3) > 0.4 ? 1 : 0);
+  ctx.save(); ctx.translate(W / 2, cy + 40); ctx.rotate(wob); ctx.imageSmoothingEnabled = false;
+  if (img) ctx.drawImage(img, -img.width * s / 2, -img.height * s, img.width * s, img.height * s); else { ctx.fillStyle = PETS[k].color || '#eee'; ctx.beginPath(); ctx.ellipse(0, -30 * s / 4, 22 * s / 4, 30 * s / 4, 0, 0, 7); ctx.fill(); }
+  ctx.restore();
+  const pw = Math.min(W - 40, 560);
+  panel(W / 2 - pw / 2, cy + 70, pw, 84, 'parch');
+  label((ctx.font = `bold 17px ${UI}`, fitText(`The ${PETS[k].name} left an egg: ${it.def.name}`, pw - 30)), W / 2, cy + 98, { align: 'center', size: 17, bold: true, color: PAL.parchInk });
+  label((ctx.font = `13px ${UI}`, fitText(`Carry it in your backpack: it hatches after ${need} win${need > 1 ? 's' : ''}. You'll place it next.`, pw - 30)), W / 2, cy + 126, { align: 'center', size: 13, color: PAL.parchInk });
+}
+function drawVicLoot(scr) {
+  const V = B.vic, port = VIEW.portrait;
+  banner('Also from this battle', W / 2, port ? 90 : 70, { size: 32, h: 52, pad: port ? 70 : 110 });
+  const pw = Math.min(W - 40, 640), lh = 24, ph = 40 + scr.lines.length * lh, py = H / 2 - ph / 2;
+  ctx.fillStyle = '#1c140e'; rr(W / 2 - pw / 2 + 2, py + 2, pw - 4, ph - 4, 7); ctx.fill(); panel(W / 2 - pw / 2, py, pw, ph, 'dark');
+  scr.lines.forEach(([t, c], i) => { ctx.globalAlpha = clamp((V.t - i * 0.12) / 0.3, 0, 1); label((ctx.font = `14px ${UI}`, fitText(t, pw - 40)), W / 2 - pw / 2 + 20, py + 32 + i * lh, { size: 14, color: c }); });
+  ctx.globalAlpha = 1;
 }
 // 'a shiny Fox Kit ♀ (Brave, B·A·C)'
 const petBlurb = it => { const g = it.g || {}; return `${g.shiny ? 'A ★ SHINY ' : 'A '}${BS[it.def.pet].baby} ${sexSym(g)} (${(NATURES[g.nat] || NATURES.calm).n}, ${gradeLine(g)})`; };
@@ -7241,7 +7437,7 @@ function battleClick(btn) {
     if (si) { B.stPin = B.stPin && B.stPin.u === si.u && B.stPin.k === si.k ? null : { u: si.u, k: si.k }; return; }
     if (B.stPin) { B.stPin = null; if (btn === 2) return; }
   }
-  if (B.phase === 'won' || B.phase === 'lost') { if (B.t > 0.6) B.clicked = true; return; }
+  if (B.phase === 'won' || B.phase === 'lost') { if (B.t > (B.vic ? 0.35 : 0.6)) B.clicked = true; return; }
   if (B.phase !== 'player' || B.lock > 0) return;
   if (btn === 2) { B.pick = null; return; }
   const u = B.allies[B.cur]; if (!u) return;
@@ -7891,7 +8087,7 @@ function drawBattle() {
       lines.forEach((l, i) => { ctx.fillStyle = i ? PAL.cream : PAL.gold; ctx.fillText(l, tx + 9, ty + 12 + i * 15); });
     }
   } else if (B.pvp && (B.phase === 'won' || B.phase === 'lost') && B.rewards) drawPvpResult(B.rewards);
-  else if (B.phase === 'won' && B.rewards) drawRewards(B.rewards);
+  else if (B.phase === 'won' && B.rewards) { if (!B.vic) drawRewards(B.rewards); }   // (the victory screens draw last, over everything: see draw())
   else if (B.phase === 'lost') {
     ctx.textAlign = 'center'; ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#f08a6a'; ctx.fillText('Your whole team fainted. The run is over.', W / 2, BX.panelY + 44);
     ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText('Your pets keep every level they earned. Tap or press Enter.', W / 2, BX.panelY + 70);
@@ -8240,7 +8436,7 @@ function onMouseDown(btn) {
   }
   if (G.coll) { collClick(btn); return; }
   if (btn === 0 && NAME_BTN_R && inRect(mouse, NAME_BTN_R)) {   // naming new animals
-    if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp) { NAME_BTN_R = null; nameNewbies(newbies(B.rewards)); return; }
+    if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp) { NAME_BTN_R = null; nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
     if (G.panel === 'newborn' && G.newborn) { NAME_BTN_R = null; G.panel = null; nameNewbies([G.newborn]); return; }
   }
   if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
@@ -9127,7 +9323,7 @@ function nickDone() {   // Enter: keep the name (an empty one goes back to the s
   else if (C.from === 'name') closeColl();
 }
 // new animals from a battle (or the Den) can be named right away
-const newbies = R => [...(R.offspring || []), ...(R.hatched || [])].filter(mine);
+const newbies = R => [...(R.offspring || []), ...(R.hatched || []), ...(R.unicornIt ? [R.unicornIt] : [])].filter(mine);
 function nameNewbies(list) { if (!list.length) return; openColl({ from: 'name', view: list[0].pid, queue: list.slice(1) }); startNick(list[0]); }
 let NAME_BTN_R = null;   // the "Name them" button, as last drawn on the rewards / newborn screens
 function drawNameBtn(r, n) {
@@ -9616,6 +9812,7 @@ function draw() {
     return;
   }
   drawScreen();
+  if (G && B && B.vic && B.phase === 'won' && B.rewards && !B.pvp && (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle'))) { drawVictory(); if (G.mode === 'pause') drawPauseMenu(); }
   if (G && G.coll) drawColl();
 }
 function drawScreen() {
@@ -10856,7 +11053,7 @@ function update(dt) {
     return;
   }
   if (G.coll) { collKeys(); return; }   // (My Animals: the game waits underneath)
-  if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp && hit('n')) { nameNewbies(newbies(B.rewards)); return; }
+  if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp && hit('n')) { nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
   if (G.mode === 'play' && G.hub && G.panel === 'newborn' && G.newborn && hit('n')) { G.panel = null; nameNewbies([G.newborn]); return; }
   switch (G.mode) {
     case 'play':
