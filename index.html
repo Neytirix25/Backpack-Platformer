@@ -5361,16 +5361,31 @@ function buildFoes(ent, count) {
 
 // ---------- the battle ----------
 let B = null;
-const BX = { ally: [505, 375, 245], foe: [610, 740, 870], hero: 110, ground: 404 };
+const BX = { ally: [505, 375, 245], foe: [610, 740, 870], hero: 110, ground: 404, groundF: 404, boss: 845, minion: [605, 705], panelY: 426, sceneH: 442 };
+const BX_LAND = JSON.parse(JSON.stringify(BX));
+// portrait: the scene on top (foes on a back row, your team in front, lower down), then a tall panel of moves and items.
+// The panel takes what it needs; the scene gets the rest (a taller phone just gets a roomier scene).
+function battleLayout() {
+  if (!(VIEW.portrait && !VIEW.legacy)) { Object.assign(BX, JSON.parse(JSON.stringify(BX_LAND))); return; }
+  const panelY = Math.max(470, H - 360), ground = panelY - 18;
+  Object.assign(BX, { ally: [338, 226, 116], foe: [250, 362, 474], hero: 40, ground, groundF: ground - 150, boss: 400, minion: [250, 474], panelY, sceneH: panelY - 70 });
+}
+const groundOf = u => (u.side === 'foe' ? BX.groundF : BX.ground);   // (portrait: the foes stand further back)
+function placeUnits() {   // every frame, so turning the phone mid-battle just works
+  if (!B || B.pvp) return;
+  // every unit keeps the spot it was given in the landscape layout (u.lx); here that spot is mapped to the current layout
+  const L = BX_LAND, map = new Map([...L.ally.map((x, i) => [x, BX.ally[i]]), ...L.foe.map((x, i) => [x, BX.foe[i]]), [L.boss, BX.boss], ...L.minion.map((x, i) => [x, BX.minion[i]])]);
+  for (const u of [...B.allies, ...B.foes]) { if (u.lx == null) u.lx = u.x; u.x = map.get(u.lx) ?? u.lx; }
+}
 function startBattle(ent) {
   const team = petSlots.filter(Boolean), alive = team.filter(it => (runHp(it.pid) ?? 1) > 0);
   if (!alive.length) return;
   stats = computeStats(); G.team = teamMods();
   const allies = petSlots.map((it, i) => it ? petUnit(it, i, team.length) : null).filter(Boolean);
-  allies.forEach((u, i) => { u.slot = i; u.x = BX.ally[i]; u.face = 1; });
+  allies.forEach((u, i) => { u.slot = i; u.x = u.lx = BX_LAND.ally[i]; u.face = 1; });
   const foes = buildFoes(ent, team.length);
-  foes.forEach((u, i) => { u.slot = i; u.x = u.boss ? 845 : BX.foe[i]; u.face = -1; });
-  if (foes.length > 1 && foes[0].boss) { foes[1].x = 605; if (foes[2]) foes[2].x = 705; }   // the boss looms at the back, its minions in front
+  foes.forEach((u, i) => { u.slot = i; u.x = u.lx = u.boss ? 845 : BX_LAND.foe[i]; u.face = -1; });
+  if (foes.length > 1 && foes[0].boss) { foes[1].x = foes[1].lx = 605; if (foes[2]) foes[2].x = foes[2].lx = 705; }   // the boss looms at the back, its minions in front
   B = { ent, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
         boss: foes[0].boss, rewards: null, reviveUsed: false, t: 0 };
   // battle-start effects: Rally Whistle, Guardian Bell, Warrior's front shield, talents
@@ -5616,8 +5631,8 @@ function act(u, ab, tgt) {
 function summonShade(u) {
   if (B.foes.filter(o => !o.fainted).length >= 3) { const dead = B.foes.find(o => o.fainted && !o.boss); if (!dead) return; B.foes.splice(B.foes.indexOf(dead), 1); }
   const s = foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.6 });
-  const used = B.foes.filter(o => !o.fainted).map(o => o.x), spot = [605, 705].find(x => !used.includes(x)) || 705;
-  s.x = spot; s.face = -1; s.slot = B.foes.length; s.summoned = true; B.foes.push(s); bText(s, 'SUMMONED', '#b39ddb', 15);
+  const used = B.foes.filter(o => !o.fainted).map(o => o.lx ?? o.x), spot = [605, 705].find(x => !used.includes(x)) || 705;
+  s.x = s.lx = spot; s.face = -1; s.slot = B.foes.length; s.summoned = true; B.foes.push(s); bText(s, 'SUMMONED', '#b39ddb', 15);
 }
 // foes think: heal a hurt friend, buff when safe, curse what isn't cursed, otherwise hit hardest
 function aiChoose(u) {
@@ -5882,10 +5897,20 @@ function drawTipBox(title, lines, cx, y, maxW = 580) {
   return h;
 }
 // ---------- input ----------
+const portBattle = () => VIEW.portrait && !VIEW.legacy && B && !B.pvp;
+function BPORT() {   // the portrait panel: moves in a 2-wide grid, then the hero's items 4 across
+  const y0 = BX.panelY + 18, room = H - y0 - 12, ah = Math.max(40, Math.min(58, (room - 40) / 5 - 6)), ih = Math.max(36, Math.min(48, ah - 8));
+  return { y0, ah, ih, itemsY: y0 + 3 * (ah + 6) + 22 };
+}
 function abilityRects(u) {
+  if (portBattle()) { const L = BPORT(), w = (W - 34) / 2; return u.abil.map((ab, i) => ({ ab, x: 12 + (i % 2) * (w + 10), y: L.y0 + Math.floor(i / 2) * (L.ah + 6), w, h: L.ah })); }
   return u.abil.map((ab, i) => ({ ab, x: 14 + (i % 3) * 156, y: 446 + Math.floor(i / 3) * 46, w: 150, h: 40 }));
 }
-function itemRects() { if (B && B.pvp) return []; return heroItems().map((g, i) => ({ g, x: 512 + (i % 4) * 108, y: 446 + Math.floor(i / 4) * 46, w: 102, h: 40 })); }
+function itemRects() {
+  if (B && B.pvp) return [];
+  if (portBattle()) { const L = BPORT(), w = (W - 24 - 18) / 4; return heroItems().map((g, i) => ({ g, x: 12 + (i % 4) * (w + 6), y: L.itemsY + Math.floor(i / 4) * (L.ih + 6), w, h: L.ih })); }
+  return heroItems().map((g, i) => ({ g, x: 512 + (i % 4) * 108, y: 446 + Math.floor(i / 4) * 46, w: 102, h: 40 }));
+}
 function unitAt(p) { for (const u of [...B.allies, ...B.foes]) { const r = unitRect(u); if (inRect(p, r)) return u; } return null; }
 function pickValid(u) {
   const P = B.pick; if (!P) return false;
@@ -5910,8 +5935,9 @@ function startEncounter(e) {
 function updateEncounter(dt) {
   const E = G.enc; E.t += dt; updateFx(dt);
   if (E.t < 0.62) return;
-  const snap = document.createElement('canvas'); snap.width = 960; snap.height = 540;   // the frozen frame the wipe tears away
-  try { const g = snap.getContext('2d'); if (VIEW.portrait) { g.fillStyle = '#0b0b10'; g.fillRect(0, 0, 960, 540); g.drawImage(cv, 0, 0, 540, 540, 210, 0, 540, 540); } else g.drawImage(cv, 0, 0); } catch (err) {}
+  const snap = document.createElement('canvas'); snap.width = VIEW.w; snap.height = VIEW.h;   // the frozen frame the wipe tears away (portrait: the whole tall screen)
+  try { snap.getContext('2d').drawImage(cv, 0, 0); } catch (err) {}
+  if (VIEW.portrait) { W = VIEW.w; H = VIEW.h; }   // lay the wipe out for the battle's screen
   G.enc = null; startBattle(E.e);
   if (B) beginIntro(snap, E.e); else G.mode = 'play';
 }
@@ -6206,22 +6232,22 @@ function drawVsCard(I) {
   const inK = easeOut(tau / 0.35), outK = ease((tau - 1.45) / 0.35), slide = inK * (1 - outK);
   if (slide <= 0.001) return;
   ctx.fillStyle = `rgba(8,5,3,${0.5 * slide})`; ctx.fillRect(0, 0, W, H);
-  const pw = 420, ph = 186, py = 168;
-  const lx = -pw + (40 + pw) * slide, rx = W - (40 + pw) * slide;
+  const port = VIEW.portrait && !VIEW.legacy, pw = port ? W - 40 : 420, ph = 186, py = port ? H / 2 - ph - 50 : 168, pyF = port ? H / 2 + 50 : 168;
+  const lx = -pw + (port ? 20 + pw : 40 + pw) * slide, rx = W - (port ? 20 + pw : 40 + pw) * slide;
   // your side
   panel(lx, py, pw, ph, 'leather'); ctx.fillStyle = 'rgba(102,187,106,0.18)'; ctx.fillRect(lx + 10, py + 10, pw - 20, 26);
   label('YOUR TEAM', lx + 22, py + 24, { size: 14, bold: true, color: PAL.good });
-  ctx.save(); ctx.beginPath(); ctx.rect(lx + 8, py + 36, pw - 16, ph - 44); ctx.clip(); drawVsRow(B.allies, lx + 92, 1); ctx.restore();
+  ctx.save(); ctx.beginPath(); ctx.rect(lx + 8, py + 36, pw - 16, ph - 44); ctx.clip(); ctx.translate(0, py - 168); drawVsRow(B.allies, lx + 92, 1); ctx.restore();   /* (the rows are laid out for the landscape card at y 168) */
   // their side
   const elite = B.foes.some(u => u.elite);
-  panel(rx, py, pw, ph, 'leather'); ctx.fillStyle = 'rgba(229,57,53,0.2)'; ctx.fillRect(rx + 10, py + 10, pw - 20, 26);
-  label(B.pvp ? `${B.pvp.name.toUpperCase()}'S TEAM` : elite ? 'AN ALPHA LEADS THEM!' : ({ pack: 'A WILD PACK', mixed: 'WILD ANIMALS', wall: 'A SHIELD WALL', healer: 'A HEALER-BACKED GROUP', hex: 'A COVEN OF HEXERS', venom: 'A VENOMOUS BUNCH' })[I.ent && I.ent.comp] || 'WILD ANIMALS', rx + pw - 22, py + 24, { align: 'right', size: 14, bold: true, color: elite ? '#ffb74d' : '#ff8a80' });
-  ctx.save(); ctx.beginPath(); ctx.rect(rx + 8, py + 36, pw - 16, ph - 44); ctx.clip(); drawVsRow(B.foes, rx + pw - 92 - (B.foes.length - 1) * 112, -1); ctx.restore();
+  panel(rx, pyF, pw, ph, 'leather'); ctx.fillStyle = 'rgba(229,57,53,0.2)'; ctx.fillRect(rx + 10, pyF + 10, pw - 20, 26);
+  label(B.pvp ? `${B.pvp.name.toUpperCase()}'S TEAM` : elite ? 'AN ALPHA LEADS THEM!' : ({ pack: 'A WILD PACK', mixed: 'WILD ANIMALS', wall: 'A SHIELD WALL', healer: 'A HEALER-BACKED GROUP', hex: 'A COVEN OF HEXERS', venom: 'A VENOMOUS BUNCH' })[I.ent && I.ent.comp] || 'WILD ANIMALS', rx + pw - 22, pyF + 24, { align: 'right', size: 14, bold: true, color: elite ? '#ffb74d' : '#ff8a80' });
+  ctx.save(); ctx.beginPath(); ctx.rect(rx + 8, pyF + 36, pw - 16, ph - 44); ctx.clip(); ctx.translate(0, pyF - 168); drawVsRow(B.foes, rx + pw - 92 - (B.foes.length - 1) * 112, -1); ctx.restore();
   // VS slams in between them
   const sk = (tau - 0.3) / 0.16;
   if (sk > 0) {
     const s = 1 + 2.4 * (1 - easeOut(sk)), a = Math.min(1, sk * 2) * (1 - outK);
-    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, py + ph / 2); ctx.scale(s, s);
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(W / 2, port ? H / 2 : py + ph / 2); ctx.scale(s, s);
     if (sk < 2.5) { ctx.strokeStyle = `rgba(255,213,107,${0.5 * Math.max(0, 1 - sk / 2.5)})`; ctx.lineWidth = 3; for (let i = 0; i < 16; i++) { const an = i / 16 * 6.283; ctx.beginPath(); ctx.moveTo(Math.cos(an) * 46, Math.sin(an) * 46); ctx.lineTo(Math.cos(an) * (70 + sk * 30), Math.sin(an) * (70 + sk * 30)); ctx.stroke(); } }
     ctx.font = `bold 92px ${UI}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#2a1408'; ctx.fillText('VS', 4, 6); ctx.fillStyle = PAL.gold; ctx.fillText('VS', 0, 0);
@@ -6257,9 +6283,9 @@ function drawBossCinematic(I) {
   const tk = easeOut((tau - 1.3) / 0.45);
   if (tk > 0) {
     ctx.save(); ctx.globalAlpha = tk * (1 - out);
-    const tx = 70 - 60 * (1 - tk);
+    const port = VIEW.portrait && !VIEW.legacy, tx = (port ? 20 : 70) - 60 * (1 - tk);
     label(`FLOOR ${info.floor}  ·  BOSS`, tx, H * 0.38, { size: 15, bold: true, color: C.col });
-    ctx.font = `60px ${TITLE}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1a0e06'; ctx.fillText(info.name, tx + 4, H * 0.5 + 4); ctx.fillStyle = PAL.gold; ctx.fillText(info.name, tx, H * 0.5);
+    ctx.font = `${port ? 38 : 60}px ${TITLE}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1a0e06'; ctx.fillText(info.name, tx + 4, H * 0.5 + 4); ctx.fillStyle = PAL.gold; ctx.fillText(info.name, tx, H * 0.5);
     ctx.fillStyle = C.col; ctx.fillRect(tx, H * 0.5 + 38, 300 * tk, 3);
     label(C.epithet, tx, H * 0.5 + 62, { size: 18, color: PAL.cream });
     ctx.restore();
@@ -6318,7 +6344,7 @@ const unitSheet = u => u.sheet && animFrames(u.sheet, 'idle') ? u.sheet : specie
 function speciesSheet(k) { const d = PETS[k] || PETS.dog; return animFrames(d.anim, 'idle') || animFrames(d.anim, 'fly') ? d.anim : (d.fallback || 'pet_dog'); }
 const unitScale = u => 4.1 * (u.boss ? 0.78 : 1) * (u.scale || 1) * (PETS[u.k] && PETS[u.k].bscale || 1);
 const unitFly = u => !!(PETS[u.k] && PETS[u.k].fly);
-const unitAnchorY = u => (unitFly(u) ? BX.ground - 100 : BX.ground);
+const unitAnchorY = u => (unitFly(u) ? groundOf(u) - 100 : groundOf(u));
 function unitFrame(u) { const sh = unitSheet(u), fr = animFrames(sh, unitFly(u) ? 'fly' : 'idle') || animFrames(sh, 'idle') || animFrames(sh, 'fly'); return fr ? fr[0] : [0, 0, 26, 22, 13, unitFly(u) ? 11 : 22]; }
 function unitRect(u) { const s = unitScale(u) * (ANIM_SCALE[unitSheet(u)] || 1), f = unitFrame(u), y = unitAnchorY(u); return { x: u.x - f[2] * s / 2, y: y - f[5] * s, w: f[2] * s, h: f[3] * s }; }
 function unitTop(u) { return unitRect(u).y; }
@@ -6418,7 +6444,7 @@ function fxCtx(u, T, H, A) {
       for (let i = 0; i < (o.n || 14); i++) vfxP(spr, mouth.x, mouth.y, { d: (o.d || 0) + i * (o.gap || 0.025), to: { x: tx + rand(-70, 70), y: mouth.y + rand(-1, 1) * (o.spread ?? 50) + 20 }, life: o.dur || 0.35, s: o.s || 0.5, s1: o.s1 || 1.5, vr: rand(-3, 3), a: 1, a1: 0.15, add: o.add ?? true });
     },
     swirl(spr, t, o = {}) { const p = c.pop(spr, t, { d: o.d || 0, s0: 0.6, s: o.s || 1.8, life: o.life || 0.6, a1: 0, rot: 0 }); p.vr = o.spin || 10; },
-    ground(spr, t, o = {}) { vfxP(spr, uC(t).x, BX.ground - 4, { d: o.d || 0, life: o.life || 0.7, s: o.s0 || 0.5, s1: o.s || 1.6, a: 1, a1: 0, add: o.add }); },
+    ground(spr, t, o = {}) { vfxP(spr, uC(t).x, (t.side ? groundOf(t) : BX.ground) - 4, { d: o.d || 0, life: o.life || 0.7, s: o.s0 || 0.5, s1: o.s || 1.6, a: 1, a1: 0, add: o.add }); },
     above(spr, o = {}) { return vfxP(spr, me.x, me.top - (o.h || 40), { d: o.d || 0, life: o.life || 0.6, s: o.s0 || 0.5, s1: o.s || 2.6, a: 1, a1: 0, add: o.add }); },
   };
   return c;
@@ -6741,7 +6767,7 @@ function drawBattleUnit(u) {
   const o = { scale: s };
   if (down) o.alpha = Math.max(0.25, 1 - u.faintT * 2);
   if (hurt) o.flash = true;
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, BX.ground + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
   ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet));   // a unit's own tint (e.g. a stand-in boss) wins
   const anim = down ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = down ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
   if (!drawAnim(petSheet(sheet, u.it), anim, fr, x, y, u.face, o) && !drawAnim(petSheet(sheet, u.it), fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
@@ -6753,7 +6779,7 @@ function drawBattleUnit(u) {
   // name, HP bar and statuses
   const top = unitTop(u) - 8, bw = Math.max(70, 26 * s);
   const cur = B.phase === 'player' && B.allies[B.cur] === u, tgtOk = B.pick && pickValid(u), over = inRect(mouse, unitRect(u));
-  if (cur) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(u.x, BX.ground + 2, 18 * s, 6 * s, 0, 0, 7); ctx.stroke(); }
+  if (cur) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 18 * s, 6 * s, 0, 0, 7); ctx.stroke(); }
   if (tgtOk) { ctx.strokeStyle = over ? PAL.cream : `rgba(255,213,79,${0.5 + 0.4 * Math.sin(B.t * 8)})`; ctx.lineWidth = over ? 3 : 2; const r = unitRect(u); rr(r.x - 4, r.y - 4, r.w + 8, r.h + 8, 10); ctx.stroke(); }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold ${u.boss ? 14 : 12}px ${UI}`; ctx.fillStyle = u.boss ? '#ff8a80' : u.elite ? PAL.gold : u.side === 'ally' ? PAL.good : PAL.gold;
@@ -6856,15 +6882,19 @@ function drawStTip() {   // the hovered icon, or the one clicked
   drawTipBox(I.title, I.lines, r.x + r.w / 2, y, maxW);
 }
 function drawBattle() {
-  const R = G.room, bg = art('bg/' + (R.bgKey || 'hall'));
+  battleLayout(); placeUnits();
+  const R = G.room, bg = art('bg/' + (R.bgKey || 'hall')), port = VIEW.portrait && !VIEW.legacy;
   const BL = BG_LAYERED.includes(R.bgKey) ? ['far', 'mid', 'near'].map(n => art('bg/' + R.bgKey + '_' + n)) : null;
+  // where the backdrop goes: landscape stretches it across; portrait covers the taller scene (cropping the sides)
+  const sceneBox = (iw, ih) => { if (!port) return { x: 0, y: 0, w: W, h: H * 0.82 }; const h = BX.sceneH, w = h * iw / ih; return { x: (W - w) / 2, y: 0, w, h }; };
+  if (port) { ctx.fillStyle = R.theme.bg; ctx.fillRect(0, 0, W, H); }
   if (BL && BL.every(Boolean)) {   // the area's three layers (they stack into its picture) and everything moving in them
-    const sh = Math.min(BL[0].height, BG_CROP[R.bgKey] || BL[0].height), tf = { x: 0, y: 0, sx: W / BL[0].width, sy: H * 0.82 / sh };
-    BL.forEach((im, i) => { ctx.drawImage(im, 0, 0, im.width, sh, 0, 0, W, H * 0.82); drawBgFx(R.bgKey, i, tf); });
+    const sh = Math.min(BL[0].height, BG_CROP[R.bgKey] || BL[0].height), bx = sceneBox(BL[0].width, sh), tf = { x: bx.x, y: bx.y, sx: bx.w / BL[0].width, sy: bx.h / sh };
+    BL.forEach((im, i) => { ctx.drawImage(im, 0, 0, im.width, sh, bx.x, bx.y, bx.w, bx.h); drawBgFx(R.bgKey, i, tf); });
     drawBgFx(R.bgKey, 3, tf);
-  } else if (bg) { const h = bg.height, w = bg.width; ctx.drawImage(bg, 0, 0, w, Math.min(h, BG_CROP[R.bgKey] || h), 0, 0, W, H * 0.82); } else { ctx.fillStyle = R.theme.bg; ctx.fillRect(0, 0, W, H); }
+  } else if (bg) { const h = bg.height, w = bg.width, sh = Math.min(h, BG_CROP[R.bgKey] || h), bx = sceneBox(w, sh); ctx.drawImage(bg, 0, 0, w, sh, bx.x, bx.y, bx.w, bx.h); } else { ctx.fillStyle = R.theme.bg; ctx.fillRect(0, 0, W, H); }
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = R.theme.tile[0]; ctx.fillRect(0, BX.ground, W, H - BX.ground); ctx.fillStyle = R.theme.tile[3]; ctx.fillRect(0, BX.ground, W, 4);
+  { const fy = port ? BX.sceneH : BX.ground; ctx.fillStyle = R.theme.tile[0]; ctx.fillRect(0, fy, W, H - fy); ctx.fillStyle = R.theme.tile[3]; ctx.fillRect(0, fy, W, 4); }   // the floor your team stands on
   // the hero, behind the pets
   const hs = heroSheet(G.cls);
   ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, (B.pvp ? PVP_X.hero[0] : BX.hero) + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
@@ -6886,7 +6916,7 @@ function drawBattle() {
   B.log.forEach((t, i) => { ctx.globalAlpha = 0.35 + 0.65 * (i + 1) / B.log.length; ctx.fillStyle = PAL.cream; ctx.fillText(t, 14, 84 + i * 16); });
   ctx.globalAlpha = 1;
   // bottom panel
-  panel(-14, 426, W + 28, H - 412, 'leather');
+  panel(-14, BX.panelY, W + 28, H - BX.panelY + 14, 'leather');
   if (B.phase === 'player') {
     const u = B.allies[B.cur], hov = [];
     if (u) for (const r of abilityRects(u)) {
@@ -6911,9 +6941,11 @@ function drawBattle() {
       if (over) hov.push({ title: r.g.it.def.name + ((r.g.it.lvl || 1) > 1 ? ' ' + ROMAN[r.g.it.lvl] : ''), lines: [r.g.it.def.desc, levelLine(r.g.it) ? 'This one: ' + levelLine(r.g.it) + '.' : ''].filter(Boolean) });
     }
     ctx.textAlign = 'left'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.gold;
-    ctx.fillText(u ? `${u.name}'s move` : '', 14, 442 - 12);
-    ctx.textAlign = 'right'; if (!B.pvp) ctx.fillText(`Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`, W - 14, 442 - 12);
-    if (!B.pvp && !itemRects().length) { ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('No consumables in your backpack.', 512, 466); }
+    ctx.fillText(u ? `${u.name}'s move` : '', 14, BX.panelY + 4);
+    const itemsLabel = `Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`;
+    if (port) { ctx.textAlign = 'left'; if (!B.pvp) ctx.fillText(itemsLabel, 14, BPORT().itemsY - 10); }
+    else { ctx.textAlign = 'right'; if (!B.pvp) ctx.fillText(itemsLabel, W - 14, BX.panelY + 4); }
+    if (!B.pvp && !itemRects().length) { ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('No consumables in your backpack.', port ? 14 : 512, port ? BPORT().itemsY + 14 : 466); }
     if (hov[0]) { const lines = hov[0].lines; ctx.font = `13px ${UI}`; const h = 26 + lines.length * 17; drawTipBox(hov[0].title, lines, W / 2, boss ? 74 : 44); }
     else if (B.pick) {
       const tip = B.pick.item ? `Click ${({ ally: 'a pet to heal', dead: 'a fainted pet', foe: 'a foe' })[USE_T[B.pick.item.def.use]]}  ·  right-click to cancel` : `Choose a target for ${ABIL[B.pick.ab].n}  ·  right-click to cancel`;
@@ -6930,12 +6962,13 @@ function drawBattle() {
   } else if (B.pvp && (B.phase === 'won' || B.phase === 'lost') && B.rewards) drawPvpResult(B.rewards);
   else if (B.phase === 'won' && B.rewards) drawRewards(B.rewards);
   else if (B.phase === 'lost') {
-    ctx.textAlign = 'center'; ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#f08a6a'; ctx.fillText('Your whole team fainted. The run is over.', W / 2, 470);
-    ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText('Your pets keep every level they earned. Press Enter or click.', W / 2, 496);
-  } else { ctx.textAlign = 'center'; ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(B.pvp ? (B.phase === 'foe' ? `${B.pvp.name} is choosing a move...` : B.phase === 'wait' ? 'Waiting...' : '') : B.phase === 'foe' ? 'The foes are taking their turn...' : '', W / 2, 480); }
+    ctx.textAlign = 'center'; ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#f08a6a'; ctx.fillText('Your whole team fainted. The run is over.', W / 2, BX.panelY + 44);
+    ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText('Your pets keep every level they earned. Tap or press Enter.', W / 2, BX.panelY + 70);
+  } else { ctx.textAlign = 'center'; ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(B.pvp ? (B.phase === 'foe' ? `${B.pvp.name} is choosing a move...` : B.phase === 'wait' ? 'Waiting...' : '') : B.phase === 'foe' ? 'The foes are taking their turn...' : '', W / 2, BX.panelY + 54); }
   if (B.phase !== 'won' && B.phase !== 'lost') drawStTip();   // a status icon's full rules, over everything
 }
 function drawRewards(R) {
+  if (VIEW.portrait && !VIEW.legacy) { drawRewardsPortrait(R); return; }
   ctx.textAlign = 'left'; ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('Victory!', 16, 456);
   ctx.font = `13px ${UI}`;
   R.xp.forEach((x, i) => { ctx.fillStyle = x.ups.length ? PAL.good : PAL.cream; ctx.fillText(`${x.u.name} +${x.gain} XP${x.ups.length ? `  ▲ level ${x.ups[x.ups.length - 1]}! (+${x.ups.length} talent point${x.ups.length > 1 ? 's' : ''})` : ''}`, 16, 476 + i * 16); });
@@ -6955,6 +6988,21 @@ function drawRewards(R) {
   ctx.textAlign = 'right'; ctx.font = `12px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fillText('Enter or click to continue', W - 14, H - 10);
 }
 
+function drawRewardsPortrait(R) {
+  let y = BX.panelY + 26;
+  const line = (t, c, f = `13px ${UI}`) => { ctx.font = f; ctx.fillStyle = c; ctx.textAlign = 'left'; for (const l of wrapLines(t, W - 32, 13)) { ctx.fillText(l, 16, y); y += 17; } };
+  line('Victory!', PAL.gold, `bold 16px ${UI}`); y += 4;
+  for (const x of R.xp) line(`${x.u.name} +${x.gain} XP${x.ups.length ? `  ▲ level ${x.ups[x.ups.length - 1]}! (+${x.ups.length} talent point${x.ups.length > 1 ? 's' : ''})` : ''}`, x.ups.length ? PAL.good : PAL.cream);
+  y += 6;
+  for (const a of R.ach) line(`★ ACHIEVEMENT: ${a}!`, PAL.gold, `bold 13px ${UI}`);
+  if (R.unicorn) line('The unicorn finds you formidable in battle and joins your Sanctuary!', '#f8bbd0');
+  for (const it of R.offspring) line(`New pet! ${petBlurb(it)} joins your Sanctuary.`, it.g && it.g.shiny ? PAL.gold : PAL.good);
+  if (R.bond) line(`Your team's bond grows (+${Math.round(R.bond * 10) / 10}).`, '#f8bbd0');
+  for (const it of R.eggs) line(`The ${PETS[it.def.egg].name} left an egg: ${it.def.name}. Carry it to hatch it!`, PAL.gold);
+  for (const it of R.hatched) line(`An egg hatched! ${petBlurb(it)} joins your Sanctuary.`, it.g && it.g.shiny ? PAL.gold : PAL.good);
+  for (const d of R.dupes) line(`Another ${BS[d.k].baby}: your ${PETS[d.k].name} gains +${d.bonus} XP.`, PAL.sky);
+  ctx.textAlign = 'center'; ctx.font = `13px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.fillText('Tap or press Enter to continue', W / 2, H - 16);
+}
 // ---------- your team: pick which 3 pets are active (front, middle, back) from every pet you own ----------
 const ROSTER = { x: 70, y: 30, w: 820, h: 480 };
 const ROSTER_DONE = { x: ROSTER.x + ROSTER.w - 150, y: ROSTER.y + ROSTER.h - 46, w: 130, h: 34 };
@@ -8150,7 +8198,7 @@ function drawOverlay(title, sub, sub2) {
 
 // which screens have a portrait layout (the rest are shown at 960x540, fitted across the width)
 function portraitReady() {
-  return !!G && !PK && !G.panel && !NET.typing && (G.mode === 'play' || G.mode === 'trans' || G.mode === 'encounter');
+  return !!G && !PK && !G.panel && !NET.typing && (G.mode === 'play' || G.mode === 'trans' || G.mode === 'encounter' || (G.mode === 'battle' && !!B && !B.pvp));
 }
 function draw() {
   if (VIEW.legacy) {   // no portrait layout yet: draw it as in landscape, then fit it across the tall canvas
@@ -9194,7 +9242,7 @@ function frame(t) {
   dtSmooth += (raw - dtSmooth) * 0.2; if (Math.abs(raw - dtSmooth) > 0.012) dtSmooth = raw;
   // never let one bad frame freeze the whole game: log it and keep going
   VIEW.legacy = VIEW.portrait && !portraitReady();
-  if (VIEW.portrait && !VIEW.legacy) { W = 540; H = 540; } else { W = 960; H = 540; }   // (portrait: the world's square at the top)
+  if (VIEW.portrait && !VIEW.legacy) { W = 540; H = G && G.mode === 'battle' ? VIEW.h : 540; } else { W = 960; H = 540; }   // (portrait: the world's square at the top; battles use the whole height)
   try { update(Math.min(0.033, dtSmooth)); draw(); } catch (e) { console.error(e); }
   pressed = {};
   requestAnimationFrame(frame);
