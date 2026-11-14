@@ -107,7 +107,7 @@ const ART_FILES = {
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'pond_bank'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
-  ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'].concat(['burn', 'poison', 'bleed', 'stun', 'blind', 'weak', 'mark', 'shield', 'regen', 'str', 'guard', 'taunt', 'evade', 'lucky', 'undying', 'charging'].map(k => 'st_' + k)),   // st_*: status icons
+  ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal', 'talent_icons'].concat(['burn', 'poison', 'bleed', 'stun', 'blind', 'weak', 'mark', 'shield', 'regen', 'str', 'guard', 'taunt', 'evade', 'lucky', 'undying', 'charging'].map(k => 'st_' + k)),   // st_*: status icons
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'temple', 'coral', 'trench'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
 };
 // which animation sheet each character uses
