@@ -1,6 +1,6 @@
 """Cooking art: the stone oven and the 12 cooked fish dishes.
 
-    python -P tools/cook.py     # assets_raw/bg_layers/oven_raw.png -> assets/props/oven.png
+    python -P tools/cook.py     # assets_raw/bg_layers/oven_raw.png -> assets/props/oven.png (and doghouse_raw.png -> doghouse.png)
                                 # assets_raw/bg_layers/dish_sheet_raw.png -> assets/items/dish_*.png
 
 Dishes are cut exactly like the fish (tools/fish.py: same order and boxes, 18 art-px per bag cell), so each dish keeps its
@@ -87,3 +87,11 @@ mx = sum(x for x, _ in glow) / max(1, len(glow)) / w; my = sum(y for _, y in glo
 top = next(y for y in range(h) if any(px[x, y][3] for x in range(w)))
 tx = [x for x in range(w) if px[x, top][3]]; cx = (min(tx) + max(tx)) / 2 / w
 print('oven', small.size, 'mouth', round(mx, 3), round(my, 3), 'chimney', round(cx, 3), round(top / h, 3))
+
+# ---- the doghouse (where you choose the Yard's animals) ----
+DOGHOUSE_H = 42
+dh = key(Image.open(os.path.join(RAW, 'doghouse_raw.png')).convert('RGBA'))
+dh = dh.crop(dh.getchannel('A').point(lambda v: 255 if v > 60 else 0).getbbox())
+f = DOGHOUSE_H / dh.height
+shrink(dh, (round(dh.width * f), DOGHOUSE_H)).save(os.path.join(ROOT, 'assets', 'props', 'doghouse.png'))
+print('doghouse', round(dh.width * f), DOGHOUSE_H)
