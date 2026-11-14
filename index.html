@@ -254,7 +254,7 @@ cv.addEventListener('wheel', e => { if (rosterOpen()) { scrollRoster(e.deltaY * 
 // In menus and battles: a quick tap clicks, dragging drags (backpack items), lists scroll with a swipe; holding a finger
 // still shows what's under it (tooltips), and tapping with a second finger while holding is a right-click.
 // The only thing on screen is the menu button (backpack, pets, map, pause, music, back, fullscreen).
-const TOUCH_HINT = 'drag to move · drag up to jump, down to drop · flick to dash · tap to use · ☰ backpack, pets, map, menu';
+const TOUCH_HINT = 'drag to move · drag up to jump, down to drop · flick to dash · 2nd finger: tap to jump, flick to dash · tap to use · ☰ menu';
 const TOUCH = { on: false, id: null, mode: null, x0: 0, y0: 0, ox: 0, oy: 0, t0: 0, moved: false, right: false, hist: [], held: new Set(), lastY: 0 };
 function vkey(k, on) {   // press or release a key as if it were typed
   if (on && !keys[k]) pressed[k] = true;
@@ -273,13 +273,27 @@ function touchStart(e) {
       Object.assign(TOUCH, { id: t.identifier, x0: t.clientX, y0: t.clientY, ox: t.clientX, oy: t.clientY, t0: performance.now(), moved: false, right: false, hist: [[performance.now(), t.clientX]], lastY: t.clientY,
                              mode: worldControls() ? 'world' : 'menu', dashed: false });
       if (TOUCH.mode === 'menu') tpos(t);
-    } else if (TOUCH.mode === 'world') vtap('w');   // a second finger while walking: jump
+    } else if (TOUCH.mode === 'world') {   // a second finger while walking: a flick dashes that way, a tap jumps (on lifting it)
+      if (!TOUCH.f2) TOUCH.f2 = { id: t.identifier, x0: t.clientX, y0: t.clientY, t0: performance.now(), hist: [[performance.now(), t.clientX, t.clientY]], done: false };
+    }
     else if (!TOUCH.right) { TOUCH.right = true; onMouseDown(2); onMouseUp(2); }   // a second finger while holding: right-click where the first one is
   }
+}
+function secondFinger(t, end) {   // the second finger while walking: flick = dash (its own direction), quick tap = jump
+  const F = TOUCH.f2, now = performance.now();
+  if (!F.done) {
+    F.hist.push([now, t.clientX, t.clientY]); while (F.hist.length > 2 && now - F.hist[0][0] > 110) F.hist.shift();
+    const [ht, hx, hy] = F.hist[0], dt = Math.max(1, now - ht), dx = t.clientX - hx, dy = t.clientY - hy, tx = t.clientX - F.x0, ty = t.clientY - F.y0;
+    if (Math.abs(tx) > 26 && Math.abs(tx) > Math.abs(ty) * 0.8 && Math.abs(dx) / dt > 0.35) { F.done = true; TOUCH.flickDir = Math.sign(tx); vtap('Shift'); }   // flicked sideways: dash
+    else if (-ty > 34 && -ty > Math.abs(tx) && -dy / dt > 0.35) { F.done = true; vtap('w'); }   // flicked up: jump
+    else if (end && Math.hypot(tx, ty) < 16 && now - F.t0 < 320) { F.done = true; vtap('w'); }    // a tap: jump
+  }
+  if (end) TOUCH.f2 = null;
 }
 function touchMove(e) {
   e.preventDefault();
   for (const t of e.changedTouches) {
+    if (TOUCH.f2 && t.identifier === TOUCH.f2.id) { secondFinger(t, false); continue; }
     if (t.identifier !== TOUCH.id) continue;
     const now = performance.now(), T = 16;
     if (TOUCH.mode === 'world') {
@@ -309,6 +323,7 @@ function touchMove(e) {
 function touchEnd(e) {
   e.preventDefault();
   for (const t of e.changedTouches) {
+    if (TOUCH.f2 && t.identifier === TOUCH.f2.id) { secondFinger(t, true); continue; }
     if (t.identifier !== TOUCH.id) continue;
     const dur = performance.now() - TOUCH.t0;
     if (TOUCH.mode === 'world') {
@@ -3923,7 +3938,7 @@ function updatePlayer(dt) {
   P.dashT -= dt; P.dashCd -= dt;
   // dash: a short invulnerable burst — once in the air until you land again
   if (hit('Shift', 'l') && P.dashCd <= 0 && (P.onGround || !P.airDashed)) {
-    P.dashDir = mv || P.face; P.face = P.dashDir; P.dashHits = new Set(); P.dashT = 0.17; P.dashCd = 0.6 * s.dashMul; P.vy = 0;
+    P.dashDir = TOUCH.flickDir || mv || P.face; P.face = P.dashDir; TOUCH.flickDir = 0; /* (a second-finger flick dashes its own way) */ P.dashHits = new Set(); P.dashT = 0.17; P.dashCd = 0.6 * s.dashMul; P.vy = 0;
     if (!P.onGround) P.airDashed = true;
     SFX.play('dash'); burst(P.x + P.w / 2, P.y + P.h - 6, '#d7dcff', 8, 120, 3);
   }
@@ -8557,7 +8572,7 @@ function drawTalents() {
 }
 
 const touchDevice = () => TOUCH.on || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
-const TOUCH_LINES = [['Drag', 'Move  ·  up: jump / climb  ·  down: drop'], ['Flick', 'Dash past chasms and barriers'], ['Wild animals', 'Run into them to start a battle'], ['Tap', 'Use, talk, choose, pick a target'],
+const TOUCH_LINES = [['Drag', 'Move  ·  up: jump / climb  ·  down: drop'], ['Flick', 'Dash (or flick a 2nd finger while moving)'], ['Wild animals', 'Run into them to start a battle'], ['Tap', 'Use, talk, choose, pick a target'],
   ['Hold + 2nd tap', 'Details, rotate an item, talents'], ['☰  menu', 'Backpack, pets, map, pause, music']];
 function drawTitle() {
   if (PORTRAIT()) { drawTitlePortrait(); drawTitleAccount(); return; }
