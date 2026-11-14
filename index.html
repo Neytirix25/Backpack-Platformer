@@ -2487,7 +2487,7 @@ function closeFishBag() {   // (from closePack)
 // ---------- the doghouse: choose which 5 of your animals play in the Yard ----------
 function drawDoghouse(x, ft) {
   const img = art('props/doghouse');
-  if (img) { drawSprite(img, x, ft + 2, 1, { scale: 2 }); return; }
+  if (img) { drawSprite(img, x, ft + 10, 1, { scale: 2 }); return; }   // (its picture has grass and a bone below the house's base: sink them into the ground)
   ctx.fillStyle = '#a0703c'; ctx.fillRect(x - 30, ft - 44, 60, 44); ctx.fillStyle = '#7a3a24'; ctx.beginPath(); ctx.moveTo(x - 38, ft - 42); ctx.lineTo(x, ft - 72); ctx.lineTo(x + 38, ft - 42); ctx.fill();
   ctx.fillStyle = '#2a1a10'; ctx.beginPath(); ctx.ellipse(x, ft - 14, 12, 16, 0, Math.PI, 0); ctx.fill(); ctx.fillRect(x - 12, ft - 14, 24, 14);
 }
