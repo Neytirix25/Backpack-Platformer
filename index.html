@@ -105,7 +105,7 @@ const ART_FILES = {
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
   props: ['door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'yard_pond'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'].concat(['burn', 'poison', 'bleed', 'stun', 'blind', 'weak', 'mark', 'shield', 'regen', 'str', 'guard', 'taunt', 'evade', 'lucky', 'undying', 'charging'].map(k => 'st_' + k)),   // st_*: status icons
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'temple', 'coral', 'trench'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -2129,15 +2129,17 @@ function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
 // =====================================================================
 // the rooms: walk up to a door and press E (or W) to go in; every indoor room has a door back out to the Yard
 const HUB_ROOMS = {
-  yard:     { name: 'The Yard', cols: 60, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  the post by the gate: choose your team  ·  the gate (right) starts a run' },
+  yard:     { name: 'The Yard', cols: 60 + 35, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  the post by the gate: choose your team  ·  the gate (right) starts a run  ·  far left: the pond (fishing)' },
   menagerie:{ name: 'The Menagerie', cols: 40, bg: 'menagerie', tiles: 'camp', out: 37.4, hint: 'Every species, act by act  ·  stand by one to see it  ·  W hops up the tiers' },
   wardrobe: { name: 'The Wardrobe', cols: 32, bg: 'wardrobe', tiles: 'camp', hint: 'E at a banner: change class  ·  E at the mirror: outfit, hair and skin' },
   records:  { name: 'The Records Hall', cols: 32, bg: 'records', tiles: 'camp', hint: 'E at the board: your run records  ·  E at the shelf: trophies' },
   den:      { name: 'The Breeding Den', cols: 32, bg: 'hub', tiles: 'camp', hint: 'E at a nest: pair a male and a female  ·  after your next run, an egg waits on the pedestal' },
 };
 const HUB_COLS = HUB_ROOMS.yard.cols;
+// the Yard's left end is the pond meadow (POND.cols tiles); its stations sit to the right of it
+const POND = { cols: 35, img: 'bg/yard_pond', s: 3, dock: 220, waterTop: 66, waterBot: 78, water: [[50, 192], [250, 300]], seam: 312 };   // (image px; tools/pond.py)
 const HUB_SPOTS = {   // tile x of each station
-  doors: { wardrobe: 4, records: 8.5, den: 13, menagerie: 31 }, post: 16.1, fire: 18, team: 54.2, out: 2.6,   // the team post stands by the gate
+  doors: { wardrobe: 4 + POND.cols, records: 8.5 + POND.cols, den: 13 + POND.cols, menagerie: 31 + POND.cols }, post: 16.1 + POND.cols, fire: 18 + POND.cols, team: 54.2 + POND.cols, out: 2.6,   // the team post stands by the gate
   banners: { warrior: 8, archer: 11, rogue: 14, beastmaster: 17 }, mirror: 21, dye: 25, board: 11, trophies: 19, nests: [11, 16], pedestal: 21,
 };
 // outfit dyes (Wardrobe), saved per class
@@ -2181,7 +2183,7 @@ function goHubRoom(to) {
 function spawnHubPets(R) {
   G.pets = []; const ft = R.floorTop * TILE;
   (G.visit ? G.visit.items.slice().sort(() => Math.random() - 0.5).slice(0, 10) : yardPicks()).forEach((it, i) => {   // (visiting a friend: 10 of theirs)
-    const k = it.def.pet, d = PETS[k], x = rand(6, R.cols - 6) * TILE;
+    const k = it.def.pet, d = PETS[k], x = rand(R.hubRoom === 'yard' ? POND.cols + 4 : 6, R.cols - 6) * TILE;
     G.pets.push({ item: it, d, kind: k, hub: true, x, y: d.fly ? ft - 120 - rand(0, 80) : ft - d.h, w: d.w, h: d.h, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
                   hp: 1, maxHp: 1, ko: 0, cd: 0, atkT: 0, phase: rand(0, 6), onGround: !d.fly, inv: 0, slot: i, wander: null, happyT: 0 });
   });
@@ -2195,6 +2197,122 @@ function yardPicks(avoid = []) {   // avoid: the ones that were just out (they g
   while (ids.length < Math.min(10, list.length) && rest.length) ids.push(rest.pop().pid);
   if (JSON.stringify(ids) !== JSON.stringify(SAVE.yard.pets || [])) { SAVE.yard.pets = ids; saveData(); }
   return ids.map(id => have.get(id));
+}
+// ---------- the pond meadow: the picture, its water sparkling, a fish jumping now and then, dragonflies ----------
+function drawPond(ox, ground) {
+  const img = art(POND.img); if (!img || ox + img.width * POND.s < 0) return;
+  const S = POND.s, top = Math.round(ground + 6 - img.height * S), X = ix => ox + ix * S, Y = iy => top + iy * S;
+  ctx.imageSmoothingEnabled = false; ctx.drawImage(img, Math.round(ox), top, img.width * S, img.height * S);
+  // the water: little glints that come and go
+  for (let i = 0; i < 26; i++) {
+    const seg = POND.water[i % POND.water.length], u = ((i * 0.618 + Math.floor(TIME * 0.35 + i * 0.37) * 0.37) % 1), ix = seg[0] + u * (seg[1] - seg[0]);
+    const iy = POND.waterTop + 2 + ((i * 7) % (POND.waterBot - POND.waterTop - 3)), a = Math.max(0, Math.sin(TIME * 1.7 + i * 2.1));
+    if (a < 0.35) continue;
+    ctx.fillStyle = `rgba(235,250,255,${(a - 0.35) * 1.2})`; ctx.fillRect(Math.round(X(ix)), Math.round(Y(iy)), S * (i % 3 ? 2 : 3), 2);
+  }
+  // a fish jumps every few seconds
+  const jt = TIME % 7.3, js = Math.floor(TIME / 7.3), seg = POND.water[js % 2], jx = seg[0] + 10 + ((js * 53) % Math.max(1, seg[1] - seg[0] - 20));
+  if (jt < 0.9) {
+    const k = jt / 0.9, fx = X(jx + k * 12), fy = Y(POND.waterTop + 4) - Math.sin(k * Math.PI) * 26;
+    ctx.save(); ctx.translate(fx, fy); ctx.rotate((k - 0.5) * 1.6); ctx.fillStyle = '#f0a050'; ctx.fillRect(-6, -2, 10, 4); ctx.fillStyle = '#d07030'; ctx.fillRect(4, -3, 3, 6); ctx.fillStyle = '#222'; ctx.fillRect(-5, -1, 1, 1); ctx.restore();
+  }
+  if (jt < 2.2) { for (const [x0, d] of [[jx, 0], [jx + 12, 0.25]]) { const r = (jt - d) * 26; if (r > 0 && r < 40) { ctx.strokeStyle = `rgba(230,248,255,${0.6 * (1 - r / 40)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(X(x0), Y(POND.waterTop + 5), r, r * 0.22, 0, 0, 7); ctx.stroke(); } } }
+  // two dragonflies zipping over the water
+  for (let i = 0; i < 2; i++) {
+    const t = TIME * (0.5 + i * 0.17) + i * 3, hx = X(70 + (Math.sin(t) * 0.5 + 0.5) * 210 + Math.sin(t * 3.1) * 8), hy = Y(POND.waterTop - 14 - i * 9) + Math.sin(t * 5.3) * 6;
+    ctx.fillStyle = i ? '#4fc3f7' : '#26a69a'; ctx.fillRect(Math.round(hx) - 4, Math.round(hy), 8, 2);
+    ctx.fillStyle = `rgba(220,240,255,${0.55 + 0.3 * Math.sin(TIME * 40 + i)})`; ctx.fillRect(Math.round(hx) - 2, Math.round(hy) - 3, 2, 3); ctx.fillRect(Math.round(hx) + 1, Math.round(hy) - 3, 2, 3);
+  }
+}
+// ---------- fishing off the dock: wait for a bite, tap in time, then stop the marker in the green ----------
+// Catches go in the fish basket (3 at most) and come along as new loot when your next run starts.
+const BASKET_MAX = 3;
+const CATCHES = [   // [weight, what, tier (0 easy - 3 hard)]
+  [15, null, 0], [30, 'treats', 0], [9, 'salve', 0], [8, 'salts', 1], [8, 'net', 1], [5, 'herb', 2], [4, 'brew', 2], [3, 'smoke', 2],
+  [4, 'collar', 1], [3, 'chewbone', 1], [3, 'clawfile', 1], [2, 'saddlebag', 1], [2, 'cuttlebone', 2], [2, 'bogmoss', 2], [1.5, 'horseshoe', 2], [1, 'clover', 3]];
+const JUNK = ['an old boot', 'a tangle of pondweed', 'a soggy stick', 'a rusty tin can', 'a lost sandal'];
+const basket = () => (Array.isArray(SAVE.yard.basket) ? SAVE.yard.basket : (SAVE.yard.basket = []));
+const dockX = () => POND.dock * POND.s;
+function fishStart() {
+  if (basket().length >= BASKET_MAX) { showMsg(`Your fish basket is full (${BASKET_MAX}). It comes with you on your next run.`, 2.6); SFX.play('error'); return; }
+  const P = G.player, R = G.room, ft = R.floorTop * TILE;
+  P.x = dockX() - P.w / 2; P.vx = 0; P.face = -1;
+  const bx = dockX() - rand(120, 210), by = ft + 6 - (88 - (POND.waterTop + POND.waterBot) / 2) * POND.s;
+  G.fish = { phase: 'cast', t: 0, bx, by, wait: rand(2, 5.5), nib: rand(0.8, 1.8) };
+  SFX.play('bow'); showMsg('Wait for a bite, then tap / press E!', 2);
+}
+function fishEnd(msg, ok) { G.fish = null; if (msg) showMsg(msg, 2.4); SFX.play(ok ? 'chest' : 'error', !!ok); }
+function updateFishing(dt) {
+  const F = G.fish, P = G.player, e = hit('e', ' ', 'Enter');
+  if (down('a', 'd', 'ArrowLeft', 'ArrowRight', 'w', 's', 'ArrowUp', 'ArrowDown') || hit('Escape')) { G.fish = null; showMsg('You reel in your line.', 1.2); return; }
+  F.t += dt; P.vx = 0; P.face = -1;
+  if (F.phase === 'cast') { if (F.t > 0.6) { F.phase = 'wait'; F.t = 0; SFX.play('land'); } return; }
+  if (F.phase === 'wait') {
+    if (e) { fishEnd('Too soon! The fish swam off.'); return; }
+    if (F.t > F.wait) { F.phase = 'bite'; F.t = 0; SFX.play('alert'); }
+    return;
+  }
+  if (F.phase === 'bite') {
+    if (e) {   // hooked: what is it? (rarer catches are harder to reel in)
+      let tot = CATCHES.reduce((a, c) => a + c[0], 0), r = Math.random() * tot, c = CATCHES[0];
+      for (const cc of CATCHES) { r -= cc[0]; if (r <= 0) { c = cc; break; } }
+      Object.assign(F, { phase: 'reel', t: 0, catch: c, zone: [0.34, 0.26, 0.19, 0.13][c[2]], zc: rand(0.25, 0.75), spd: [1.1, 1.35, 1.6, 1.9][c[2]] });
+      SFX.play('pick'); return;
+    }
+    if (F.t > 0.85) fishEnd('It got away...');
+    return;
+  }
+  if (F.phase === 'reel') {
+    const m = 0.5 - 0.5 * Math.cos(F.t * F.spd * Math.PI);   // the marker swings back and forth
+    F.m = m;
+    if (e) {
+      if (Math.abs(m - F.zc) <= F.zone / 2) {
+        const id = F.catch[1];
+        if (!id) { fishEnd(`You reeled in ${pick(JUNK)}. Better luck next time!`); return; }
+        basket().push({ id, lvl: 1 }); saveData();
+        F.phase = 'caught'; F.t = 0; F.item = makeItem(id); SFX.play('chest', true);
+        burst(F.bx, F.by, '#bfe9ff', 16, 160);
+        const nm = ITEMS[id].name;
+        showMsg(`You caught ${/s$/i.test(nm) ? 'some' : /^[aeiou]/i.test(nm) ? 'an' : 'a'} ${nm}! Basket ${basket().length}/${BASKET_MAX}: it comes with you on your next run.`, 3);
+      } else fishEnd('It slipped off the hook!');
+      return;
+    }
+    if (F.t > 7) fishEnd('It got away...');
+    return;
+  }
+  if (F.phase === 'caught' && F.t > 1.6) G.fish = null;
+}
+function drawFishing() {   // in world coordinates
+  const F = G.fish; if (!F) return;
+  const P = G.player, hx = P.x + 4, hy = P.y + P.h * 0.42, tipX = hx - 26, tipY = hy - 30;
+  ctx.strokeStyle = '#6d4c2e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tipX, tipY); ctx.stroke();   // the rod
+  let bx = F.bx, by = F.by;
+  if (F.phase === 'cast') { const k = Math.min(1, F.t / 0.6); bx = tipX + (F.bx - tipX) * k; by = tipY + (F.by - tipY) * k - Math.sin(k * Math.PI) * 50; }
+  else if (F.phase === 'wait') by += Math.sin(F.t * 3) * 1.2 + (Math.abs(F.t - F.nib) < 0.15 ? 3 : 0);   // bobbing, and a little nibble
+  else if (F.phase === 'bite') by += 5 + Math.sin(F.t * 30) * 2;
+  else if (F.phase === 'reel') { bx += Math.sin(F.t * 9) * 3; by += 3; }
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.quadraticCurveTo((tipX + bx) / 2, Math.max(tipY, by) + 12, bx, by); ctx.stroke();   // the line
+  if (F.phase !== 'caught') { ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(bx, by - 2, 3.5, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(bx, by - 2, 3.5, 0, Math.PI); ctx.fill(); }
+  if (F.phase === 'bite') { label('!', bx, by - 24 - Math.abs(Math.sin(F.t * 12)) * 4, { align: 'center', size: 26, bold: true, color: '#ffeb3b' }); }
+  if (F.phase === 'reel') {   // the timing bar over your head
+    const w = 150, x = P.x + P.w / 2 - w / 2, y = P.y - 48;
+    panel(x - 8, y - 10, w + 16, 30, 'dark');
+    ctx.fillStyle = '#3a2a1a'; ctx.fillRect(x, y, w, 10);
+    ctx.fillStyle = '#66bb6a'; ctx.fillRect(x + w * (F.zc - F.zone / 2), y, w * F.zone, 10);
+    ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(x + w * (F.m || 0)) - 1, y - 3, 3, 16);
+    label(TOUCH.on ? 'tap in the green!' : 'E in the green!', P.x + P.w / 2, y - 18, { align: 'center', size: 12, bold: true, color: PAL.gold });
+  }
+  if (F.phase === 'caught' && F.item) {   // the catch, held up
+    const k = Math.min(1, F.t / 0.4), cx = P.x + P.w / 2, cy = P.y - 30 - k * 14;
+    panel(cx - 22, cy - 22, 44, 44, 'slot'); drawItem({ ...F.item, shape: [[1]] }, cx - 18, cy - 18, 36);
+  }
+}
+// your next run: the fish basket comes along as new loot
+function takeBasket() {
+  const b = basket(); if (!b.length) return null;
+  const items = b.filter(x => x && ITEMS[x.id]).map(x => { const it = makeItem(x.id); it.lvl = x.lvl || 1; return it; });
+  SAVE.yard.basket = []; saveData();
+  return items.length ? items : null;
 }
 // ---------- the Menagerie: every species on four tiers of display ledges, one per act (nothing roams in here) ----------
 const MENAGERIE_ROWS = [16, 13, 10, 7];   // the tile row each act stands on: the floor, then ledges 3 tiles apart (a hop each)
@@ -2225,6 +2343,7 @@ function drawMenagerie(ft) {
     } else drawAnim(sheet, fly ? 'fly' : 'idle', fly ? 0 : Math.floor(TIME * 2 + m.i), m.x, y, face, { shadow: true, alpha: 0.85 });   // not found yet: a dark silhouette
   }
 }
+const yardMinX = R => (R.hubRoom === 'yard' ? (POND.cols + 2) * TILE : 0);   // the Yard's animals stay out of the pond meadow
 // the hub's animals: wander, sniff, nap, zoom about when happy; flyers loop and perch
 function updateHubPets(dt) {
   const R = G.room, P = G.player, ft = R.floorTop * TILE, pcx = P.x + P.w / 2;
@@ -2240,12 +2359,13 @@ function updateHubPets(dt) {
     if (!p.wander || p.wander.t <= 0) {
       const r = Math.random();
       if (p.happyT > 0) p.wander = { mode: 'zoom', t: p.happyT, x: cx };
-      else if (r < 0.15) p.wander = { mode: 'visit', t: rand(3, 5) };                              // come say hello
-      else if (r < 0.55) p.wander = { mode: 'walk', t: rand(3, 6), x: rand(3, R.cols - 4) * TILE };
+      else if (r < 0.15 && pcx > yardMinX(R)) p.wander = { mode: 'visit', t: rand(3, 5) };     // come say hello (not out at the pond)
+      else if (r < 0.55) p.wander = { mode: 'walk', t: rand(3, 6), x: rand(Math.max(3, yardMinX(R) / TILE), R.cols - 4) * TILE };
       else if (r < 0.75) p.wander = { mode: 'sniff', t: rand(1.5, 3) };
       else p.wander = { mode: 'rest', t: rand(4, 8), x: p.x };                                    // lie down for a nap where it is
     }
     const w = p.wander; w.t -= dt;
+    if ((w.mode === 'visit' || w.mode === 'zoom') && pcx < yardMinX(R)) w.t = 0;   // you went to the pond: they stay in the Yard
     if (p.d.fly) {
       let tx, ty;
       if (w.mode === 'rest' || w.mode === 'sniff') { tx = w.mode === 'rest' ? w.x : (w.px ?? (w.px = cx)); ty = ft - p.h / 2 - 2; }
@@ -2287,6 +2407,7 @@ function hubStations() {
     out.push({ kind: 'team', x: X(HUB_SPOTS.team), y: ft, label: 'Choose your team' });
     for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
     out.push({ kind: 'yardcall', x: X(HUB_SPOTS.fire), y: ft, label: 'Call different animals out to play' });
+    out.push({ kind: 'fish', x: dockX(), y: ft, label: basket().length >= BASKET_MAX ? `Fish basket full (${BASKET_MAX}/${BASKET_MAX})` : `Go fishing  (basket ${basket().length}/${BASKET_MAX})` });
     return out;
   }
   out.push({ kind: 'door', to: 'yard', x: X(HUB_ROOMS[room].out || HUB_SPOTS.out), y: ft, label: 'Back out to the Yard' });
@@ -2332,6 +2453,7 @@ function hubInteract() {
     SAVE.skin[G.cls + 'Dye'] = nx[0]; saveData(); burst(P.x + P.w / 2, P.y + P.h / 2, '#ffd36b', 18, 160); SFX.play('merge'); showMsg(`Outfit dye: ${nx[1]}`, 1.4);
   }
   else if (s.kind === 'nest' || s.kind === 'pedestal') { openDen(); }
+  else if (s.kind === 'fish') fishStart();
   else if (s.kind === 'yardcall') {
     const was = (SAVE.yard.pets || []).slice(); SAVE.yard.pets = []; yardPicks(was); spawnHubPets(G.room); saveData(); SFX.play('chirp');
     burst(s.x, s.y - 20, '#ffd54f', 18, 180); showMsg('A different bunch of animals comes out to play.', 2);
@@ -2388,7 +2510,7 @@ function actSelectClick() {
 function startRunFromHub(act) {
   if (!petSlots.some(Boolean)) { if (!(G.gateHintT > 0)) { G.gateHintT = 2; showMsg(ownedIds().length ? 'Choose your team at the post by the gate first.' : 'Choose your first companion first!', 2); if (!ownedIds().length) G.panel = 'starter'; } return; }
   if (!act && actsOpen() > 1) { if (G.panel !== 'acts') { G.panel = 'acts'; SFX.play('pick'); } return; }   // later acts are open: ask where to go
-  G.panel = null; PK = null; SFX.play('door'); newGame(selClass, act || 1); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1;
+  G.panel = null; PK = null; SFX.play('door'); const fish = takeBasket(); newGame(selClass, act || 1); G.mode = 'trans'; G.fade = 1; G.fadeDir = -1; G.basketLoot = fish;
 }
 // ---------- trophies (Records Hall) ----------
 function trophyList() {
@@ -3509,7 +3631,10 @@ function drawYardDepth(R) {
     for (let x = -off; x < W; x += w) ctx.drawImage(img, Math.round(x), Math.round(base - h), w, h);
   };
   strip(fields, YARD.fields, ground + 6);
-  strip(fence, YARD.fence, ground + 4);
+  const seamX = POND.seam * POND.s - cx;   // (the pond's bush on screen: the fence runs only to the right of it)
+  if (seamX > 0) { ctx.save(); ctx.beginPath(); ctx.rect(seamX, 0, W - seamX, H); ctx.clip(); strip(fence, YARD.fence, ground + 4); ctx.restore(); }
+  else strip(fence, YARD.fence, ground + 4);
+  drawPond(-cx, ground);
   drawBgFx('yard', 3, { x: -Math.round(cx), y: 0, s: 2 });   // butterflies over the fields: part of the Yard, so they stay put as you walk
   return true;
 }
@@ -8448,7 +8573,7 @@ function drawScreen() {
   drawPlayer();
   drawFx();
   if (G.mode === 'encounter') drawEncounterAlert();
-  if (G.hub) drawHubBubble();
+  if (G.hub) { drawFishing(); if (!G.fish) drawHubBubble(); }
   ctx.restore();
   if (G.hub && G.room.bgKey === 'yard') drawFrontGrass(camX);
   drawVignette();
@@ -9678,6 +9803,11 @@ function update(dt) {
         if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
         if (hit('p')) { openPause(); break; }
         if (hit('f')) { openNetPanel(); break; }
+        if (G.fish) {   // fishing: the line takes the keys; the world goes on around you
+          updateFishing(dt);
+          const keep = {}; for (const k of ['a', 'd', 'w', 's', 'e', ' ', 'Shift', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) { keep[k] = keys[k]; keys[k] = false; pressed[k] = false; }
+          updateWorld(dt); Object.assign(keys, keep); break;
+        }
         updateWorld(dt); break;
       }
       if (hit('p', 'Escape')) { openPause(); break; }
@@ -9709,7 +9839,7 @@ function update(dt) {
     case 'trans':
       G.fade += dt * 3.5 * G.fadeDir;
       if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; if (!G.hub) nextRoom(); else if (G.hubTo) { buildHubRoom(G.hubTo.room, G.hubTo.from); G.hubTo = null; } G.fadeDir = -1; }
-      else if (G.fadeDir < 0 && G.fade <= 0) { G.fade = 0; G.fadeDir = 0; G.mode = 'play'; }
+      else if (G.fadeDir < 0 && G.fade <= 0) { G.fade = 0; G.fadeDir = 0; G.mode = 'play'; if (G.basketLoot && !G.hub) { const f = G.basketLoot; G.basketLoot = null; openPack(f); showMsg(`From your fish basket: ${f.map(i => i.def.name).join(', ')}!`, 3); } }
       updateFx(dt);
       break;
     case 'dead':
