@@ -103,9 +103,9 @@ const ART_FILES = {
   vfx: VFX_SPR,
   items: ['pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
+  props: ['dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'yard_pond'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal'].concat(['burn', 'poison', 'bleed', 'stun', 'blind', 'weak', 'mark', 'shield', 'regen', 'str', 'guard', 'taunt', 'evade', 'lucky', 'undying', 'charging'].map(k => 'st_' + k)),   // st_*: status icons
   tiles: ['hall', 'cave', 'crypt', 'boss', 'camp', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'temple', 'coral', 'trench'].flatMap(t => [t + '_block', t + '_top', t + '_ledge']),
@@ -2088,7 +2088,8 @@ const BG_CROP = { hall: 236, cave: 236, crypt: 236, camp: 236, boss: 236, hub: 2
 
 // ---------- tiles ----------
 const TILE = 30, EMPTY = 0, SOLID = 1, ONEWAY = 2, SPIKES = 3, LAVA = 4, CRUMBLE = 5, PHASE = 6;   // PHASE = arcane barrier: solid unless you dash through it
-const THORN = 7, VINE = 8;   // Fey Wilds: brambles hurt on touch; vines hang from ledges and can be climbed (neither is solid)
+const THORN = 7, VINE = 8, WATER = 9;   // WATER: the Yard's pond (not solid; falling in puts you back on the dock)
+   // Fey Wilds: brambles hurt on touch; vines hang from ledges and can be climbed (neither is solid)
 const FINAL_FLOOR = 40;
 const BOSS_OF = n => ['rune', 'shadow', 'elder', 'wyrm'][Math.floor(n / 10) % 4];   // floor 10 the Shadow Wolf, 20 the Elder Dragon, 30 the Lake Wyrm, 40 the Runeshell Leviathan (then round again in endless)
 const BOSS_INFO = { shadow: { k: 'shadowwolf', name: 'The Shadow Wolf', floor: 10, lair: 'Shadow Den' }, elder: { k: 'elder', name: 'The Elder Dragon', floor: 20, lair: "Elder Dragon's Roost" },
@@ -2129,7 +2130,7 @@ function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
 // =====================================================================
 // the rooms: walk up to a door and press E (or W) to go in; every indoor room has a door back out to the Yard
 const HUB_ROOMS = {
-  yard:     { name: 'The Yard', cols: 60 + 35, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  the post by the gate: choose your team  ·  the gate (right) starts a run  ·  far left: the pond (fishing)' },
+  yard:     { name: 'The Yard', cols: 60 + 32, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  the post by the gate: choose your team  ·  the gate (right) starts a run  ·  far left: the pond (fishing)' },
   menagerie:{ name: 'The Menagerie', cols: 40, bg: 'menagerie', tiles: 'camp', out: 37.4, hint: 'Every species, act by act  ·  stand by one to see it  ·  W hops up the tiers' },
   wardrobe: { name: 'The Wardrobe', cols: 32, bg: 'wardrobe', tiles: 'camp', hint: 'E at a banner: change class  ·  E at the mirror: outfit, hair and skin' },
   records:  { name: 'The Records Hall', cols: 32, bg: 'records', tiles: 'camp', hint: 'E at the board: your run records  ·  E at the shelf: trophies' },
@@ -2137,7 +2138,7 @@ const HUB_ROOMS = {
 };
 const HUB_COLS = HUB_ROOMS.yard.cols;
 // the Yard's left end is the pond meadow (POND.cols tiles); its stations sit to the right of it
-const POND = { cols: 35, img: 'bg/yard_pond', s: 3, dock: 220, waterTop: 66, waterBot: 78, water: [[50, 192], [250, 300]], seam: 312 };   // (image px; tools/pond.py)
+const POND = { cols: 32, w0: 2, w1: 23, dock0: 14, dock1: 23, surf: 9 };   // tile columns: water w0..w1 in the floor's top row, the dock over dock0..dock1; surf = the waterline's depth below the ground (px)
 const HUB_SPOTS = {   // tile x of each station
   doors: { wardrobe: 4 + POND.cols, records: 8.5 + POND.cols, den: 13 + POND.cols, menagerie: 31 + POND.cols }, post: 16.1 + POND.cols, fire: 18 + POND.cols, team: 54.2 + POND.cols, out: 2.6,   // the team post stands by the gate
   banners: { warrior: 8, archer: 11, rogue: 14, beastmaster: 17 }, mirror: 21, dye: 25, board: 11, trophies: 19, nests: [11, 16], pedestal: 21,
@@ -2170,6 +2171,12 @@ function buildHubRoom(room, from) {
   if (room === 'menagerie') for (const row of MENAGERIE_ROWS.slice(1)) for (let x = 5; x < H0.cols - 4; x++) setTile(R, x, row, ONEWAY);   // the display tiers
   const ft = R.floorTop * TILE;
   if (room === 'yard') R.fire = { x: HUB_SPOTS.fire * TILE - 22, y: ft - 30, w: 44, h: 30, used: true, hub: true };
+  if (room === 'yard') {   // the pond: water down through both floor rows (you're back on the dock the moment you go under), the dock a walkable deck over its right part
+    R.skipBake = new Set();
+    for (let x = POND.w0; x <= POND.w1; x++) for (const y of [R.floorTop, R.floorTop + 1]) { setTile(R, x, y, y === R.floorTop && x >= POND.dock0 ? ONEWAY : WATER); R.skipBake.add(y * R.cols + x); }
+    R.fishes = []; for (let i = 0; i < 4; i++) R.fishes.push({ x: rand(POND.w0 + 1, POND.dock0 - 1) * TILE, tx: null, spd: rand(14, 26), rip: rand(0, 1), scared: 0 });
+    R.ripples = [];
+  }
   G.room = R; R.terrain = bakeTerrain(R);
   const outT = H0.out || HUB_SPOTS.out, P = G.player, sx = room === 'yard' ? (from && HUB_SPOTS.doors[from] ? HUB_SPOTS.doors[from] : HUB_SPOTS.fire + 2.5) : outT + (H0.out ? -1.4 : 1.4);
   P.x = sx * TILE - P.w / 2; P.y = ft - P.h; P.vx = P.vy = 0; P.face = 1; P.onGround = true;
@@ -2198,33 +2205,85 @@ function yardPicks(avoid = []) {   // avoid: the ones that were just out (they g
   if (JSON.stringify(ids) !== JSON.stringify(SAVE.yard.pets || [])) { SAVE.yard.pets = ids; saveData(); }
   return ids.map(id => have.get(id));
 }
-// ---------- the pond meadow: the picture, its water sparkling, a fish jumping now and then, dragonflies ----------
-function drawPond(ox, ground) {
-  const img = art(POND.img); if (!img || ox + img.width * POND.s < 0) return;
-  const S = POND.s, top = Math.round(ground + 6 - img.height * S), X = ix => ox + ix * S, Y = iy => top + iy * S;
-  ctx.imageSmoothingEnabled = false; ctx.drawImage(img, Math.round(ox), top, img.width * S, img.height * S);
-  // the water: little glints that come and go
-  for (let i = 0; i < 26; i++) {
-    const seg = POND.water[i % POND.water.length], u = ((i * 0.618 + Math.floor(TIME * 0.35 + i * 0.37) * 0.37) % 1), ix = seg[0] + u * (seg[1] - seg[0]);
-    const iy = POND.waterTop + 2 + ((i * 7) % (POND.waterBot - POND.waterTop - 3)), a = Math.max(0, Math.sin(TIME * 1.7 + i * 2.1));
-    if (a < 0.35) continue;
-    ctx.fillStyle = `rgba(235,250,255,${(a - 0.35) * 1.2})`; ctx.fillRect(Math.round(X(ix)), Math.round(Y(iy)), S * (i % 3 ? 2 : 3), 2);
+// ---------- the pond: water tiles, fish you can see as ripples, a dock you can walk out on ----------
+const pondSurf = () => G.room.floorTop * TILE + POND.surf;
+const dockTipX = () => (POND.dock0 + 0.5) * TILE;
+function fellInPond() {   // splash! back up onto the end of the dock
+  const P = G.player, R = G.room, x = P.x + P.w / 2, y = pondSurf();
+  for (let i = 0; i < 18; i++) G.parts.push({ x: x + rand(-10, 10), y, vx: rand(-90, 90), vy: rand(-260, -90), life: 0.6, max: 0.6, color: i % 3 ? '#bfe9ff' : '#ffffff', size: 3, grav: 700 });
+  R.ripples.push({ x, t: 0, big: true });
+  for (const f of R.fishes) if (Math.abs(f.x - x) < 160) { f.scared = 2; f.tx = null; }
+  SFX.play('land'); G.fish = null;
+  P.x = dockTipX() - P.w / 2 + 8; P.y = R.floorTop * TILE - P.h; P.vx = P.vy = 0; P.face = -1; P.onGround = true; P.inv = 0.6;
+  showMsg('Splash! You climb back onto the dock.', 1.6);
+}
+function updatePond(dt) {
+  const R = G.room; if (!R.fishes) return;
+  const P = G.player, pcx = P.x + P.w / 2;   // in the water anywhere (off the dock's end, or dropped through it): splash
+  if (P.y + P.h > pondSurf() + 6 && pcx > POND.w0 * TILE && pcx < (POND.w1 + 1) * TILE) { fellInPond(); return; }
+  const lo = (POND.w0 + 0.6) * TILE, hi = (POND.dock0 - 0.2) * TILE, F = G.fish;
+  for (const f of R.fishes) {
+    f.scared = Math.max(0, f.scared - dt);
+    let tx = f.tx;
+    if (F && F.lure === f && (F.phase === 'wait' || F.phase === 'bite')) tx = F.bx;   // this one wants your bait
+    else if (f.tx == null || Math.abs(f.tx - f.x) < 4) { f.tx = rand(lo, hi); tx = f.tx; }
+    const sp = f.scared > 0 ? 110 : F && F.lure === f ? 34 : f.spd;
+    const d = tx - f.x; f.x += Math.sign(d) * Math.min(Math.abs(d), sp * dt); f.dir = Math.sign(d) || f.dir || 1;
+    f.x = clamp(f.x, lo, hi);
+    f.rip -= dt * (f.scared > 0 ? 3 : 1); if (f.rip <= 0) { f.rip = rand(0.7, 1.3); R.ripples.push({ x: f.x, t: 0 }); }   // where it swims, the surface rings
   }
-  // a fish jumps every few seconds
-  const jt = TIME % 7.3, js = Math.floor(TIME / 7.3), seg = POND.water[js % 2], jx = seg[0] + 10 + ((js * 53) % Math.max(1, seg[1] - seg[0] - 20));
-  if (jt < 0.9) {
-    const k = jt / 0.9, fx = X(jx + k * 12), fy = Y(POND.waterTop + 4) - Math.sin(k * Math.PI) * 26;
-    ctx.save(); ctx.translate(fx, fy); ctx.rotate((k - 0.5) * 1.6); ctx.fillStyle = '#f0a050'; ctx.fillRect(-6, -2, 10, 4); ctx.fillStyle = '#d07030'; ctx.fillRect(4, -3, 3, 6); ctx.fillStyle = '#222'; ctx.fillRect(-5, -1, 1, 1); ctx.restore();
+  for (const r of R.ripples) r.t += dt;
+  R.ripples = R.ripples.filter(r => r.t < (r.big ? 1.6 : 1.3));
+}
+function drawPondWater() {   // world coordinates: water under everything that floats on it
+  const R = G.room; if (!R.fishes) return;
+  const sy = pondSurf(), y1 = R.rows * TILE;
+  for (let tx = POND.w0; tx <= POND.w1; tx++) {
+    if (!inView(tx * TILE, sy, 40)) continue;
+    const X = tx * TILE, wv = Math.round(Math.sin(TIME * 2 + tx * 0.8) * 1.5);
+    ctx.fillStyle = '#1f5f8a'; ctx.fillRect(X, sy + 3, TILE, y1 - sy - 3);   // deep
+    ctx.fillStyle = '#2f86b8'; ctx.fillRect(X, sy + wv, TILE, 6);           // the surface band, rolling
+    ctx.fillStyle = '#5fb4dd'; ctx.fillRect(X, sy + wv, TILE, 2);
+    ctx.fillStyle = 'rgba(220,245,255,0.75)';
+    for (let i = 0; i < 2; i++) { const gx = (hash2(tx, i) * 24 + TIME * (6 + i * 5)) % 24; ctx.fillRect(X + gx, sy + wv + 3 + i * 7, 5 - i * 2, 1); }   // glints drifting along
   }
-  if (jt < 2.2) { for (const [x0, d] of [[jx, 0], [jx + 12, 0.25]]) { const r = (jt - d) * 26; if (r > 0 && r < 40) { ctx.strokeStyle = `rgba(230,248,255,${0.6 * (1 - r / 40)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(X(x0), Y(POND.waterTop + 5), r, r * 0.22, 0, 0, 7); ctx.stroke(); } } }
-  // two dragonflies zipping over the water
-  for (let i = 0; i < 2; i++) {
-    const t = TIME * (0.5 + i * 0.17) + i * 3, hx = X(70 + (Math.sin(t) * 0.5 + 0.5) * 210 + Math.sin(t * 3.1) * 8), hy = Y(POND.waterTop - 14 - i * 9) + Math.sin(t * 5.3) * 6;
-    ctx.fillStyle = i ? '#4fc3f7' : '#26a69a'; ctx.fillRect(Math.round(hx) - 4, Math.round(hy), 8, 2);
-    ctx.fillStyle = `rgba(220,240,255,${0.55 + 0.3 * Math.sin(TIME * 40 + i)})`; ctx.fillRect(Math.round(hx) - 2, Math.round(hy) - 3, 2, 3); ctx.fillRect(Math.round(hx) + 1, Math.round(hy) - 3, 2, 3);
+  // the banks: a little wet edge where the ground meets the water
+  ctx.fillStyle = '#3e2f1e'; ctx.fillRect(POND.w0 * TILE - 2, sy - 2, 2, y1 - sy + 2);
+  // fish: dim shapes just under the surface
+  for (const f of R.fishes) {
+    if (!inView(f.x, sy, 40)) continue;
+    ctx.fillStyle = 'rgba(10,40,60,0.45)'; ctx.beginPath(); ctx.ellipse(f.x, sy + 11, 9, 3, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(f.x - (f.dir || 1) * 8, sy + 11); ctx.lineTo(f.x - (f.dir || 1) * 13, sy + 8); ctx.lineTo(f.x - (f.dir || 1) * 13, sy + 14); ctx.fill();
+  }
+  // ripples on the surface where the fish are
+  for (const r of R.ripples) {
+    const k = r.t / (r.big ? 1.6 : 1.3), rad = (r.big ? 10 : 4) + k * (r.big ? 46 : 26);
+    ctx.strokeStyle = `rgba(230,248,255,${(r.big ? 0.9 : 0.7) * (1 - k)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(r.x, sy + 1, rad, rad * 0.2, 0, 0, 7); ctx.stroke();
   }
 }
-// ---------- fishing off the dock: wait for a bite, tap in time, then stop the marker in the green ----------
+function drawDock() {   // the deck you walk on, its posts down into the water, a mooring post at the end
+  const R = G.room; if (!R.fishes) return;
+  const top = R.floorTop * TILE, x0 = POND.dock0 * TILE, x1 = (POND.dock1 + 1) * TILE + 6, y1 = R.rows * TILE;
+  if (!inView(x0, top, 400)) return;
+  const deck = art('props/dock_deck'), post = art('props/dock_post'), end = art('props/dock_end');
+  if (deck && post && end) {   // ChatGPT's pieces at 2x: posts into the pond bed, the deck on top, its end (mirrored) out over the water
+    const dh = deck.height * 2, dw = deck.width * 2, ew = end.width * 2, eh = end.height * 2;
+    ctx.save(); ctx.beginPath(); ctx.rect(x0 - 10, top, x1 - x0 + 20, y1 - top); ctx.clip();
+    for (let x = x0 + 24; x < x1 - 4; x += 2.5 * TILE) ctx.drawImage(post, Math.round(x - post.width), top + dh - 6, post.width * 2, post.height * 2);
+    ctx.restore();
+    for (let x = x0 + ew - 8; x < x1; x += dw) { const w = Math.min(dw, x1 - x); ctx.drawImage(deck, 0, 0, w / 2, deck.height, x, top - 1, w, dh); }
+    ctx.save(); ctx.translate(x0 + ew, top - 1 + dh - eh); ctx.scale(-1, 1); ctx.drawImage(end, 0, 0, ew, eh); ctx.restore();
+    return;
+  }
+  // (no art: plain planks)
+  for (let x = x0 + 10; x < x1 - 6; x += 3 * TILE) { ctx.fillStyle = '#5a3d22'; ctx.fillRect(x - 4, top + 8, 8, y1 - top - 8); ctx.fillStyle = '#7a5532'; ctx.fillRect(x - 4, top + 8, 3, y1 - top - 8); }
+  ctx.fillStyle = '#6d4a2a'; ctx.fillRect(x0, top, x1 - x0, 10);
+  ctx.fillStyle = '#9a6e40'; ctx.fillRect(x0, top, x1 - x0, 3);
+  ctx.fillStyle = '#4a3019'; for (let x = x0 + 14; x < x1; x += 15) ctx.fillRect(x, top + 3, 1, 7);
+  ctx.fillStyle = '#3a2614'; ctx.fillRect(x0, top + 10, x1 - x0, 2);
+}
+// ---------- fishing off the end of the dock: aim at the ripples, wait for a bite, tap in time, then stop the marker in the green ----------
 // Catches go in the fish basket (3 at most) and come along as new loot when your next run starts.
 const BASKET_MAX = 3;
 const CATCHES = [   // [weight, what, tier (0 easy - 3 hard)]
@@ -2232,24 +2291,46 @@ const CATCHES = [   // [weight, what, tier (0 easy - 3 hard)]
   [4, 'collar', 1], [3, 'chewbone', 1], [3, 'clawfile', 1], [2, 'saddlebag', 1], [2, 'cuttlebone', 2], [2, 'bogmoss', 2], [1.5, 'horseshoe', 2], [1, 'clover', 3]];
 const JUNK = ['an old boot', 'a tangle of pondweed', 'a soggy stick', 'a rusty tin can', 'a lost sandal'];
 const basket = () => (Array.isArray(SAVE.yard.basket) ? SAVE.yard.basket : (SAVE.yard.basket = []));
-const dockX = () => POND.dock * POND.s;
+const castRange = () => [(POND.w0 + 0.8) * TILE, dockTipX() - TILE * 1.2];   // from just past the dock's end out across the pond
 function fishStart() {
   if (basket().length >= BASKET_MAX) { showMsg(`Your fish basket is full (${BASKET_MAX}). It comes with you on your next run.`, 2.6); SFX.play('error'); return; }
-  const P = G.player, R = G.room, ft = R.floorTop * TILE;
-  P.x = dockX() - P.w / 2; P.vx = 0; P.face = -1;
-  const bx = dockX() - rand(120, 210), by = ft + 6 - (88 - (POND.waterTop + POND.waterBot) / 2) * POND.s;
-  G.fish = { phase: 'cast', t: 0, bx, by, wait: rand(2, 5.5), nib: rand(0.8, 1.8) };
-  SFX.play('bow'); showMsg('Wait for a bite, then tap / press E!', 2);
+  const P = G.player; P.x = dockTipX() - P.w / 2 + 8; P.vx = 0; P.face = -1;
+  G.fish = { phase: 'aim', t: 0, a: 0 };
+  SFX.play('pick'); showMsg('Tap / press E when the target is on a ripple to cast there.', 2.4);
 }
-function fishEnd(msg, ok) { G.fish = null; if (msg) showMsg(msg, 2.4); SFX.play(ok ? 'chest' : 'error', !!ok); }
+function fishEnd(msg, ok) {
+  const F = G.fish; if (F && F.lure) { F.lure.scared = 1.5; F.lure.tx = null; }
+  G.fish = null; if (msg) showMsg(msg, 2.4); SFX.play(ok ? 'chest' : 'error', !!ok);
+}
 function updateFishing(dt) {
-  const F = G.fish, P = G.player, e = hit('e', ' ', 'Enter');
-  if (down('a', 'd', 'ArrowLeft', 'ArrowRight', 'w', 's', 'ArrowUp', 'ArrowDown') || hit('Escape')) { G.fish = null; showMsg('You reel in your line.', 1.2); return; }
+  const F = G.fish, P = G.player, R = G.room, e = hit('e', ' ', 'Enter');
+  if (down('a', 'd', 'ArrowLeft', 'ArrowRight', 'w', 's', 'ArrowUp', 'ArrowDown') || hit('Escape')) { fishEnd('You reel in your line.'); return; }
   F.t += dt; P.vx = 0; P.face = -1;
-  if (F.phase === 'cast') { if (F.t > 0.6) { F.phase = 'wait'; F.t = 0; SFX.play('land'); } return; }
+  const [lo, hi] = castRange();
+  if (F.phase === 'aim') {   // the target sweeps out over the water and back
+    F.a = 0.5 - 0.5 * Math.cos(F.t * 1.6);
+    F.ax = hi - (hi - lo) * F.a;
+    if (e) { Object.assign(F, { phase: 'cast', t: 0, bx: F.ax, by: pondSurf() + 2 }); SFX.play('bow'); }
+    return;
+  }
+  if (F.phase === 'cast') {
+    if (F.t > 0.55) {   // plop: fish close by notice the bait
+      F.phase = 'wait'; F.t = 0; F.give = 14; R.ripples.push({ x: F.bx, t: 0, big: true }); SFX.play('land');
+      const near = R.fishes.filter(f => f.scared <= 0).sort((a, b) => Math.abs(a.x - F.bx) - Math.abs(b.x - F.bx))[0];
+      if (near && Math.abs(near.x - F.bx) < 90) F.lure = near;
+    }
+    return;
+  }
   if (F.phase === 'wait') {
     if (e) { fishEnd('Too soon! The fish swam off.'); return; }
-    if (F.t > F.wait) { F.phase = 'bite'; F.t = 0; SFX.play('alert'); }
+    if (!F.lure && F.t > 2.5 && Math.random() < dt * 0.25) {   // nothing close: now and then one wanders over
+      const near = R.fishes.filter(f => f.scared <= 0 && Math.abs(f.x - F.bx) < 170)[0]; if (near) F.lure = near;
+    }
+    if (F.lure && Math.abs(F.lure.x - F.bx) < 5) {   // it's at the bait: a nibble or two, then the bite
+      F.nibT = (F.nibT || 0) + dt;
+      if (F.nibT > (F.nibAt || (F.nibAt = rand(0.5, 1.6)))) { F.phase = 'bite'; F.t = 0; SFX.play('alert'); }
+    }
+    if (F.t > F.give) fishEnd('Nothing is biting. Cast closer to the ripples!');
     return;
   }
   if (F.phase === 'bite') {
@@ -2263,11 +2344,12 @@ function updateFishing(dt) {
     return;
   }
   if (F.phase === 'reel') {
-    const m = 0.5 - 0.5 * Math.cos(F.t * F.spd * Math.PI);   // the marker swings back and forth
-    F.m = m;
+    F.m = 0.5 - 0.5 * Math.cos(F.t * F.spd * Math.PI);   // the marker swings back and forth
     if (e) {
-      if (Math.abs(m - F.zc) <= F.zone / 2) {
+      if (Math.abs(F.m - F.zc) <= F.zone / 2) {
         const id = F.catch[1];
+        if (F.lure) { F.lure.x = rand(lo, hi); F.lure.tx = null; F.lure.scared = 0; }   // (caught: a new fish arrives somewhere else)
+        F.lure = null;
         if (!id) { fishEnd(`You reeled in ${pick(JUNK)}. Better luck next time!`); return; }
         basket().push({ id, lvl: 1 }); saveData();
         F.phase = 'caught'; F.t = 0; F.item = makeItem(id); SFX.play('chest', true);
@@ -2284,16 +2366,24 @@ function updateFishing(dt) {
 }
 function drawFishing() {   // in world coordinates
   const F = G.fish; if (!F) return;
-  const P = G.player, hx = P.x + 4, hy = P.y + P.h * 0.42, tipX = hx - 26, tipY = hy - 30;
+  const P = G.player, sy = pondSurf(), hx = P.x + 4, hy = P.y + P.h * 0.42, tipX = hx - 30, tipY = hy - 30;
   ctx.strokeStyle = '#6d4c2e'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tipX, tipY); ctx.stroke();   // the rod
+  if (F.phase === 'aim') {   // the target on the water
+    const x = F.ax, pulse = 1 + Math.sin(TIME * 10) * 0.12;
+    ctx.strokeStyle = 'rgba(255,235,120,0.95)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x, sy + 2, 12 * pulse, 4 * pulse, 0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, sy - 16); ctx.lineTo(x, sy - 6); ctx.stroke();
+    label(TOUCH.on ? 'tap to cast!' : 'E to cast!', P.x + P.w / 2, P.y - 22, { align: 'center', size: 12, bold: true, color: PAL.gold });
+    return;
+  }
   let bx = F.bx, by = F.by;
-  if (F.phase === 'cast') { const k = Math.min(1, F.t / 0.6); bx = tipX + (F.bx - tipX) * k; by = tipY + (F.by - tipY) * k - Math.sin(k * Math.PI) * 50; }
-  else if (F.phase === 'wait') by += Math.sin(F.t * 3) * 1.2 + (Math.abs(F.t - F.nib) < 0.15 ? 3 : 0);   // bobbing, and a little nibble
-  else if (F.phase === 'bite') by += 5 + Math.sin(F.t * 30) * 2;
+  if (F.phase === 'cast') { const k = Math.min(1, F.t / 0.55); bx = tipX + (F.bx - tipX) * k; by = tipY + (F.by - tipY) * k - Math.sin(k * Math.PI) * 60; }
+  else if (F.phase === 'wait') by += Math.sin(F.t * 3) * 1.2 + (F.nibT > 0 && Math.sin(F.nibT * 14) > 0.6 ? 3 : 0);   // bobbing, and little nibbles
+  else if (F.phase === 'bite') by += 6 + Math.sin(F.t * 30) * 2;
   else if (F.phase === 'reel') { bx += Math.sin(F.t * 9) * 3; by += 3; }
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.quadraticCurveTo((tipX + bx) / 2, Math.max(tipY, by) + 12, bx, by); ctx.stroke();   // the line
+  ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(tipX, tipY); ctx.quadraticCurveTo((tipX + bx) / 2, Math.max(tipY, by) - 10, bx, by); ctx.stroke();   // the line
   if (F.phase !== 'caught') { ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(bx, by - 2, 3.5, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#fafafa'; ctx.beginPath(); ctx.arc(bx, by - 2, 3.5, 0, Math.PI); ctx.fill(); }
-  if (F.phase === 'bite') { label('!', bx, by - 24 - Math.abs(Math.sin(F.t * 12)) * 4, { align: 'center', size: 26, bold: true, color: '#ffeb3b' }); }
+  if (F.phase === 'bite') label('!', bx, by - 24 - Math.abs(Math.sin(F.t * 12)) * 4, { align: 'center', size: 26, bold: true, color: '#ffeb3b' });
   if (F.phase === 'reel') {   // the timing bar over your head
     const w = 150, x = P.x + P.w / 2 - w / 2, y = P.y - 48;
     panel(x - 8, y - 10, w + 16, 30, 'dark');
@@ -2407,7 +2497,7 @@ function hubStations() {
     out.push({ kind: 'team', x: X(HUB_SPOTS.team), y: ft, label: 'Choose your team' });
     for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
     out.push({ kind: 'yardcall', x: X(HUB_SPOTS.fire), y: ft, label: 'Call different animals out to play' });
-    out.push({ kind: 'fish', x: dockX(), y: ft, label: basket().length >= BASKET_MAX ? `Fish basket full (${BASKET_MAX}/${BASKET_MAX})` : `Go fishing  (basket ${basket().length}/${BASKET_MAX})` });
+    out.push({ kind: 'fish', x: dockTipX(), y: ft, label: basket().length >= BASKET_MAX ? `Fish basket full (${BASKET_MAX}/${BASKET_MAX})` : `Go fishing  (basket ${basket().length}/${BASKET_MAX})` });
     return out;
   }
   out.push({ kind: 'door', to: 'yard', x: X(HUB_ROOMS[room].out || HUB_SPOTS.out), y: ft, label: 'Back out to the Yard' });
@@ -3325,6 +3415,7 @@ function bakeTerrain(R) {
   const tk = R.tileKey || R.type, tb = art('tiles/' + tk + '_block'), tt = art('tiles/' + tk + '_top');   // ChatGPT terrain blocks for this area
   for (let ty = 0; ty < R.rows; ty++) for (let tx = 0; tx < C; tx++) {
     const t = get(tx, ty), X = tx * TILE, Y = ty * TILE;
+    if (R.skipBake && R.skipBake.has(ty * C + tx)) continue;   // (drawn live: the pond's water and its dock)
     if (R.hubRoom && t === SOLID && ty < R.floorTop && (ty === 0 || tx === 0 || tx === C - 1)) continue;   // the Sanctuary's rooms: invisible walls and ceiling (the picture shows the room)
     if (t === SOLID && tb && tt) {
       const up = solidish(get(tx, ty - 1)), dn = solidish(get(tx, ty + 1)), lf = solidish(get(tx - 1, ty)), rt = solidish(get(tx + 1, ty));
@@ -3531,6 +3622,7 @@ function checkPlayerHazards() {
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
     const t = tileAt(tx, ty);
     if (t === LAVA) return hitHazard('lava');
+    if (t === WATER && P.y + P.h > ty * TILE + POND.surf + 6) return fellInPond();
     if (t === SPIKES && P.y + P.h > ty * TILE + 12) return hitHazard('spikes');
     if (t === THORN && P.y + P.h > ty * TILE + 8) return hitHazard('thorns');
   }
@@ -3631,10 +3723,7 @@ function drawYardDepth(R) {
     for (let x = -off; x < W; x += w) ctx.drawImage(img, Math.round(x), Math.round(base - h), w, h);
   };
   strip(fields, YARD.fields, ground + 6);
-  const seamX = POND.seam * POND.s - cx;   // (the pond's bush on screen: the fence runs only to the right of it)
-  if (seamX > 0) { ctx.save(); ctx.beginPath(); ctx.rect(seamX, 0, W - seamX, H); ctx.clip(); strip(fence, YARD.fence, ground + 4); ctx.restore(); }
-  else strip(fence, YARD.fence, ground + 4);
-  drawPond(-cx, ground);
+  strip(fence, YARD.fence, ground + 4);
   drawBgFx('yard', 3, { x: -Math.round(cx), y: 0, s: 2 });   // butterflies over the fields: part of the Yard, so they stay put as you walk
   return true;
 }
@@ -3669,7 +3758,10 @@ function drawParallax(R) {
 function drawFrontGrass(camX) {
   const img = art('bg/yard_grass'); if (!img) return;
   const s = 2, w = img.width * s, h = img.height * s, off = ((camX * 1.15) % w + w) % w;   // 2x: it fills the ground band, the tallest tufts just reach the feet
+  const px0 = POND.w0 * TILE - camX, px1 = (POND.dock1 + 1) * TILE - camX;   // (not over the pond and its dock)
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, Math.max(0, px0), H); ctx.rect(px1, 0, W, H); ctx.clip();
   for (let x = -off; x < W; x += w) ctx.drawImage(img, Math.round(x), H - h, w, h);
+  ctx.restore();
 }
 function drawTerrain(R) {
   const sx = clamp(Math.floor(G.cam.x), 0, Math.max(0, R.wpx - W)), sy = clamp(Math.floor(G.cam.y), 0, Math.max(0, R.hpx - H));
@@ -8567,7 +8659,7 @@ function drawScreen() {
   ctx.translate(-camX + Math.round(Math.sin(TIME * 63) * shk), -camY + Math.round(Math.cos(TIME * 51) * shk));  // camera follows the player
   drawTerrain(G.room);
   drawWorldDynamic(G.room);
-  if (G.hub) drawHubWorld();
+  if (G.hub) { drawPondWater(); drawDock(); drawHubWorld(); }
   drawWild();
   drawPets();
   drawPlayer();
@@ -9803,6 +9895,7 @@ function update(dt) {
         if (hit('Escape')) { if (G.panel) G.panel = null; else { G = null; SCREEN = 'title'; } break; }
         if (hit('p')) { openPause(); break; }
         if (hit('f')) { openNetPanel(); break; }
+        if (G.hubRoom === 'yard') updatePond(dt);
         if (G.fish) {   // fishing: the line takes the keys; the world goes on around you
           updateFishing(dt);
           const keep = {}; for (const k of ['a', 'd', 'w', 's', 'e', ' ', 'Shift', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) { keep[k] = keys[k]; keys[k] = false; pressed[k] = false; }
