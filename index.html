@@ -5774,7 +5774,8 @@ const exitOpen = () => G.hub || (G.wild || []).filter(w => w.beaten).length >= e
 function wildEntity(k, x, footY, opt = {}) {
   const d = PETS[k], big = opt.boss ? 2 : 1;
   return Object.assign({ k, x: x - d.w * big / 2, y: footY - d.h * big - (d.fly ? 60 : 0), w: d.w * big, h: d.h * big, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
-                         fly: d.fly, homeX: x, homeY: footY - d.h * big - 60, t: rand(0, 9), beaten: false, onGround: false, dir: Math.random() < 0.5 ? 1 : -1, comp: 'mixed' }, opt);
+                         fly: d.fly, homeX: x, homeY: footY - d.h * big - 60, t: rand(0, 9), beaten: false, onGround: false, dir: Math.random() < 0.5 ? 1 : -1, comp: 'mixed',
+                         coat: opt.boss || !COATS[k] ? null : rollCoat() }, opt);   // (every wild animal has its own coat)
 }
 function placeWild(R, cells, etx, ety) {
   G.wild = [];
@@ -5896,7 +5897,7 @@ function drawWild() {
     if (e.beaten || !inView(e.x, e.y, 120)) continue;
     const sheet = speciesSheet(e.k), moving = Math.abs(e.vx) > 8, big = e.boss ? 2 : 1, cx = e.x + e.w / 2;
     footShadow(cx, e.fly ? groundBelow(cx, e.y) : e.y + e.h, e.w * 0.5, e.fly ? 0.35 : 0.8);
-    ctx.filter = e.tint || standInTint(e.k, sheet);
+    ctx.filter = e.tint || wildFilter(e.k, sheet, e.coat);
     const o = { scale: PX * big };
     if (!drawAnim(sheet, e.fly ? 'fly' : moving ? 'run' : 'idle', e.t * (moving ? 10 : 5), cx, e.fly ? e.y + e.h / 2 : e.y + e.h + 1, e.face, o)) { ctx.fillStyle = PETS[e.k].color; rr(e.x, e.y, e.w, e.h, 6); ctx.fill(); }
     ctx.filter = 'none';
@@ -6003,7 +6004,9 @@ const COATS = {
   runeshell:  [['Rune Teal', {}], ['Deep', { b: 0.75 }], ['Jade', { h: -25 }], ['Azure', { h: 30 }], ['Bronze', { sp: 0.6 }], ['Coral', { h: 160 }], ['Amethyst', { h: 80 }], ['Pale', { s: 0.5, b: 1.2 }]],
   moth:       [['Ember', {}], ['Luna Green', { h: 80 }], ['Rosy', { h: -30, s: 1.1 }], ['Atlas Brown', { sp: 0.5, b: 0.9 }], ['Ivory', { s: 0.4, b: 1.3 }], ['Blue', { h: 190 }], ['Yellow', { h: 20, b: 1.15 }], ['Dusk', { b: 0.8, s: 1.2 }]],
 };
-const COAT_W = [10, 8, 7, 6, 5, 4, 3, 3];   // how common each natural colour is in the wild (the first, the art as drawn, most)
+const COAT_W = [1, 1, 1, 1, 1, 1, 1, 1];   // the natural colours are all about as common as each other in the wild
+// a wild animal's look: its species' tint and its own coat
+const wildFilter = (k, sheet, coat) => [standInTint(k, sheet), coat ? coatOf(k, coat).css : ''].filter(f => f && f !== 'none').join(' ') || 'none';
 const coatList = k => (COATS[k] || [['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}]]).concat(COAT_RARE);
 const coatP = (k, i) => Object.assign({ g: 0, sp: 0, h: 0, s: 1, b: 1, c: 1 }, (coatList(k)[i] || coatList(k)[0])[1]);
 const coatCss = p => [p.g ? `grayscale(${p.g})` : '', p.sp ? `sepia(${p.sp})` : '', p.h ? `hue-rotate(${p.h}deg)` : '', p.s !== 1 ? `saturate(${p.s})` : '', p.b !== 1 ? `brightness(${p.b})` : '', p.c !== 1 ? `contrast(${p.c})` : ''].filter(Boolean).join(' ');
@@ -6029,7 +6032,7 @@ function rollCoat(o = {}) {   // a wild-born animal's colour genes: ~1% albino, 
   if (r < 0.01) return { col: [COAT_ALBINO, COAT_ALBINO], blend: false };
   if (r < 0.02) return { col: [COAT_MELAN, COAT_MELAN], blend: false };
   const nat = () => wpick(COAT_W.map((w, i) => [i, w]));
-  const a = nat(), b = Math.random() < 0.05 ? (Math.random() < 0.5 ? COAT_ALBINO : COAT_MELAN) : Math.random() < 0.65 ? a : nat();   // (wild animals mostly breed true, so every colour turns up)
+  const a = nat(), b = Math.random() < 0.05 ? (Math.random() < 0.5 ? COAT_ALBINO : COAT_MELAN) : Math.random() < 0.85 ? a : nat();   // (wild animals mostly breed true, so every colour turns up about equally)
   return { col: [a, b], blend: a !== b && b < COAT_ALBINO && Math.random() < 0.08 };
 }
 // the colours a pair's babies could have, most likely first: [[name, chance], ...]
@@ -6096,18 +6099,20 @@ let pidN = 0;
 const newPid = () => Date.now().toString(36) + '-' + (pidN++).toString(36) + Math.floor(Math.random() * 46656).toString(36);
 function newPet(k, lvl = 1, g) {
   const it = makeItem('pet_' + k); it.pid = newPid(); it.plvl = lvl; it.xp = 0; it.talents = {}; it.talV = 1; it.g = g || rollGenes();
+  if (!Array.isArray(it.g.col)) Object.assign(it.g, rollCoat());   // (an egg laid before coats)
   HERD.push(it); return it;
 }
 function petItem(k) { return PET_ITEMS[k] || newPet(k); }
 // pets from before animals were individuals keep everything, and get fair (never poor) traits
-function migratedGenes() { const g = rollGenes({ shiny: false, col: [0, 0] }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
+function migratedGenes() { const g = rollGenes({ shiny: false }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
+let SAVE_COATS = false;
 function loadPets() {
-  PETS_LOADED = true;
+  PETS_LOADED = true; SAVE_COATS = false;
   HERD.length = 0;
   for (const r of SAVE.herd || []) if (r && ITEMS['pet_' + r.k]) {
     const it = makeItem('pet_' + r.k);
     Object.assign(it, { pid: r.pid || newPid(), plvl: clamp(r.lvl || 1, 1, PET_MAX_LVL), xp: r.xp || 0, talents: r.talents || {}, talV: 1, g: Object.assign(rollGenes(), r.g || {}) });
-    if (!r.g || !Array.isArray(r.g.col)) { it.g.col = [0, 0]; it.g.blend = false; }   // (from before coats: its colour as drawn)
+    if (!r.g || !Array.isArray(r.g.col)) { Object.assign(it.g, rollCoat()); SAVE_COATS = true; }   // (from before coats: it rolls a coat once, like a wild animal)
     HERD.push(it);
   }
   const legacy = {};
@@ -6117,7 +6122,7 @@ function loadPets() {
   petSlots = [null, null, null];
   (SAVE.team || []).forEach((id, i) => { if (i < 3 && id) petSlots[i] = HERD.find(it => it.pid === id) || legacy[id] || null; });
   if (!petSlots.some(Boolean)) HERD.slice(0, 3).forEach((it, i) => { petSlots[i] = it; });
-  if (Object.keys(legacy).length) savePets();
+  if (Object.keys(legacy).length || SAVE_COATS) savePets();   // (keep the coats it just rolled)
 }
 function savePets() {
   if (!PETS_LOADED) return;
@@ -6300,6 +6305,8 @@ function startBattle(ent) {
   const allies = petSlots.map((it, i) => it ? petUnit(it, i, team.length) : null).filter(Boolean);
   allies.forEach((u, i) => { u.slot = i; u.x = u.lx = BX_LAND.ally[i]; u.face = 1; });
   const foes = buildFoes(ent, team.length);
+  for (const f of foes) if (!f.boss && !f.coat && COATS[f.k] && f.k !== 'shade') f.coat = rollCoat();
+  { const lead = foes.find(f => f.k === ent.k && !f.boss); if (lead && ent.coat) lead.coat = ent.coat; }
   foes.forEach((u, i) => { u.slot = i; u.x = u.lx = u.boss ? 845 : BX_LAND.foe[i]; u.face = -1; });
   if (foes.length > 1 && foes[0].boss) { foes[1].x = foes[1].lx = 605; if (foes[2]) foes[2].x = foes[2].lx = 705; }   // the boss looms at the back, its minions in front
   B = { ent, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: 0.8, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
@@ -6741,6 +6748,7 @@ function winBattle() {
 const petBlurb = it => { const g = it.g || {}; return `${g.shiny ? 'A ★ SHINY ' : 'A '}${BS[it.def.pet].baby} ${sexSym(g)} (${(NATURES[g.nat] || NATURES.calm).n}, ${gradeLine(g)})`; };
 function giveOffspring(k, R) {
   const g = rollGenes();   // a brand-new animal: its own nature, stats, sex, and a small chance to be shiny
+  const par = B && B.foes.find(f => f.k === k && f.coat); if (par) Object.assign(g, inheritCoat(par.coat, rollCoat()));   // ...and it takes after the parent you beat
   if (BS[k].off === 'egg') { const it = makeItem('egg_' + k); it.wins = 0; it.g = g; R.eggs.push(it); }
   else R.offspring.push(unlockPet(k, newcomerLevel(), g));
 }
@@ -7136,7 +7144,7 @@ function drawVsRow(list, x0, face) {
   list.forEach((u, i) => {
     const cx = x0 + i * 112, sheet = unitSheet(u), fly = unitFly(u), fr = (animFrames(sheet, fly ? 'fly' : 'idle') || animFrames(sheet, 'idle') || [])[0], aS = ANIM_SCALE[sheet] || 1;
     const sc = fr ? Math.min(2.6, 62 / (fr[3] * aS), 92 / (fr[2] * aS)) : 2.4;
-    ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet));
+    ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : wildFilter(u.k, sheet, u.coat));
     drawAnim(petSheet(sheet, u.it), fly ? 'fly' : 'idle', B.t * 5 + i, cx, fly ? 238 : 268, face, { scale: sc });
     ctx.filter = 'none';
     label(fitText(u.name, 108), cx, 292, { align: 'center', size: 13, bold: true, color: u.side === 'ally' ? PAL.cream : u.elite ? '#ffb74d' : '#ffccbc' });
@@ -7684,7 +7692,7 @@ function drawBattleUnit(u) {
   if (down) o.alpha = Math.max(0.25, 1 - u.faintT * 2);
   if (hurt) o.flash = true;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
-  ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : standInTint(u.k, sheet));   // a unit's own tint (e.g. a stand-in boss) wins
+  ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : wildFilter(u.k, sheet, u.coat));   // a unit's own tint (e.g. a stand-in boss) wins
   const anim = down ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = down ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
   if (!drawAnim(petSheet(sheet, u.it), anim, fr, x, y, u.face, o) && !drawAnim(petSheet(sheet, u.it), fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
     ctx.fillStyle = (PETS[u.k] || {}).color || '#888'; rr(x - 14 * s, y - 24 * s, 28 * s, 24 * s, 6); ctx.fill();
