@@ -2216,6 +2216,7 @@ const DYES = [['natural', 'Natural', ''], ['crimson', 'Crimson', 'hue-rotate(-28
   ['shadow', 'Shadow', 'brightness(0.62) saturate(0.55)'], ['gold', 'Gilded', 'sepia(0.75) saturate(1.9) brightness(1.1)'], ['frost', 'Frost', 'hue-rotate(165deg) saturate(0.55) brightness(1.22)']];
 const heroDyeId = (cls = G && G.cls) => SAVE.skin[cls + 'Dye'] || 'natural';
 const heroDye = () => 'none';   // (outfit dyes became outfits, hairstyles and skin tones: see LOOKS)
+function noteTalentRefund() { if (TALENT_REFUND) { TALENT_REFUND = false; showMsg('The talent trees were redone (babies and adults now have their own), so every talent point came back to spend.', 5); } }
 function enterHub(room = 'yard') {
   pack = startItems(selClass); loadPets(); stats = null; RUN = { buffs: {}, petHp: {} };
   G = {
@@ -4940,14 +4941,15 @@ const DOTK = { burn: 0.4, poison: 0.3, bleed: 0.35 }, DOT_MAX = 10;   // damage 
 // Every pet has three trees. Each tree has 5 tiers: tier 1 opens at pet level 1, tier 2 at 5, tier 3 (keystone) at 10,
 // tier 4 at 16 and tier 5 at 22 — the ULTIMATE, which teaches the pet a powerful new battle ability.
 // A talent needs at least one point in the tier just above it, in the same tree. 1 point per level (29 at level 30).
-const PET_MAX_LVL = 30, TIER_LVL = [0, 1, 5, 10, 16, 22];
+const PET_MAX_LVL = 40, EVO_LVL = 21;   // babies are levels 1-20; at 21 they evolve into adults, who grow to 40
+const BABY_TIER = [1, 5, 10, 15], ADULT_TIER = [21, 23, 26, 29, 32];   // the level each tier opens at (baby trees: 4 tiers; adult trees: 5, the last its ultimate)
 const nd = (id, name, max, fx, txt) => ({ id, name, max, fx, txt });
 const tree = (name, color, tiers) => ({ name, color, tiers });
 const upAb = (M, ab, k, v) => { M.up = M.up || {}; const u = M.up[ab] || (M.up[ab] = {}); u[k] = (u[k] || 0) + v; };
 const S = (id, name, key, per, txt, max = 3) => typeof key === 'object' ? nd(id, name, txt || 3, key, per) : nd(id, name, max, { [key]: per }, txt);   // S(id, name, {k: v, ...}, txtFn) also works
 const UP = (id, name, ab, k, per, txt, max = 3) => nd(id, name, max, (M, r) => upAb(M, ab, k, per * r), txt);
 const KEY = (id, name, fx, txt) => nd(id, name, 1, fx, txt);
-const ULT = (id, ab) => nd(id, ABIL[ab].n, 1, M => { M.ults = (M.ults || []).concat(ab); }, () => 'ULTIMATE: learns ' + ABIL[ab].n + '. ' + ABIL[ab].d);
+const ULT = (id, ab) => Object.assign(nd(id, ABIL[ab].n, 1, M => { M.ults = (M.ults || []).concat(ab); }, () => 'ULTIMATE: learns ' + ABIL[ab].n + '. ' + ABIL[ab].d), { ab });
 const listFx = (key, list) => M => { M[key] = (M[key] || []).concat(list); };
 // common talents
 const T_HP = (id, name) => S(id, name, 'hp', 0.12, r => `+${12 * r}% max HP`);
@@ -5411,6 +5413,66 @@ const PET_TREES = {
       [T_DOUBLE('el_ramp', 'Rampage'), T_TATK('el_dom', 'Dominance')], [ULT('el_rage', 'dragonrage')]]),
   ],
 };
+// ---- two stages. Adult trees (above) are trimmed to one focused talent per tier, plus the keystone and the ultimate ----
+const GENERIC_FX = new Set(['hp', 'atk', 'crit', 'def', 'evade', 'regen', 'teamAtk', 'teamCrit', 'teamHp', 'teamDef', 'petXp']);
+const fxOf = n => { if (n._fx) return n._fx; const M = {}; if (typeof n.fx === 'function') { try { n.fx(M, 1); } catch (e) { /* (a talent that needs more context) */ } } else Object.assign(M, n.fx || {}); return (n._fx = M); };
+const isGeneric = n => { const ks = Object.keys(fxOf(n)); return ks.length > 0 && ks.every(k => GENERIC_FX.has(k)); };
+for (const k in PET_TREES) for (const tr of PET_TREES[k]) {
+  tr.stage = 'adult';
+  for (const t of [1, 3]) if (tr.tiers[t] && tr.tiers[t].length > 1) tr.tiers[t] = [tr.tiers[t].find(n => !isGeneric(n)) || tr.tiers[t][0]];
+}
+// Baby trees: two small ones per species. One plays with its own moves, one keeps it safe in its role's way.
+const BABY_NAMES = {
+  dog: ['Puppy Play', 'Good Pup'], catgray: ['Pounce Practice', 'Curled Up'], catcalico: ['Ball of Yarn', 'Lap Cat'], sunday: ['Chirpy', 'Nest Warmth'],
+  rhino: ['Little Horn', 'Mud Wallow'], cockatiel: ['Crest Display', 'Preening'], dragon: ['First Sparks', 'Hoard Napper'], fox: ['Kit Games', 'Den Snuggle'],
+  owl: ['Fledgling Swoop', 'Downy Fluff'], ferret: ['War Dance', 'Burrow Nap'], boar: ['Snout First', 'Muddy Coat'], toad: ['Sticky Tongue', 'Pond Hideout'],
+  shadowwolf: ['Shadow Play', 'Dusk Den'], unicorn: ['Foal Frolic', 'Moon Blessing'], elder: ['Hatchling Fury', 'Ancient Shell'], phoenix: ['Ember Chick', 'Ash Nest'],
+  hellhound: ['Smoulder', 'Brimstone Pup'], salamander: ['Little Flame', 'Cool Stone'], tortoise: ['Hot Shell', 'Slow and Steady'], qilin: ['Glowing Hooves', 'Kind Heart'],
+  chimera: ['Three Heads', 'Tangle of Tails'], lion: ['Cub Roar', 'Sun Nap'], mossbear: ['Cub Swipe', 'Mossy Bed'], fairydragon: ['Glitter Breath', 'Fairy Ring'],
+  wolpertinger: ['Antler Bonk', 'Burrow Mix'], moonstag: ['Velvet Antlers', 'Moonlit Glade'], viper: ['Little Fangs', 'Bramble Coil'], cusith: ['Hound Pup', 'Green Hearth'],
+  puca: ['Mischief', 'Shapeshift'], spiritwolf: ['Frost Pup', 'Spirit Den'], lakewyrm: ['Wyrmling Splash', 'Deep Pool'], kelpie: ['Foal Kicks', 'Kelp Bed'],
+  kappa: ['Bowl Bonk', 'River Manners'], axolotl: ['Gill Wiggle', 'Regrow'], coralcrab: ['Pinch Practice', 'Hard Shell'], hydra: ['Head Count', 'Swamp Nest'],
+  selkie: ['Pup Splash', 'Seal Skin'], runeshell: ['Glowing Runes', 'Shell Shelter'], moth: ['Dust Flutter', 'Cocoon'], wolpertingerx: [],
+};
+const ROLE_KEY = {   // the baby keystone: a first taste of what its role is about
+  Guardian: id => KEY(id, 'Brave Little Heart', { shieldStart: 0.12, def: 1 }, () => 'starts every battle with a shield of 12% max HP, and +1 defense'),
+  Tank: id => KEY(id, 'Sturdy', { hp: 0.12, thorns: 0.12 }, () => '+12% max HP, and attackers take 12% of the damage back'),
+  Paladin: id => KEY(id, 'Little Champion', { shieldStart: 0.08, heal: 0.15 }, () => 'starts every battle with an 8% shield, and its healing is 15% stronger'),
+  Ancient: id => KEY(id, 'Old Soul', { hp: 0.1, def: 1, regen: 0.01 }, () => '+10% max HP, +1 defense, and regenerates 1% max HP per turn'),
+  Hunter: id => KEY(id, 'First Hunt', { firstStrike: 0.3, crit: 0.05 }, () => '+30% damage on its first turn, and +5% crit'),
+  Striker: id => KEY(id, 'Pounce', { double: 0.12 }, () => '12% chance to strike a single foe twice'),
+  Trickster: id => KEY(id, 'Little Rascal', { evade: 0.08, blindOn: 0.1 }, () => '8% chance to dodge, and 10% chance for its hits to Blind'),
+  Healer: id => KEY(id, 'Gentle Touch', { heal: 0.2, teamRegen: 0.01 }, () => 'its healing is 20% stronger, and the whole team regenerates 1% max HP per turn'),
+  Support: id => KEY(id, 'Cheerful', { teamAtk: 0.04, teamHp: 0.03 }, () => 'every pet in your team: +4% attack and +3% max HP'),
+  Mystic: id => KEY(id, 'Curious Mind', { dur: 1 }, () => 'its curses last 1 turn longer'),
+  Hexer: id => KEY(id, 'Mischief Maker', { dur: 1, crit: 0.04 }, () => 'its curses last 1 turn longer, and +4% crit'),
+  Poisoner: id => KEY(id, 'Bitter Taste', { dot: 0.25 }, () => 'its poison, burns and bleeding deal 25% more'),
+  Burner: id => KEY(id, 'Warm Embers', { dot: 0.25 }, () => 'its burns, poison and bleeding deal 25% more'),
+};
+function abNode(id, ab) {   // practising one of its own moves
+  const A = ABIL[ab];
+  if (A.pow) return T_POW(id, 'Practice ' + A.n, ab, 0.15);
+  if (A.heal || A.healPct) return UP(id, 'Soothing ' + A.n, ab, 'heal', 0.1, r => `${A.n} heals +${10 * r}%`);
+  if (A.st) return T_TURNS(id, 'Lasting ' + A.n, ab, 2);
+  return T_CD(id, 'Quick ' + A.n, ab);
+}
+function babyTrees(k) {
+  const [a1, a2, a3] = BS[k].abil, p = 'b_' + k + '_', nm = BABY_NAMES[k] || ['Play', 'Safe and Sound'], A3 = ABIL[a3], role = (PETS[k] || {}).role;
+  const big = KEY(p + 'key', 'Big ' + A3.n, M => { upAb(M, a3, 'cd', 1); if (A3.pow) upAb(M, a3, 'pow', 0.25); else upAb(M, a3, 'turns', 1); },
+    () => `${A3.n} is ready 1 turn sooner and ${A3.pow ? 'deals +25% damage' : 'lasts +1 turn'}`);
+  const play = tree(nm[0], '#ffcc80', [[T_ATK(p + 'atk', 'Growing Strong')], [abNode(p + 'a1', a1), abNode(p + 'a2', a2)], [big], [T_CRIT(p + 'crit', 'Sharp Eyes')]]);
+  const safe = tree(nm[1], '#a5d6a7', [[T_HP(p + 'hp', 'Well Fed')], [T_DEF(p + 'def', 'Thick Fluff'), T_DODGE(p + 'dodge', 'Wriggly')],
+    [(ROLE_KEY[role] || ROLE_KEY.Guardian)(p + 'role')], [T_REGEN(p + 'regen', 'Quick to Mend')]]);
+  play.stage = safe.stage = 'baby';
+  return [play, safe];
+}
+const BABY_TREES = {}; for (const k in PET_TREES) if (BS[k]) BABY_TREES[k] = babyTrees(k);
+const treesOf = k => (BABY_TREES[k] || []).concat(PET_TREES[k] || []);   // every tree an animal has: baby ones first
+const tierLvl = (tr, t) => (tr.stage === 'baby' ? BABY_TIER : ADULT_TIER)[t];   // (t counts from 0)
+const isAdult = it => petLvl(it) >= EVO_LVL;
+const stageSpent = (it, stage) => treesOf(it.def.pet).filter(tr => tr.stage === stage).reduce((a, tr) => a + tr.tiers.flat().reduce((b, n) => b + tal(it, n.id), 0), 0);
+const stagePoints = (it, stage) => (stage === 'baby' ? Math.min(petLvl(it), EVO_LVL - 1) - 1 : Math.max(0, petLvl(it) - (EVO_LVL - 1))) - stageSpent(it, stage);
+
 // ---- team synergies (both pets in your team) ----
 const SYNERGIES = [
   { id: 'clowder',  name: 'Clowder',   pets: ['catgray', 'catcalico'], icon: '🐈', txt: 'Both cats get +15% crit chance.' },
@@ -5427,7 +5489,7 @@ const syn = id => !!(G && G.syn && G.syn[id]);
 const petLvl = it => it.plvl || 1;
 const tal = (it, id) => (it.talents && it.talents[id]) || 0;
 const talentSpent = it => Object.values(it.talents || {}).reduce((a, b) => a + b, 0);
-const talentPoints = it => (petLvl(it) - 1) - talentSpent(it);
+const talentPoints = it => Math.max(0, stagePoints(it, 'baby')) + Math.max(0, stagePoints(it, 'adult'));
 const petXpNeed = L => XP_NEED(L);
 // everything a pet's talents add up to (cached until its talents change)
 function petMods(it) {
@@ -5438,7 +5500,7 @@ function petMods(it) {
 // what a set of talents (and its team's synergies) add up to, for any animal: yours or a wild one
 function speciesMods(k, talents, synMap) {
   const M = {}, S = id => !!(synMap && synMap[id]);
-  for (const tr of PET_TREES[k] || []) for (const row of tr.tiers) for (const n of row) {
+  for (const tr of treesOf(k)) for (const row of tr.tiers) for (const n of row) {
     const r = talents[n.id] || 0; if (!r) continue;
     if (typeof n.fx === 'function') n.fx(M, r); else for (const key in n.fx) M[key] = (M[key] || 0) + n.fx[key] * r;
   }
@@ -5467,17 +5529,18 @@ const TEAM = () => (G && G.team) || teamMods();
 const elderBoost = it => 0;
 // where in the trees a talent sits
 function talentPos(pet, id) {
-  const trees = PET_TREES[pet] || [];
-  for (let ti = 0; ti < trees.length; ti++) for (let k = 0; k < trees[ti].tiers.length; k++) if (trees[ti].tiers[k].some(n => n.id === id)) return { ti, tier: k + 1 };
+  const trees = treesOf(pet);
+  for (let ti = 0; ti < trees.length; ti++) for (let k = 0; k < trees[ti].tiers.length; k++) if (trees[ti].tiers[k].some(n => n.id === id)) return { tr: trees[ti], ti, tier: k + 1 };
   return null;
 }
 // why a talent can't be learned right now ('' = it can)
 function talentBlock(it, t) {
   const pos = talentPos(it.def.pet, t.id); if (!pos) return 'Unknown talent.';
   if (tal(it, t.id) >= t.max) return 'Fully learned.';
-  if (petLvl(it) < TIER_LVL[pos.tier]) return `Unlocks when your ${petName(it)} reaches level ${TIER_LVL[pos.tier]}.`;
-  if (pos.tier > 1 && !PET_TREES[it.def.pet][pos.ti].tiers[pos.tier - 2].some(n => tal(it, n.id) > 0)) return 'Needs a point in a talent just above it in this tree.';
-  if (talentPoints(it) <= 0) return 'No talent points left. Win battles with this pet to level it up.';
+  const lv = tierLvl(pos.tr, pos.tier - 1);
+  if (petLvl(it) < lv) return pos.tr.stage === 'adult' && !isAdult(it) ? `An adult talent: it opens once your ${petName(it)} evolves (level ${EVO_LVL})${lv > EVO_LVL ? ' and reaches level ' + lv : ''}.` : `Unlocks when your ${petName(it)} reaches level ${lv}.`;
+  if (pos.tier > 1 && !pos.tr.tiers[pos.tier - 2].some(n => tal(it, n.id) > 0)) return 'Needs a point in a talent just above it in this tree.';
+  if (stagePoints(it, pos.tr.stage) <= 0) return pos.tr.stage === 'baby' ? 'No baby talent points left (one per level up to 20).' : 'No adult talent points left (one per level from 21).';
   return '';
 }
 const canLearn = (it, t) => !talentBlock(it, t);
@@ -6118,13 +6181,14 @@ function newPet(k, lvl = 1, g) {
 function petItem(k) { return PET_ITEMS[k] || newPet(k); }
 // pets from before animals were individuals keep everything, and get fair (never poor) traits
 function migratedGenes() { const g = rollGenes({ shiny: false }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
-let SAVE_COATS = false;
+let SAVE_COATS = false, TALENT_REFUND = false, EVO_Q = [];
 function loadPets() {
   PETS_LOADED = true; SAVE_COATS = false;
   HERD.length = 0;
   for (const r of SAVE.herd || []) if (r && ITEMS['pet_' + r.k]) {
     const it = makeItem('pet_' + r.k);
     Object.assign(it, { pid: r.pid || newPid(), plvl: clamp(r.lvl || 1, 1, PET_MAX_LVL), xp: r.xp || 0, talents: r.talents || {}, talV: 1, g: Object.assign(rollGenes(), r.g || {}) });
+    if (r.tv !== 2 && Object.keys(it.talents || {}).length) { it.talents = {}; TALENT_REFUND = true; SAVE_COATS = true; }   // (the trees were redone: every point comes back once)
     it.nick = cleanNick(r.nick); if (r.born && typeof r.born === 'object') it.born = r.born; if (r.rec && typeof r.rec === 'object') it.rec = r.rec;
     if (!r.g || !Array.isArray(r.g.col)) { Object.assign(it.g, rollCoat()); SAVE_COATS = true; }   // (from before coats: it rolls a coat once, like a wild animal)
     HERD.push(it);
@@ -6140,7 +6204,7 @@ function loadPets() {
 }
 function savePets() {
   if (!PETS_LOADED) return;
-  SAVE.herd = HERD.map(it => ({ pid: it.pid, k: it.def.pet, lvl: petLvl(it), xp: Math.floor(it.xp || 0), talents: it.talents || {}, g: it.g, nick: it.nick || undefined, born: it.born, rec: it.rec }));
+  SAVE.herd = HERD.map(it => ({ pid: it.pid, k: it.def.pet, lvl: petLvl(it), xp: Math.floor(it.xp || 0), talents: it.talents || {}, g: it.g, nick: it.nick || undefined, born: it.born, rec: it.rec, tv: 2 }));
   SAVE.team = petSlots.map(it => (it ? it.pid : null));
   saveData();
 }
@@ -6154,13 +6218,14 @@ function unlockPet(k, lvl = 1, g) {
   if (!petSlots.includes(it)) addPet(it);
   savePets(); return it;
 }
-const babyScale = it => 0.72 + 0.28 * Math.min(1, (petLvl(it) - 1) / 9);   // babies grow up over their first 10 levels
-const XP_NEED = L => 18 + 10 * (L - 1) + Math.round(0.6 * (L - 1) * (L - 1));   // levels come quickly at first, slowly near 30
+const babyScale = it => (petLvl(it) >= EVO_LVL ? 1 : 0.6 + 0.22 * (petLvl(it) - 1) / (EVO_LVL - 2));   // babies grow a little each level, then evolve to full size at 21
+const XP_NEED = L => 18 + 10 * (L - 1) + Math.round(0.6 * (L - 1) * (L - 1));   // levels come quickly at first, slowly near 40
 function givePetXp(it, n) {
   const ups = [];
   if (petLvl(it) >= PET_MAX_LVL) return ups;
   it.xp = (it.xp || 0) + n;
   while (petLvl(it) < PET_MAX_LVL && it.xp >= XP_NEED(petLvl(it))) { it.xp -= XP_NEED(petLvl(it)); it.plvl = petLvl(it) + 1; ups.push(it.plvl); }
+  if (ups.includes(EVO_LVL) && mine(it) && !EVO_Q.includes(it)) EVO_Q.push(it);   // it evolves! (the animation plays when there's a moment)
   if (petLvl(it) >= PET_MAX_LVL) it.xp = 0;
   return ups;
 }
@@ -6491,7 +6556,7 @@ function act(u, ab, tgt) {
     return;
   }
   const releasing = !!(A.windup && u.st.charging); if (releasing) delete u.st.charging;
-  const pow = (A.pow || 0) + (up.pow || 0), dur = (sideOf(u.side).dur || 0) + (M.dur || 0);
+  const pow = ((A.pow || 0) + (up.pow || 0)) * (A.ult ? ULT_BOOST : 1), dur = (sideOf(u.side).dur || 0) + (M.dur || 0);   // (ultimates: +35%)
   if (!releasing) u.cd[ab] = (A.cd || 0) > 0 ? Math.max(1, A.cd - (up.cd || 0)) + 1 : 0;
   u.atkT = 0.4; u.killed = false;
   // every ability has its own animal sound (howls, growls, squawks...); it carries its own impact, so the plain hit thud stays quiet
@@ -6500,6 +6565,7 @@ function act(u, ab, tgt) {
   const FX = FXR[ab] || fxDefault(A), hp0 = new Map([...B.allies, ...B.foes].map(x => [x, x.hp]));
   B.wait = FX[0]; B.hits = []; B.healed = new Set();
   bLog(`${u.name}: ${A.n}`);
+  if (A.ult) { bText(u, '★ ' + A.n.toUpperCase() + ' ★', '#ffd54f', 22); B.ultFlash = 0.5; SFX.play('levelup'); }   // an ultimate: everyone notices
   const foes = otherSide(u), friends = sameSide(u), sts = (A.st || []).concat(up.stx || []);
   const curse = (t, sts) => { for (const [k, turns, ch] of sts || []) if (!t.fainted && (ch === undefined || Math.random() < ch + (up.ch || 0))) {
     const T2 = turns + (k === 'stun' ? 0 : dur) + (up.turns || 0);
@@ -6545,7 +6611,7 @@ function act(u, ab, tgt) {
     }
   } else if (A.t === 'foes') {
     for (let r = 0; r < (A.repeat || 1); r++) for (const t of foes.filter(o => !o.fainted)) {
-      if (pow) strike(t, pow * AOE_MUL); else { B.hits.push(t); curse(t, sts); }   // (each foe takes 60% of a single hit)
+      if (pow) strike(t, pow * (A.ult ? ULT_AOE : AOE_MUL)); else { B.hits.push(t); curse(t, sts); }   // (each foe takes 60% of a single hit; 80% from an ultimate)
       if (A.chaos && !t.fainted) curse(t, [pick([['stun', 1], ['blind', 2], ['burn', 2], ['poison', 2], ['weak', 2], ['mark', 2]])]);
     }
   } else if (A.t === 'rand') {
@@ -6588,18 +6654,23 @@ function summonShade(u) {
 // ---------- fair fights: both sides play by the same rules; only your backpack items set you apart ----------
 const AOE_MUL = 0.6;   // an attack that hits every foe hits each one for 60% (three of them can't wipe a team on turn 1)
 const ULT_WAIT = 3;    // ultimates are ready from turn 3
+const ULT_BOOST = 1.35, ULT_AOE = 0.8;   // ...and when they come, they hit hard
 const sideOf = s => (B.pvp ? B.pvp.side[s] : (B.side && B.side[s]) || { syn: {}, first: 0, amp: null, dur: 0 });
 function waitUlts(units) { for (const u of units) for (const a of u.abil || []) if (ABIL[a] && ABIL[a].ult) u.cd[a] = Math.max(u.cd[a] || 0, ULT_WAIT); }
 // a wild animal's talents: deep into one tree (opening its ultimate as soon as its level allows), then the next, like a good player
 function foeTalents(k, L) {
-  const trees = PET_TREES[k] || [], T = {}; let pts = Math.max(0, L - 1);
+  const T = {}; let pts = 0;
   const put = n => { if (pts > 0 && (T[n.id] || 0) < n.max) { T[n.id] = (T[n.id] || 0) + 1; pts--; return true; } return false; };
-  const open = (tiers, t) => L >= TIER_LVL[t + 1] && (t === 0 || tiers[t - 1].some(n => T[n.id]));
-  for (const ti of trees.map((_, i) => i).sort(() => Math.random() - 0.5)) {
-    const tiers = trees[ti].tiers;
-    for (let t = 0; t < tiers.length && pts > 0 && open(tiers, t); t++) if (!tiers[t].some(n => T[n.id])) put(pick(tiers[t]));   // one point down each tier first
-    for (let t = 0; t < tiers.length && pts > 0 && open(tiers, t); t++) for (const n of tiers[t].slice().sort(() => Math.random() - 0.5)) while (put(n));   // then fill it
-  }
+  const fill = (trees, n0) => {   // baby points into the baby trees, adult points into the adult ones
+    pts = Math.max(0, n0);
+    const open = (tr, t) => L >= tierLvl(tr, t) && (t === 0 || tr.tiers[t - 1].some(n => T[n.id]));
+    for (const tr of trees.slice().sort(() => Math.random() - 0.5)) {
+      for (let t = 0; t < tr.tiers.length && pts > 0 && open(tr, t); t++) if (!tr.tiers[t].some(n => T[n.id])) put(pick(tr.tiers[t]));   // one point down each tier first
+      for (let t = 0; t < tr.tiers.length && pts > 0 && open(tr, t); t++) for (const n of tr.tiers[t].slice().sort(() => Math.random() - 0.5)) while (put(n));   // then fill it
+    }
+  };
+  fill(BABY_TREES[k] || [], Math.min(L, EVO_LVL - 1) - 1);
+  if (L >= EVO_LVL) fill(PET_TREES[k] || [], L - (EVO_LVL - 1));
   return T;
 }
 // every wild animal (bosses too) gets a full talent build, its team's synergies and team talents; wild ones also a nature and genes
@@ -6763,7 +6834,8 @@ function updateBattle(dt) {
     if (u.hpWait > 0) u.hpWait -= dt; else { const sh = u.showHp ?? u.hp; u.showHp = Math.abs(u.hp - sh) < 0.5 ? u.hp : sh + (u.hp - sh) * Math.min(1, dt * 10); }
   }
   if (B.intro) { updateIntro(dt); return; }
-  if (B.coin) B.coin.t += dt;   // (the coin keeps fading out while the first turn begins)
+  if (B.coin) B.coin.t += dt;
+  if (B.ultFlash > 0) B.ultFlash -= dt;   // (the coin keeps fading out while the first turn begins)
   if (B.lock > 0) { B.lock -= dt; return; }
   if (B.pvp && !B.pvp.host && B.phase !== 'won' && B.phase !== 'lost') { pvpGuestStep(); if (B && B.phase === 'player') battleInput(); return; }
   if (B.phase === 'start') {
@@ -6887,11 +6959,63 @@ function drawCoin() {
     else { const s2 = 1 + 0.15 * Math.max(0, 1 - (t - COIN_T) / 0.25); ctx.save(); ctx.translate(cx, base + 72); ctx.scale(s2, s2); banner(C.side === 'ally' ? 'You go first!' : 'They go first!', 0, 0, { size: 28, h: 46, pad: 80 }); ctx.restore(); }
   } finally { ctx.restore(); W = keepW; H = keepH; }
 }
+// ---------- evolving: a baby glows, pulses faster and faster, bursts into light, and the adult stands there ----------
+const EVO_T = 3.3, EVO_BURST = 2.2;
+function drawEvo(it, t) {   // (draws over the whole W x H)
+  const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), anim = d.fly ? 'fly' : 'idle', port = VIEW.portrait;
+  const cx = W / 2, cy = port ? H / 2 - 30 : H / 2 + 10, fr = (animFrames(sheet, anim) || [])[0], aS = ANIM_SCALE[sheet] || 1;
+  let base = 6; if (fr) base = Math.min(base, (port ? 300 : 340) / (fr[2] * aS), (port ? 280 : 250) / (fr[3] * aS));
+  const foot = d.fly ? cy : cy + 90, babyS = base * (0.6 + 0.22), adultS = base;
+  ctx.fillStyle = 'rgba(6,4,12,0.92)'; ctx.fillRect(0, 0, W, H);
+  const rk = Math.min(1, t / EVO_BURST);
+  vicRays(cx, foot - 60, 90 + 160 * rk, `rgba(255,240,200,${(0.05 + 0.13 * rk).toFixed(3)})`);
+  const body = (sc, white) => { ctx.filter = white ? 'brightness(0) invert(1)' : petFilter(k, sheet, it); drawAnim(petSheet(sheet, it), anim, TIME * 5, cx, foot, 1, { scale: sc }); ctx.filter = 'none'; };
+  if (t < EVO_BURST) {   // the baby, glowing whiter and pulsing faster
+    body(babyS * (1 + 0.04 * Math.sin(t * t * 10)), false);
+    const pulse = 0.5 + 0.5 * Math.sin(t * t * 9);
+    ctx.globalAlpha = Math.min(1, t / 1.3) * (0.35 + 0.65 * pulse); body(babyS * (1 + 0.04 * Math.sin(t * t * 10)), true); ctx.globalAlpha = 1;
+    for (let i = 0; i < 10; i++) {   // motes of light drawn in
+      const a = i * 0.628 + t * 1.5, r = 150 * (1 - ((t * 0.7 + i * 0.1) % 1));
+      ctx.fillStyle = `rgba(255,245,210,${0.7 * rk})`; ctx.fillRect(cx + Math.cos(a) * r - 2, foot - 60 + Math.sin(a) * r * 0.7 - 2, 4, 4);
+    }
+  } else {   // the adult
+    const k2 = Math.min(1, (t - EVO_BURST) / 0.55);
+    body(adultS * vicBack(k2), false);
+    if (k2 < 1) { ctx.globalAlpha = 1 - k2; body(adultS * vicBack(k2), true); ctx.globalAlpha = 1; }
+    if (it.g && it.g.shiny) shinySparkle(cx - 90, foot - 170, 180, 160, 5, 1.6, k);
+    for (let i = 0; i < 14; i++) { const a = i * 0.45, r = 40 + (t - EVO_BURST) * 140 + (i % 3) * 12; ctx.fillStyle = `rgba(255,224,130,${Math.max(0, 1 - (t - EVO_BURST) / 1.2)})`; ctx.fillRect(cx + Math.cos(a) * r - 2, foot - 60 + Math.sin(a) * r - 2, 4, 4); }
+  }
+  if (t > EVO_BURST - 0.3 && t < EVO_BURST + 0.6) {   // the flash
+    const f = t < EVO_BURST ? (t - EVO_BURST + 0.3) / 0.3 : 1 - (t - EVO_BURST) / 0.6;
+    ctx.fillStyle = `rgba(255,255,255,${clamp(f, 0, 1)})`; ctx.fillRect(0, 0, W, H);
+  }
+  const who = it.nick || BS[k].baby, ty = port ? 110 : 66;
+  if (t < EVO_BURST) label(`${who} is evolving!`, cx, ty, { align: 'center', size: 26, bold: true, color: PAL.cream });
+  else {
+    banner(`${who} evolved into ${it.nick ? 'a ' : ''}${d.name}!`, cx, ty, { size: 28, h: 50, pad: port ? 60 : 110 });
+    ctx.globalAlpha = Math.min(1, (t - EVO_BURST) / 0.6);
+    label(`Level ${petLvl(it)} · adult talent trees open, with ultimates · can grow to level ${PET_MAX_LVL}`, cx, port ? H - 120 : H - 74, { align: 'center', size: 14, color: PAL.gold });
+    ctx.globalAlpha = 1;
+  }
+}
+function evoTick(dt) {
+  const E = G.evo, t0 = E.t; E.t += dt;
+  if (t0 === 0) SFX.play('coin');
+  if (t0 < EVO_BURST && E.t >= EVO_BURST) { SFX.play('levelup'); SFX.play('chest', true); }
+  if (hit('Enter', ' ', 'e', 'Escape') || E.clicked) { E.clicked = false; if (E.t < EVO_T) E.t = Math.max(E.t, EVO_BURST + 0.6); else G.evo = null; }
+}
+function drawEvoOverlay() {
+  const keepW = W, keepH = H; W = VIEW.w; H = VIEW.h;
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.textBaseline = 'middle';
+  try { drawEvo(G.evo.it, G.evo.t); if (G.evo.t >= EVO_T) label(TOUCH.on ? 'Tap to continue' : 'Click or Enter to continue', W / 2, H - 16, { align: 'center', size: 12, color: PAL.cream }); }
+  finally { ctx.restore(); W = keepW; H = keepH; }
+}
 // ---------- the victory screens: XP and bond for each pet, then achievements, new animals, eggs and the rest ----------
 const vicEase = k => 1 - (1 - k) * (1 - k);
 const vicBack = k => { const c = 1.7; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
 function vicScreens(R) {
   const L = [{ k: 'xp' }];
+  for (const x of R.xp) if (x.lvl0 < EVO_LVL && x.lvl1 >= EVO_LVL && mine(x.u.it)) { L.push({ k: 'evo', it: x.u.it }); EVO_Q = EVO_Q.filter(i => i !== x.u.it); }
   for (const a of R.ach) L.push({ k: 'ach', a });
   for (const it of newbies(R)) L.push({ k: 'pet', it });
   for (const it of R.eggs) L.push({ k: 'egg', it });
@@ -6907,7 +7031,7 @@ const vicFill = x => 1.1 + 0.35 * Math.min(4, x.ups.length);
 const vicDelay = i => 0.3 + i * 0.28;
 function vicLen(scr) {
   if (scr.k === 'xp') return Math.max(0.6, ...B.rewards.xp.map((x, i) => vicDelay(i) + vicFill(x) + 0.9));
-  return scr.k === 'pet' ? 0.9 : 0.6;
+  return scr.k === 'evo' ? EVO_T : scr.k === 'pet' ? 0.9 : 0.6;
 }
 const vicCur = () => (B && B.vic ? B.vic.list[B.vic.i] : null);
 const vicNameList = () => { const c = vicCur(); return c && c.k === 'pet' && mine(c.it) ? [c.it] : []; };
@@ -6920,6 +7044,7 @@ function vicTick(dt) {
     else if (scr.k === 'egg') SFX.play('chest');
   }
   const t0 = V.t; V.t += dt;
+  if (scr.k === 'evo') { if (t0 === 0) SFX.play('coin'); if (t0 < EVO_BURST && V.t >= EVO_BURST) { SFX.play('levelup'); SFX.play('chest', true); } return; }
   if (scr.k !== 'xp') return;
   B.rewards.xp.forEach((x, i) => {   // ticks while the bars fill, a fanfare on each level, a pop when bond grows
     const a = vicDelay(i), f = vicFill(x), lv = t => Math.floor(vicP(x, clamp((t - a) / f, 0, 1)));
@@ -6935,7 +7060,7 @@ function vicP(x, k) {   // a pet's progress in levels (level + fraction of the b
 }
 function vicNext() {   // a click: finish the animation first, then the next screen; after the last, back to the floor
   const V = B.vic, scr = vicCur();
-  if (scr && V.t < vicLen(scr)) { V.t = vicLen(scr) + 0.01; return; }
+  if (scr && V.t < vicLen(scr)) { V.t = scr.k === 'evo' ? Math.max(V.t, EVO_BURST + 0.6, vicLen(scr) + 0.01) : vicLen(scr) + 0.01; return; }
   V.i++; V.t = 0;
   if (V.i >= V.list.length) endBattle();
 }
@@ -6946,7 +7071,7 @@ function drawVictory() {
   NAME_BTN_R = null;
   try {
     const dim = VIEW.portrait ? 0.9 : 0.82; ctx.fillStyle = `rgba(8,5,3,${V.i ? dim : Math.min(dim, 0.3 + V.t * 2)})`; ctx.fillRect(0, 0, W, H);
-    if (scr.k === 'xp') drawVicXp(); else if (scr.k === 'ach') drawVicAch(scr); else if (scr.k === 'pet') drawVicPet(scr.it); else if (scr.k === 'egg') drawVicEgg(scr.it); else drawVicLoot(scr);
+    if (scr.k === 'evo') drawEvo(scr.it, V.t); else if (scr.k === 'xp') drawVicXp(); else if (scr.k === 'ach') drawVicAch(scr); else if (scr.k === 'pet') drawVicPet(scr.it); else if (scr.k === 'egg') drawVicEgg(scr.it); else drawVicLoot(scr);
     // the way on, and how many screens there are
     const n = V.list.length, done = V.t >= vicLen(scr);
     if (n > 1) for (let i = 0; i < n; i++) { ctx.fillStyle = i === V.i ? PAL.gold : i < V.i ? 'rgba(255,211,107,0.45)' : 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(W / 2 + (i - (n - 1) / 2) * 16, H - 34, i === V.i ? 5 : 4, 0, 7); ctx.fill(); }
@@ -8562,6 +8687,7 @@ function onMouseDown(btn) {
     return;
   }
   if (G.coll) { collClick(btn); return; }
+  if (G.evo) { if (btn === 0) G.evo.clicked = true; return; }
   if (btn === 0 && NAME_BTN_R && inRect(mouse, NAME_BTN_R)) {   // naming new animals
     if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp) { NAME_BTN_R = null; nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
     if (G.panel === 'newborn' && G.newborn) { NAME_BTN_R = null; G.panel = null; nameNewbies([G.newborn]); return; }
@@ -9301,22 +9427,66 @@ function talLayout() {
   TREE_W = 170; TREE_X = TAL.x + (TAL.w - 3 * TREE_W - 2 * TREE_GAP) / 2; TREE_LBL = 28; TAL_TOP = TAL.y + 176; ROW_Y = TAL_TOP + 86;
   Object.assign(TAL_RESET, { x: TAL.x + 14, y: TAL.y + TAL.h - 50, w: 200, h: 38 }); Object.assign(TAL_CLOSE, { x: TAL.x + TAL.w - 174, y: TAL.y + TAL.h - 50, w: 160, h: 38 });
 }
-function talentRects(it) {
-  const out = [];
-  (PET_TREES[it.def.pet] || []).forEach((tr, ti) => {
-    const x0 = TREE_X + ti * (TREE_W + TREE_GAP), ax = x0 + TREE_LBL, aw = TREE_W - TREE_LBL - 6;
+const talStage = it => (PK && PK.talTab) || (isAdult(it) ? 'adult' : 'baby');
+const stageLine = it => (isAdult(it) ? `Adult · baby points ${Math.max(0, stagePoints(it, 'baby'))} · adult ${Math.max(0, stagePoints(it, 'adult'))}` : `Baby · evolves at level ${EVO_LVL}`);
+function talArea() {   // where the trees go: right of the pet (landscape) or under it (portrait)
+  return PORTRAIT() ? { x: TAL.x + 8, y: TAL_TOP + 2, w: TAL.w - 16, h: TAL_RESET.y - 8 - (TAL_TOP + 2) } : { x: TAL.x + 200, y: TAL.y + 12, w: TAL.w - 212, h: TAL.h - 24 };
+}
+function talTabs() { const A = talArea(), w = Math.min(220, (A.w - 10) / 2); return [{ stage: 'baby', r: { x: A.x, y: A.y, w, h: 32 } }, { stage: 'adult', r: { x: A.x + w + 10, y: A.y, w, h: 32 } }]; }
+function talCol(ti, n) { const A = talArea(), gap = 8, w = (A.w - (n - 1) * gap) / n; return { x: A.x + ti * (w + gap), y: A.y + 40, w, h: A.h - 62 }; }
+const talRowY = (c, k, n) => c.y + 56 + k * Math.min(74, (c.h - 70) / n);
+function talentRects(it) {   // one icon per talent: a tier's talents side by side, the ultimate a little bigger
+  const out = [], shown = treesOf(it.def.pet).filter(tr => tr.stage === talStage(it));
+  shown.forEach((tr, ti) => {
+    const c = talCol(ti, shown.length);
     tr.tiers.forEach((row, k) => {
-      const y = ROW_Y + k * ROW_H;
-      if (row.length === 1) out.push({ t: row[0], ti, tier: k + 1, x: ax + (aw - 150) / 2, y, w: 150, h: NODE_H });
-      else row.forEach((t, c) => { const w = (aw - 8) / 2; out.push({ t, ti, tier: k + 1, x: ax + c * (w + 8), y, w, h: NODE_H }); });
+      const y = talRowY(c, k, tr.tiers.length);
+      row.forEach((t, i) => { const sz = t.ab ? 50 : 44; out.push({ t, tr, tier: k + 1, x: c.x + c.w / 2 + 8 + (i - (row.length - 1) / 2) * 62 - sz / 2, y, w: sz, h: sz }); });
     });
   });
   return out;
+}
+// ---- talent icons: one picture per kind of effect (fang, shield, flame...), in the tree's colour ----
+const TICON_KINDS = ['atk', 'hp', 'crit', 'critMul', 'def', 'evade', 'regen', 'heal', 'shield', 'thorns', 'bleed', 'burn', 'poison', 'stun', 'blind', 'weak',
+  'mark', 'first', 'double', 'cleave', 'team', 'xp', 'cd', 'pow', 'turns', 'killheal', 'execute', 'lifesteal', 'guard', 'taunt', 'dot', 'undying', 'ult', 'key'];
+const TICON_EMOJI = { atk: '⚔️', hp: '❤️', crit: '🎯', critMul: '💥', def: '🛡️', evade: '💨', regen: '🌿', heal: '💚', shield: '🔰', thorns: '🌵', bleed: '🩸', burn: '🔥', poison: '☠️',
+  stun: '💫', blind: '🌑', weak: '🥀', mark: '❌', first: '⚡', double: '✌️', cleave: '🌀', team: '👥', xp: '📖', cd: '⏳', pow: '💪', turns: '⌛', killheal: '🍖', execute: '💀',
+  lifesteal: '🧛', guard: '🤝', taunt: '📣', dot: '🧪', undying: '✨', ult: '👑', key: '🔑' };
+const TICON_BY_FX = [['ults', 'ult'], ['shieldStart', 'shield'], ['teamShieldStart', 'shield'], ['tauntStart', 'taunt'], ['guard', 'guard'], ['thorns', 'thorns'], ['bleedOn', 'bleed'], ['bleedAmp', 'bleed'],
+  ['burnOn', 'burn'], ['poisonOn', 'poison'], ['poisonAmp', 'poison'], ['stunCh', 'stun'], ['stunAmp', 'stun'], ['blindOn', 'blind'], ['blindAmp', 'blind'], ['weakOn', 'weak'], ['markOn', 'mark'], ['markAmp', 'mark'],
+  ['firstStrike', 'first'], ['teamFirstStrike', 'first'], ['killExtra', 'first'], ['double', 'double'], ['cleave', 'cleave'], ['execute', 'execute'], ['finPct', 'execute'], ['finMul', 'execute'],
+  ['killHeal', 'killheal'], ['lifesteal', 'lifesteal'], ['critMul', 'critMul'], ['crit', 'crit'], ['evade', 'evade'], ['regen', 'regen'], ['teamRegen', 'regen'], ['heal', 'heal'], ['dot', 'dot'], ['dur', 'turns'],
+  ['startSt', 'undying'], ['foeStartSt', 'blind'], ['petXp', 'xp'], ['teamAtk', 'team'], ['teamCrit', 'team'], ['teamHp', 'team'], ['teamDef', 'team'], ['hp', 'hp'], ['def', 'def'], ['atk', 'atk']];
+function talentKind(n) {
+  if (n._kind) return n._kind;
+  const M = fxOf(n); let kind = n.ab ? 'ult' : null;
+  if (!kind) for (const [k, v] of TICON_BY_FX) if (M[k]) { kind = v; break; }
+  if (!kind && M.up) { const u = Object.values(M.up)[0] || {}; kind = u.cd ? 'cd' : u.pow ? 'pow' : u.turns ? 'turns' : u.heal ? 'heal' : u.hits ? 'double' : u.stx ? 'mark' : u.ch ? 'stun' : 'pow'; }
+  return (n._kind = kind || 'key');
+}
+function drawTalentIcon(t, r, o) {
+  const ult = !!t.ab, rad = ult ? 12 : 8;
+  ctx.save();
+  ctx.fillStyle = o.rank > 0 ? 'rgba(60,44,20,0.95)' : 'rgba(26,18,12,0.95)'; rr(r.x, r.y, r.w, r.h, rad); ctx.fill();
+  ctx.fillStyle = o.rank >= t.max ? 'rgba(255,213,79,0.22)' : o.rank > 0 ? 'rgba(255,213,79,0.1)' : o.can ? `rgba(129,199,132,${o.over ? 0.32 : 0.18})` : 'rgba(0,0,0,0)'; rr(r.x, r.y, r.w, r.h, rad); ctx.fill();
+  ctx.strokeStyle = o.rank > 0 ? PAL.gold : o.can ? PAL.good : o.over ? 'rgba(255,255,255,0.6)' : ult ? o.color : 'rgba(255,255,255,0.18)'; ctx.lineWidth = o.rank > 0 || o.can || ult || o.over ? 2 : 1;
+  rr(r.x, r.y, r.w, r.h, rad); ctx.stroke();
+  ctx.fillStyle = o.color; ctx.globalAlpha = o.open ? 0.85 : 0.35; ctx.fillRect(r.x + 4, r.y + r.h - 5, r.w - 8, 2); ctx.globalAlpha = 1;
+  const kind = talentKind(t), sheet = art('ui/talent_icons');
+  if (!o.open) ctx.globalAlpha = 0.4;
+  if (sheet) {   // ChatGPT's icon sheet: TICON_KINDS order, 8 to a row
+    const cell = sheet.width / 8, i = TICON_KINDS.indexOf(kind), sz = r.w - 12;
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(sheet, (i % 8) * cell, Math.floor(i / 8) * cell, cell, cell, r.x + 6, r.y + 4, sz, sz);
+  } else { ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `${Math.round(r.w * 0.48)}px ${UI}`; ctx.fillStyle = '#fff'; ctx.fillText(TICON_EMOJI[kind] || '•', r.x + r.w / 2, r.y + r.h / 2 - 1); }
+  ctx.globalAlpha = 1;
+  for (let q = 0; q < t.max; q++) { ctx.fillStyle = q < o.rank ? PAL.gold : 'rgba(255,255,255,0.22)'; ctx.beginPath(); ctx.arc(r.x + r.w / 2 + (q - (t.max - 1) / 2) * 9, r.y + r.h + 6, 3, 0, 7); ctx.fill(); }
+  ctx.restore();
 }
 const talIt = () => PK && (typeof PK.talent === 'number' ? petSlots[PK.talent] : PK.talent);
 function talentClick() {
   talLayout();
   const it = talIt(); if (!it) { PK.talent = null; return; }
+  for (const tb of talTabs()) if (inRect(mouse, tb.r)) { PK.talTab = tb.stage; SFX.play('pick'); return; }
   for (const r of talentRects(it)) if (inRect(mouse, r)) {
     const t = r.t, why = talentBlock(it, t);
     if (!why && learnTalent(it, t)) showMsg(`${t.name}: rank ${tal(it, t.id)}/${t.max}`, 1.2);
@@ -9346,8 +9516,7 @@ function drawTalentHead(it) {
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x2, y + 30, w2, 7); ctx.fillStyle = PAL.good; ctx.fillRect(x2, y + 30, w2 * Math.min(1, xp / need), 7);
   ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(L >= PET_MAX_LVL ? 'max level' : `${xp} / ${need} XP to level ${L + 1}`, x2, y + 48);
   ctx.font = `bold 15px ${UI}`; ctx.fillStyle = pts > 0 ? PAL.gold : '#8a7458'; ctx.fillText(`Talent points: ${pts}`, x2, y + 70);
-  const nextTier = TIER_LVL.findIndex(l => l > L);
-  ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText(nextTier > 0 ? `Tier ${nextTier} opens at level ${TIER_LVL[nextTier]}` : 'All tiers open', x2, y + 88);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText(fitText(stageLine(it), w2), x2, y + 88);
   let sy = y + 108;
   ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('Synergies', x2, sy); sy += 15;
   const mine = SYNERGIES.filter(q => q.pets.includes(it.def.pet));
@@ -9365,7 +9534,7 @@ function drawTalentHead(it) {
 // Nicknames (it.nick) show wherever the animal's name does; it.born says where it came from; it.rec counts its battles.
 const NICK_MAX = 14;
 const cleanNick = s => (typeof s === 'string' ? s.replace(/[^\p{L}\p{N} '\-.!_]/gu, '').replace(/\s+/g, ' ').trim().slice(0, NICK_MAX) : '');
-const petName = it => (it && it.nick) || (it && it.def ? it.def.name : '?');
+const petName = it => (it && it.nick) || (it && it.def ? (it.def.pet && BS[it.def.pet] && it.plvl && petLvl(it) < EVO_LVL ? BS[it.def.pet].baby : it.def.name) : '?');   // (a baby goes by its baby name)
 const petRec = it => (it.rec = it.rec && typeof it.rec === 'object' ? it.rec : { f: 0, w: 0, ko: 0, ft: 0 });
 const mine = it => !!it && HERD.includes(it);
 function tallyBattle(won) {   // every one of your animals that fought: one more battle (and maybe a win)
@@ -9606,7 +9775,8 @@ function drawCollPage(it) {
     y += 5;
   }
   y += 4; y = head('Talents', y);
-  for (const tr of PET_TREES[k] || []) {
+  for (const tr of treesOf(k)) {
+    if (tr.stage === 'adult' && !isAdult(it)) continue;
     const spent = tr.tiers.flat().reduce((a, n) => a + tal(it, n.id), 0);
     label(tr.name, x, y, { size: 12, bold: true, color: tr.color || PAL.cream }); label(`${spent} point${spent === 1 ? '' : 's'}`, x + w, y, { align: 'right', size: 12, color: spent ? PAL.good : PAL.dim }); y += 15;
   }
@@ -9666,8 +9836,7 @@ function drawTalents() {
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(lx + 14, TAL.y + 200, lw - 28, 7); ctx.fillStyle = PAL.good; ctx.fillRect(lx + 14, TAL.y + 200, (lw - 28) * Math.min(1, xp / need), 7);
   ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(L >= PET_MAX_LVL ? 'max level' : `${xp} / ${need} XP to level ${L + 1}`, lx + lw / 2, TAL.y + 217);
   ctx.font = `bold 15px ${UI}`; ctx.fillStyle = pts > 0 ? PAL.gold : '#8a7458'; ctx.fillText(`Talent points: ${pts}`, lx + lw / 2, TAL.y + 242);
-  const nextTier = TIER_LVL.findIndex(l => l > L);
-  ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText(nextTier > 0 ? `Tier ${nextTier} opens at level ${TIER_LVL[nextTier]}` : 'All tiers open', lx + lw / 2, TAL.y + 260);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText(fitText(stageLine(it), lw - 10), lx + lw / 2, TAL.y + 260);
   let sy = drawTraits(it, lx + 10, TAL.y + 274, lw - 20) + 2;
   ctx.textAlign = 'left';
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('Synergies', lx + 10, sy); sy += 16;
@@ -9684,64 +9853,49 @@ function drawTalents() {
     const over = inRect(mouse, b);
     button(b, label, { hover: over, size: 14, color: b === TAL_CLOSE ? PAL.gold : PAL.cream });
   }
-  // ---- right: three trees ----
-  const rects = talentRects(it); let hov = null;
-  trees.forEach((tr, ti) => {
-    const x0 = TREE_X + ti * (TREE_W + TREE_GAP), spent = tr.tiers.flat().reduce((a, n) => a + tal(it, n.id), 0);
-    panel(x0, TAL_TOP + 14, TREE_W, 380, 'dark');
-    ctx.fillStyle = tr.color; ctx.fillRect(x0 + 10, TAL_TOP + 50, TREE_W - 20, 2);
-    ctx.textAlign = 'center'; ctx.font = `${TREE_W < 200 ? 20 : 24}px ${TITLE}`; ctx.fillStyle = tr.color; ctx.fillText(fitText(tr.name, TREE_W - 12), x0 + TREE_W / 2, TAL_TOP + 32);
-    ctx.font = `12px ${UI}`; ctx.fillStyle = spent ? PAL.cream : '#8a7458'; ctx.fillText(`${spent} point${spent === 1 ? '' : 's'} spent`, x0 + TREE_W / 2, TAL_TOP + 64);
-    tr.tiers.forEach((row, k) => {   // level labels down the side
-      const open = L >= TIER_LVL[k + 1];
-      ctx.textAlign = 'left'; ctx.font = `bold 11px ${UI}`; ctx.fillStyle = open ? PAL.good : '#7a6650';
-      ctx.fillText(k === 4 ? 'ULT' : `T${k + 1}`, x0 + (TREE_LBL < 38 ? 5 : 8), ROW_Y + k * ROW_H + 15);
-      ctx.font = `${TREE_LBL < 38 ? 10 : 11}px ${UI}`; ctx.fillText(`${TREE_LBL < 38 ? 'L' : 'Lv '}${TIER_LVL[k + 1]}`, x0 + (TREE_LBL < 38 ? 5 : 8), ROW_Y + k * ROW_H + 29);
+  // ---- right: the trees of the stage being viewed (tabs: baby / adult) ----
+  const stage = talStage(it), A = talArea(), rects = talentRects(it), shown = treesOf(it.def.pet).filter(tr => tr.stage === stage);
+  for (const tb of talTabs()) {
+    const sp = Math.max(0, stagePoints(it, tb.stage)), lock = tb.stage === 'adult' && !isAdult(it);
+    button(tb.r, `${tb.stage === 'baby' ? 'Baby' : 'Adult'} talents${lock ? ' 🔒' : sp ? `  (${sp})` : ''}`, { hover: inRect(mouse, tb.r) || stage === tb.stage, size: 14, color: stage === tb.stage ? PAL.gold : PAL.cream });
+  }
+  let hov = null;
+  shown.forEach((tr, ti) => {
+    const c = talCol(ti, shown.length), spent = tr.tiers.flat().reduce((x, n) => x + tal(it, n.id), 0);
+    panel(c.x, c.y, c.w, c.h, 'dark');
+    ctx.textAlign = 'center'; ctx.font = `${c.w < 170 ? 18 : 22}px ${TITLE}`; ctx.fillStyle = tr.color; ctx.fillText(fitText(tr.name, c.w - 12), c.x + c.w / 2, c.y + 20);
+    ctx.fillStyle = tr.color; ctx.fillRect(c.x + 10, c.y + 34, c.w - 20, 2);
+    ctx.font = `11px ${UI}`; ctx.fillStyle = spent ? PAL.cream : '#8a7458'; ctx.fillText(`${spent} point${spent === 1 ? '' : 's'}`, c.x + c.w / 2, c.y + 46);
+    tr.tiers.forEach((row, k) => {   // the level each tier opens at, down the side
+      const lv = tierLvl(tr, k), y = talRowY(c, k, tr.tiers.length);
+      ctx.textAlign = 'left'; ctx.font = `bold 10px ${UI}`; ctx.fillStyle = L >= lv ? PAL.good : '#7a6650';
+      ctx.fillText(row[0] && row[0].ab ? 'ULT' : `L${lv}`, c.x + 6, y + 22);
     });
-    // lines from each tier down to the next
-    for (let k = 1; k < tr.tiers.length; k++) for (const a of rects.filter(r => r.ti === ti && r.tier === k)) for (const b of rects.filter(r => r.ti === ti && r.tier === k + 1)) {
-      const lit = tal(it, a.t.id) > 0 && tal(it, b.t.id) > 0, ready = tal(it, a.t.id) > 0;
+    for (let k = 1; k < tr.tiers.length; k++) for (const p of rects.filter(r => r.tr === tr && r.tier === k)) for (const q of rects.filter(r => r.tr === tr && r.tier === k + 1)) {   // lines down the tree
+      const lit = tal(it, p.t.id) > 0 && tal(it, q.t.id) > 0, ready = tal(it, p.t.id) > 0;
       ctx.strokeStyle = lit ? PAL.gold : ready ? 'rgba(165,214,167,0.55)' : 'rgba(255,255,255,0.1)'; ctx.lineWidth = lit ? 2.5 : 1.5;
-      ctx.beginPath(); ctx.moveTo(a.x + a.w / 2, a.y + a.h); ctx.lineTo(b.x + b.w / 2, b.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x + p.w / 2, p.y + p.h + 10); ctx.lineTo(q.x + q.w / 2, q.y - 2); ctx.stroke();
     }
   });
   for (const r of rects) {
-    const t = r.t, rank = tal(it, t.id), open = L >= TIER_LVL[r.tier], can = canLearn(it, t), over = inRect(mouse, r), ult = r.tier === 5, col = trees[r.ti].color;
+    const t = r.t, rank = tal(it, t.id), open = L >= tierLvl(r.tr, r.tier - 1), can = canLearn(it, t), over = inRect(mouse, r);
     if (over) hov = r;
-    ctx.fillStyle = rank >= t.max ? 'rgba(255,213,79,0.16)' : rank > 0 ? 'rgba(255,213,79,0.08)' : can ? `rgba(129,199,132,${over ? 0.3 : 0.16})` : open ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.025)';
-    const tint = ctx.fillStyle; panel(r.x, r.y, r.w, r.h, 'dark'); ctx.fillStyle = tint; rr(r.x + 2, r.y + 2, r.w - 4, r.h - 4, ult ? 8 : 4); ctx.fill();
-    ctx.strokeStyle = rank > 0 ? PAL.gold : can ? PAL.good : over ? 'rgba(255,255,255,0.5)' : ult && open ? col : 'rgba(255,255,255,0.13)';
-    ctx.lineWidth = rank > 0 || can || ult ? 2 : 1; ctx.stroke();
-    ctx.textAlign = 'center'; ctx.font = `bold ${r.w < 100 ? 10.5 : 11.5}px ${UI}`; ctx.fillStyle = !open ? '#7a6650' : rank > 0 ? PAL.gold : PAL.cream;
-    const name = (ult ? '★ ' : '') + t.name;
-    if (ctx.measureText(name).width > r.w - 10) { const ws = name.split(' '), h = Math.ceil(ws.length / 2); ctx.fillText(ws.slice(0, h).join(' '), r.x + r.w / 2, r.y + 11); ctx.fillText(ws.slice(h).join(' '), r.x + r.w / 2, r.y + 24); }
-    else ctx.fillText(name, r.x + r.w / 2, r.y + 16);
-    for (let q = 0; q < t.max; q++) { ctx.fillStyle = q < rank ? PAL.gold : 'rgba(255,255,255,0.2)'; ctx.beginPath(); ctx.arc(r.x + r.w / 2 + (q - (t.max - 1) / 2) * 11, r.y + r.h - 8, 3.5, 0, 7); ctx.fill(); }
+    drawTalentIcon(t, r, { rank, open, can, over, color: r.tr.color });
   }
-  // ---- details of the talent under the mouse ----
-  const port = PORTRAIT(), DX = TREE_X, DY = TAL_TOP + 402, DW = port ? 3 * TREE_W + 2 * TREE_GAP : TAL.w - (TREE_X - TAL.x) - 12, DH = port ? TAL_RESET.y - 10 - DY : TAL.h - 414;
-  panel(DX, DY, DW, DH, 'dark');
-  ctx.textAlign = 'left';
-  if (hov) {
-    const t = hov.t, rank = tal(it, t.id), why = talentBlock(it, t), cap = s => s.charAt(0).toUpperCase() + s.slice(1) + '.';
-    ctx.font = `bold 14px ${UI}`; ctx.fillStyle = trees[hov.ti].color;
-    ctx.fillText(`${hov.tier === 5 ? '★ ' : ''}${t.name}`, DX + 12, DY + 16);
-    ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'right';
-    ctx.fillText(`${trees[hov.ti].name} · ${hov.tier === 5 ? 'Ultimate' : hov.tier === 3 ? 'Keystone' : 'Tier ' + hov.tier} · rank ${rank}/${t.max}`, DX + DW - 12, DY + 16);
-    ctx.textAlign = 'right'; ctx.font = `bold 13px ${UI}`; ctx.fillStyle = rank >= t.max ? PAL.gold : why ? '#f08a6a' : PAL.good;
-    ctx.fillText(why || (TOUCH.on ? 'Tap to learn.' : 'Click to learn.'), DX + DW - 12, DY + 34);
-    ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.cream;
-    const ultAb = hov.tier === 5 && BS[it.def.pet].ult[hov.ti];
-    if (ultAb) {   // ultimates: the full breakdown of the ability it teaches
-      const lines = [ABIL[ultAb].d].concat(abilityLines(null, ultAb).slice(0, -1)).join(' ');
-      wrap('ULTIMATE: learns ' + ABIL[ultAb].n + '. ' + lines + ' ' + abilityLines(null, ultAb).slice(-1)[0], DX + 12, DY + 52, DW - 24, 14);
-    } else {
-      let y = wrap((rank ? 'Now: ' : '') + cap(t.txt(Math.max(1, rank))), DX + 12, DY + 52, DW - 24, 14);
-      if (rank && rank < t.max) { ctx.fillStyle = PAL.good; wrap('Next rank: ' + cap(t.txt(rank + 1)), DX + 12, y + 2, DW - 24, 14); }
-    }
-  } else {
-    ctx.font = `13.5px ${UI}`; ctx.fillStyle = PAL.dim;
-    wrap('Spend points from the top of a tree down. Each tier opens at the level on the left and needs a point in the tier above it. Mix trees or go deep for the ultimates; reset any time for free.', DX + 12, DY + 22, DW - 24, 16);
+  if (stage === 'adult' && !isAdult(it)) {   // a look ahead: the adult trees wait for evolution
+    ctx.fillStyle = 'rgba(10,6,4,0.45)'; ctx.fillRect(A.x, A.y + 40, A.w, A.h - 40);
+    label(`Opens when ${petName(it)} evolves at level ${EVO_LVL}`, A.x + A.w / 2, A.y + 40 + (A.h - 40) / 2, { align: 'center', size: 16, bold: true, color: PAL.gold });
+  }
+  if (!hov) { ctx.font = `12px ${UI}`; label(fitText(TOUCH.on ? 'Hold a talent to see what it does · tap to learn it' : 'Point at a talent to see what it does · click to learn it', A.w - 10), A.x + A.w / 2, A.y + A.h - 8, { align: 'center', size: 12, color: PAL.dim }); }
+  else {   // the talent's details, beside it
+    const t = hov.t, rank = tal(it, t.id), why = talentBlock(it, t), cap = x => x.charAt(0).toUpperCase() + x.slice(1) + '.';
+    const kind = t.ab ? 'Ultimate' : hov.tier === 3 && t.max === 1 ? 'Keystone' : `Tier ${hov.tier}`;
+    const lines = [`${hov.tr.stage === 'baby' ? 'Baby' : 'Adult'} · ${hov.tr.name} · ${kind} · rank ${rank}/${t.max} · opens at level ${tierLvl(hov.tr, hov.tier - 1)}`];
+    if (t.ab) { lines.push(`Learns ${ABIL[t.ab].n}: ${ABIL[t.ab].d}`); lines.push(...abilityLines(null, t.ab)); }
+    else { lines.push((rank ? 'Now: ' : '') + cap(t.txt(Math.max(1, rank)))); if (rank && rank < t.max) lines.push('Next rank: ' + cap(t.txt(rank + 1))); }
+    lines.push(rank >= t.max ? 'Fully learned.' : why || (TOUCH.on ? 'Tap to learn it.' : 'Click to learn it.'));
+    const est = 44 + lines.reduce((x, l) => x + Math.ceil(l.length / 46), 0) * 17, below = hov.y + hov.h + 14;
+    drawTipBox((t.ab ? '★ ' : '') + t.name, lines, hov.x + hov.w / 2, below + est < H - 6 ? below : Math.max(6, hov.y - est - 6), 400);
   }
   if (G.msgT > 0 && G.msg) drawToast(G.msg, PORTRAIT() ? TAL_RESET.y - 30 : TAL.y + TAL.h - 40);   // feedback for the last click (learned, locked, reset...)
 }
@@ -9939,8 +10093,10 @@ function draw() {
     return;
   }
   drawScreen();
+  if (G && B && B.ultFlash > 0 && G.mode === 'battle') { ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = `rgba(255,215,120,${B.ultFlash * 0.4})`; ctx.fillRect(0, 0, VIEW.w, VIEW.h); ctx.restore(); }
   if (G && B && B.coin && !B.pvp && !B.intro && (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle'))) drawCoin();
   if (G && B && B.vic && B.phase === 'won' && B.rewards && !B.pvp && (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle'))) { drawVictory(); if (G.mode === 'pause') drawPauseMenu(); }
+  if (G && G.evo) drawEvoOverlay();
   if (G && G.coll) drawColl();
 }
 function drawScreen() {
@@ -10838,7 +10994,7 @@ const tradeLite = it => ({ pid: it.pid, k: it.def.pet, lvl: petLvl(it), xp: Math
 function tradeItem(o) {   // an animal described by your friend's game, as something you can look at
   if (!o || typeof o !== 'object' || !BS[o.k] || !ITEMS['pet_' + o.k] || !PETS[o.k]) return null;
   const it = makeItem('pet_' + o.k); it.pid = 'offer'; it.plvl = numIn(o.lvl, 1, PET_MAX_LVL, 1) | 0; it.xp = numIn(o.xp, 0, 1e6, 0) | 0; it.talV = 1; it.g = cleanGenes(o.g);
-  const ok = new Map(); for (const tr of PET_TREES[o.k] || []) for (const tier of tr.tiers) for (const n of tier) ok.set(n.id, n.max);
+  const ok = new Map(); for (const tr of treesOf(o.k)) for (const tier of tr.tiers) for (const n of tier) ok.set(n.id, n.max);
   it.talents = {}; if (o.talents && typeof o.talents === 'object') for (const [id, r] of Object.entries(o.talents)) if (ok.has(id)) it.talents[id] = clamp(r | 0, 0, ok.get(id));
   it.remotePid = typeof o.pid === 'string' ? o.pid.slice(0, 40) : ''; it.nick = cleanNick(o.nick);
   return it;
@@ -11181,6 +11337,9 @@ function update(dt) {
     return;
   }
   if (G.coll) { collKeys(); return; }   // (My Animals: the game waits underneath)
+  if (G.evo) { evoTick(dt); return; }
+  if (G.hub && G.mode === 'play') noteTalentRefund();
+  if (EVO_Q.length && G.mode === 'play' && !G.panel && !PK && !B) { G.evo = { it: EVO_Q.shift(), t: 0 }; if (!mine(G.evo.it)) G.evo = null; }
   if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp && hit('n')) { nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
   if (G.mode === 'play' && G.hub && G.panel === 'newborn' && G.newborn && hit('n')) { G.panel = null; nameNewbies([G.newborn]); return; }
   switch (G.mode) {
