@@ -75,6 +75,8 @@ STRIPS = {   # sheet name: (raw strip fx_<name>.png, frames, height in backgroun
     'waterflow': ('waterfall', 6, 48, dict(body=(0.3, 0.7, 0.2, 0.78), tile=True)),
     'moonflow': ('moonwater', 6, 32, {}),
     'runeflow': ('runes', 6, 48, dict(green=True)),
+    'drip': ('water', 6, 16, dict(row=(0, 2))),   # Act IV: a drop forming, falling, splashing
+    'bubble': ('water', 6, 10, dict(row=(1, 2))),   # Act IV: bubbles of six sizes
     'ember': ('particles', 4, 5, dict(row=(1, 4))),
     'firefly': ('particles', 4, 7, dict(row=(0, 4))),
     'dust': ('particles', 4, 4, dict(row=(2, 4))),
@@ -121,6 +123,17 @@ FX = {
              dict(k='sprite', L=1, s='banner_boss', fps=6, cx=340, top=42, cut=[318, 42, 46, 125], t0=0.4),
              dict(k='scroll', L=0, s='fog', y=200, speed=7, a=0.5, tint='hue-rotate(320deg) saturate(1.6) brightness(0.8)'),
              dict(k='drift', L=3, s='ember', fps=8, count=12, area=[0, 60, 480, 180], vx=1, vy=-8, wob=5, a=0.7, add=1, tint='saturate(0.6) brightness(0.8)')],
+    # Act IV, under the sea: drips fall from above and splash, bubbles rise
+    'temple': [dict(k='drip', L=3, s='drip', count=9, area=[10, 0, 460, 225], cycle=2.6, a=0.85),
+               dict(k='drift', L=2, s='bubble', fps=0, count=14, area=[0, 30, 480, 200], vx=0, vy=-14, wob=4, a=0.9, sc=1),
+               dict(k='drift', L=1, s='dust', fps=4, count=10, area=[40, 60, 400, 150], vx=2, vy=-1, wob=6, a=0.3, add=1, tint='hue-rotate(150deg)')],
+    'coral': [dict(k='drip', L=3, s='drip', count=8, area=[30, 0, 420, 225], cycle=2.8, a=0.85),
+              dict(k='drift', L=2, s='bubble', fps=0, count=12, area=[0, 30, 480, 200], vx=1, vy=-14, wob=4, a=0.9, sc=1),
+              dict(k='drift', L=1, s='dust', fps=4, count=14, area=[20, 50, 440, 160], vx=4, vy=0, wob=5, a=0.35, tint='sepia(0.6)')],   # sand motes in the sunlight
+    'trench': [dict(k='drip', L=3, s='drip', count=7, area=[30, 0, 420, 225], cycle=3.0, a=0.7),
+               dict(k='drift', L=1, s='bubble', fps=0, count=12, area=[228, 40, 40, 110], vx=0, vy=-22, wob=3, a=0.85, sc=0.8),   # streaming up from the vent
+               dict(k='drift', L=2, s='bubble', fps=0, count=8, area=[0, 40, 480, 180], vx=0, vy=-10, wob=4, a=0.75, sc=1),
+               dict(k='drift', L=2, s='firefly', fps=5, count=12, area=[10, 30, 460, 180], vx=1, vy=-1, wob=6, a=0.25, add=1, sc=0.5, tint='hue-rotate(120deg)')],   # glowing plankton
     'yard': [dict(k='drift', L=0, s='cloud', fps=0, count=5, area=[0, 6, 480, 70], vx=3, vy=0, wob=0, a=0.95),
              dict(k='drift', L=3, s='butterfly', fps=10, count=9, area=[0, 120, 960, 90], vx=10, vy=0, wob=12, a=1)],   # spread over the whole Yard (it is 1800 px wide)
 }
