@@ -280,7 +280,7 @@ function touchMove(e) {
       }
     }
     if (TOUCH.mode === 'scroll') {
-      const d = (TOUCH.lastY - t.clientY) * H / cv.getBoundingClientRect().height;
+      const d = (TOUCH.lastY - t.clientY) * VIEW.h / cv.getBoundingClientRect().height / (VIEW.legacy ? VIEW.s : 1);
       if (G && G.panel === 'trade') tradeScroll(d); else scrollRoster(d);
     }
     TOUCH.lastY = t.clientY;
@@ -1932,9 +1932,15 @@ function lookLock(row, id, cls) {   // null when you have it, otherwise how to e
 // ---------- the dressing screen (the Wardrobe mirror) ----------
 const DRESS = { x: 80, y: 30, w: 800, h: 480 };
 const DRESS_ROWS = [['sex', 'Body'], ['o', 'Outfit'], ['h', 'Hairstyle'], ['hc', 'Hair colour'], ['s', 'Skin tone']];
-const DRESS_ROW = i => ({ x: DRESS.x + 350, y: DRESS.y + 78 + i * 68, w: 420, h: 56 });
+// landscape: the mirror on the left, the choices on the right; portrait: the mirror on top, the choices under it
+const DRESS_PV = () => PORTRAIT() ? { x: DRESS.x + DRESS.w / 2 - 150, y: DRESS.y + 58, w: 300, h: Math.max(220, Math.min(340, DRESS.h - 58 - 5 * 64 - 80)) } : { x: DRESS.x + 24, y: DRESS.y + 58, w: 300, h: 340 };
+const DRESS_ROW = i => PORTRAIT() ? { x: DRESS.x + 30, y: DRESS_PV().y + DRESS_PV().h + 14 + i * 64, w: DRESS.w - 60, h: 56 } : ({ x: DRESS.x + 350, y: DRESS.y + 78 + i * 68, w: 420, h: 56 });
 const DRESS_ARROW = (i, d) => { const r = DRESS_ROW(i); return { x: d < 0 ? r.x + 132 : r.x + r.w - 40, y: r.y + 6, w: 36, h: 36 }; };
 const DRESS_DONE = { x: DRESS.x + DRESS.w - 176, y: DRESS.y + DRESS.h - 54, w: 156, h: 40 };
+function dressLayout() {
+  Object.assign(DRESS, PORTRAIT() ? { x: 6, y: 8, w: 528, h: H - 16 } : { x: 80, y: 30, w: 800, h: 480 });
+  Object.assign(DRESS_DONE, { x: DRESS.x + DRESS.w - 176, y: DRESS.y + DRESS.h - 54, w: 156, h: 40 });
+}
 function dressOptions(row, cls) {
   if (row === 'sex') return [['m', 'Male'], ['f', 'Female']].filter(o => o[0] === 'm' || !!(window.ANIMS && window.ANIMS[cls + '_f']));
   if (row === 'o') return (OUTFITS_OF[cls] || [['classic', 'Classic']]).filter(o => hasOutfitArt(cls, o[0], G.dress ? G.dress.look.sex : 'm'));
@@ -1966,25 +1972,26 @@ function dressKeys() {
   if (hit('ArrowRight', 'd')) dressStep(DRESS_ROWS[D.sel][0], 1);
 }
 function dressClick(btn) {
+  dressLayout();
   if (btn !== 0 || !G.dress) return;
   if (inRect(mouse, DRESS_DONE)) { dressDone(); return; }
   DRESS_ROWS.forEach(([row], i) => { for (const d of [-1, 1]) if (inRect(mouse, DRESS_ARROW(i, d))) { G.dress.sel = i; dressStep(row, d); } if (inRect(mouse, DRESS_ROW(i))) G.dress.sel = i; });
 }
 function drawDress() {
   const D = G.dress; if (!D) return;
-  const L = D.look, cls = G.cls;
+  const L = D.look, cls = G.cls; dressLayout();
   ctx.fillStyle = 'rgba(8,5,3,0.74)'; ctx.fillRect(0, 0, W, H);
   panel(DRESS.x, DRESS.y, DRESS.w, DRESS.h, 'leather');
   banner('The Dressing Mirror', W / 2, DRESS.y + 4, { size: 28, h: 46, pad: 110 });
   // the preview: your hero, trying out a few moves
-  const pv = { x: DRESS.x + 24, y: DRESS.y + 58, w: 300, h: 340 };
+  const pv = DRESS_PV(), fy = pv.y + pv.h - 48;   // (fy: where the hero stands)
   panel(pv.x, pv.y, pv.w, pv.h, 'dark');
-  const gl = ctx.createRadialGradient(pv.x + pv.w / 2, pv.y + 200, 10, pv.x + pv.w / 2, pv.y + 200, 160); gl.addColorStop(0, 'rgba(255,224,170,0.22)'); gl.addColorStop(1, 'rgba(255,224,170,0)');
+  const gl = ctx.createRadialGradient(pv.x + pv.w / 2, fy - 92, 10, pv.x + pv.w / 2, fy - 92, 160); gl.addColorStop(0, 'rgba(255,224,170,0.22)'); gl.addColorStop(1, 'rgba(255,224,170,0)');
   ctx.fillStyle = gl; ctx.fillRect(pv.x, pv.y, pv.w, pv.h);
   const moves = ['idle', 'run', 'idle', 'jump'], an = moves[Math.floor(TIME / 2.2) % moves.length], sh = heroSheet(cls, L);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(pv.x + pv.w / 2, pv.y + 292, 58, 10, 0, 0, 7); ctx.fill();
-  drawAnim(sh, an, an === 'jump' ? 2 : TIME * (an === 'run' ? 10 : 6), pv.x + pv.w / 2, pv.y + 292, 1, { scale: 7 });
-  label(`${CLASSES[cls].name}  ·  ${myName()}`, pv.x + pv.w / 2, pv.y + 320, { align: 'center', size: 15, bold: true, color: PAL.gold });
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(pv.x + pv.w / 2, fy, 58, 10, 0, 0, 7); ctx.fill();
+  drawAnim(sh, an, an === 'jump' ? 2 : TIME * (an === 'run' ? 10 : 6), pv.x + pv.w / 2, fy, 1, { scale: pv.h < 300 ? 5.5 : 7 });
+  label(`${CLASSES[cls].name}  ·  ${myName()}`, pv.x + pv.w / 2, fy + 28, { align: 'center', size: 15, bold: true, color: PAL.gold });
   // the choices
   DRESS_ROWS.forEach(([row, nm], i) => {
     const r = DRESS_ROW(i), sel = D.sel === i, opts = dressOptions(row, cls), cur = opts.find(o => o[0] === L[row]) || opts[0] || ['', '-'];
@@ -1999,7 +2006,7 @@ function drawDress() {
     if (!sub && row === 'o') sub = `${opts.findIndex(o => o[0] === cur[0]) + 1} of ${opts.length}`;
     if (sub) label(fitText(sub, r.w - 140), mx, r.y + 46, { align: 'center', size: 11, color: lock ? '#ffab91' : PAL.dim });
   });
-  label('W/S choose  ·  A/D change  ·  Enter done  ·  Esc leave without changing', DRESS.x + 24, DRESS.y + DRESS.h - 30, { size: 12, color: PAL.dim });
+  label(TOUCH.on ? 'Tap ◀ ▶ to change  ·  Back: leave unchanged' : PORTRAIT() ? 'A/D change  ·  Enter done  ·  Esc: unchanged' : 'W/S choose  ·  A/D change  ·  Enter done  ·  Esc leave without changing', DRESS.x + 24, DRESS.y + DRESS.h - 30, { size: 12, color: PAL.dim });
   button(DRESS_DONE, 'Done', { hover: inRect(mouse, DRESS_DONE), size: 17, color: PAL.gold });
 }
 // a run ended (death or victory): fold it into the records
@@ -2322,11 +2329,12 @@ const ACT_INFO = [null,
   { name: 'Act IV', sub: 'The Drowned Deep', floors: 'Floors 31-40', bg: 'temple', col: '#7fe0d0', need: 31 }];
 const bestFloorEver = () => Math.max(SAVE.rec.bestFloor || 0, BEST || 0);
 const actsOpen = () => ACT_INFO.filter(a => a && bestFloorEver() >= a.need).length;
-const ACT_N = ACT_INFO.length - 1, ACT_CARD = a => ({ x: W / 2 - (ACT_N * 222 + (ACT_N - 1) * 12) / 2 + (a - 1) * 234, y: 136, w: 222, h: 292 });
+const ACT_N = ACT_INFO.length - 1, ACT_CARD = a => PORTRAIT() ? { x: W / 2 - 262 + ((a - 1) % 2) * 268, y: 130 + Math.floor((a - 1) / 2) * 300, w: 256, h: 290 } : ({ x: W / 2 - (ACT_N * 222 + (ACT_N - 1) * 12) / 2 + (a - 1) * 234, y: 136, w: 222, h: 292 });
 function drawActSelect() {
   ctx.fillStyle = 'rgba(8,5,3,0.75)'; ctx.fillRect(0, 0, W, H);
-  banner('Where to?', W / 2, 62, { size: 38, h: 56, pad: 130 });
-  label('Your pets keep every level · every act starts with just your class kit', W / 2, 108, { align: 'center', size: 14, color: PAL.dim });
+  banner('Where to?', W / 2, PORTRAIT() ? 48 : 62, { size: 38, h: 56, pad: PORTRAIT() ? 80 : 130 });
+  if (PORTRAIT()) para('Your pets keep every level · every act starts with just your class kit', W / 2, 96, W - 40, { align: 'center', size: 14, color: PAL.dim });
+  else label('Your pets keep every level · every act starts with just your class kit', W / 2, 108, { align: 'center', size: 14, color: PAL.dim });
   const fl = G.actFlash && G.actFlash.t > 0 ? G.actFlash : null;
   for (let a = 1; a <= ACT_N; a++) {
     const r = ACT_CARD(a), I = ACT_INFO[a], open = a <= actsOpen(), over = open && inRect(mouse, r);
@@ -2342,10 +2350,10 @@ function drawActSelect() {
     label(I.name, r.x + r.w / 2, r.y + 182, { align: 'center', title: true, size: 30, color: open ? I.col : '#7a6a58' });
     label(I.sub, r.x + r.w / 2, r.y + 214, { align: 'center', size: 16, bold: true, color: open ? PAL.cream : '#8a7a68' });
     label(I.floors, r.x + r.w / 2, r.y + 236, { align: 'center', size: 13, color: PAL.dim });
-    label(open ? `[${a}]  ${a === 1 ? 'Start from the top' : 'Start here'}` : `Reach floor ${I.need} to unlock`, r.x + r.w / 2, r.y + 266,
+    label(open ? `${TOUCH.on ? '' : `[${a}]  `}${a === 1 ? 'Start from the top' : 'Start here'}` : `Reach floor ${I.need} to unlock`, r.x + r.w / 2, r.y + 266,
       { align: 'center', size: 14, bold: true, color: open ? PAL.good : fl && fl.a === a ? '#ff8a70' : '#b08060' });
   }
-  label(`Click an act or press 1-${ACT_N}  ·  Esc to stay in the Sanctuary`, W / 2, 466, { align: 'center', size: 13, color: PAL.dim });
+  label(TOUCH.on ? 'Tap an act  ·  tap outside to stay in the Sanctuary' : `Click an act or press 1-${ACT_N}  ·  Esc to stay in the Sanctuary`, W / 2, PORTRAIT() ? ACT_CARD(ACT_N).y + ACT_CARD(ACT_N).h + 30 : 466, { align: 'center', size: 13, color: PAL.dim });
 }
 function actSelectClick() {
   for (let a = 1; a <= ACT_N; a++) if (inRect(mouse, ACT_CARD(a))) {
@@ -2379,17 +2387,17 @@ function trophyList() {
   ];
 }
 function drawTrophies() {
-  const list = trophyList(), bw = 800, bh = 96 + Math.ceil(list.length / 2) * 52, bx = W / 2 - bw / 2, by = H / 2 - bh / 2;
+  const list = trophyList(), port = PORTRAIT(), cols = port ? 1 : 2, rh = port ? 46 : 52, bw = port ? W - 20 : 800, bh = 96 + Math.ceil(list.length / cols) * rh, bx = W / 2 - bw / 2, by = H / 2 - bh / 2;
   ctx.fillStyle = 'rgba(8,5,3,0.6)'; ctx.fillRect(0, 0, W, H);
   panel(bx, by, bw, bh, 'parch');
   banner(`Trophies  ${list.filter(t => t.done).length} / ${list.length}`, W / 2, by + 4, { size: 26, h: 44, pad: 100 });
   list.forEach((t, i) => {
-    const x = bx + 30 + (i % 2) * (bw / 2 - 20), y = by + 54 + Math.floor(i / 2) * 52;
+    const x = bx + 30 + (i % cols) * (bw / 2 - 20), y = by + 54 + Math.floor(i / cols) * rh;
     label(t.done ? '★' : '☆', x, y + 10, { size: 22, bold: true, color: t.done ? '#b8860b' : '#8a7458' });
     label(t.n, x + 30, y + 2, { size: 15, bold: true, color: t.done ? '#4a2a10' : '#6e5638' });
-    label(fitText(t.d, bw / 2 - 70), x + 30, y + 20, { size: 13, color: t.done ? '#5a3a1a' : '#7a6450' });
+    label(fitText(t.d, bw / cols - 70), x + 30, y + 20, { size: 13, color: t.done ? '#5a3a1a' : '#7a6450' });
   });
-  label('E or Esc to close', W / 2, by + bh - 16, { align: 'center', size: 12, color: '#6b4a2a' });
+  label(TOUCH.on ? 'Tap to close' : 'E or Esc to close', W / 2, by + bh - 16, { align: 'center', size: 12, color: '#6b4a2a' });
 }
 // ---------- the Breeding Den: pair a male and a female of one species; after your next run their egg hatches here ----------
 // The baby's attack, defense and health are its parents' average plus up to 10; its nature is one of theirs (or now and
@@ -2412,14 +2420,23 @@ const DEN = { x: 40, y: 22, w: 880, h: 496 };
 const DEN_BTN = { x: DEN.x + DEN.w / 2 - 110, y: DEN.y + DEN.h - 58, w: 220, h: 40 };
 const DEN_BTN2 = { x: DEN.x + DEN.w - 190, y: DEN.y + DEN.h - 58, w: 160, h: 40 };
 const DEN_BACK = { x: DEN.x + 30, y: DEN.y + DEN.h - 58, w: 160, h: 40 };
-const denChip = i => ({ x: DEN.x + 30 + (i % 6) * 138, y: DEN.y + 112 + Math.floor(i / 6) * 40, w: 130, h: 32 });
-const denCard = (side, i) => ({ x: DEN.x + (side ? DEN.w / 2 + 40 : 50) + i * 116, y: DEN.y + 132, w: 108, h: 106 });
-const DEN_PAGE = (side, dir) => ({ x: DEN.x + (side ? DEN.w / 2 + 40 : 50) + (dir < 0 ? -36 : 3 * 116), y: DEN.y + 168, w: 30, h: 34 });
+// landscape: fathers and mothers side by side; portrait: the whole screen, mothers under fathers, species 3 a row
+function denLayout() {
+  const port = PORTRAIT();
+  Object.assign(DEN, port ? { x: 6, y: 8, w: 528, h: H - 16 } : { x: 40, y: 22, w: 880, h: 496 });
+  const by = DEN.y + DEN.h - 58;
+  if (port) { Object.assign(DEN_BTN, { x: DEN.x + DEN.w - 246, y: by, w: 230, h: 40 }); Object.assign(DEN_BTN2, { x: DEN.x + 16, y: by, w: 170, h: 40 }); Object.assign(DEN_BACK, { x: DEN.x + 16, y: by, w: 150, h: 40 }); }
+  else { Object.assign(DEN_BTN, { x: DEN.x + DEN.w / 2 - 110, y: by, w: 220, h: 40 }); Object.assign(DEN_BTN2, { x: DEN.x + DEN.w - 190, y: by, w: 160, h: 40 }); Object.assign(DEN_BACK, { x: DEN.x + 30, y: by, w: 160, h: 40 }); }
+}
+const denChip = i => PORTRAIT() ? { x: DEN.x + 20 + (i % 3) * 166, y: DEN.y + 132 + Math.floor(i / 3) * 40, w: 158, h: 32 } : ({ x: DEN.x + 30 + (i % 6) * 138, y: DEN.y + 112 + Math.floor(i / 6) * 40, w: 130, h: 32 });
+const denCard = (side, i) => PORTRAIT() ? { x: DEN.x + 58 + i * 140, y: DEN.y + 134 + side * 168, w: 130, h: 120 } : ({ x: DEN.x + (side ? DEN.w / 2 + 40 : 50) + i * 116, y: DEN.y + 132, w: 108, h: 106 });
+const DEN_PAGE = (side, dir) => PORTRAIT() ? { x: dir < 0 ? DEN.x + 18 : DEN.x + 58 + 3 * 140 - 4, y: DEN.y + 176 + side * 168, w: 34, h: 38 } : ({ x: DEN.x + (side ? DEN.w / 2 + 40 : 50) + (dir < 0 ? -36 : 3 * 116), y: DEN.y + 168, w: 30, h: 34 });
 const breedable = k => herdOf(k).some(it => it.g.sex === 'm') && herdOf(k).some(it => it.g.sex === 'f');
 const denList = (k, sex) => herdOf(k).filter(it => it.g.sex === sex).sort((a, b) => (b.g.atk + b.g.def + b.g.hp) - (a.g.atk + a.g.def + a.g.hp));
 // what the pair's baby could look like
 function drawBabyOdds(m, f, x, y, w) {
-  panel(x, y, w, 118, 'dark');
+  const narrow = w < 600;   // (portrait: nature and shiny odds go under the stats)
+  panel(x, y, w, narrow ? 178 : 118, 'dark');
   label('Their baby will have', x + 16, y + 18, { size: 14, bold: true, color: PAL.gold });
   [['atk', 'Attack'], ['def', 'Defense'], ['hp', 'Health']].forEach(([s, nm], i) => {
     const lo = Math.round((m.g[s] + f.g[s]) / 2), hi = Math.min(100, lo + 10), a = grade(lo), b = grade(hi), yy = y + 42 + i * 18;
@@ -2428,29 +2445,32 @@ function drawBabyOdds(m, f, x, y, w) {
     label(a[1] === b[1] ? a[1] : a[1] + ' to ' + b[1], x + w / 2 + 6, yy, { size: 14, bold: true, color: b[2] });
   });
   const sp = (m.g.shiny ? 1 : 0) + (f.g.shiny ? 1 : 0), natA = (NATURES[m.g.nat] || NATURES.calm).n, natB = (NATURES[f.g.nat] || NATURES.calm).n;
-  label(`Nature: ${natA === natB ? natA : natA + ' or ' + natB} (sometimes a new one)`, x + w / 2 + 70, y + 42, { size: 12, color: PAL.cream });
-  label(`Shiny chance: ${Math.round(SHINY_ODDS.bred[sp] * 100)}%`, x + w / 2 + 70, y + 62, { size: 13, bold: true, color: sp ? PAL.gold : PAL.cream });
-  label('Bond starts at 0 · male or female 50/50', x + w / 2 + 70, y + 82, { size: 12, color: PAL.dim });
+  const nx = narrow ? x + 16 : x + w / 2 + 70, ny = narrow ? y + 104 : y + 42;
+  label(fitText(`Nature: ${natA === natB ? natA : natA + ' or ' + natB} (sometimes a new one)`, w - 30), nx, ny, { size: 12, color: PAL.cream });
+  label(`Shiny chance: ${Math.round(SHINY_ODDS.bred[sp] * 100)}%`, nx, ny + 20, { size: 13, bold: true, color: sp ? PAL.gold : PAL.cream });
+  label('Bond starts at 0 · male or female 50/50', nx, ny + 40, { size: 12, color: PAL.dim });
 }
 function drawDen() {
+  denLayout(); const port = PORTRAIT();
   ctx.fillStyle = 'rgba(8,5,3,0.72)'; ctx.fillRect(0, 0, W, H);
   panel(DEN.x, DEN.y, DEN.w, DEN.h, 'leather');
   label('The Breeding Den', DEN.x + 28, DEN.y + 34, { title: true, size: 28, color: PAL.gold });
   const pair = denPair(), D = G.den || (G.den = { k: null, m: null, f: null, mp: 0, fp: 0 });
   if (pair) {   // a pair is nesting
     const [m, f] = pair;
-    label(SAVE.den.ready ? 'An egg is waiting on the pedestal!' : 'The pair is nesting. Come back after your next run (win or lose) for their egg.', DEN.x + 28, DEN.y + 66, { size: 14, bold: true, color: SAVE.den.ready ? PAL.gold : PAL.cream });
-    drawPetCard(m, { x: DEN.x + 200, y: DEN.y + 96, w: 150, h: 130 }, {}); drawPetCard(f, { x: DEN.x + DEN.w - 350, y: DEN.y + 96, w: 150, h: 130 }, {});
-    label('❤', DEN.x + DEN.w / 2, DEN.y + 160 + Math.sin(TIME * 3) * 4, { align: 'center', size: 30, color: '#ff80ab' });
-    drawBabyOdds(m, f, DEN.x + 50, DEN.y + 250, DEN.w - 100);
+    para(SAVE.den.ready ? 'An egg is waiting on the pedestal!' : 'The pair is nesting. Come back after your next run (win or lose) for their egg.', DEN.x + 28, DEN.y + 66, DEN.w - 56, { size: 14, bold: true, color: SAVE.den.ready ? PAL.gold : PAL.cream });
+    const cy = port ? DEN.y + 116 : DEN.y + 96;
+    drawPetCard(m, { x: port ? DEN.x + 50 : DEN.x + 200, y: cy, w: 150, h: 130 }, {}); drawPetCard(f, { x: port ? DEN.x + DEN.w - 200 : DEN.x + DEN.w - 350, y: cy, w: 150, h: 130 }, {});
+    label('❤', DEN.x + DEN.w / 2, cy + 64 + Math.sin(TIME * 3) * 4, { align: 'center', size: 30, color: '#ff80ab' });
+    drawBabyOdds(m, f, port ? DEN.x + 20 : DEN.x + 50, port ? DEN.y + 270 : DEN.y + 250, port ? DEN.w - 40 : DEN.w - 100);
     if (SAVE.den.ready) button(DEN_BTN, 'Hatch the egg!', { hover: inRect(mouse, DEN_BTN), size: 16, color: PAL.gold });
     button(DEN_BTN2, 'Separate them', { hover: inRect(mouse, DEN_BTN2), size: 14 });
-    label('Esc to close', DEN.x + DEN.w / 2, DEN.y + DEN.h - 8, { align: 'center', size: 11, color: PAL.dim });
+    label(TOUCH.on ? 'Tap outside to close' : 'Esc to close', DEN.x + DEN.w / 2, DEN.y + DEN.h - 8, { align: 'center', size: 11, color: PAL.dim });
     return;
   }
   if (!D.k) {   // step 1: a species with a male and a female
-    label('Pick a species. You need a male (♂) and a female (♀) of it.', DEN.x + 28, DEN.y + 68, { size: 14, color: PAL.cream });
-    label('Their baby: the parents\' average stats plus up to 10 more, so breeding your best pets makes even better ones.', DEN.x + 28, DEN.y + 88, { size: 12, color: PAL.dim });
+    const ty = para('Pick a species. You need a male (♂) and a female (♀) of it.', DEN.x + 28, DEN.y + 68, DEN.w - 56, { size: 14, color: PAL.cream });
+    para('Their baby: the parents\' average stats plus up to 10 more, so breeding your best pets makes even better ones.', DEN.x + 28, ty + 2, DEN.w - 56, { size: 12, color: PAL.dim });
     const ks = ownedIds();
     if (!ks.length) label('You have no animals yet.', DEN.x + 28, DEN.y + 130, { size: 14, color: PAL.dim });
     ks.forEach((k, i) => {
@@ -2459,14 +2479,14 @@ function drawDen() {
       label(fitText(PETS[k].name, r.w - 50), r.x + 10, r.y + r.h / 2, { size: 13, bold: true, color: ok ? PAL.cream : '#8a7a68' });
       label(`${nm}♂ ${n.length - nm}♀`, r.x + r.w - 8, r.y + r.h / 2, { align: 'right', size: 12, color: ok ? PAL.good : '#8a7a68' });
     });
-    label('Esc to close', DEN.x + DEN.w / 2, DEN.y + DEN.h - 8, { align: 'center', size: 11, color: PAL.dim });
+    label(TOUCH.on ? 'Tap outside to close' : 'Esc to close', DEN.x + DEN.w / 2, DEN.y + DEN.h - 8, { align: 'center', size: 11, color: PAL.dim });
     return;
   }
   // step 2: choose the father and the mother
   label(`${PETS[D.k].name}: choose a father and a mother`, DEN.x + 28, DEN.y + 68, { size: 15, bold: true, color: PAL.cream });
   [['m', 'Fathers ♂', '#8fc3e0'], ['f', 'Mothers ♀', '#f8a5c2']].forEach(([sex, title, col], side) => {
     const list = denList(D.k, sex), page = D[sex + 'p'] || 0;
-    label(`${title} (${list.length})`, DEN.x + (side ? DEN.w / 2 + 40 : 50), DEN.y + 112, { size: 14, bold: true, color: col });
+    label(`${title} (${list.length})`, port ? DEN.x + 58 : DEN.x + (side ? DEN.w / 2 + 40 : 50), port ? denCard(side, 0).y - 14 : DEN.y + 112, { size: 14, bold: true, color: col });
     list.slice(page * 3, page * 3 + 3).forEach((it, i) => {
       const r = denCard(side, i); drawPetCard(it, r, { sel: D[sex] === it.pid, over: inRect(mouse, r) });
     });
@@ -2474,13 +2494,14 @@ function drawDen() {
     if ((page + 1) * 3 < list.length) button(DEN_PAGE(side, 1), '▶', { hover: inRect(mouse, DEN_PAGE(side, 1)) });
   });
   const m = HERD.find(it => it.pid === D.m), f = HERD.find(it => it.pid === D.f);
-  if (m && f) drawBabyOdds(m, f, DEN.x + 50, DEN.y + 256, DEN.w - 100);
-  else label('Click one of each to see what their baby could be.', DEN.x + DEN.w / 2, DEN.y + 300, { align: 'center', size: 14, color: PAL.dim });
+  if (m && f) drawBabyOdds(m, f, port ? DEN.x + 20 : DEN.x + 50, port ? DEN.y + 478 : DEN.y + 256, port ? DEN.w - 40 : DEN.w - 100);
+  else label(`${TOUCH.on ? 'Tap' : 'Click'} one of each to see what their baby could be.`, DEN.x + DEN.w / 2, port ? DEN.y + 520 : DEN.y + 300, { align: 'center', size: 14, color: PAL.dim });
   button(DEN_BACK, '◀ Species', { hover: inRect(mouse, DEN_BACK), size: 14 });
   button(DEN_BTN, 'Put them in the den', { hover: m && f && inRect(mouse, DEN_BTN), off: !(m && f), size: 15, color: PAL.gold });
 }
 function denClick(btn) {
   if (btn !== 0) return;
+  denLayout();
   const pair = denPair(), D = G.den || (G.den = { k: null, m: null, f: null, mp: 0, fp: 0 });
   if (!inRect(mouse, DEN)) { G.panel = null; return; }
   if (pair) {
@@ -2643,22 +2664,27 @@ function drawHubHUD() {
   label((TOUCH.on ? TOUCH_HINT : (G.visit ? 'A / D move  ·  W jump  ·  E pet their animals  ·  E at the friend post: go home' : HUB_ROOMS[G.hubRoom || 'yard'].hint) + (NET.state !== 'off' ? '  ·  F friends' : '') + '  ·  P menu'), W / 2, H - 12, { align: 'center', size: 12, color: PAL.cream });
   ctx.globalAlpha = 1;
   drawNetBadge();
+  drawHubPanels();
+}
+// the Sanctuary's menus (over the HUD, landscape or portrait)
+function drawHubPanels() {
+  const have = ownedIds().length;
   if (G.panel === 'records') {
     const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`], ['Animals in your Sanctuary', HERD.length], ['Shinies found', r.shinies || 0], ['Animals bred', r.bred || 0], ['Friend battles', `${r.pvpW || 0} won · ${r.pvpL || 0} lost`], ['Animals traded', r.trades || 0],
       ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
-    const half = Math.ceil(rows.length / 2), RH = 27, bw = 760, bh = 96 + half * RH + 86, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10; G.recBox = { bx, by, bw, bh };
+    const port = PORTRAIT(), half = port ? rows.length : Math.ceil(rows.length / 2), RH = port ? 25 : 27, bw = port ? W - 20 : 760, bh = 96 + half * RH + 86, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10; G.recBox = { bx, by, bw, bh };
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
     panel(bx, by, bw, bh, 'parch');
     banner('Run Records', W / 2, by + 4, { size: 30, h: 44, pad: 100 });
     rows.forEach(([k, v], i) => {
-      const col = i < half ? 0 : 1, cx = bx + 30 + col * (bw / 2 - 10), cw = bw / 2 - 50, y = by + 52 + (i % half) * RH;
+      const col = i < half ? 0 : 1, cx = bx + 30 + col * (bw / 2 - 10), cw = port ? bw - 60 : bw / 2 - 50, y = by + 52 + (i % half) * RH;
       label(k, cx, y, { size: 15, color: PAL.parchInk });
       label(String(v), cx + cw, y, { align: 'right', size: 15, bold: true, color: String(v).startsWith('★') ? '#8a5a00' : '#4a2a10' });
       ctx.fillStyle = 'rgba(58,38,20,0.18)'; ctx.fillRect(cx, y + 12, cw, 1);
     });
     ['Export save file', 'Import save file'].forEach((t, i) => button(SAVEF_BTN(i), t, { hover: inRect(mouse, SAVEF_BTN(i)), size: 15, color: i ? PAL.cream : PAL.gold }));
-    label('Move your progress to another browser or computer, or to the online version.', W / 2, by + bh - 40, { align: 'center', size: 12, color: '#6b4a2a' });
-    label('E or walk away to close', W / 2, by + bh - 21, { align: 'center', size: 12, color: '#6b4a2a' });
+    label(fitText('Move your progress to another browser or computer, or to the online version.', bw - 30), W / 2, by + bh - 40, { align: 'center', size: 12, color: '#6b4a2a' });
+    label(TOUCH.on ? 'Tap outside to close' : 'E or walk away to close', W / 2, by + bh - 21, { align: 'center', size: 12, color: '#6b4a2a' });
   }
   if (G.panel === 'team') drawRoster();
   if (G.panel === 'trophies') drawTrophies();
@@ -5372,7 +5398,12 @@ function battleLayout() {
 }
 const groundOf = u => (u.side === 'foe' ? BX.groundF : BX.ground);   // (portrait: the foes stand further back)
 function placeUnits() {   // every frame, so turning the phone mid-battle just works
-  if (!B || B.pvp) return;
+  if (!B) return;
+  if (B.pvp) {   // a friend battle: its own landscape spots, and the same portrait rows
+    const port = PORTRAIT(), map = new Map([...PVP_X.ally.map((x, i) => [x, port ? BX.ally[i] : x]), ...PVP_X.foe.map((x, i) => [x, port ? BX.foe[i] : x])]);
+    for (const u of [...B.allies, ...B.foes]) { if (u.lx == null) u.lx = u.x; u.x = map.get(u.lx) ?? u.lx; }
+    return;
+  }
   // every unit keeps the spot it was given in the landscape layout (u.lx); here that spot is mapped to the current layout
   const L = BX_LAND, map = new Map([...L.ally.map((x, i) => [x, BX.ally[i]]), ...L.foe.map((x, i) => [x, BX.foe[i]]), [L.boss, BX.boss], ...L.minion.map((x, i) => [x, BX.minion[i]])]);
   for (const u of [...B.allies, ...B.foes]) { if (u.lx == null) u.lx = u.x; u.x = map.get(u.lx) ?? u.lx; }
@@ -5897,7 +5928,7 @@ function drawTipBox(title, lines, cx, y, maxW = 580) {
   return h;
 }
 // ---------- input ----------
-const portBattle = () => VIEW.portrait && !VIEW.legacy && B && !B.pvp;
+const portBattle = () => VIEW.portrait && !VIEW.legacy && !!B;
 function BPORT() {   // the portrait panel: moves in a 2-wide grid, then the hero's items 4 across
   const y0 = BX.panelY + 18, room = H - y0 - 12, ah = Math.max(40, Math.min(58, (room - 40) / 5 - 6)), ih = Math.max(36, Math.min(48, ah - 8));
   return { y0, ah, ih, itemsY: y0 + 3 * (ah + 6) + 22 };
@@ -6897,8 +6928,8 @@ function drawBattle() {
   { const fy = port ? BX.sceneH : BX.ground; ctx.fillStyle = R.theme.tile[0]; ctx.fillRect(0, fy, W, H - fy); ctx.fillStyle = R.theme.tile[3]; ctx.fillRect(0, fy, W, 4); }   // the floor your team stands on
   // the hero, behind the pets
   const hs = heroSheet(G.cls);
-  ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, (B.pvp ? PVP_X.hero[0] : BX.hero) + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
-  if (B.pvp) { const o = B.pvp.side.foe, os = heroSheet(o.cls, o.look || cleanLook()); drawAnim(animFrames(os, 'idle') ? os : o.cls, 'idle', B.t * 5 + 2, PVP_X.hero[1], BX.ground, -1, { scale: 2.6 }); }   // your friend's hero
+  ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, (B.pvp && !port ? PVP_X.hero[0] : BX.hero) + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
+  if (B.pvp) { const o = B.pvp.side.foe, os = heroSheet(o.cls, o.look || cleanLook()); drawAnim(animFrames(os, 'idle') ? os : o.cls, 'idle', B.t * 5 + 2, port ? W - 40 : PVP_X.hero[1], port ? BX.groundF : BX.ground, -1, { scale: 2.6 }); }   // your friend's hero
   B.heroAnim = Math.max(0, (B.heroAnim || 0) - 1 / 60);
   ctx.save(); if (B.shakeT > 0) ctx.translate(rand(-1, 1) * (B.shakeA || 4), rand(-1, 1) * (B.shakeA || 4) * 0.6);
   for (const u of [...B.allies, ...B.foes]) drawBattleUnit(u);
@@ -7006,15 +7037,30 @@ function drawRewardsPortrait(R) {
 // ---------- your team: pick which 3 pets are active (front, middle, back) from every pet you own ----------
 const ROSTER = { x: 70, y: 30, w: 820, h: 480 };
 const ROSTER_DONE = { x: ROSTER.x + ROSTER.w - 150, y: ROSTER.y + ROSTER.h - 46, w: 130, h: 34 };
-let rosterSel = 0;
-function rosterSlotRect(i) { return { x: ROSTER.x + 170 + i * 165, y: ROSTER.y + 56, w: 155, h: 110 }; }
+let rosterSel = 0, ROSTER_COLS = 7;
+function rosterSlotRect(i) { return PORTRAIT() ? { x: ROSTER.x + 14 + i * 170, y: ROSTER.y + 112, w: 160, h: 118 } : { x: ROSTER.x + 170 + i * 165, y: ROSTER.y + 56, w: 155, h: 110 }; }
 const ROSTER_GRID = { x: ROSTER.x + 14, y: ROSTER.y + 208, w: ROSTER.w - 42, h: ROSTER.h - 208 - 54 };   // the scrolling list of every pet you own
+// landscape: one wide box; portrait: the whole screen, 4 cards a row (rosterLayout keeps every rect in step)
+function rosterLayout() {
+  const port = PORTRAIT();
+  Object.assign(ROSTER, port ? { x: 6, y: 8, w: 528, h: H - 16 } : { x: 70, y: 30, w: 820, h: 480 });
+  ROSTER_COLS = port ? 4 : 7;
+  const gy = port ? 300 : 208, foot = port ? 78 : 54, by = ROSTER.y + ROSTER.h - 46;
+  Object.assign(ROSTER_GRID, { x: ROSTER.x + 14, y: ROSTER.y + gy, w: ROSTER.w - 42, h: ROSTER.h - gy - foot });
+  Object.assign(ROSTER_DONE, { x: ROSTER.x + ROSTER.w - 150, y: by, w: 130, h: 34 });
+  Object.assign(GIVE_BTN, { x: ROSTER.x + 24, y: by, w: 190, h: 34 });
+  Object.assign(GIVE_REL, { x: ROSTER.x + 24, y: by, w: port ? 130 : 150, h: 34 });
+  Object.assign(GIVE_DON, { x: ROSTER.x + (port ? 164 : 184), y: by, w: port ? 130 : 150, h: 34 });
+  const dw = Math.min(460, W - 30);
+  Object.assign(GIVE_DLG, { x: W / 2 - dw / 2, y: H / 2 - 95, w: dw, h: 190 });
+  Object.assign(GIVE_YES, { x: W / 2 - 160, y: H / 2 + 40, w: 150, h: 36 }); Object.assign(GIVE_NO, { x: W / 2 + 10, y: H / 2 + 40, w: 150, h: 36 });
+}
 let rosterScroll = 0, rosterDrag = null;
 // ---------- giving animals up (the Sanctuary's Your Pets screen): pick several, then Release (back to the wild) or Donate (team XP) ----------
 let GIVE = null;   // { picked: Set of pids, confirm: null | 'release' | 'donate', shinyStep: false }
 const GIVE_BTN = { x: ROSTER.x + 24, y: ROSTER.y + ROSTER.h - 46, w: 190, h: 34 };
 const GIVE_REL = { x: ROSTER.x + 24, y: ROSTER.y + ROSTER.h - 46, w: 150, h: 34 }, GIVE_DON = { x: ROSTER.x + 184, y: ROSTER.y + ROSTER.h - 46, w: 150, h: 34 };
-const GIVE_DLG = { x: W / 2 - 230, y: H / 2 - 95, w: 460, h: 190 }, GIVE_YES = { x: W / 2 - 160, y: H / 2 + 40, w: 150, h: 36 }, GIVE_NO = { x: W / 2 + 10, y: H / 2 + 40, w: 150, h: 36 };
+const GIVE_DLG = { x: 250, y: 175, w: 460, h: 190 }, GIVE_YES = { x: 320, y: 310, w: 150, h: 36 }, GIVE_NO = { x: 490, y: 310, w: 150, h: 36 };   // (placed by rosterLayout)
 const canGive = () => !!(G && G.hub && !G.visit && G.panel === 'team');
 function giveLock(it) {   // why an animal can't be given up right now (null when it can)
   if (petSlots.includes(it)) return 'In your team';
@@ -7039,8 +7085,8 @@ function giveDo(kind) {
   GIVE = null; rosterScroll = clamp(rosterScroll, 0, rosterMax());
 }
 const rosterList = () => HERD.slice().sort((a, b) => PET_IDS.indexOf(a.def.pet) - PET_IDS.indexOf(b.def.pet) || petLvl(b) - petLvl(a));   // grouped by species, strongest first
-const rosterMax = () => Math.max(0, Math.ceil(HERD.length / 7) * 112 + 6 - ROSTER_GRID.h);
-function rosterCardRect(i) { const c = i % 7, r = Math.floor(i / 7); return { x: ROSTER.x + 20 + c * 112, y: ROSTER_GRID.y + 4 + r * 112 - rosterScroll, w: 106, h: 104 }; }
+const rosterMax = () => Math.max(0, Math.ceil(HERD.length / ROSTER_COLS) * 112 + 6 - ROSTER_GRID.h);
+function rosterCardRect(i) { const c = i % ROSTER_COLS, r = Math.floor(i / ROSTER_COLS); return { x: ROSTER.x + 20 + c * 112, y: ROSTER_GRID.y + 4 + r * 112 - rosterScroll, w: 106, h: 104 }; }
 const ROSTER_BAR = () => ({ x: ROSTER_GRID.x + ROSTER_GRID.w + 6, y: ROSTER_GRID.y + 2, w: 8, h: ROSTER_GRID.h - 4 });
 function rosterThumb() { const b = ROSTER_BAR(), M = rosterMax(), th = Math.max(28, b.h * ROSTER_GRID.h / (ROSTER_GRID.h + M)); return { x: b.x, y: b.y + (M ? (b.h - th) * rosterScroll / M : 0), w: b.w, h: th }; }
 function scrollRoster(dy) { rosterScroll = clamp(rosterScroll + dy, 0, rosterMax()); }
@@ -7063,10 +7109,12 @@ function drawPetCard(it, r, opt = {}) {
   if (inTeam && !opt.slot) { ctx.font = `bold 10px ${UI}`; ctx.fillStyle = PAL.good; ctx.textAlign = 'right'; ctx.fillText(['FRONT', 'MID', 'BACK'][petSlots.indexOf(it)], r.x + r.w - 6, r.y + 16); }
 }
 function drawRoster() {
+  rosterLayout(); const port = PORTRAIT();
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
   panel(ROSTER.x, ROSTER.y, ROSTER.w, ROSTER.h, 'leather');
   label('Your Pets', ROSTER.x + 26, ROSTER.y + 30, { title: true, size: 32, color: PAL.gold });
-  ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'left'; wrap(GIVE ? 'Click animals to give them up (again to keep one)  ·  team and Den animals stay' : 'Click a slot, then a pet to put it there  ·  right-click a pet: talents', ROSTER.x + 220, ROSTER.y + 24, ROSTER.w - 250, 15);
+  const tip = GIVE ? `${TOUCH.on ? 'Tap' : 'Click'} animals to give them up (again to keep one)  ·  team and Den animals stay` : TOUCH.on ? 'Tap a slot, then a pet to put it there  ·  hold a pet + tap a 2nd finger: talents  ·  swipe the list to scroll' : 'Click a slot, then a pet to put it there  ·  right-click a pet: talents';
+  ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'left'; wrap(tip, port ? ROSTER.x + 26 : ROSTER.x + 220, port ? ROSTER.y + 62 : ROSTER.y + 24, port ? ROSTER.w - 52 : ROSTER.w - 250, 15);
   ctx.font = `bold 13px ${UI}`; ctx.fillStyle = PAL.good;
   ['FRONT  (hit most often)', 'MIDDLE', 'BACK'].forEach((l, i) => { const r = rosterSlotRect(i); ctx.textAlign = 'center'; ctx.fillText(l, r.x + r.w / 2, r.y - 10); });
   for (let i = 0; i < 3; i++) {
@@ -7075,8 +7123,8 @@ function drawRoster() {
     else { panel(r.x, r.y, r.w, r.h, 'dark'); rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.strokeStyle = rosterSel === i ? PAL.gold : 'rgba(255,255,255,0.15)'; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]); ctx.textAlign = 'center'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('empty', r.x + r.w / 2, r.y + r.h / 2); }
   }
   const act = SYNERGIES.filter(sy => syn(sy.id));
-  ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(act.length ? 'Synergies: ' + act.map(sy => `${sy.icon} ${sy.name} — ${sy.txt}`).join('   ') : '', ROSTER.x + 24, ROSTER.y + 186);
-  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(`Your animals (${HERD.length})  ·  ${ownedIds().length} of ${PET_IDS.length} species`, ROSTER.x + 24, ROSTER.y + 202);
+  ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.gold; if (port) wrap(act.length ? 'Synergies: ' + act.map(sy => `${sy.icon} ${sy.name} — ${sy.txt}`).join('   ') : '', ROSTER.x + 24, ROSTER.y + 250, ROSTER.w - 48, 15); else ctx.fillText(act.length ? 'Synergies: ' + act.map(sy => `${sy.icon} ${sy.name} — ${sy.txt}`).join('   ') : '', ROSTER.x + 24, ROSTER.y + 186);
+  ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText(`Your animals (${HERD.length})  ·  ${ownedIds().length} of ${PET_IDS.length} species`, ROSTER.x + 24, ROSTER_GRID.y - 6);
   rosterScroll = clamp(rosterScroll, 0, rosterMax());
   if (rosterDrag) { const b = ROSTER_BAR(), th = rosterThumb().h; rosterScroll = clamp((mouse.y - rosterDrag.off - b.y) / Math.max(1, b.h - th) * rosterMax(), 0, rosterMax()); }
   const Gd = ROSTER_GRID, inGrid = inRect(mouse, Gd);
@@ -7099,14 +7147,14 @@ function drawRoster() {
     const b = ROSTER_BAR(), t = rosterThumb(), hot = rosterDrag || inRect(mouse, { x: b.x - 4, y: b.y, w: b.w + 8, h: b.h });
     ctx.fillStyle = 'rgba(12,7,4,0.7)'; rr(b.x, b.y, b.w, b.h, 4); ctx.fill();
     ctx.fillStyle = hot ? PAL.gold : PAL.brass; rr(t.x + 1, t.y + 1, t.w - 2, t.h - 2, 3); ctx.fill();
-    label('scroll for more ▼', ROSTER.x + ROSTER.w - 30, ROSTER.y + 202, { align: 'right', size: 12, color: PAL.dim });
+    label('scroll for more ▼', ROSTER.x + ROSTER.w - 30, ROSTER_GRID.y - 6, { align: 'right', size: 12, color: PAL.dim });
   }
   const over = inRect(mouse, ROSTER_DONE);
   if (GIVE) {
     const list = givePicked(), n = list.length, xp = list.reduce((a, it) => a + donateXp(it), 0);
     button(GIVE_REL, 'Release', { hover: n > 0 && inRect(mouse, GIVE_REL), size: 15, color: n ? '#ffab91' : PAL.dim });
     button(GIVE_DON, 'Donate', { hover: n > 0 && inRect(mouse, GIVE_DON), size: 15, color: n ? PAL.gold : PAL.dim });
-    label(n ? `${n} picked  ·  Donate: your team shares ${xp} XP` : 'Nothing picked yet', ROSTER.x + 350, ROSTER.y + ROSTER.h - 29, { size: 13, bold: true, color: n ? PAL.cream : PAL.dim });
+    label(n ? `${n} picked  ·  Donate: your team shares ${xp} XP` : 'Nothing picked yet', port ? ROSTER.x + 26 : ROSTER.x + 350, port ? ROSTER.y + ROSTER.h - 62 : ROSTER.y + ROSTER.h - 29, { size: 13, bold: true, color: n ? PAL.cream : PAL.dim });
     button(ROSTER_DONE, 'Cancel', { hover: over, size: 16, color: PAL.cream });
     if (GIVE.confirm) drawGiveConfirm(list, xp);
     return;
@@ -7161,6 +7209,7 @@ function giveClick(btn) {
   return null;
 }
 function rosterClick(btn) {
+  rosterLayout();
   if (GIVE && !canGive()) GIVE = null;
   if (GIVE) return giveClick(btn);
   if (btn === 0 && canGive() && HERD.length && inRect(mouse, GIVE_BTN)) { GIVE = { picked: new Set(), confirm: null, shinyStep: false }; SFX.play('pick'); return null; }
@@ -7174,14 +7223,28 @@ function rosterClick(btn) {
   return null;
 }
 // ---------- your very first pet: pick one of three ----------
-const STARTER_RECT = i => ({ x: W / 2 - 372 + i * 252, y: 112, w: 240, h: 400 });
+const STARTER_RECT = i => { if (!PORTRAIT()) return { x: W / 2 - 372 + i * 252, y: 112, w: 240, h: 400 }; const h = Math.min(260, Math.floor((H - 150) / 3) - 10); return { x: 12, y: 132 + i * (h + 10), w: W - 24, h }; };
 function drawStarter() {
   ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, H);
-  banner('Choose your first companion', W / 2, 62, { size: 34, h: 50, pad: 120 }); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText('Beat wild animals in the dungeon and they leave babies and eggs: that is how you grow your Sanctuary.', W / 2, 100);
+  const port = PORTRAIT();
+  banner('Choose your first companion', W / 2, port ? 44 : 62, { size: port ? 26 : 34, h: 50, pad: port ? 50 : 120 }); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (port) para('Beat wild animals in the dungeon and they leave babies and eggs: that is how you grow your Sanctuary.', W / 2, 90, W - 40, { align: 'center', size: 14, color: PAL.dim });
+  else { ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText('Beat wild animals in the dungeon and they leave babies and eggs: that is how you grow your Sanctuary.', W / 2, 100); }
   STARTERS.forEach((k, i) => {
     const r = STARTER_RECT(i), over = inRect(mouse, r), d = PETS[k], b = BS[k];
     panel(r.x, r.y, r.w, r.h, 'leather'); if (over) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 3; rr(r.x - 2, r.y - 2, r.w + 4, r.h + 4, 10); ctx.stroke(); }
+    if (port) {   // the pet on the left, its moves on the right
+      ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+      const cx = r.x + 78, top = r.y + Math.max(8, (r.h - 190) / 2);
+      drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5 + i, cx, d.fly ? top + 54 : top + 88, 1, { scale: 3.2 });
+      const nsz = Math.min(22, Math.floor(22 * 150 / Math.max(1, (ctx.font = `22px ${TITLE}`, ctx.measureText(b.baby).width))));   /* shrink a long name to fit */
+      label(b.baby, cx, top + 112, { align: 'center', title: true, size: nsz, color: PAL.gold });
+      label(d.role, cx, top + 136, { align: 'center', size: 13, color: PAL.good });
+      label(fitText(`grows into a ${ITEMS['pet_' + k].name}`, 150), cx, top + 154, { align: 'center', size: 12, color: PAL.dim });
+      let y = r.y + 22;
+      for (const a of b.abil) { label(ABIL[a].n, r.x + 166, y, { size: 13, bold: true, color: PAL.cream }); y = para(ABIL[a].d, r.x + 166, y + 16, r.w - 182, { size: 12, lh: 15, color: '#c9b08a' }) + 4; }
+      ctx.restore(); ctx.textAlign = 'center'; return;
+    }
     drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5 + i, r.x + r.w / 2, d.fly ? r.y + 62 : r.y + 92, 1, { scale: 4 * 0.7 });
     ctx.font = `26px ${TITLE}`; ctx.fillStyle = PAL.gold; ctx.fillText(b.baby, r.x + r.w / 2, r.y + 118);
     ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(d.role, r.x + r.w / 2, r.y + 142); ctx.fillStyle = PAL.dim; ctx.fillText(`grows into a ${ITEMS['pet_' + k].name}`, r.x + r.w / 2, r.y + 158);
@@ -7200,10 +7263,24 @@ function starterClick() {
 // =====================================================================
 //  BACKPACK SCREEN
 // =====================================================================
-const CELL = 54, GX = 210, GY = 92, SC = 22;
+let CELL = 54, GX = 210, GY = 92; const SC = 22;
 const STAGE = { x: 210, y: 336, w: 240, h: 134 };
 const PETBOX = { x: 462, y: 336, w: 188, h: 134 };
 const TRASH = { x: 662, y: 336, w: 88, h: 134 };
+// portrait: the bag across the top, then the new loot, then your team and the bin, then what's held / your bonuses
+function packLayout() {
+  if (!(VIEW.portrait && !VIEW.legacy)) {
+    CELL = 54; GX = 210; GY = 92;
+    Object.assign(STAGE, { x: 210, y: 336, w: 240, h: 134 }); Object.assign(PETBOX, { x: 462, y: 336, w: 188, h: 134 }); Object.assign(TRASH, { x: 662, y: 336, w: 88, h: 134 });
+    Object.assign(CLOSE, { x: 390, y: 486, w: 180, h: 36 }); return;
+  }
+  CELL = 49; GX = 25; GY = 84;
+  const y1 = GY + PH * CELL + 32;
+  Object.assign(STAGE, { x: 8, y: y1, w: 524, h: 104 });
+  Object.assign(PETBOX, { x: 8, y: y1 + 112, w: 396, h: 122 });
+  Object.assign(TRASH, { x: 412, y: y1 + 112, w: 120, h: 122 });
+  Object.assign(CLOSE, { x: W / 2 - 90, y: H - 50, w: 180, h: 36 });
+}
 const PETSLOT = 52;
 function petSlotRect(i) { return { x: PETBOX.x + 8 + i * (PETSLOT + 7), y: PETBOX.y + 34, w: PETSLOT, h: PETSLOT }; }
 function petSlotAt(p) { for (let i = 0; i < 3; i++) if (inRect(p, petSlotRect(i))) return i; return null; }
@@ -7774,6 +7851,7 @@ function drawHUD() {
 }
 
 function drawPack() {
+  packLayout();
   if (PK.rosterOnly && PK.roster) {   // the pets menu on its own, over the dimmed world
     ctx.fillStyle = 'rgba(6,6,10,0.45)'; ctx.fillRect(0, 0, W, H);
     drawRoster(); if (PK.talent != null) drawTalents(); return;
@@ -7817,13 +7895,18 @@ function drawPack() {
   const act = SYNERGIES.filter(sy => syn(sy.id));
   if (act.length) { ctx.fillStyle = PAL.gold; ctx.font = `bold 12px ${UI}`; ctx.fillText(act.map(sy => sy.icon + ' ' + sy.name).join('  '), PETBOX.x + PETBOX.w / 2, PETBOX.y + PETBOX.h - 30); }
   ctx.font = `12px ${UI}`; ctx.fillStyle = 'rgba(200,230,201,0.7)';
-  ctx.fillText(fitText('Right-click a pet: talents', PETBOX.w - 16), PETBOX.x + PETBOX.w / 2, PETBOX.y + PETBOX.h - 18);
+  ctx.fillText(fitText(TOUCH.on ? 'Hold a pet + tap a 2nd finger: talents' : 'Right-click a pet: talents', PETBOX.w - 16), PETBOX.x + PETBOX.w / 2, PETBOX.y + PETBOX.h - 18);
   const overTrash = PK.drag && inRect(mouse, TRASH);
   panel(TRASH.x, TRASH.y, TRASH.w, TRASH.h, 'leather');
   if (overTrash) { ctx.fillStyle = 'rgba(201,74,58,0.35)'; rr(TRASH.x + 6, TRASH.y + 6, TRASH.w - 12, TRASH.h - 12, 6); ctx.fill(); }
   ctx.textAlign = 'center'; ctx.font = `30px ${EMOJI}`; ctx.fillText('🗑️', TRASH.x + TRASH.w / 2, TRASH.y + 52);
   ctx.font = `13px ${UI}`; ctx.fillStyle = '#f08a6a'; ctx.fillText('Discard', TRASH.x + TRASH.w / 2, TRASH.y + 96);
 
+  if (VIEW.portrait && !VIEW.legacy) {   // portrait: your bonuses, then the held item's details (or, short on room, one or the other)
+    const y0 = PETBOX.y + PETBOX.h + 10, room = CLOSE.y - 10 - y0, hv = hoveredItem(), both = room >= 330, bh = 178;
+    if (both || !hv) drawPackBonuses(8, y0, 524, Math.min(bh, room));
+    if (hv || both) drawPackInfo(hv, 22, 496, (both ? y0 + bh + 8 : y0) + 22, both ? room - bh - 8 : room);
+  } else {
   // left panel: what your packed items do for the team
   const s = stats;
   panel(10, GY - 22, 190, 404, 'leather');
@@ -7840,40 +7923,7 @@ function drawPack() {
   });
   ctx.textAlign = 'left'; ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; wrap(CLASSES[G.cls].blurb, 24, GY + 26 + rows.length * 22 + 2, 166, 15);
 
-  // right info panel
-  const hv = hoveredItem();
-  const IX = 766, IW = 180;
-  panel(IX - 6, GY - 22, IW + 12, 404, 'leather');
-  ctx.textAlign = 'left';
-  if (hv) {
-    const d = hv.def, rc = RARITY[d.rarity];
-    const lvl = hv.lvl || 1;
-    ctx.font = `bold 15px ${UI}`; ctx.fillStyle = rc.c; ctx.fillText(d.name + (lvl > 1 ? ' ' + ROMAN[lvl] : ''), IX + 12, GY + 4);
-    ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(rc.label + (d.tags.length ? ' · ' + d.tags.join(', ') : ''), IX + 12, GY + 24);
-    const sw = hv.shape[0].length, sh = hv.shape.length, cs = Math.min(30, 150 / Math.max(sw, sh));
-    drawItem({ ...hv, boosted: false, bonus: 0 }, IX + IW / 2 - sw * cs / 2, GY + 42, cs);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.cream;
-    let y = wrap(d.desc, IX + 12, GY + 60 + sh * cs, IW - 24, 18);
-    if (d.pet) {   // pets level up from kills instead of merging
-      const L = petLvl(hv), tp = talentPoints(hv);
-      ctx.font = `bold 13.5px ${UI}`; ctx.fillStyle = PAL.good;
-      y = wrap(`Level ${L}/${PET_MAX_LVL} · ${L < PET_MAX_LVL ? `${hv.xp || 0}/${petXpNeed(L)} kills to next level` : 'max level'}`, IX + 12, y + 4, IW - 24, 17);
-      ctx.font = `13px ${UI}`; ctx.fillStyle = tp > 0 ? PAL.gold : '#c8b48a';
-      y = wrap(tp > 0 ? `${tp} talent point${tp > 1 ? 's' : ''} to spend! Right-click it in its slot.` : 'Right-click it in its pet slot to see its talents.', IX + 12, y + 4, IW - 24, 16);
-    } else {
-      if (lvl > 1) { ctx.font = `bold 13.5px ${UI}`; ctx.fillStyle = LVL_COLOR[lvl]; y = wrap(`Level ${ROMAN[lvl]}: ${levelLine(hv)}.`, IX + 12, y + 4, IW - 24, 17); }
-      ctx.font = `13px ${UI}`; ctx.fillStyle = '#c8b48a';
-      y = wrap(lvl < MAX_LVL ? `Merge: drop another level ${ROMAN[lvl]} ${d.name} onto it → level ${ROMAN[lvl + 1]}.` : 'MAX LEVEL (V).', IX + 12, y + 4, IW - 24, 16);
-    }
-    ctx.font = `14px ${UI}`;
-    if (d.special && hv.bonus !== undefined && pack.includes(hv)) { ctx.fillStyle = PAL.gold; wrap(`Currently giving +${hv.bonus} ${d.special === 'whetstone' ? 'damage' : 'armor'}.`, IX + 12, y + 6, IW - 24, 18); }
-    else if (hv.boosted && pack.includes(hv)) { ctx.fillStyle = PAL.gold; wrap('✦ Boosted by a neighbouring item.', IX + 12, y + 6, IW - 24, 18); }
-  } else {
-    ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('How to pack', IX + 12, GY + 2);
-    ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.cream;
-    let y = GY + 24;
-    for (const t of ['Drag items with the mouse; R or right-click rotates them.', 'Only items in the backpack count: they power up your PETS.', 'Drop an item onto an identical one of the same level to MERGE it (up to level V).', 'Consumables are used by the hero in battle.', 'Eggs hatch after you win 2 fights carrying them.', 'Click the team box to swap pets; right-click a pet for talents.', 'Pet Treats: drop them on a pet in the team box to feed it (+5 bond).', 'Hover any item to see what it does.']) y = wrap('• ' + t, IX + 12, y, IW - 24, 15) + 3;
+  drawPackInfo(hoveredItem(), 766, 180, GY, 404);
   }
 
   // drag ghost
@@ -7902,21 +7952,83 @@ function drawPack() {
 
   // close button
   const hov = inRect(mouse, CLOSE);
-  button(CLOSE, 'Done  [B]', { hover: hov, size: 17, color: PAL.gold });
-  ctx.font = `12px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillText('The dungeon waits while your backpack is open.', W / 2, H - 8);
+  button(CLOSE, TOUCH.on ? 'Done' : 'Done  [B]', { hover: hov, size: 17, color: PAL.gold });
+  ctx.font = `12px ${UI}`; ctx.fillStyle = 'rgba(255,255,255,0.4)'; if (!(VIEW.portrait && !VIEW.legacy)) ctx.fillText('The dungeon waits while your backpack is open.', W / 2, H - 8);
   if (PK.roster) drawRoster();
   if (PK.talent != null) drawTalents();
 }
 
+// what the held / hovered item does (or how to pack), in a panel whose content starts at (IX, IY)
+function drawPackInfo(hv, IX, IW, IY, ph) {
+  panel(IX - 6, IY - 22, IW + 12, ph, 'leather');
+  ctx.textAlign = 'left';
+  if (hv) {
+    const d = hv.def, rc = RARITY[d.rarity];
+    const lvl = hv.lvl || 1;
+    ctx.font = `bold 15px ${UI}`; ctx.fillStyle = rc.c; ctx.fillText(d.name + (lvl > 1 ? ' ' + ROMAN[lvl] : ''), IX + 12, IY + 4);
+    ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(rc.label + (d.tags.length ? ' · ' + d.tags.join(', ') : ''), IX + 12, IY + 24);
+    const sw = hv.shape[0].length, sh = hv.shape.length, cs = Math.min(30, 150 / Math.max(sw, sh));
+    drawItem({ ...hv, boosted: false, bonus: 0 }, IX + IW / 2 - sw * cs / 2, IY + 42, cs);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.font = `14px ${UI}`; ctx.fillStyle = PAL.cream;
+    let y = wrap(d.desc, IX + 12, IY + 60 + sh * cs, IW - 24, 18);
+    if (d.pet) {   // pets level up from kills instead of merging
+      const L = petLvl(hv), tp = talentPoints(hv);
+      ctx.font = `bold 13.5px ${UI}`; ctx.fillStyle = PAL.good;
+      y = wrap(`Level ${L}/${PET_MAX_LVL} · ${L < PET_MAX_LVL ? `${hv.xp || 0}/${petXpNeed(L)} kills to next level` : 'max level'}`, IX + 12, y + 4, IW - 24, 17);
+      ctx.font = `13px ${UI}`; ctx.fillStyle = tp > 0 ? PAL.gold : '#c8b48a';
+      y = wrap(tp > 0 ? `${tp} talent point${tp > 1 ? 's' : ''} to spend! Right-click it in its slot.` : 'Right-click it in its pet slot to see its talents.', IX + 12, y + 4, IW - 24, 16);
+    } else {
+      if (lvl > 1) { ctx.font = `bold 13.5px ${UI}`; ctx.fillStyle = LVL_COLOR[lvl]; y = wrap(`Level ${ROMAN[lvl]}: ${levelLine(hv)}.`, IX + 12, y + 4, IW - 24, 17); }
+      ctx.font = `13px ${UI}`; ctx.fillStyle = '#c8b48a';
+      y = wrap(lvl < MAX_LVL ? `Merge: drop another level ${ROMAN[lvl]} ${d.name} onto it → level ${ROMAN[lvl + 1]}.` : 'MAX LEVEL (V).', IX + 12, y + 4, IW - 24, 16);
+    }
+    ctx.font = `14px ${UI}`;
+    if (d.special && hv.bonus !== undefined && pack.includes(hv)) { ctx.fillStyle = PAL.gold; wrap(`Currently giving +${hv.bonus} ${d.special === 'whetstone' ? 'damage' : 'armor'}.`, IX + 12, y + 6, IW - 24, 18); }
+    else if (hv.boosted && pack.includes(hv)) { ctx.fillStyle = PAL.gold; wrap('✦ Boosted by a neighbouring item.', IX + 12, y + 6, IW - 24, 18); }
+  } else {
+    ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('How to pack', IX + 12, IY + 2);
+    ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.cream;
+    let y = IY + 24;
+    for (const t of [TOUCH.on ? 'Drag items with your finger; tap a second finger to rotate one.' : 'Drag items with the mouse; R or right-click rotates them.', 'Only items in the backpack count: they power up your PETS.', 'Drop an item onto an identical one of the same level to MERGE it (up to level V).', 'Consumables are used by the hero in battle.', 'Eggs hatch after you win 2 fights carrying them.', 'Click the team box to swap pets; right-click a pet for talents.', 'Pet Treats: drop them on a pet in the team box to feed it (+5 bond).', 'Hover any item to see what it does.']) y = wrap('• ' + t, IX + 12, y, IW - 24, 15) + 3;
+  }
+
+}
+function drawPackBonuses(x, y, w, h) {
+  const s = stats, pc = v => Math.round(v * 100) + '%';
+  panel(x, y, w, h, 'leather');
+  label('Team bonuses', x + 16, y + 18, { size: 14, bold: true, color: PAL.gold });
+  const rows = [['❤️', 'Pet HP', '+' + pc(s.hp)], ['⚔️', 'Pet attack', '+' + pc(s.atk)], ['🛡️', 'Pet defense', '+' + s.def], ['🎯', 'Crit chance', '+' + pc(s.crit + (G.cls === 'archer' ? 0.08 : 0))],
+    ['💥', 'Crit damage', 'x' + (1.5 + s.critMul).toFixed(1)], ['💚', 'Regen / turn', pc(s.regen)], ['🦔', 'Thorns', pc(s.thorns)], ['☠️', 'DoT damage', '+' + pc(s.dot)],
+    ['✨', 'Healing', '+' + pc(s.heal)], ['📈', 'XP', '+' + pc(s.xp + (G.cls === 'beastmaster' ? 0.5 : 0))], ['🧪', 'Consumables', s.consumables], ['🥚', 'Eggs carried', s.eggs]];
+  const cw = (w - 36) / 2, rh = Math.min(21, (h - 44) / 6);
+  rows.forEach((rw, i) => {
+    const cx = x + 16 + Math.floor(i / 6) * (cw + 4), yy = y + 42 + (i % 6) * rh;
+    ctx.textBaseline = 'middle'; ctx.font = `14px ${EMOJI}`; ctx.textAlign = 'left'; ctx.fillStyle = PAL.cream; ctx.fillText(rw[0], cx, yy);
+    ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(rw[1], cx + 22, yy);
+    ctx.textAlign = 'right'; ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.cream; ctx.fillText(String(rw[2]), cx + cw - 10, yy);
+  });
+  ctx.textAlign = 'left';
+}
 // ---- pet talent screen: the pet on the left, its three talent trees reading top to bottom ----
 const TAL = { x: 16, y: 14, w: 928, h: 512 };
 const TAL_RESET = { x: 30, y: 14 + 512 - 92, w: 168, h: 34 };
 const TAL_CLOSE = { x: 30, y: 14 + 512 - 50, w: 168, h: 34 };
-const TREE_X = TAL.x + 200, TREE_W = 236, TREE_GAP = 6, ROW_Y = TAL.y + 86, ROW_H = 62, NODE_H = 44;
+let TREE_X = TAL.x + 200, TREE_W = 236, ROW_Y = TAL.y + 86, TREE_LBL = 38, TAL_TOP = TAL.y; const TREE_GAP = 6, ROW_H = 62, NODE_H = 44;
+// landscape: the pet down the left, the trees to its right; portrait: the pet across the top, the three trees under it
+function talLayout() {
+  if (!PORTRAIT()) {
+    Object.assign(TAL, { x: 16, y: 14, w: 928, h: 512 }); Object.assign(TAL_RESET, { x: 30, y: 14 + 512 - 92, w: 168, h: 34 }); Object.assign(TAL_CLOSE, { x: 30, y: 14 + 512 - 50, w: 168, h: 34 });
+    TREE_X = TAL.x + 200; TREE_W = 236; TREE_LBL = 38; TAL_TOP = TAL.y; ROW_Y = TAL_TOP + 86; return;
+  }
+  Object.assign(TAL, { x: 4, y: 6, w: 532, h: H - 12 });
+  TREE_W = 170; TREE_X = TAL.x + (TAL.w - 3 * TREE_W - 2 * TREE_GAP) / 2; TREE_LBL = 28; TAL_TOP = TAL.y + 176; ROW_Y = TAL_TOP + 86;
+  Object.assign(TAL_RESET, { x: TAL.x + 14, y: TAL.y + TAL.h - 50, w: 200, h: 38 }); Object.assign(TAL_CLOSE, { x: TAL.x + TAL.w - 174, y: TAL.y + TAL.h - 50, w: 160, h: 38 });
+}
 function talentRects(it) {
   const out = [];
   (PET_TREES[it.def.pet] || []).forEach((tr, ti) => {
-    const x0 = TREE_X + ti * (TREE_W + TREE_GAP), ax = x0 + 38, aw = TREE_W - 44;
+    const x0 = TREE_X + ti * (TREE_W + TREE_GAP), ax = x0 + TREE_LBL, aw = TREE_W - TREE_LBL - 6;
     tr.tiers.forEach((row, k) => {
       const y = ROW_Y + k * ROW_H;
       if (row.length === 1) out.push({ t: row[0], ti, tier: k + 1, x: ax + (aw - 150) / 2, y, w: 150, h: NODE_H });
@@ -7927,6 +8039,7 @@ function talentRects(it) {
 }
 const talIt = () => PK && (typeof PK.talent === 'number' ? petSlots[PK.talent] : PK.talent);
 function talentClick() {
+  talLayout();
   const it = talIt(); if (!it) { PK.talent = null; return; }
   for (const r of talentRects(it)) if (inRect(mouse, r)) {
     const t = r.t, why = talentBlock(it, t);
@@ -7936,6 +8049,40 @@ function talentClick() {
   }
   if (inRect(mouse, TAL_RESET)) { resetTalents(it); return; }
   if (inRect(mouse, TAL_CLOSE) || !inRect(mouse, TAL)) { PK.talent = null; SFX.play('pick'); }
+}
+// portrait talents: the pet, its level and points, and its traits, side by side across the top
+function drawTalentHead(it) {
+  const d = PETS[it.def.pet], L = petLvl(it), pts = talentPoints(it), rc = RARITY[it.def.rarity].c;
+  const x = TAL.x + 8, y = TAL.y + 10, w = TAL.w - 16, h = TAL_TOP - y - 2;
+  panel(x, y, w, h, 'dark');
+  const g = ctx.createRadialGradient(x + 78, y + 64, 4, x + 78, y + 64, 66); g.addColorStop(0, d.color + '55'); g.addColorStop(1, d.color + '00');
+  ctx.fillStyle = g; ctx.fillRect(x + 4, y + 4, 150, 120);
+  ctx.filter = petFilter(it.def.pet, d.anim, it);
+  if (!drawAnim(petSheet(d.anim, it), d.fly ? 'fly' : 'idle', TIME * 5, x + 78, d.fly ? y + 62 : y + 100, 1, { scale: 3 })) drawItem(it, x + 46, y + 30, 32);
+  ctx.filter = 'none'; if (it.g && it.g.shiny) shinySparkle(x + 20, y + 16, 116, 90, 1, 1.4, it.def.pet);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `20px ${TITLE}`; ctx.fillStyle = it.g && it.g.shiny ? PAL.gold : rc; ctx.fillText(fitText((it.g && it.g.shiny ? '★' : '') + it.def.name, 150), x + 78, y + 124);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(fitText(`${RARITY[it.def.rarity].label} ${d.role}`, 150), x + 78, y + 142);
+  // level, experience, points
+  const x2 = x + 162, w2 = 168;
+  ctx.textAlign = 'left'; ctx.font = `bold 14px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(`Level ${L} / ${PET_MAX_LVL}`, x2, y + 18);
+  const need = petXpNeed(L), xp = L >= PET_MAX_LVL ? need : Math.floor(it.xp || 0);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x2, y + 30, w2, 7); ctx.fillStyle = PAL.good; ctx.fillRect(x2, y + 30, w2 * Math.min(1, xp / need), 7);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; ctx.fillText(L >= PET_MAX_LVL ? 'max level' : `${xp} / ${need} XP to level ${L + 1}`, x2, y + 48);
+  ctx.font = `bold 15px ${UI}`; ctx.fillStyle = pts > 0 ? PAL.gold : '#8a7458'; ctx.fillText(`Talent points: ${pts}`, x2, y + 70);
+  const nextTier = TIER_LVL.findIndex(l => l > L);
+  ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText(nextTier > 0 ? `Tier ${nextTier} opens at level ${TIER_LVL[nextTier]}` : 'All tiers open', x2, y + 88);
+  let sy = y + 108;
+  ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('Synergies', x2, sy); sy += 15;
+  const mine = SYNERGIES.filter(q => q.pets.includes(it.def.pet));
+  if (!mine.length) { ctx.font = `12px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('None for this pet yet.', x2, sy); }
+  for (const q of mine) {
+    if (sy > y + h - 8) break;
+    const partner = q.pets.filter(k => k !== it.def.pet).map(k => PETS[k].name).join(' + ');
+    ctx.font = `bold 11px ${UI}`; ctx.fillStyle = syn(q.id) ? PAL.gold : PAL.dim; ctx.fillText(fitText(`${q.icon} ${q.name} (+ ${partner})${syn(q.id) ? ' ✓' : ''}`, w2), x2, sy); sy += 14;
+  }
+  drawTraits(it, x + 342, y + 16, w - 350);
+  ctx.textAlign = 'left';
 }
 // an animal's traits: sex, shiny, nature, its three graded stats and its bond
 function drawTraits(it, x, y, w) {
@@ -7959,9 +8106,11 @@ function drawTraits(it, x, y, w) {
 }
 function drawTalents() {
   const it = talIt(); if (!it) { PK.talent = null; return; }
+  talLayout();
   const d = PETS[it.def.pet], L = petLvl(it), pts = talentPoints(it), rc = RARITY[it.def.rarity].c, trees = PET_TREES[it.def.pet];
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
   panel(TAL.x, TAL.y, TAL.w, TAL.h, 'leather');
+  if (PORTRAIT()) drawTalentHead(it); else {
   // ---- left: the pet ----
   const lx = TAL.x + 12, lw = 176;
   panel(lx + 2, TAL.y + 14, lw - 4, TAL.h - 28, 'dark');
@@ -7991,7 +8140,8 @@ function drawTalents() {
     ctx.font = `bold 11px ${UI}`; ctx.fillStyle = syn(x.id) ? PAL.gold : PAL.dim;
     ctx.fillText(fitText(`${x.icon} ${x.name} (+ ${partner})${syn(x.id) ? ' ✓' : ''}`, lw - 20), lx + 10, sy); sy += 14;
   }
-  for (const [b, label, col] of [[TAL_RESET, 'Reset talents (free)', '#8d6e63'], [TAL_CLOSE, 'Back  [B]', '#43a047']]) {
+  }
+  for (const [b, label, col] of [[TAL_RESET, 'Reset talents (free)', '#8d6e63'], [TAL_CLOSE, TOUCH.on ? 'Back' : 'Back  [B]', '#43a047']]) {
     const over = inRect(mouse, b);
     button(b, label, { hover: over, size: 14, color: b === TAL_CLOSE ? PAL.gold : PAL.cream });
   }
@@ -7999,15 +8149,15 @@ function drawTalents() {
   const rects = talentRects(it); let hov = null;
   trees.forEach((tr, ti) => {
     const x0 = TREE_X + ti * (TREE_W + TREE_GAP), spent = tr.tiers.flat().reduce((a, n) => a + tal(it, n.id), 0);
-    panel(x0, TAL.y + 14, TREE_W, 380, 'dark');
-    ctx.fillStyle = tr.color; ctx.fillRect(x0 + 10, TAL.y + 50, TREE_W - 20, 2);
-    ctx.textAlign = 'center'; ctx.font = `24px ${TITLE}`; ctx.fillStyle = tr.color; ctx.fillText(tr.name, x0 + TREE_W / 2, TAL.y + 32);
-    ctx.font = `12px ${UI}`; ctx.fillStyle = spent ? PAL.cream : '#8a7458'; ctx.fillText(`${spent} point${spent === 1 ? '' : 's'} spent`, x0 + TREE_W / 2, TAL.y + 64);
+    panel(x0, TAL_TOP + 14, TREE_W, 380, 'dark');
+    ctx.fillStyle = tr.color; ctx.fillRect(x0 + 10, TAL_TOP + 50, TREE_W - 20, 2);
+    ctx.textAlign = 'center'; ctx.font = `${TREE_W < 200 ? 20 : 24}px ${TITLE}`; ctx.fillStyle = tr.color; ctx.fillText(fitText(tr.name, TREE_W - 12), x0 + TREE_W / 2, TAL_TOP + 32);
+    ctx.font = `12px ${UI}`; ctx.fillStyle = spent ? PAL.cream : '#8a7458'; ctx.fillText(`${spent} point${spent === 1 ? '' : 's'} spent`, x0 + TREE_W / 2, TAL_TOP + 64);
     tr.tiers.forEach((row, k) => {   // level labels down the side
       const open = L >= TIER_LVL[k + 1];
       ctx.textAlign = 'left'; ctx.font = `bold 11px ${UI}`; ctx.fillStyle = open ? PAL.good : '#7a6650';
-      ctx.fillText(k === 4 ? 'ULT' : `T${k + 1}`, x0 + 8, ROW_Y + k * ROW_H + 15);
-      ctx.font = `11px ${UI}`; ctx.fillText(`Lv ${TIER_LVL[k + 1]}`, x0 + 8, ROW_Y + k * ROW_H + 29);
+      ctx.fillText(k === 4 ? 'ULT' : `T${k + 1}`, x0 + (TREE_LBL < 38 ? 5 : 8), ROW_Y + k * ROW_H + 15);
+      ctx.font = `${TREE_LBL < 38 ? 10 : 11}px ${UI}`; ctx.fillText(`${TREE_LBL < 38 ? 'L' : 'Lv '}${TIER_LVL[k + 1]}`, x0 + (TREE_LBL < 38 ? 5 : 8), ROW_Y + k * ROW_H + 29);
     });
     // lines from each tier down to the next
     for (let k = 1; k < tr.tiers.length; k++) for (const a of rects.filter(r => r.ti === ti && r.tier === k)) for (const b of rects.filter(r => r.ti === ti && r.tier === k + 1)) {
@@ -8030,7 +8180,7 @@ function drawTalents() {
     for (let q = 0; q < t.max; q++) { ctx.fillStyle = q < rank ? PAL.gold : 'rgba(255,255,255,0.2)'; ctx.beginPath(); ctx.arc(r.x + r.w / 2 + (q - (t.max - 1) / 2) * 11, r.y + r.h - 8, 3.5, 0, 7); ctx.fill(); }
   }
   // ---- details of the talent under the mouse ----
-  const DX = TREE_X, DY = TAL.y + 402, DW = TAL.w - (TREE_X - TAL.x) - 12, DH = TAL.h - 414;
+  const port = PORTRAIT(), DX = TREE_X, DY = TAL_TOP + 402, DW = port ? 3 * TREE_W + 2 * TREE_GAP : TAL.w - (TREE_X - TAL.x) - 12, DH = port ? TAL_RESET.y - 10 - DY : TAL.h - 414;
   panel(DX, DY, DW, DH, 'dark');
   ctx.textAlign = 'left';
   if (hov) {
@@ -8040,7 +8190,7 @@ function drawTalents() {
     ctx.font = `12px ${UI}`; ctx.fillStyle = PAL.dim; ctx.textAlign = 'right';
     ctx.fillText(`${trees[hov.ti].name} · ${hov.tier === 5 ? 'Ultimate' : hov.tier === 3 ? 'Keystone' : 'Tier ' + hov.tier} · rank ${rank}/${t.max}`, DX + DW - 12, DY + 16);
     ctx.textAlign = 'right'; ctx.font = `bold 13px ${UI}`; ctx.fillStyle = rank >= t.max ? PAL.gold : why ? '#f08a6a' : PAL.good;
-    ctx.fillText(why || 'Click to learn.', DX + DW - 12, DY + 34);
+    ctx.fillText(why || (TOUCH.on ? 'Tap to learn.' : 'Click to learn.'), DX + DW - 12, DY + 34);
     ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.cream;
     const ultAb = hov.tier === 5 && BS[it.def.pet].ult[hov.ti];
     if (ultAb) {   // ultimates: the full breakdown of the ability it teaches
@@ -8054,10 +8204,14 @@ function drawTalents() {
     ctx.font = `13.5px ${UI}`; ctx.fillStyle = PAL.dim;
     wrap('Spend points from the top of a tree down. Each tier opens at the level on the left and needs a point in the tier above it. Mix trees or go deep for the ultimates; reset any time for free.', DX + 12, DY + 22, DW - 24, 16);
   }
-  if (G.msgT > 0 && G.msg) drawToast(G.msg, TAL.y + TAL.h - 40);   // feedback for the last click (learned, locked, reset...)
+  if (G.msgT > 0 && G.msg) drawToast(G.msg, PORTRAIT() ? TAL_RESET.y - 30 : TAL.y + TAL.h - 40);   // feedback for the last click (learned, locked, reset...)
 }
 
+const touchDevice = () => TOUCH.on || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches);
+const TOUCH_LINES = [['Drag', 'Move  ·  up: jump / climb  ·  down: drop'], ['Flick', 'Dash past chasms and barriers'], ['Wild animals', 'Run into them to start a battle'], ['Tap', 'Use, talk, choose, pick a target'],
+  ['Hold + 2nd tap', 'Details, rotate an item, talents'], ['☰  menu', 'Backpack, pets, map, pause, music']];
 function drawTitle() {
+  if (PORTRAIT()) { drawTitlePortrait(); return; }
   ctx.fillStyle = '#100b08'; ctx.fillRect(0, 0, W, H);
   const g = ctx.createRadialGradient(W / 2, 230, 20, W / 2, 230, 480); g.addColorStop(0, '#3e2817'); g.addColorStop(1, '#0c0806');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -8072,13 +8226,13 @@ function drawTitle() {
   // controls on a parchment note
   panel(W / 2 - 270, 244, 540, 196, 'parch');
   const lines = [['A / D', 'Move'], ['W', 'Jump  ·  S drops through ledges'], ['Shift', 'Dash past chasms and barriers'], ['Wild animals', 'Run into them to start a battle'], ['1 - 6 + click', 'Battle: choose an ability and a target'], ['B  /  T', 'Backpack  /  your pets'], ['N  ·  P  ·  M', 'Map  ·  Pause  ·  Sound']];
-  lines.forEach(([k, v], i) => {
+  (touchDevice() ? TOUCH_LINES : lines).forEach(([k, v], i) => {
     const y = 270 + i * 22;
     label(k, W / 2 - 70, y, { align: 'right', bold: true, size: 15, color: '#6b3a12' });
     label(v, W / 2 - 56, y, { size: 15, color: PAL.parchInk });
   });
   const a = 0.75 + 0.25 * Math.sin(TIME * 4);
-  ctx.globalAlpha = a; button({ x: W / 2 - 150, y: 456, w: 300, h: 40 }, 'Press Enter or click to begin', { size: 17, color: PAL.gold }); ctx.globalAlpha = 1;
+  ctx.globalAlpha = a; button({ x: W / 2 - 150, y: 456, w: 300, h: 40 }, touchDevice() ? 'Tap to begin' : 'Press Enter or click to begin', { size: 17, color: PAL.gold }); ctx.globalAlpha = 1;
   if (BEST) label(`Deepest floor reached: ${BEST}`, W / 2, 512, { align: 'center', size: 13, color: PAL.dim });
 }
 
@@ -8123,9 +8277,35 @@ function drawClassSelect() {
   if (BEST) { ctx.font = `13px ${UI}`; ctx.fillStyle = '#8d8d8d'; ctx.fillText(`Deepest floor reached: ${BEST}`, W / 2, 508); }
 }
 
+function drawTitlePortrait() {
+  const oy = Math.max(0, Math.round((H - 820) / 2));
+  ctx.fillStyle = '#100b08'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W / 2, oy + 260, 20, W / 2, oy + 260, 560); g.addColorStop(0, '#3e2817'); g.addColorStop(1, '#0c0806');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  drawTorch(56, oy + 110); drawTorch(W - 56, oy + 110);
+  const tc = art('props/chest_open'); if (tc) drawSprite(tc, W / 2, oy + 104, 1, { scale: 3 });
+  banner('Backpack Sanctuary', W / 2, oy + 166, { size: 40, h: 62, pad: 50, dy: 2 });
+  para('Raise a team of animal friends. Pack wisely. Brave the dungeon.', W / 2, oy + 214, W - 60, { align: 'center', size: 16, color: PAL.dim });
+  const lines = touchDevice() ? TOUCH_LINES : [['A / D', 'Move'], ['W', 'Jump  ·  S drops through ledges'], ['Shift', 'Dash past chasms and barriers'], ['Wild animals', 'Run into them to start a battle'], ['1 - 6 + click', 'Battle: ability, then a target'], ['B  /  T', 'Backpack  ·  your pets']];
+  const py = oy + 262, ph = 24 + lines.length * 26;
+  panel(16, py, W - 32, ph, 'parch');
+  lines.forEach(([k, v], i) => {
+    const y = py + 24 + i * 26;
+    label(k, 150, y, { align: 'right', bold: true, size: 14, color: '#6b3a12' });
+    label((ctx.font = `14px ${UI}`, fitText(v, W - 200)), 164, y, { size: 14, color: PAL.parchInk });
+  });
+  const fy = py + ph + 170;   // the hero and some of your animals
+  drawAnim(heroSheet(selClass), 'idle', TIME * 5, 96, fy, 1, { scale: 4 });
+  const pets = (typeof ownedIds === 'function' && ownedIds().length ? ownedIds() : ['dog', 'fox', 'cockatiel']).slice(0, 3);
+  pets.forEach((k, i) => { const d = PETS[k], sh = speciesSheet(k); ctx.filter = standInTint(k, sh); drawAnim(sh, d.fly ? 'fly' : 'idle', TIME * 5 + i, W - 56 - i * 74, d.fly ? fy - 60 : fy, -1, { scale: 2.6 }); ctx.filter = 'none'; });
+  const a = 0.75 + 0.25 * Math.sin(TIME * 4);
+  ctx.globalAlpha = a; button({ x: W / 2 - 150, y: fy + 30, w: 300, h: 44 }, touchDevice() ? 'Tap to begin' : 'Press Enter or click to begin', { size: 17, color: PAL.gold }); ctx.globalAlpha = 1;
+  if (BEST) label(`Deepest floor reached: ${BEST}`, W / 2, fy + 100, { align: 'center', size: 13, color: PAL.dim });
+}
 // ---------- the pause menu: resume, restart, back to the Sanctuary, title screen (run-ending choices ask first) ----------
-const PAUSE_BTN = i => ({ x: W / 2 - 150, y: 204 + i * 56, w: 300, h: 44 });
-const CONFIRM_BTN = i => ({ x: W / 2 - 150 + i * 160, y: 302, w: 140, h: 42 });
+const PAUSE_DY = () => (PORTRAIT() ? Math.round((H - 540) / 2) : 0);   // (portrait: the menu sits in the middle of the tall screen)
+const PAUSE_BTN = i => ({ x: W / 2 - 150, y: 204 + PAUSE_DY() + i * 56, w: 300, h: 44 });
+const CONFIRM_BTN = i => ({ x: W / 2 - 150 + i * 160, y: 302 + PAUSE_DY(), w: 140, h: 42 });
 const CONFIRM_TXT = { restart: 'Restart this run from the beginning?', hub: 'Leave this run and return to the Sanctuary?', title: 'Leave this run and go to the title screen?', forfeit: 'Give up this friendly battle?' };
 function pauseItems() { if (B && B.pvp && G.pauseFrom === 'battle') return [['resume', 'Resume'], ['forfeit', 'Give up the battle']]; return G.hub ? [['resume', 'Resume'], ['title', 'Title screen']] : [['resume', 'Resume'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
 function openPause() { G.pauseFrom = G.mode; G.mode = 'pause'; G.pauseSel = 0; G.confirm = null; SFX.play('pause'); }
@@ -8171,35 +8351,42 @@ function pauseKeys() {
 }
 function drawPauseMenu() {
   ctx.fillStyle = 'rgba(8,5,3,0.74)'; ctx.fillRect(0, 0, W, H);
+  const dy = PAUSE_DY();
   if (G.confirm) {
-    banner('Are you sure?', W / 2, 188, { size: 38, h: 56, pad: 120 });
-    panel(W / 2 - 240, 226, 480, 136, 'parch');
-    label(CONFIRM_TXT[G.confirm], W / 2, 254, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
-    label(G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W / 2, 278, { align: 'center', size: 12, color: '#6b4a2a' });
+    banner('Are you sure?', W / 2, 188 + dy, { size: 38, h: 56, pad: PORTRAIT() ? 80 : 120 });
+    panel(W / 2 - Math.min(240, W / 2 - 10), 226 + dy, Math.min(480, W - 20), 136, 'parch');
+    label(fitText(CONFIRM_TXT[G.confirm], W - 50), W / 2, 254 + dy, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
+    label((ctx.font = `13px ${UI}`, fitText(G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W - 50)), W / 2, 278 + dy, { align: 'center', size: 12, color: '#6b4a2a' });
     ['Yes', 'No'].forEach((t, i) => button(CONFIRM_BTN(i), t, { hover: inRect(mouse, CONFIRM_BTN(i)) || (G.confirmSel === i && !inRect(mouse, CONFIRM_BTN(1 - i))), size: 17, color: i ? PAL.cream : '#ffb199' }));
-    label('Y / N  ·  or arrows + Enter', W / 2, 392, { align: 'center', size: 12, color: PAL.dim });
+    if (!TOUCH.on) label('Y / N  ·  or arrows + Enter', W / 2, 392 + dy, { align: 'center', size: 12, color: PAL.dim });
     return;
   }
   const items = pauseItems();
-  banner('Paused', W / 2, 134, { size: 46, h: 66, pad: 130 });
-  if (!G.hub) label(`${CLASSES[G.cls].name}  ·  Floor ${G.roomNum}${G.roomNum <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''}  ·  ${G.battlesWon || 0} battles won`, W / 2, 180, { align: 'center', size: 14, color: PAL.dim });
+  banner('Paused', W / 2, 134 + dy, { size: 46, h: 66, pad: PORTRAIT() ? 90 : 130 });
+  if (!G.hub) label(`${CLASSES[G.cls].name}  ·  Floor ${G.roomNum}${G.roomNum <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''}  ·  ${G.battlesWon || 0} battles won`, W / 2, 180 + dy, { align: 'center', size: 14, color: PAL.dim });
   let hov = -1; items.forEach((_, i) => { if (inRect(mouse, PAUSE_BTN(i))) hov = i; });
   items.forEach(([k, t], i) => button(PAUSE_BTN(i), t, { hover: hov === i || (hov < 0 && G.pauseSel === i), size: 17, color: k === 'resume' ? PAL.gold : PAL.cream }));
-  label('P or Esc to resume  ·  W/S or arrows + Enter to choose', W / 2, PAUSE_BTN(items.length).y + 10, { align: 'center', size: 12, color: PAL.dim });
+  if (!TOUCH.on) label('P or Esc to resume  ·  W/S or arrows + Enter to choose', W / 2, PAUSE_BTN(items.length).y + 10, { align: 'center', size: 12, color: PAL.dim });
 }
 function drawOverlay(title, sub, sub2) {
   ctx.fillStyle = 'rgba(8,5,3,0.7)'; ctx.fillRect(0, 0, W, H);
   banner(title, W / 2, H / 2 - 60, { size: 46, h: 66, pad: 130 });
-  ctx.font = `17px ${UI}`; const tw = Math.max(ctx.measureText(sub).width, sub2 ? ctx.measureText(sub2).width : 0) + 60;
-  panel(W / 2 - tw / 2, H / 2 - 18, tw, sub2 ? 86 : 52, 'parch');
-  label(sub, W / 2, H / 2 + 8, { align: 'center', size: 17, color: PAL.parchInk });
-  if (sub2) label(sub2, W / 2, H / 2 + 40, { align: 'center', size: 16, bold: true, color: '#7a2e14' });
+  const A = wrapLines(sub, W - 80, 17), Bl = sub2 ? wrapLines(sub2, W - 80, 16, true) : [];
+  ctx.font = `17px ${UI}`; const tw = Math.min(W - 20, Math.max(...A.map(l => ctx.measureText(l).width), ...Bl.map(l => (ctx.font = `bold 16px ${UI}`, ctx.measureText(l).width))) + 60);
+  const th = 30 + A.length * 22 + (Bl.length ? 10 + Bl.length * 21 : 0);
+  panel(W / 2 - tw / 2, H / 2 - 18, tw, th, 'parch');
+  A.forEach((l, i) => label(l, W / 2, H / 2 + 8 + i * 22, { align: 'center', size: 17, color: PAL.parchInk }));
+  Bl.forEach((l, i) => label(l, W / 2, H / 2 + 18 + A.length * 22 + i * 21, { align: 'center', size: 16, bold: true, color: '#7a2e14' }));
 }
 
+const PORTRAIT = () => VIEW.portrait && !VIEW.legacy;   // drawing a portrait layout right now
 // which screens have a portrait layout (the rest are shown at 960x540, fitted across the width)
 function portraitReady() {
-  return !!G && !PK && !G.panel && !NET.typing && (G.mode === 'play' || G.mode === 'trans' || G.mode === 'encounter' || (G.mode === 'battle' && !!B && !B.pvp));
+  if (!G) return SCREEN !== 'class';   // (the old class picker isn't reachable any more)
+  return true;
 }
+// portrait, walking about: the world's 540x540 square (the HUD panel is drawn under it); every other screen gets the whole tall canvas
+const portraitWorldOnly = () => !!G && !PK && !G.panel && (G.mode === 'play' || G.mode === 'trans' || G.mode === 'encounter');
 function draw() {
   if (VIEW.legacy) {   // no portrait layout yet: draw it as in landscape, then fit it across the tall canvas
     const main = ctx; ctx = LEG.ctx;
@@ -8216,6 +8403,8 @@ function drawScreen() {
   ctx.imageSmoothingEnabled = false;
   if (!G) { if (SCREEN === 'class') drawClassSelect(); else drawTitle(); return; }
   if ((G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle')) && B) { drawBattle(); if (B.intro) drawIntro(); if (G.mode === 'pause') drawPauseMenu(); return; }
+  const port = PORTRAIT(), keepH = H;
+  if (port) H = 540;   // (portrait: the world's square)
   ctx.save();
   const shk = G.shake > 0.5 && G.mode === 'play' ? G.shake * 0.8 : 0;
   drawParallax(G.room);
@@ -8234,9 +8423,10 @@ function drawScreen() {
   ctx.restore();
   if (G.hub && G.room.bgKey === 'yard') drawFrontGrass(camX);
   drawVignette();
+  if (port) { if (G.mode !== 'pack') drawPortraitHUD(); H = keepH; }
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
-  if (VIEW.portrait && !VIEW.legacy) drawPortraitHUD(); else if (G.hub) drawHubHUD(); else drawHUD();
-  if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, VIEW.portrait && !VIEW.legacy ? VIEW.w : W, VIEW.portrait && !VIEW.legacy ? VIEW.h : H); }
+  if (port) { if (G.hub) drawHubPanels(); } else if (G.hub) drawHubHUD(); else drawHUD();
+  if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, port ? VIEW.w : W, port ? VIEW.h : H); }
   if (G.mode === 'pause') drawPauseMenu();
   if (G.mode === 'won') drawOverlay('VICTORY!', `The ${CLASSES[G.cls].name} and their pets conquered all ${FINAL_FLOOR} floors · ${G.battlesWon || 0} battles won`, G.wonT > 1 ? 'Enter: keep descending (endless)  ·  Esc: back to the Sanctuary' : '');
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('Your team fainted', `Floor ${G.roomNum} · ${G.battlesWon || 0} battles won · your pets keep every level they earned${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to return to the Sanctuary' : '');
@@ -8310,12 +8500,17 @@ function drawPortraitHUD() {
     ctx.globalAlpha = 0.7;
     wrapLines(TOUCH.on ? TOUCH_HINT : 'A/D move · W jump · S drop · Shift dash · E use · B backpack · T pets · N map · P pause', Wv - 30, 12).forEach((l, i, a) => label(l, Wv / 2, Hv - 14 - (a.length - 1 - i) * 16, { align: 'center', size: 12 }));
     ctx.globalAlpha = 1;
-    if (G.msgT > 0 && G.msg) { W = 540; drawToast(G.msg, 500); }   // just above the bottom of the world's square
+    if (G.msgT > 0 && G.msg && portraitWorldOnly()) { W = 540; drawToast(G.msg, 500); }   // just above the bottom of the world's square (menus show it themselves)
   } finally { W = keepW; H = keepH; }
 }
+function para(t, x, y, maxW, o = {}) {
+  const size = o.size || 13, lh = o.lh || size + 4;
+  for (const l of wrapLines(t, maxW, size, o.bold)) { label(l, x, y, o); y += lh; }
+  return y;
+}
 // split a line of text into lines that fit a width (at a font size)
-function wrapLines(t, maxW, size) {
-  ctx.font = `${size}px ${UI}`; const out = []; let cur = '';
+function wrapLines(t, maxW, size, bold) {
+  ctx.font = `${bold ? 'bold ' : ''}${size}px ${UI}`; const out = []; let cur = '';
   for (const w of String(t).split(' ')) { const nx = cur ? cur + ' ' + w : w; if (ctx.measureText(nx).width > maxW && cur) { out.push(cur); cur = w; } else cur = nx; }
   if (cur) out.push(cur); return out;
 }
@@ -8326,9 +8521,11 @@ function drawHUDMessageOnly() {
 // a message on a slip of parchment
 function drawToast(msg, y) {
   ctx.globalAlpha = Math.min(1, G.msgT * 2);
-  ctx.font = `bold 16px ${UI}`; const tw = Math.min(W - 40, ctx.measureText(msg).width + 44);
-  panel(W / 2 - tw / 2, y - 19, tw, 38, 'parch');
-  label(msg, W / 2, y + 1, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
+  ctx.font = `bold 16px ${UI}`;
+  const lines = ctx.measureText(msg).width + 44 > W - 40 ? wrapLines(msg, W - 84, 16, true) : [msg], n = lines.length;   // too long for the screen: wrap it
+  ctx.font = `bold 16px ${UI}`; const tw = Math.min(W - 40, Math.max(...lines.map(l => ctx.measureText(l).width)) + 44), th = 38 + (n - 1) * 20;
+  panel(W / 2 - tw / 2, y - th / 2, tw, th, 'parch');
+  lines.forEach((l, i) => label(l, W / 2, y + 1 + (i - (n - 1) / 2) * 20, { align: 'center', size: 16, bold: true, color: PAL.parchInk }));
   ctx.globalAlpha = 1;
 }
 
@@ -8395,17 +8592,18 @@ const IMPORT_BTN = i => ({ x: W / 2 - 170 + i * 180, y: H / 2 + 52, w: 160, h: 4
 function drawImportConfirm() {
   const c = G.importing; if (!c) { G.panel = 'records'; return; }
   ctx.fillStyle = 'rgba(8,5,3,0.75)'; ctx.fillRect(0, 0, W, H);
-  banner('Import this save?', W / 2, H / 2 - 128, { size: 32, h: 50, pad: 110 });
-  panel(W / 2 - 280, H / 2 - 98, 560, 214, 'parch');
+  const pw = Math.min(560, W - 20);
+  banner('Import this save?', W / 2, H / 2 - 128, { size: 32, h: 50, pad: PORTRAIT() ? 70 : 110 });
+  panel(W / 2 - pw / 2, H / 2 - 98, pw, 214, 'parch');
   const I = c.info;
-  label(`${I.animals} animals of ${I.species} species · deepest floor ${I.best} · ${I.runs} runs${I.saved ? ' · saved ' + I.saved : ''}`, W / 2, H / 2 - 62, { align: 'center', size: 15, bold: true, color: PAL.parchInk });
+  label((ctx.font = `bold 15px ${UI}`, fitText(`${I.animals} animals of ${I.species} species · deepest floor ${I.best} · ${I.runs} runs${I.saved ? ' · saved ' + I.saved : ''}`, pw - 30)), W / 2, H / 2 - 62, { align: 'center', size: 15, bold: true, color: PAL.parchInk });
   label('It replaces all the progress in this copy of the game:', W / 2, H / 2 - 30, { align: 'center', size: 13, color: '#6b4a2a' });
   label('animals, team, records, trophies, looks and the Breeding Den.', W / 2, H / 2 - 10, { align: 'center', size: 13, color: '#6b4a2a' });
   label('Export your current save first if you want to keep it.', W / 2, H / 2 + 18, { align: 'center', size: 13, bold: true, color: '#8a2a12' });
   ['Import', 'Cancel'].forEach((t, i) => button(IMPORT_BTN(i), t, { hover: inRect(mouse, IMPORT_BTN(i)), size: 17, color: i ? PAL.cream : PAL.gold }));
 }
 function importClick() { if (inRect(mouse, IMPORT_BTN(0))) confirmImport(); else if (inRect(mouse, IMPORT_BTN(1))) { G.importing = null; G.panel = 'records'; SFX.play('pick'); } }
-const SAVEF_BTN = i => { const R = G.recBox || { bx: 100, by: 20, bw: 760, bh: 480 }; return { x: W / 2 - 250 + i * 260, y: R.by + R.bh - 96, w: 240, h: 38 }; };
+const SAVEF_BTN = i => { const R = G.recBox || { bx: 100, by: 20, bw: 760, bh: 480 }, n = Math.min(240, (R.bw - 40) / 2); return { x: W / 2 - n - 6 + i * (n + 12), y: R.by + R.bh - 96, w: n, h: 38 }; };
 function recordsClick() {
   if (inRect(mouse, SAVEF_BTN(0))) { exportSave(); return; }
   if (inRect(mouse, SAVEF_BTN(1))) { importSave(); return; }
@@ -8819,12 +9017,12 @@ function pvpEndBattle() {
 }
 function drawPvpResult(R) {
   ctx.textAlign = 'center';
-  if (R.aborted) { label(R.why, W / 2, 470, { align: 'center', size: 17, bold: true, color: PAL.cream }); }
+  if (R.aborted) { label((ctx.font = `bold 17px ${UI}`, fitText(R.why, W - 30)), W / 2, BX.panelY + 44, { align: 'center', size: 17, bold: true, color: PAL.cream }); }
   else {
-    label(R.why || (R.won ? `You beat ${B.pvp.name}!` : `${B.pvp.name} wins this one!`), W / 2, 462, { align: 'center', size: 20, bold: true, color: R.won ? PAL.gold : '#f0a080' });
-    label(`Your team's bond grows (+${Math.round(R.bond * 10) / 10}) · Friend battles: ${SAVE.rec.pvpW || 0} won, ${SAVE.rec.pvpL || 0} lost`, W / 2, 488, { align: 'center', size: 13, color: '#f8bbd0' });
+    label(R.why || (R.won ? `You beat ${B.pvp.name}!` : `${B.pvp.name} wins this one!`), W / 2, BX.panelY + 36, { align: 'center', size: 20, bold: true, color: R.won ? PAL.gold : '#f0a080' });
+    label(`Your team's bond grows (+${Math.round(R.bond * 10) / 10}) · Friend battles: ${SAVE.rec.pvpW || 0} won, ${SAVE.rec.pvpL || 0} lost`, W / 2, BX.panelY + 62, { align: 'center', size: 13, color: '#f8bbd0' });
   }
-  label('Enter or click to go back to the Sanctuary', W - 14, H - 10, { align: 'right', size: 12, color: 'rgba(255,255,255,0.6)' });
+  label(TOUCH.on ? 'Tap to go back to the Sanctuary' : 'Enter or click to go back to the Sanctuary', W - 14, H - 10, { align: 'right', size: 12, color: 'rgba(255,255,255,0.6)' });
 }
 
 // ---------- trading ----------
@@ -8832,6 +9030,17 @@ const TRADE = { x: 30, y: 20, w: 900, h: 500 };
 const TRADE_GRID = { x: 46, y: 112, w: 460, h: 336 };
 const TRADE_MINE = { x: 526, y: 88, w: 186, h: 352 }, TRADE_THEIRS = { x: 726, y: 88, w: 186, h: 352 };
 const TRADE_OK = { x: 560, y: 456, w: 210, h: 42 }, TRADE_CLOSE = { x: 786, y: 456, w: 126, h: 42 };
+function tradeLayout() {
+  if (!PORTRAIT()) {
+    Object.assign(TRADE, { x: 30, y: 20, w: 900, h: 500 }); Object.assign(TRADE_GRID, { x: 46, y: 112, w: 460, h: 336 });
+    Object.assign(TRADE_MINE, { x: 526, y: 88, w: 186, h: 352 }); Object.assign(TRADE_THEIRS, { x: 726, y: 88, w: 186, h: 352 });
+    Object.assign(TRADE_OK, { x: 560, y: 456, w: 210, h: 42 }); Object.assign(TRADE_CLOSE, { x: 786, y: 456, w: 126, h: 42 }); return;
+  }
+  Object.assign(TRADE, { x: 6, y: 8, w: 528, h: H - 16 });
+  Object.assign(TRADE_MINE, { x: 18, y: 108, w: 236, h: 340 }); Object.assign(TRADE_THEIRS, { x: 286, y: 108, w: 236, h: 340 });
+  Object.assign(TRADE_GRID, { x: 40, y: 486, w: 460, h: H - 486 - 104 });
+  Object.assign(TRADE_OK, { x: W - 372, y: H - 62, w: 210, h: 42 }); Object.assign(TRADE_CLOSE, { x: W - 152, y: H - 62, w: 126, h: 42 });
+}
 const tradeCard = i => ({ x: TRADE_GRID.x + 6 + (i % 4) * 112, y: TRADE_GRID.y + 4 + Math.floor(i / 4) * 108 - (NET.trade ? NET.trade.scroll : 0), w: 106, h: 102 });
 const tradeMax = () => Math.max(0, Math.ceil(HERD.length / 4) * 108 + 8 - TRADE_GRID.h);
 function tradeScroll(dy) { if (NET.trade) NET.trade.scroll = clamp(NET.trade.scroll + dy, 0, tradeMax()); }
@@ -8918,12 +9127,13 @@ function drawTradeBox(r, title, it, ready, col) {
 }
 function drawTrade() {
   const T = NET.trade; if (!T) return;
+  tradeLayout(); const port = PORTRAIT();
   const n = NET.friend ? NET.friend.name : 'Friend';
   ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(0, 0, W, H);
   panel(TRADE.x, TRADE.y, TRADE.w, TRADE.h, 'leather');
   label(`Trade with ${n}`, TRADE.x + 24, TRADE.y + 30, { title: true, size: 28, color: PAL.gold });
-  label('Each of you offers one animal; when you both accept, they swap. It keeps its level, talents and traits, but its bond starts again at 0.', TRADE.x + 24, TRADE.y + 58, { size: 12, color: PAL.dim });
-  label(`Your animals (${HERD.length}): click one to offer it`, TRADE_GRID.x, TRADE_GRID.y - 10, { size: 13, bold: true, color: PAL.gold });
+  para('Each of you offers one animal; when you both accept, they swap. It keeps its level, talents and traits, but its bond starts again at 0.', TRADE.x + 24, TRADE.y + 58, TRADE.w - 48, { size: 12, color: PAL.dim });
+  label(`Your animals (${HERD.length}): ${TOUCH.on ? 'tap' : 'click'} one to offer it`, TRADE_GRID.x, TRADE_GRID.y - 10, { size: 13, bold: true, color: PAL.gold });
   T.scroll = clamp(T.scroll, 0, tradeMax());
   const Gd = TRADE_GRID, inG = inRect(mouse, Gd);
   ctx.save(); ctx.beginPath(); ctx.rect(Gd.x, Gd.y, Gd.w, Gd.h); ctx.clip();
@@ -8938,7 +9148,7 @@ function drawTrade() {
   drawTradeBox(TRADE_THEIRS, `${n} gives`, T.theirs, T.theirReady, '#ffccbc');
   label('⇄', (TRADE_MINE.x + TRADE_MINE.w + TRADE_THEIRS.x) / 2, TRADE_MINE.y + 90, { align: 'center', size: 20, bold: true, color: PAL.gold });
   const [msg, col] = tradeStatus();
-  ctx.font = `bold 14px ${UI}`; label(fitText(msg, 500), TRADE.x + 24, TRADE_OK.y + 21, { size: 14, bold: true, color: col });
+  ctx.font = `bold 14px ${UI}`; label(fitText(msg, port ? TRADE.w - 48 : 500), TRADE.x + 24, port ? TRADE_OK.y - 16 : TRADE_OK.y + 21, { size: 14, bold: true, color: col });
   const can = T.mine && T.theirs;
   button(TRADE_OK, T.ready ? 'Take back' : 'Accept trade', { hover: inRect(mouse, TRADE_OK) && can, off: !can, size: 16, color: T.ready ? PAL.cream : PAL.gold });
   button(TRADE_CLOSE, 'Close', { hover: inRect(mouse, TRADE_CLOSE), size: 16 });
@@ -8946,6 +9156,7 @@ function drawTrade() {
 function tradeClick(btn) {
   const T = NET.trade; if (!T) { G.panel = null; return; }
   if (btn !== 0) return;
+  tradeLayout();
   if (inRect(mouse, TRADE_CLOSE)) { tradeClose(); return; }
   if (inRect(mouse, TRADE_OK)) { tradeSetReady(!T.ready); return; }
   if (inRect(mouse, TRADE_GRID)) rosterList().forEach((it, i) => { if (inRect(mouse, tradeCard(i))) tradeOffer(it); });
@@ -8989,7 +9200,12 @@ function drawRemoteHero() {
 }
 
 // ---------- the friend post's panel ----------
-const NETP = { x: W / 2 - 280, y: 46, w: 560, h: 448 };
+const NETP = { x: 200, y: 46, w: 560, h: 448 };
+function netLayout() {   // landscape: a box in the middle; portrait: across the screen, in the middle
+  Object.assign(NETP, PORTRAIT() ? { x: 6, y: Math.round(H / 2 - 230), w: 528, h: 448 } : { x: W / 2 - 280, y: 46, w: 560, h: 448 });
+  Object.assign(NET_NAME, { x: NETP.x + (PORTRAIT() ? 120 : 150), y: NETP.y + 64, w: PORTRAIT() ? 240 : 260, h: 32 });
+  Object.assign(NET_CLOSE, { x: NETP.x + NETP.w - 130, y: NETP.y + NETP.h - 52, w: 112, h: 38 });
+}
 const NET_BTN = (row, col = 0, cols = 1) => { const w = cols === 1 ? 300 : cols === 2 ? 228 : 156, gap = 12, x0 = W / 2 - (w * cols + gap * (cols - 1)) / 2; return { x: x0 + col * (w + gap), y: NETP.y + 196 + row * 54, w, h: 42 }; };
 const NET_NAME = { x: NETP.x + 150, y: NETP.y + 64, w: 260, h: 32 };
 const NET_CLOSE = { x: NETP.x + NETP.w - 130, y: NETP.y + NETP.h - 52, w: 112, h: 38 };
@@ -9019,6 +9235,7 @@ function netButtons() {
   return out;
 }
 function drawNetPanel() {
+  netLayout();
   const S = NET.state, n = NET.friend ? NET.friend.name : '';
   ctx.fillStyle = 'rgba(8,5,3,0.66)'; ctx.fillRect(0, 0, W, H);
   panel(NETP.x, NETP.y, NETP.w, NETP.h, 'parch');
@@ -9031,7 +9248,7 @@ function drawNetPanel() {
   ctx.strokeStyle = typingName ? PAL.brass : 'rgba(58,38,20,0.35)'; ctx.lineWidth = 2; ctx.stroke();
   const nm = typingName ? NET.buf + (Math.floor(TIME * 2) % 2 ? '|' : ' ') : myName();
   label(nm, NET_NAME.x + 12, NET_NAME.y + 16, { size: 15, bold: true, color: ink });
-  if (!typingName && S === 'off') label('click to change', NET_NAME.x + NET_NAME.w + 10, NET_NAME.y + 16, { size: 11, color: soft });
+  if (!typingName && S === 'off') label(TOUCH.on ? 'tap to change' : 'click to change', NET_NAME.x + NET_NAME.w + 10, NET_NAME.y + 16, { size: 11, color: soft });
   if (typingName) label('Type a name your friend will see, then Enter.', mid, NET_NAME.y + 50, { align: 'center', size: 12, color: soft });
   // what's going on
   const lines = [];
@@ -9067,11 +9284,12 @@ function drawNetPanel() {
   }
   for (const B0 of netButtons()) button(B0.r, B0.txt, { hover: inRect(mouse, B0.r) && !B0.off, off: B0.off, size: B0.id === 'nameOk' ? 13 : 16, color: B0.gold ? PAL.gold : PAL.cream });
   const R = SAVE.rec;
-  label(`Friend battles: ${R.pvpW || 0} won, ${R.pvpL || 0} lost  ·  Trades: ${R.trades || 0}`, NETP.x + 24, NETP.y + NETP.h - 32, { size: 12, color: soft });
-  if (S === 'off' || S === 'error') label('Connects through PeerJS, a free public service. Some school or work networks block it.', mid, NETP.y + NETP.h - 70, { align: 'center', size: 11, color: soft });
+  label(`Friend battles: ${R.pvpW || 0} won, ${R.pvpL || 0} lost  ·  Trades: ${R.trades || 0}`, NETP.x + 24, NETP.y + NETP.h - (PORTRAIT() ? 70 : 32), { size: 12, color: soft });
+  if (S === 'off' || S === 'error') label((ctx.font = `11px ${UI}`, fitText('Connects through PeerJS, a free public service. Some school or work networks block it.', NETP.w - 30)), mid, NETP.y + NETP.h - (PORTRAIT() ? 92 : 70), { align: 'center', size: 11, color: soft });
 }
 function netPanelClick(btn) {
   if (btn !== 0) return;
+  netLayout();
   if (!NET.typing && NET.state === 'off' && inRect(mouse, NET_NAME)) { NET.typing = 'name'; NET.buf = SAVE.skin.name || ''; SFX.play('pick'); return; }
   const hitB = netButtons().find(b => inRect(mouse, b.r) && !b.off); if (!hitB) return;
   SFX.play('pick');
@@ -9242,7 +9460,7 @@ function frame(t) {
   dtSmooth += (raw - dtSmooth) * 0.2; if (Math.abs(raw - dtSmooth) > 0.012) dtSmooth = raw;
   // never let one bad frame freeze the whole game: log it and keep going
   VIEW.legacy = VIEW.portrait && !portraitReady();
-  if (VIEW.portrait && !VIEW.legacy) { W = 540; H = G && G.mode === 'battle' ? VIEW.h : 540; } else { W = 960; H = 540; }   // (portrait: the world's square at the top; battles use the whole height)
+  if (VIEW.portrait && !VIEW.legacy) { W = 540; H = portraitWorldOnly() ? 540 : VIEW.h; } else { W = 960; H = 540; }   // (portrait: the world's square at the top; other screens use the whole height)
   try { update(Math.min(0.033, dtSmooth)); draw(); } catch (e) { console.error(e); }
   pressed = {};
   requestAnimationFrame(frame);
