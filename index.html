@@ -31,9 +31,19 @@
 // =====================================================================
 //  BACKPACK SANCTUARY — a side-scrolling roguelike with backpack management
 // =====================================================================
-const W = 960, H = 540, GRAV = 1500; // W x H = the camera view
-const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-function fit() { const s = Math.min(innerWidth / W, innerHeight / H); cv.style.width = W * s + 'px'; cv.style.height = H * s + 'px'; }   // landscape or portrait: the whole view, as big as fits
+let W = 960, H = 540; const GRAV = 1500;   // W x H = what is being drawn right now (see VIEW)
+// VIEW: the canvas. Landscape it is 960x540. Held upright (portrait) it is 540 wide and as tall as the screen's shape, so
+// nothing shrinks: the world is drawn in the 540x540 square at the top with a panel of HUD below it (drawPortraitHUD).
+// Screens that don't have a portrait layout yet are drawn at 960x540 into LEG and fitted across the width (VIEW.legacy).
+const VIEW = { portrait: false, w: 960, h: 540, legacy: false, s: 1, oy: 0 };
+const cv = document.getElementById('c'); let ctx = cv.getContext('2d');
+const LEG = (() => { const c = document.createElement('canvas'); c.width = 960; c.height = 540; return { cv: c, ctx: c.getContext('2d') }; })();
+function fit() {   // landscape: 16:9; portrait: a canvas the shape of the screen, so the game fills it at full size
+  const port = innerHeight > innerWidth * 1.1;
+  VIEW.portrait = port; VIEW.w = port ? 540 : 960; VIEW.h = port ? Math.max(760, Math.min(1300, Math.round(540 * innerHeight / innerWidth))) : 540;
+  if (cv.width !== VIEW.w || cv.height !== VIEW.h) { cv.width = VIEW.w; cv.height = VIEW.h; }
+  const s = Math.min(innerWidth / VIEW.w, innerHeight / VIEW.h); cv.style.width = VIEW.w * s + 'px'; cv.style.height = VIEW.h * s + 'px';
+}
 addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 200)); fit();
 
 // ---------- helpers ----------
@@ -205,7 +215,10 @@ const down = (...ks) => ks.some(k => keys[k]);
 const hit = (...ks) => ks.some(k => pressed[k]);
 
 const mouse = { x: 0, y: 0 };
-function mpos(e) { const r = cv.getBoundingClientRect(); mouse.x = (e.clientX - r.left) * W / r.width; mouse.y = (e.clientY - r.top) * H / r.height; }
+function mpos(e) {
+  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * VIEW.w / r.width, y = (e.clientY - r.top) * VIEW.h / r.height;
+  if (VIEW.legacy) { mouse.x = x / VIEW.s; mouse.y = (y - VIEW.oy) / VIEW.s; } else { mouse.x = x; mouse.y = y; }
+}
 cv.addEventListener('mousemove', e => {
   mpos(e);
   if (!G && SCREEN === 'class') { const c = classCardAt(mouse); if (c && c !== selClass) { selClass = c; SFX.play('rotate'); } }
@@ -282,7 +295,8 @@ function touchEnd(e) {
       for (const k of [...TOUCH.held]) vkey(k, false);
       if (!TOUCH.moved && dur < 300) {   // a tap: a HUD button if it's on one, otherwise use what's nearby
         tpos(t);
-        if (!G.hub && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { onMouseDown(0); onMouseUp(0); }
+        if (!G.hub && VIEW.portrait && inRect(mouse, PORT_TEAM())) openPetsMenu();
+        else if (!G.hub && !VIEW.portrait && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { onMouseDown(0); onMouseUp(0); }
         else vtap('e');
       }
     } else if (TOUCH.mode === 'drag') { tpos(t); onMouseUp(0); }
@@ -5896,8 +5910,8 @@ function startEncounter(e) {
 function updateEncounter(dt) {
   const E = G.enc; E.t += dt; updateFx(dt);
   if (E.t < 0.62) return;
-  const snap = document.createElement('canvas'); snap.width = W; snap.height = H;   // the frozen frame the wipe tears away
-  try { snap.getContext('2d').drawImage(cv, 0, 0); } catch (err) {}
+  const snap = document.createElement('canvas'); snap.width = 960; snap.height = 540;   // the frozen frame the wipe tears away
+  try { const g = snap.getContext('2d'); if (VIEW.portrait) { g.fillStyle = '#0b0b10'; g.fillRect(0, 0, 960, 540); g.drawImage(cv, 0, 0, 540, 540, 210, 0, 540, 540); } else g.drawImage(cv, 0, 0); } catch (err) {}
   G.enc = null; startBattle(E.e);
   if (B) beginIntro(snap, E.e); else G.mode = 'play';
 }
@@ -8134,7 +8148,22 @@ function drawOverlay(title, sub, sub2) {
   if (sub2) label(sub2, W / 2, H / 2 + 40, { align: 'center', size: 16, bold: true, color: '#7a2e14' });
 }
 
+// which screens have a portrait layout (the rest are shown at 960x540, fitted across the width)
+function portraitReady() {
+  return !!G && !PK && !G.panel && !NET.typing && (G.mode === 'play' || G.mode === 'trans' || G.mode === 'encounter');
+}
 function draw() {
+  if (VIEW.legacy) {   // no portrait layout yet: draw it as in landscape, then fit it across the tall canvas
+    const main = ctx; ctx = LEG.ctx;
+    try { drawScreen(); } finally { ctx = main; }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#0b0b10'; ctx.fillRect(0, 0, VIEW.w, VIEW.h);
+    VIEW.s = VIEW.w / 960; VIEW.oy = Math.round((VIEW.h - 540 * VIEW.s) / 2);
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(LEG.cv, 0, VIEW.oy, VIEW.w, Math.round(540 * VIEW.s));
+    return;
+  }
+  drawScreen();
+}
+function drawScreen() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
   if (!G) { if (SCREEN === 'class') drawClassSelect(); else drawTitle(); return; }
@@ -8158,11 +8187,89 @@ function draw() {
   if (G.hub && G.room.bgKey === 'yard') drawFrontGrass(camX);
   drawVignette();
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
-  if (G.hub) drawHubHUD(); else drawHUD();
-  if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, W, H); }
+  if (VIEW.portrait && !VIEW.legacy) drawPortraitHUD(); else if (G.hub) drawHubHUD(); else drawHUD();
+  if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, VIEW.portrait && !VIEW.legacy ? VIEW.w : W, VIEW.portrait && !VIEW.legacy ? VIEW.h : H); }
   if (G.mode === 'pause') drawPauseMenu();
   if (G.mode === 'won') drawOverlay('VICTORY!', `The ${CLASSES[G.cls].name} and their pets conquered all ${FINAL_FLOOR} floors · ${G.battlesWon || 0} battles won`, G.wonT > 1 ? 'Enter: keep descending (endless)  ·  Esc: back to the Sanctuary' : '');
   if (G.mode === 'dead' && G.deadT > 0.5) drawOverlay('Your team fainted', `Floor ${G.roomNum} · ${G.battlesWon || 0} battles won · your pets keep every level they earned${G.newBest ? ' · NEW BEST!' : ''}`, G.deadT > 0.8 ? 'Press Enter or click to return to the Sanctuary' : '');
+}
+// ---------- portrait: the HUD in a panel under the world's square ----------
+const PORT_TEAM = () => ({ x: 6, y: 540 + 58, w: 528, h: 46 });   // tap your team to open the pets menu
+function drawPortraitHUD() {
+  const R = G.room, y0 = 540, Wv = VIEW.w, Hv = VIEW.h, keepW = W, keepH = H;
+  W = Wv; H = Hv;
+  try {
+    ctx.fillStyle = '#140d08'; ctx.fillRect(0, y0, Wv, Hv - y0);
+    ctx.fillStyle = PAL.brassDk || '#6b4a1e'; ctx.fillRect(0, y0, Wv, 3);
+    let y = y0 + 8;
+    if (G.hub) {   // the Sanctuary: where you are, who you are, and what you can do here
+      const have = ownedIds().length;
+      panel(6, y, Wv - 12, 58, 'leather');
+      label(G.visit ? `${G.visit.name}'s Yard` : HUB_ROOMS[G.hubRoom || 'yard'].name, 20, y + 20, { title: true, size: 24, color: PAL.gold });
+      label(G.visit ? `${G.visit.items.length} animals · ${G.visit.owned.size}/${PET_IDS.length} species` : `${CLASSES[G.cls].name} · ${HERD.length} animals · ${have}/${PET_IDS.length} species · Team ${petSlots.filter(Boolean).length}/3`, 20, y + 43, { size: 13, color: PAL.cream });
+      y += 70;
+      const hint = G.visit ? 'Pet their animals · the friend post takes you home' : HUB_ROOMS[G.hubRoom || 'yard'].hint;
+      ctx.globalAlpha = 0.85; wrapLines(hint.replace(/A \/ D move  ·  W jump  ·  E use \/ pet  ·  doors: E or W  ·  /, ''), Wv - 30, 13).forEach((l, i) => label(l, Wv / 2, y + 8 + i * 18, { align: 'center', size: 13, color: PAL.cream })); ctx.globalAlpha = 1;
+    } else {
+      // floor and the way out
+      const where = `Floor ${R.n}${R.n <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''} · ${R.theme.name}`;
+      const won = (G.wild || []).filter(w => w.beaten).length, total = (G.wild || []).length, reward = R.chests.find(c => !c.bonus && !c.open);
+      const status = R.type === 'camp' ? 'Rest by the fire, then head for the exit ▶' : total === 0 ? '' : won >= total ? (reward ? 'All groups beaten! Open the chest ▶' : 'Floor cleared! Head for the exit ▶') : exitOpen() ? `The exit is open ▶  (${won}/${total} groups beaten)` : `Win ${exitNeed() - won} more battle${exitNeed() - won === 1 ? '' : 's'} to open the exit (${won}/${exitNeed()})`;
+      panel(6, y, Wv - 12, 46, 'leather');
+      label(where, Wv / 2, y + 16, { align: 'center', size: 15, bold: true, color: PAL.gold });
+      label(status, Wv / 2, y + 33, { align: 'center', size: 13, color: exitOpen() ? PAL.good : '#f0a070' });
+      y += 50;
+      // your team
+      petSlots.forEach((it, i) => {
+        const x = 6 + i * 178, w = 172;
+        panel(x, y, w, 46, 'leather');
+        if (!it) { label('empty slot', x + w / 2, y + 23, { align: 'center', size: 12, color: PAL.dim }); return; }
+        const hp = runHp(it.pid) ?? 1, fainted = hp <= 0, lv = 'Lv' + petLvl(it) + (talentPoints(it) > 0 ? ' ▲' : '');
+        ctx.font = `bold 13px ${UI}`; const lvW = ctx.measureText(lv).width;
+        label(fitText(it.def.name, w - 30 - lvW), x + 11, y + 15, { size: 13, bold: true, color: fainted ? PAL.bad : PAL.cream });
+        label(lv, x + w - 11, y + 15, { align: 'right', size: 13, bold: true, color: talentPoints(it) > 0 ? PAL.gold : PAL.good });
+        meter(x + 11, y + 28, w - 22, 8, fainted ? 0 : hp, hpColor(hp));
+        if (fainted) label('FAINTED', x + w / 2, y + 32, { align: 'center', size: 11, bold: true, color: PAL.cream });
+      });
+      y += 52;
+      // plant charges for the next battle
+      let bx = 8, any = false;
+      for (const kk of ['ember', 'stone', 'catnip', 'swift']) {
+        const t = RUN.buffs[kk]; if (!(t > 0)) continue; any = true;
+        panel(bx, y, 60, 26, 'dark');
+        const img = art('props/plant_' + kk);
+        if (img) drawSprite(img, bx + 14, y + 21, 1, { scale: 1.2 }); else { ctx.fillStyle = PLANTS[kk].color; ctx.fillRect(bx + 8, y + 6, 12, 12); }
+        label(kk === 'swift' ? Math.ceil(t) + 's' : 'x' + t, bx + 30, y + 13, { size: 13, bold: true });
+        bx += 66;
+      }
+      if (any) y += 32;
+      // the whole floor's map, across the width
+      if (R.mini) {
+        const mw = R.mini.width, mh = R.mini.height, sc = (Wv - 24) / mw, x = 12, k = (R.miniS || 2) * sc / TILE;
+        panel(x - 6, y, mw * sc + 12, mh * sc + 12, 'dark');
+        ctx.drawImage(R.mini, x, y + 6, mw * sc, mh * sc);
+        const yy = y + 6;
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.strokeRect(x + G.cam.x * k + 0.5, yy + G.cam.y * k + 0.5, 540 * k, 540 * k);
+        ctx.fillStyle = exitOpen() ? '#69f0ae' : '#ef5350'; ctx.fillRect(x + (R.cols - 2) * (R.miniS || 2) * sc - 1, yy + R.exitY * k - 6, 4, 6);
+        for (const e of G.wild || []) { if (e.beaten) continue; ctx.fillStyle = e.boss ? '#ff5252' : '#ffab40'; ctx.fillRect(x + (e.x + e.w / 2) * k - 2, yy + (e.y + e.h / 2) * k - 2, 4, 4); }
+        for (const c of R.chests) if (!c.open && plantVisible(c) && (c.seen || !c.bonus || stats.reveal)) { ctx.fillStyle = '#ffd54f'; ctx.fillRect(x + (c.x + c.w / 2) * k - 2, yy + (c.y + c.h) * k - 3, 4, 3); }
+        const P = G.player; ctx.fillStyle = '#ffffff'; ctx.fillRect(x + (P.x + P.w / 2) * k - 1.5, yy + (P.y + P.h / 2) * k - 2, 3, 5);
+        y += mh * sc + 18;
+      }
+    }
+    // now playing, messages and the controls
+    if (G.songBanner && G.songBanner.t > 0 && Music.on && !SFX.muted) { ctx.globalAlpha = Math.min(1, G.songBanner.t, (4 - G.songBanner.t) * 3); label('♪ ' + G.songBanner.name, 12, Hv - 58, { size: 13, color: PAL.gold }); ctx.globalAlpha = 1; }
+    ctx.globalAlpha = 0.7;
+    wrapLines(TOUCH.on ? TOUCH_HINT : 'A/D move · W jump · S drop · Shift dash · E use · B backpack · T pets · N map · P pause', Wv - 30, 12).forEach((l, i, a) => label(l, Wv / 2, Hv - 14 - (a.length - 1 - i) * 16, { align: 'center', size: 12 }));
+    ctx.globalAlpha = 1;
+    if (G.msgT > 0 && G.msg) { W = 540; drawToast(G.msg, 500); }   // just above the bottom of the world's square
+  } finally { W = keepW; H = keepH; }
+}
+// split a line of text into lines that fit a width (at a font size)
+function wrapLines(t, maxW, size) {
+  ctx.font = `${size}px ${UI}`; const out = []; let cur = '';
+  for (const w of String(t).split(' ')) { const nx = cur ? cur + ' ' + w : w; if (ctx.measureText(nx).width > maxW && cur) { out.push(cur); cur = w; } else cur = nx; }
+  if (cur) out.push(cur); return out;
 }
 function drawHUDMessageOnly() {
   if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies' || G.panel === 'trade' || G.panel === 'import' || G.panel === 'dress') return;   // full-screen panels cover the middle of the screen
@@ -9086,6 +9193,8 @@ function frame(t) {
   // browsers hand out frames a little unevenly: smooth the step so motion glides, but follow real rate changes at once
   dtSmooth += (raw - dtSmooth) * 0.2; if (Math.abs(raw - dtSmooth) > 0.012) dtSmooth = raw;
   // never let one bad frame freeze the whole game: log it and keep going
+  VIEW.legacy = VIEW.portrait && !portraitReady();
+  if (VIEW.portrait && !VIEW.legacy) { W = 540; H = 540; } else { W = 960; H = 540; }   // (portrait: the world's square at the top)
   try { update(Math.min(0.033, dtSmooth)); draw(); } catch (e) { console.error(e); }
   pressed = {};
   requestAnimationFrame(frame);
