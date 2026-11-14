@@ -2792,7 +2792,7 @@ function drawCreel() {   // the creel at the foot of the dock: your fish bag
 // ---------- the Menagerie: every species on four tiers of display ledges, one per act (nothing roams in here) ----------
 const MENAGERIE_ROWS = [16, 13, 10, 7];   // the tile row each act stands on: the floor, then ledges 3 tiles apart (a hop each)
 const ACT_NAMES = ['', 'Act I · The Dungeon', 'Act II · The Burning Depths', 'Act III · The Fey Wilds', 'Act IV · The Drowned Deep'];
-const speciesAct = k => ({ unicorn: 1, shadowwolf: 2, elder: 2, lakewyrm: 3, runeshell: 4 })[k] || (BS[k] && BS[k].sea ? 4 : BS[k] && BS[k].fey ? 3 : BS[k] && BS[k].myth ? 2 : 1);
+const speciesAct = k => ({ unicorn: 3, shadowwolf: 2, elder: 2, lakewyrm: 3, runeshell: 4 })[k] || (BS[k] && BS[k].sea ? 4 : BS[k] && BS[k].fey ? 3 : BS[k] && BS[k].myth ? 2 : 1);
 function menagerieSpots() {
   const out = [], cols = HUB_ROOMS.menagerie.cols, x0 = 6 * TILE, x1 = (cols - 5) * TILE;
   for (let act = 1; act <= 4; act++) {
@@ -3283,7 +3283,7 @@ function drawHubBubble() {
   } else if (s.kind === 'species') {
     const n = HERD.filter(it => it.def.pet === s.id).length, d = PETS[s.id];
     lines = [[d.name, '#5a2e0c', 'bold 15px'], [`${d.role} · ${ACT_NAMES[s.act].split(' · ')[0]}`, PAL.parchInk, '13px'], [G.visit ? 'Your friend has found this one' : `You have ${n}`, '#2e5a1c', 'bold 13px']];
-  } else if (s.kind === 'locked') lines = [['???', '#5a2e0c', 'bold 15px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Win a battle on its very first turn' : s.id === 'lakewyrm' ? 'Beat the Lake Wyrm on floor 30' : s.id === 'runeshell' ? 'Beat the Runeshell Leviathan on floor 40' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, PAL.parchInk, '13px']];
+  } else if (s.kind === 'locked') lines = [['???', '#5a2e0c', 'bold 15px'], [s.id === 'shadowwolf' ? 'Beat the Shadow Wolf within 3 turns' : s.id === 'elder' ? 'Beat the Elder Dragon with no pet fainting' : s.id === 'unicorn' ? 'Roams the Glimmer Glade and the Moonlit Lake (Fae Wilds), or win a battle on its very first turn' : s.id === 'lakewyrm' ? 'Beat the Lake Wyrm on floor 30' : s.id === 'runeshell' ? 'Beat the Runeshell Leviathan on floor 40' : `Beat a wild one for its ${BS[s.id].off === 'egg' ? 'egg' : 'baby'}`, PAL.parchInk, '13px']];
   else lines = [[s.label, '#5a2e0c', 'bold 14px'], [s.kind === 'door' ? '[E] or [W]' : '[E]', '#7a2e14', 'bold 13px']];
   const top = Math.min(s.kind === 'pet' ? s.pet.y : s.y - 100, G.player.y) - 18 - lines.length * 17;
   const wdt = Math.max(...lines.map(([t, , f]) => { ctx.font = `${f} ${UI}`; return ctx.measureText(t).width; })) + 30;
@@ -4596,7 +4596,7 @@ const BS = {
   toad:       { hp: 40, atk: 8,  def: 3, crit: 0,    abil: ['tongue', 'spit', 'bogskin'],      ult: ['plague', 'devour', 'toadking'],         off: 'egg',  baby: 'Toadlet' },
   shadowwolf: { hp: 46, atk: 11, def: 3, crit: 0.1,  abil: ['shadowbite', 'darkhowl', 'fade'], ult: ['eclipsefang', 'shades', 'nightmare'],   off: 'baby', baby: 'Shadow Pup' },
   elder:      { hp: 52, atk: 12, def: 4, crit: 0,    abil: ['emberclaw', 'firestorm', 'ancientroar'], ult: ['cataclysm', 'phoenixheart', 'dragonrage'], off: 'egg', baby: 'Elder Drake hatchling' },
-  unicorn:    { hp: 48, atk: 11, def: 4, crit: 0.1,  abil: ['hornstrike', 'rainbowmane', 'lightcharge'], ult: ['prismatic', 'sanctify', 'starlight'], off: 'special', baby: 'Unicorn' },
+  unicorn:    { hp: 48, atk: 11, def: 4, crit: 0.1,  abil: ['hornstrike', 'rainbowmane', 'lightcharge'], ult: ['prismatic', 'sanctify', 'starlight'], off: 'special', baby: 'Unicorn Foal' },
   // mythical fire beasts: wild only on floors 11-20
   phoenix:    { hp: 36, atk: 9,  def: 2, crit: 0.05, abil: ['emberpeck', 'kindlesong', 'ashveil'], ult: ['rebirth', 'sunflare', 'eternalflame'], off: 'egg', baby: 'Phoenix Chick', myth: 1 },
   hellhound:  { hp: 42, atk: 11, def: 3, crit: 0.1,  abil: ['hellfang', 'brimstone', 'blazerush'], ult: ['cerberus', 'hellgate', 'soulreap'],    off: 'baby', baby: 'Hellhound Pup', myth: 1 },
@@ -6293,9 +6293,9 @@ const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (
   hall: ['dog', 'fox', 'boar', 'ferret', 'catgray', 'cockatiel', 'sunday'], cave: ['toad', 'ferret', 'boar', 'owl', 'cockatiel', 'sunday'], crypt: ['owl', 'catcalico', 'catgray', 'fox', 'dog', 'toad'],
   forge: ['dragon', 'hellhound', 'salamander', 'tortoise', 'lion', 'phoenix'], hollow: ['shadowwolf', 'moth', 'chimera', 'salamander', 'tortoise', 'hellhound'],
   sanctum: ['qilin', 'phoenix', 'lion', 'chimera', 'dragon', 'moth', 'shadowwolf'],
-  // Act III (21-30): only the fey creatures — and the Elder Dragon now roams wild
-  thornwood: ['mossbear', 'viper', 'wolpertinger', 'cusith', 'puca', 'elder'], glade: ['fairydragon', 'wolpertinger', 'moonstag', 'puca', 'spiritwolf', 'mossbear', 'rhino'],
-  lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder', 'rhino'],
+  // Act III (21-30): only the fey creatures — and the Elder Dragon and the Unicorn roam wild here
+  thornwood: ['mossbear', 'viper', 'wolpertinger', 'cusith', 'puca', 'elder'], glade: ['fairydragon', 'wolpertinger', 'moonstag', 'puca', 'spiritwolf', 'mossbear', 'rhino', 'unicorn'],
+  lake: ['moonstag', 'spiritwolf', 'fairydragon', 'viper', 'cusith', 'elder', 'rhino', 'unicorn'],
   // Act IV (31-40): only the amphibious creatures of the Drowned Deep
   temple: ['kelpie', 'kappa', 'selkie', 'hydra', 'axolotl'], coral: ['coralcrab', 'axolotl', 'selkie', 'kelpie', 'kappa'],
   trench: ['hydra', 'coralcrab', 'selkie', 'kappa', 'axolotl'],
@@ -6303,7 +6303,7 @@ const THEME_POOL = {   // Act I (floors 1-10): ordinary animals only · Act II (
 const ACT_ROLES = [
   { tank: ['dog', 'boar'], dps: ['fox', 'catgray', 'boar'], heal: ['cockatiel', 'sunday'], hex: ['catcalico', 'owl', 'ferret'], venom: ['toad'] },
   { tank: ['tortoise', 'lion'], dps: ['hellhound', 'lion', 'dragon', 'chimera', 'shadowwolf'], heal: ['phoenix', 'qilin'], hex: ['chimera', 'moth', 'shadowwolf'], venom: ['salamander', 'dragon'] },
-  { tank: ['mossbear', 'puca', 'rhino'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
+  { tank: ['mossbear', 'puca', 'rhino', 'unicorn'], dps: ['wolpertinger', 'cusith', 'spiritwolf', 'elder'], heal: ['moonstag', 'unicorn'], hex: ['fairydragon', 'puca', 'spiritwolf'], venom: ['viper'] },
   { tank: ['kappa', 'coralcrab'], dps: ['kelpie', 'hydra'], heal: ['axolotl'], hex: ['selkie'], venom: ['hydra'] },
 ];
 const ROLE_OF = new Proxy({}, { get: (_, role) => ACT_ROLES[G && G.room && G.room.n ? Math.min(ACT_ROLES.length, actOf(G.room.n)) - 1 : 0][role] });
