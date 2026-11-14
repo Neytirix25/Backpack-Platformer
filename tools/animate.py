@@ -76,6 +76,14 @@ SPECS = {
     'pet_sunday':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=14),   # idle = eating a walnut held in one foot
     'pet_wolpertinger': dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=14),
     'pet_moonstag':     dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=22),
+    # Act IV: the amphibious creatures of the Drowned Deep
+    'pet_kelpie':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=22, row_scale={'run': 1.2}),
+    'pet_kappa':        dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=18),
+    'pet_axolotl':      dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=14, row_scale={'run': 1.3}),
+    'pet_coralcrab':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=16, row_scale={'run': 1.2}),
+    'pet_hydra':        dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=21, row_scale={'run': 1.25}),
+    'pet_selkie':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=15, row_scale={'run': 1.15}),
+    'pet_runeshell':    dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=26, row_scale={'run': 1.15}),   # the Leviathan (and its hatchling); bosses draw it bigger
     'pet_viper':        dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=16),   # idle is raised in an S-curve
     'pet_cusith':       dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=19),
     'pet_puca':         dict(rows=[('idle', 4), ('run', 6), ('attack', 4), ('ko', 4), ('rest', 4)], height=19),

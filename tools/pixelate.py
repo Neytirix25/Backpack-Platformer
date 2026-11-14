@@ -677,3 +677,49 @@ def do_friendpost():   # the friend post in the Yard (multiplayer): mailbox, lan
 
 if __name__ == '__main__' and sys.argv[1] == 'friendpost':
     do_friendpost()
+
+
+# ---------- Act IV terrain: one 3x3 sheet on magenta (blocks, top blocks, ledges for temple / coral / trench) ----------
+SEA_TERRAIN = [('tiles', 'temple_block'), ('tiles', 'temple_top'), ('tiles', 'coral_block'),
+               ('tiles', 'coral_top'), ('tiles', 'trench_block'), ('tiles', 'trench_top'),
+               ('ledge', 'temple_ledge'), ('ledge', 'coral_ledge'), ('ledge', 'trench_ledge')]
+
+
+def do_seaterrain():
+    im = Image.open(os.path.join(RAW, 'seaterrain_sheet.png')).convert('RGBA'); px = im.load()
+    for y in range(im.height):   # key out the magenta
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if r > 110 and b > 100 and g < 0.6 * min(r, b) and min(r, b) - g > 60: px[x, y] = (0, 0, 0, 0)
+    A = im.getchannel('A').point(lambda v: 255 if v > 40 else 0)
+    def bands(vals, gap):   # runs of non-empty lines, split where there's a gap of empty ones
+        out, s0, empty = [], None, 0
+        for i, v in enumerate(vals + [0] * (gap + 1)):
+            if v: empty = 0; s0 = i if s0 is None else s0
+            elif s0 is not None:
+                empty += 1
+                if empty > gap: out.append((s0, i - empty + 1)); s0 = None; empty = 0
+        return out
+    W, H = im.size; ap = A.load()
+    rows = bands([sum(1 for x in range(0, W, 2) if ap[x, y]) > 2 for y in range(H)], 12)
+    pieces = []
+    for (ya, yb) in rows:
+        cols = bands([any(ap[x, y] for y in range(ya, yb, 2)) for x in range(W)], 12)
+        for (xa, xb) in cols: pieces.append(im.crop((xa, ya, xb, yb)))
+    assert len(pieces) == len(SEA_TERRAIN), f'found {len(pieces)} pieces'
+    for (kind, name), src in zip(SEA_TERRAIN, pieces):
+        src = src.crop(src.getchannel('A').point(lambda v: 255 if v > 40 else 0).getbbox())
+        if kind == 'tiles':   # a square terrain block, 15x15 art px: the block body is the bottom square (top decorations above it are trimmed)
+            w, h = src.size; s = min(w, h)
+            sq = src.crop(((w - s) // 2, h - s, (w - s) // 2 + s, h))
+            spr = sq.resize((15, 15), Image.BOX)
+            rgb = spr.convert('RGB').quantize(20, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert('RGBA')
+            rgb.putalpha(spr.getchannel('A').point(lambda v: 255 if v >= 128 else 0)); spr = rgb
+        else:
+            spr = pixelate_scale(src, 12 / src.height)
+        spr.save(os.path.join(OUT, 'tiles', name + '.png'))
+        print(name, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'seaterrain':
+    do_seaterrain()
