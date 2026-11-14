@@ -3553,11 +3553,13 @@ function tryBuild(R, features) {
   for (const i of virt) g[i] = EMPTY;   // (the movers' stand-ins come out again)
   if (!reach.has((f - 1) * C + (C - 3))) return false;  // exit must be reachable (dashing allowed), otherwise regenerate
   if (virt.length) nav = buildNav(R);   // the animals' paths: the real tiles only
+  const noSpawn = new Set(), ban = (x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (x >= 0 && y >= 0 && x < C && y < RO) noSpawn.add(y * C + x); };
+  for (const m of movers) { if (m.kind === 'h') ban(m.x0 - 1, m.ty - 3, m.x1 + 1, m.ty); else ban(m.x0 - 1, m.ty0 - 3, m.x1 + 1, m.ty1 + 1); }   // a glider's track / a lift's shaft (and the room above them)
   R.movers = movers.map(m => m.kind === 'h'
     ? { kind: 'h', ax: m.x0 * TILE, bx: (m.x1 - 2) * TILE, x: m.x0 * TILE, y: m.ty * TILE, w: 3 * TILE, h: 14, period: 2 * (m.x1 - m.x0 - 2) * TILE / 70 + 2, t: rand(0, 4), dx: 0, dy: 0 }
     : { kind: 'v', x: m.x0 * TILE, w: (m.x1 - m.x0 + 1) * TILE, ay: (m.ty1 + 1) * TILE, by: m.ty0 * TILE, y: (m.ty1 + 1) * TILE, h: 14, period: 2 * (m.ty1 + 1 - m.ty0) * TILE / 70 + 2.4, t: 0, dx: 0, dy: 0 });
-  Object.assign(R, { reach, nav, vents, crumbleBase: bases, plan, dashSpots, floorTop: f, entry: { x: 2.5 * TILE, y: f * TILE }, exitY: f * TILE,
-                     chestSpots: chestSpots.filter(([x, y]) => reach.has(y * C + x)) });
+  Object.assign(R, { reach, nav, vents, crumbleBase: bases, plan, dashSpots, floorTop: f, entry: { x: 2.5 * TILE, y: f * TILE }, exitY: f * TILE, noSpawn,
+                     chestSpots: chestSpots.filter(([x, y]) => reach.has(y * C + x) && (g[(y + 1) * C + x] === SOLID || g[(y + 1) * C + x] === ONEWAY)) });   // (a chest stands on real floor)
   return true;
 }
 
@@ -3749,6 +3751,20 @@ function flyToward(e, tx, ty, speed) {
 // ---- difficulty: enemies are tougher across the board, and grow with your animal team ----
 // 0 pets: a little harder than before. Every pet you bring makes the dungeon hit back harder; leveled pets add a bit more.
 function standCells(R) { return [...R.reach].map(k => [k % R.cols, Math.floor(k / R.cols)]); }
+// where things may be placed (animals, plants, decorations): standing room on real, firm floor, away from anything that moves,
+// bounces or burns: not on a moving platform's track or lift shaft (they only count as floor while checking the level),
+// not on a crumbling block, a bounce mushroom or next to a fire vent
+function spawnCells(R) {
+  const C = R.cols, g = R.grid, at = (x, y) => (x < 0 || y < 0 || x >= C || y >= R.rows ? SOLID : g[y * C + x]);
+  const near = (list, x, y, dx, dy0, dy1) => list.some(o => Math.abs(o.tx - x) <= dx && y - o.ty >= dy0 && y - o.ty <= dy1);
+  return standCells(R).filter(([x, y]) => {
+    const under = at(x, y + 1);
+    if (!(under === SOLID || under === ONEWAY) || at(x, y) !== EMPTY) return false;
+    if (R.noSpawn && R.noSpawn.has(y * C + x)) return false;
+    if (near(R.shrooms || [], x, y, 1, -1, 1) || near(R.vents || [], x, y, 1, -3, 1)) return false;
+    return true;
+  });
+}
 // =====================================================================
 //  BUFF PLANTS — pickups growing around the map (the Explorer's Lantern reveals more of them)
 // =====================================================================
@@ -3816,7 +3832,7 @@ function hardReward(C) {   // on top of the item: the team learns from it, a pla
 
 function populate(R) {
   const flip = () => (Math.random() < 0.5 ? 1 : -1);
-  const cells = standCells(R);
+  const cells = spawnCells(R);
   const etx = Math.floor(R.entry.x / TILE), ety = Math.floor(R.entry.y / TILE) - 1;
   if (R.type === 'camp') {
     R.cleared = true; const ft = R.floorTop * TILE, mid = R.wpx / 2;
@@ -3828,7 +3844,10 @@ function populate(R) {
   }
   if (R.type !== 'camp') plantPlants(R, cells, etx, ety);
   // decorations
-  const T = R.theme, deco = T.deco, shuffled = cells.slice().sort(() => Math.random() - 0.5), placed = [];
+  const busy = [...(G.wild || []).map(e => [(e.homeX || e.x + e.w / 2) / TILE, (e.y + e.h) / TILE - 1]), ...R.chests.map(c => [(c.x + c.w / 2) / TILE, (c.y + c.h) / TILE - 1]),
+                ...(R.plants || []).map(p => [p.x / TILE, p.y / TILE - 1]), ...(R.cages || []).map(c => [(c.x + (c.w || 30) / 2) / TILE, (c.y + (c.h || 30)) / TILE - 1]), ...(R.fire ? [[(R.fire.x + R.fire.w / 2) / TILE, (R.fire.y + R.fire.h) / TILE - 1]] : [])];
+  const clear = c => busy.every(([bx, by]) => Math.abs(bx - (c[0] + 0.5)) > 1.6 || Math.abs(by - c[1]) > 1.2);   // (no decoration on an animal, a chest, a plant or a cage)
+  const T = R.theme, deco = T.deco, shuffled = cells.filter(clear).sort(() => Math.random() - 0.5), placed = [];
   const spaced = (x, y, d) => placed.every(([px, py]) => Math.abs(px - x) > d || Math.abs(py - y) > 2);
   for (const [x, y] of shuffled) {
     if (placed.length > (R.type === 'camp' ? 3 : 18)) break;
@@ -5864,7 +5883,8 @@ function placeWild(R, cells, etx, ety) {
   const far = cells.filter(([x, y]) => x > etx + 12 && x < R.cols - 6 && tileAt(x, y - 1) === EMPTY && tileAt(x, y - 2) === EMPTY);
   for (let i = 0; i < count; i++) {   // spread the groups evenly along the level
     const x0 = etx + 12 + (R.cols - etx - 18) * i / count, x1 = etx + 12 + (R.cols - etx - 18) * (i + 1) / count;
-    const opts = far.filter(([x, y]) => x >= x0 && x < x1 && !(R.chestSpots || []).some(([cx, cy]) => Math.abs(cx - x) < 3 && cy === y));
+    const opts = far.filter(([x, y]) => x >= x0 && x < x1 && !(R.chestSpots || []).some(([cx, cy]) => Math.abs(cx - x) < 3 && Math.abs(cy - y) <= 1)
+      && !G.wild.some(o => Math.abs((o.homeX || o.x) / TILE - (x + 0.5)) < 4 && Math.abs((o.y + o.h) / TILE - (y + 1)) < 2));   // (not on a chest or another group)
     const sp = pick(opts); if (!sp) continue;
     const k = pick(pool), e = wildEntity(k, (sp[0] + 0.5) * TILE, (sp[1] + 1) * TILE, { comp: rollComp(R) });
     G.wild.push(e);
