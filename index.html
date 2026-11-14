@@ -8641,7 +8641,7 @@ const IMPORT_BTN = i => ({ x: W / 2 - 170 + i * 180, y: H / 2 + 52, w: 160, h: 4
 //  · The first time an account meets a browser that already has progress, the player chooses what to keep, and the
 //    other save is downloaded as a file first: nobody's progress is wiped.
 // =====================================================================
-const FB = { apiKey: '', projectId: '' };   // the Firebase project (the web API key is public by design; the database rules protect the saves)
+const FB = { apiKey: 'AIzaSyBv86MqvqKVytYjLNRis_xuUjMfW8WiwCU', projectId: 'backpack-sanctuary' };   // the Firebase project (the web API key is public by design; the database rules protect the saves)
 const ACC_DOMAIN = 'players.backpack-sanctuary.app';
 const ACC = { user: null, busy: false, status: '', timer: 0, lastUp: 0, view: null, form: { mode: 'login' }, ask: null };
 const accReady = () => !!(FB.apiKey && FB.projectId);
