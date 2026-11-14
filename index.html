@@ -8467,6 +8467,148 @@ function drawPetCard(it, r, opt = {}) {
   if (hp < 1) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(r.x + 10, r.y + 6, r.w - 20, 5); ctx.fillStyle = hp <= 0 ? '#555' : '#66bb6a'; ctx.fillRect(r.x + 10, r.y + 6, (r.w - 20) * Math.max(0, hp), 5); }
   if (inTeam && !opt.slot) { ctx.font = `bold 10px ${UI}`; ctx.fillStyle = PAL.good; ctx.textAlign = 'right'; ctx.fillText(['FRONT', 'MID', 'BACK'][petSlots.indexOf(it)], r.x + r.w - 6, r.y + 16); }
 }
+// ---------- TEAM IDEAS: the team screen's slide-out sheet. Which teams win, from many thousands of simulated battles ----------
+// TEAM_FIT[stage].s[species] = how strong it is, .p['a|b'] = how well two fight side by side (logistic scores fitted to
+// simulated battles between random teams with full talents and the battle AI; tools/teamfit notes in the commit).
+// A team's score is the sum; the gap to another team's score gives the chance to beat it.
+const TEAM_FIT_RAW = {"order":"dog,catgray,catcalico,sunday,rhino,cockatiel,dragon,fox,owl,ferret,boar,toad,shadowwolf,unicorn,elder,phoenix,hellhound,salamander,tortoise,qilin,chimera,lion,mossbear,fairydragon,wolpertinger,moonstag,viper,cusith,puca,spiritwolf,lakewyrm,kelpie,kappa,axolotl,coralcrab,hydra,selkie,runeshell,moth","baby":{"s":"-55,-24,-80,-68,-74,-13,42,-44,-47,-74,-24,-36,37,39,106,47,30,-10,-72,29,-65,44,-49,-33,-44,80,-8,48,-44,2,17,116,-38,49,70,131,23,23,-30","p":"-6,-14,-11,-15,12,,3,-16,-33,,-11,2,-9,20,12,-2,12,-9,-16,-25,5,-14,-14,-10,18,7,3,-8,-7,5,-5,-2,11,18,17,,8,-32,11,-13,-7,-16,,,-17,-13,-8,-19,10,15,13,10,9,-16,-17,-6,-9,-8,-9,-3,,-2,-12,24,5,15,10,26,-13,-8,5,7,4,3,-13,-37,-13,,4,-18,-31,-28,-2,-24,12,2,28,2,2,-7,-30,3,-8,6,-20,-37,-24,34,-3,19,-27,-5,4,36,-11,11,2,24,-14,9,-8,-17,-11,9,-23,-30,-45,-10,-22,24,21,40,15,8,-14,-12,17,-15,10,-17,-33,-15,19,-8,9,-21,-6,11,32,-17,4,2,32,8,20,-34,3,-8,-26,-7,-26,19,8,10,-27,9,7,,,-2,3,-15,-13,-15,-12,-19,-7,-10,-6,-7,-21,-5,4,23,14,23,6,2,14,-13,7,4,2,-2,3,-3,14,-15,-7,-21,8,-3,-6,-4,2,,-11,17,4,-24,,21,10,14,,27,-15,-30,-16,23,4,-16,-2,-6,,6,-11,37,,-6,-7,-5,-14,-2,,8,,-20,3,26,16,3,7,6,-2,-3,5,-12,-3,14,-12,-3,4,,33,-20,-19,5,-17,-3,13,22,6,9,7,-2,-5,-19,-2,-16,-8,-7,20,-2,-2,-6,3,,,,10,3,19,4,,-15,-12,-9,-18,2,8,16,11,24,4,-19,5,-20,13,-13,-19,,4,8,6,-15,-9,17,37,-18,16,5,39,-3,5,-34,-11,-14,3,8,39,13,-5,-13,-21,12,-15,,-12,-17,-30,15,-12,4,-19,-11,6,45,9,5,3,48,19,9,-32,2,6,-23,12,2,-14,2,3,,-17,12,24,-15,-13,-10,,-2,-8,4,-5,15,21,-10,2,,-13,12,-8,,9,7,-6,-6,,,-22,-4,12,,-9,-17,-8,-26,9,,7,15,-5,8,-5,11,22,-5,33,-8,20,-20,-11,-2,3,12,3,4,2,-10,10,4,14,8,-7,-6,-20,4,-7,-5,5,2,-10,-7,-6,13,9,6,22,2,,-8,5,16,-14,,-3,-6,5,12,12,-5,3,24,-21,-18,-10,23,,-18,22,-5,-7,7,14,12,9,,12,23,14,,12,-25,12,4,-4,-40,3,18,-9,-21,-14,-6,19,24,-9,-17,9,22,-8,4,22,-6,-20,-8,-2,12,13,12,-2,-4,-15,2,-6,29,-16,16,-9,-3,2,-6,-5,-9,8,23,20,-2,3,-5,8,-5,-7,,18,,-10,-7,-11,-2,31,-3,-8,,-3,-2,-8,-7,-8,-8,-4,-9,6,12,7,5,-3,-5,7,25,-5,-8,-25,-3,-4,-24,-10,-2,-18,,-15,2,-4,,26,-12,19,14,,5,-6,-18,7,4,-4,,7,,8,17,2,,6,-15,3,35,-19,15,9,,63,-15,-9,-17,19,-21,-3,-9,-7,-4,19,3,,22,17,-13,,-10,,-6,,5,-5,,-5,5,,-17,,19,8,-17,9,-2,10,-19,-13,,26,,-7,,-7,30,9,-11,13,,5,16,-8,-19,30,-7,,6,-9,-6,24,,7,-6,27,-3,17,-4,12,10,7,-3,,19,11,,-2,-17,35,-8,-5,10,4,20,,18,-14,8,-20,-27,,,25,-11,17,-3,9,,16,5,,-4,-15,12,14,4,-3,-19,34,,-13,-7,32,-2,-6,-8,-20,5,-11,-5,14,-6,17,12,3,-10,9,-7,-5,-21,7,12,21,-9,,-7,3,-5,-21,7,-18,7,7,-5,-6,6,,2,-24,-3,-24,26,-25,19,2,-11,12,-10,-2,-5,25,11,3,,21,-10,3,-3,-12,26,-18,-14,9"},"adult":{"s":"-41,-43,-59,-60,-98,-33,45,-32,-28,-59,-41,-14,32,32,101,16,42,21,-41,47,-13,69,-69,-8,-28,53,51,46,-53,-9,-6,62,-56,24,31,121,-6,11,-3","p":"9,-27,-29,-15,-7,-4,-16,-17,-24,,10,12,-10,15,11,13,-13,-7,-7,6,-2,,-4,4,15,-12,-4,,-5,-11,6,,11,-14,10,-7,22,5,-11,-20,-6,-23,16,3,-23,,-21,-13,-6,-5,11,16,12,-7,-24,,-2,4,-20,-3,18,-6,12,4,-19,-6,2,22,-22,-16,-2,43,3,12,-19,-49,-24,-13,14,-15,-23,-38,-20,-8,10,15,40,34,27,-5,4,-10,-4,10,-22,7,-2,-5,,17,-17,-3,-12,26,-16,-15,18,42,-15,-11,-13,-49,-15,28,-23,-46,-33,-2,-5,,18,33,-5,47,4,-16,3,18,28,-25,-13,-10,12,34,9,-26,2,-24,48,-32,-14,-5,59,4,-5,-20,-14,18,-14,-18,-36,,20,14,-7,22,-7,-8,-6,-3,-12,-12,-2,-3,-33,-15,-8,-15,-27,-30,2,-14,15,22,4,33,8,9,12,8,,16,17,-10,12,-16,,12,16,-20,12,6,-8,-3,6,30,-5,-18,6,-33,11,32,-9,4,-24,15,-14,-47,-11,30,-4,-5,11,23,11,18,-16,32,-25,-9,-19,-13,-24,-3,7,9,-25,-3,10,17,5,12,-9,-5,11,10,22,-17,15,10,-3,-24,2,-2,-4,-13,2,-30,-2,12,-6,3,7,23,11,-21,-24,-16,-6,-15,-24,-6,26,30,19,-8,2,4,4,-14,17,-20,16,2,-4,-3,,-31,24,7,,36,-10,26,4,-9,37,-20,-4,-13,-15,-6,35,12,19,-6,-7,-7,22,-10,9,-7,42,-26,-18,-29,-40,9,2,11,18,13,28,22,-26,,5,24,-43,21,-15,15,11,13,-14,-22,-25,10,-17,-19,25,33,-13,-9,-14,,-5,-16,23,19,-12,11,-2,6,10,-4,,-19,-42,9,15,13,-9,-18,-15,4,24,5,22,8,11,20,8,,-16,7,-9,2,-9,-10,-4,-7,10,-2,-8,-13,-19,8,-16,-16,20,,15,4,-8,-13,5,15,-15,,34,29,,-13,-9,-13,2,-2,-6,2,5,21,13,2,-21,-14,-14,11,,23,26,,-33,6,-14,7,21,-12,-9,5,-7,-8,17,8,10,4,-3,-26,9,7,3,19,13,-20,-17,-12,32,14,-13,-3,7,-6,-7,,,24,-26,15,,-6,-7,-13,-8,-3,20,18,16,-18,-3,10,-34,-46,10,-4,9,17,,-6,8,19,8,5,28,,-43,-16,10,2,-3,15,7,7,-17,-35,,13,-4,,-24,5,-14,-12,-14,19,-10,8,29,3,-8,-2,-9,10,4,5,,-19,-33,11,-14,16,29,13,2,2,12,10,-4,-17,-4,7,26,-3,18,-9,-2,3,-9,-30,-12,7,12,17,-12,13,-15,-16,-3,2,,-6,-9,12,12,7,-8,19,-3,21,10,-3,-16,2,8,8,-8,-10,-13,-8,16,8,15,23,-10,-12,-10,7,12,10,12,8,25,-4,-4,6,24,-11,-2,-18,-4,,8,-32,10,13,3,-18,4,25,17,2,6,30,-21,-7,-11,6,9,-16,8,10,13,-37,-11,-2,-4,-19,-8,12,19,-27,4,-13,-2,7,,-15,-22,18,-3,,,,18,20,23,,-16,20,13,-32,-2,8,52,-3,12,-14,10,-3,-3,-22,-10,-7,6,12,19,12,18,-4,-15,,-4,27,27,6,-26,10,-17,-31,6,-5,10,16,5,-2,-14,16,27,-17,5,4,7,,8,12,-20,3,,12,-4,-21,34,-7,-28,,,19,-20,-9,9,-14,7,43,-2,,11,11,,6,-4,,14,12,-17,8,-12,-4,-10,-8,-2,-8,-6,-18,6,,4,,-25,-6,,2,,21,24,5,13,,,14,15,17,17,-16,10,10,-12,13,,24,-7,-15,-14"}};   // (packed: species order, then per stage strengths and pair scores x100, upper triangle)
+const pairKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+const TEAM_FIT = (() => {
+  const ks = TEAM_FIT_RAW.order.split(','), out = {};
+  for (const st of ['baby', 'adult']) {
+    const R = TEAM_FIT_RAW[st], sv = R.s.split(','), pv = R.p.split(','), sc = {}, pc = {}; let n = 0;
+    ks.forEach((k, i) => { sc[k] = (+sv[i] || 0) / 100; });
+    for (let a = 0; a < ks.length; a++) for (let b = a + 1; b < ks.length; b++) { const v = pv[n++]; if (v) pc[pairKey(ks[a], ks[b])] = +v / 100; }
+    out[st] = { s: sc, p: pc };
+  }
+  return out;
+})();
+const TEAM_ORDER = { Guardian: 0, Tank: 0, Paladin: 0, Ancient: 0, Healer: 2, Support: 2 };   // tough ones in front, healers at the back
+const orderTeam = ks => ks.slice().sort((a, b) => ((TEAM_ORDER[PETS[a].role] ?? 1) - (TEAM_ORDER[PETS[b].role] ?? 1)) || BS[b].hp - BS[a].hp);
+function teamScore(ks, stage) {
+  const F = TEAM_FIT[stage]; let v = 0;
+  for (let i = 0; i < ks.length; i++) { v += F.s[ks[i]] || 0; for (let j = i + 1; j < ks.length; j++) v += F.p[pairKey(ks[i], ks[j])] || 0; }
+  return v;
+}
+const IDEA_SPECIES = () => PET_IDS.filter(k => BS[k] && TEAM_FIT.adult.s[k] !== undefined);
+const IDEA_CACHE = {};
+function allTeams(stage, pool) {   // every team of 3 from pool, best first: [[k, k, k], score]
+  const key = stage + ':' + pool.join(','); if (IDEA_CACHE[key]) return IDEA_CACHE[key];
+  const out = [];
+  for (let a = 0; a < pool.length; a++) for (let b = a + 1; b < pool.length; b++) for (let c = b + 1; c < pool.length; c++) { const t = [pool[a], pool[b], pool[c]]; out.push([t, teamScore(t, stage)]); }
+  out.sort((x, y) => y[1] - x[1]);
+  if (Object.keys(IDEA_CACHE).length > 12) for (const k in IDEA_CACHE) delete IDEA_CACHE[k];
+  return (IDEA_CACHE[key] = out);
+}
+function teamAvg(stage) {   // the average team, for "x% against an average team"
+  const key = 'avg:' + stage; if (IDEA_CACHE[key] !== undefined) return IDEA_CACHE[key];
+  const all = allTeams(stage, IDEA_SPECIES()); return (IDEA_CACHE[key] = all.reduce((a, t) => a + t[1], 0) / all.length);
+}
+const teamWin = (ks, stage) => 1 / (1 + Math.exp(-(teamScore(ks, stage) - teamAvg(stage))));
+const bestOf = k => HERD.filter(it => it.def.pet === k).sort((a, b) => petLvl(b) - petLvl(a) || (b.xp || 0) - (a.xp || 0))[0];
+const ownedSpecies = () => IDEA_SPECIES().filter(k => HERD.some(it => it.def.pet === k));
+function ideaStage() {   // rate teams the way yours will fight: as babies or as adults (the sheet can switch)
+  if (IDEAS.stage) return IDEAS.stage;
+  const lv = (petSlots.some(Boolean) ? petSlots.filter(Boolean) : HERD).map(petLvl).sort((a, b) => b - a).slice(0, 3); return lv.length && lv.reduce((a, b) => a + b, 0) / lv.length >= EVO_LVL ? 'adult' : 'baby';   // (your team's level)
+}
+const IDEAS = { open: false, tab: 'mine', stage: null, rows: [] };
+function useTeam(ks) {   // your best animal of each species, tough ones in front
+  const its = orderTeam(ks).map(bestOf); if (its.some(i => !i)) return;
+  petSlots = [its[0], its[1], its[2]];
+  SFX.play('place'); stats = computeStats(); syncPets(); savePets();
+  if (G && G.hub) spawnHubPets(G.room);
+  showMsg(`Team set: ${its.map(petName).join(', ')}.`, 1.8);
+}
+function ideaRects() {
+  const port = PORTRAIT();
+  const tabBtn = port ? { x: ROSTER.x + ROSTER.w - 150, y: ROSTER.y + 10, w: 136, h: 30 } : { x: ROSTER.x + ROSTER.w - 6, y: ROSTER.y + 70, w: 34, h: 150 };
+  const sh = port ? { x: 8, y: 52, w: W - 16, h: H - 110 } : { x: ROSTER.x + ROSTER.w - 450, y: ROSTER.y + 4, w: 474, h: ROSTER.h - 8 };
+  const tabs = [['mine', 'Your teams'], ['best', 'Best overall'], ['syn', 'Synergies']].map(([k, t], i) => ({ k, t, r: { x: sh.x + 14 + i * ((sh.w - 28) / 3), y: sh.y + 46, w: (sh.w - 28) / 3 - 6, h: 28 } }));
+  return { tabBtn, sh, tabs, stageBtn: { x: sh.x + sh.w - 132, y: sh.y + 12, w: 118, h: 26 }, close: { x: sh.x + sh.w - 36, y: sh.y + sh.h - 34, w: 26, h: 26 } };
+}
+function ideaClick(btn) {   // true when the click was the sheet's
+  const R = ideaRects();
+  if (inRect(mouse, R.tabBtn) && !(IDEAS.open && PORTRAIT())) { IDEAS.open = !IDEAS.open; SFX.play('pick'); return true; }
+  if (!IDEAS.open) return false;
+  if (!inRect(mouse, R.sh)) { IDEAS.open = false; SFX.play('pick'); return true; }
+  if (btn !== 0) return true;
+  for (const t of R.tabs) if (inRect(mouse, t.r)) { IDEAS.tab = t.k; SFX.play('rotate'); return true; }
+  if (inRect(mouse, R.stageBtn)) { IDEAS.stage = ideaStage() === 'adult' ? 'baby' : 'adult'; SFX.play('rotate'); return true; }
+  if (PORTRAIT() && inRect(mouse, R.close)) { IDEAS.open = false; SFX.play('pick'); return true; }
+  for (const row of IDEAS.rows) if (row.use && inRect(mouse, row.use)) { useTeam(row.ks); return true; }
+  return true;
+}
+function drawTeamRow(ks, x, y, w, stage, o = {}) {   // three little portraits, names, the win chance, synergies, a Use button
+  const have = ks.map(k => !!bestOf(k)), pct = Math.round(100 * teamWin(ks, stage));
+  ctx.fillStyle = o.cur ? 'rgba(255,211,107,0.14)' : 'rgba(0,0,0,0.18)'; rr(x, y, w, 40, 6); ctx.fill();
+  orderTeam(ks).forEach((k, i) => {
+    const it = bestOf(k); ctx.save(); if (!it) ctx.globalAlpha = 0.35;
+    drawPetIcon(k, x + 4 + i * 34, y + 4, 32, 32, it || null); ctx.restore();
+  });
+  const names = orderTeam(ks).map(k => { const it = bestOf(k); return it ? petName(it) : PETS[k].name + '?'; }).join(' · ');
+  ctx.font = `bold 13px ${UI}`; label(fitText(names, w - (have.every(Boolean) && !o.cur ? 232 : 166)), x + 110, y + 13, { size: 13, bold: true, color: have.every(Boolean) ? PAL.parchInk : '#8a6a4a' });
+  const syns = SYNERGIES.filter(sy => sy.pets.every(k => ks.includes(k)));
+  label((ctx.font = `11px ${UI}`, fitText(syns.length ? syns.map(sy => sy.icon + ' ' + sy.name).join('  ') : have.every(Boolean) ? 'You have all three' : `Missing: ${ks.filter(k => !bestOf(k)).map(k => PETS[k].name).join(', ')}`, w - 200)), x + 110, y + 29, { size: 11, color: syns.length ? '#7a4a10' : '#6d5a44' });
+  label(pct + '%', x + w - (have.every(Boolean) && !o.cur ? 76 : 14), y + 20, { align: 'right', size: 18, bold: true, color: pct >= 60 ? '#2e7d32' : pct >= 45 ? '#6d4c1a' : '#a33' });
+  if (have.every(Boolean) && !o.cur) { const r = { x: x + w - 66, y: y + 7, w: 58, h: 26 }; button(r, 'Use', { hover: inRect(mouse, r), size: 13, color: PAL.gold }); IDEAS.rows.push({ ks, use: r }); }
+}
+function drawIdeas() {
+  if (!(G && (G.panel === 'team' || (PK && PK.roster && PK.talent == null)))) return;
+  const R = ideaRects(), port = PORTRAIT();
+  if (!(IDEAS.open && port)) {   // the tab that opens it
+    const t = R.tabBtn, over = inRect(mouse, t);
+    if (port) button(t, IDEAS.open ? 'Close ideas' : 'Team ideas', { hover: over || IDEAS.open, size: 13, color: PAL.gold });
+    else {
+      panel(t.x, t.y, t.w, t.h, 'parch'); if (over || IDEAS.open) { ctx.fillStyle = 'rgba(255,211,107,0.25)'; rr(t.x + 2, t.y + 2, t.w - 4, t.h - 4, 5); ctx.fill(); }
+      ctx.save(); ctx.translate(t.x + t.w / 2 + 1, t.y + t.h / 2); ctx.rotate(Math.PI / 2); label('Team ideas', 0, 0, { align: 'center', size: 14, bold: true, color: PAL.parchInk }); ctx.restore();
+    }
+  }
+  if (!IDEAS.open) return;
+  IDEAS.rows = [];
+  const S = R.sh, stage = ideaStage();
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(S.x - 6, S.y + 6, S.w, S.h);
+  panel(S.x, S.y, S.w, S.h, 'parch');
+  label('Team ideas', S.x + 16, S.y + 25, { title: true, size: 24, color: '#5a2e0c' });
+  button(R.stageBtn, stage === 'adult' ? 'Rated: adults' : 'Rated: babies', { hover: inRect(mouse, R.stageBtn), size: 12, color: PAL.cream });
+  for (const t of R.tabs) button(t.r, t.t, { hover: inRect(mouse, t.r) || IDEAS.tab === t.k, size: 13, color: IDEAS.tab === t.k ? PAL.gold : PAL.cream });
+  let y = S.y + 86; const x = S.x + 14, w = S.w - 28;
+  const note = t => { label((ctx.font = `11px ${UI}`, fitText(t, w)), x, y, { size: 11, color: '#6d5a44' }); y += 16; };
+  if (IDEAS.tab === 'mine') {
+    const cur = petSlots.filter(Boolean).map(i => i.def.pet);
+    label('Your team now', x, y, { size: 13, bold: true, color: '#5a2e0c' }); y += 12;
+    if (cur.length === 3 && new Set(cur).size === 3) {
+      drawTeamRow(cur, x, y, w, stage, { cur: true }); y += 46;
+      let best = null; const own = ownedSpecies();   // the best single swap
+      for (let i = 0; i < 3; i++) for (const k of own) if (!cur.includes(k)) { const t = cur.slice(); t[i] = k; const v = teamScore(t, stage); if (!best || v > best.v) best = { v, out: cur[i], k, t }; }
+      if (best && best.v > teamScore(cur, stage) + 0.02) {
+        label((ctx.font = `bold 12px ${UI}`, fitText(`Best swap: ${petName(bestOf(best.k))} in for ${petName(bestOf(best.out))}: ${Math.round(100 * teamWin(cur, stage))}% → ${Math.round(100 * teamWin(best.t, stage))}%`, w - 70)), x, y + 2, { size: 12, bold: true, color: '#2e5d1a' });
+        const r = { x: x + w - 66, y: y - 10, w: 58, h: 24 }; button(r, 'Swap', { hover: inRect(mouse, r), size: 12, color: PAL.gold }); IDEAS.rows.push({ ks: best.t, use: r }); y += 22;
+      } else { note('No single swap from your animals would do better.'); y += 4; }
+    } else { note('Put three different species in your team to see how it rates.'); y += 4; }
+    y += 6;
+    label('Best teams from your animals', x, y, { size: 13, bold: true, color: '#5a2e0c' }); y += 12;
+    const own = ownedSpecies();
+    if (own.length < 3) note('Find at least three species to see teams here.');
+    else for (const [ks] of allTeams(stage, own).slice(0, port ? 14 : 5)) { if (y > S.y + S.h - 70) break; drawTeamRow(ks, x, y, w, stage); y += 44; }
+  } else if (IDEAS.tab === 'best') {
+    note('The strongest teams of all, including animals you haven\'t found yet (marked ?).');
+    for (const [ks] of allTeams(stage, IDEA_SPECIES()).slice(0, port ? 15 : 8)) { if (y > S.y + S.h - 70) break; drawTeamRow(ks, x, y, w, stage); y += 44; }
+  } else {
+    note('Two animals in the same team unlock a synergy. ✓ = you have both.');
+    for (const sy of SYNERGIES) {
+      if (y > S.y + S.h - 44) break;
+      const n = sy.pets.filter(k => bestOf(k)).length, on = sy.pets.every(k => petSlots.some(i => i && i.def.pet === k));
+      ctx.fillStyle = on ? 'rgba(255,211,107,0.22)' : 'rgba(0,0,0,0.12)'; rr(x, y - 4, w, 35, 6); ctx.fill();
+      label(`${sy.icon} ${sy.name}`, x + 8, y + 7, { size: 13, bold: true, color: '#5a2e0c' });
+      label(sy.pets.map(k => PETS[k].name).join(' + '), x + 150, y + 7, { size: 12, color: '#6d4c1a' });
+      label(on ? 'In your team!' : n === 2 ? '✓ you have both' : n === 1 ? 'you have one' : 'not found yet', x + w - 8, y + 7, { align: 'right', size: 12, bold: true, color: on ? '#2e7d32' : n === 2 ? '#2e7d32' : n ? '#8a6a2a' : '#a07a6a' });
+      label((ctx.font = `11px ${UI}`, fitText(sy.txt, w - 16)), x + 8, y + 21, { size: 11, color: '#6d5a44' });
+      y += 38;
+    }
+  }
+  label((ctx.font = `10px ${UI}`, fitText('% = chance to beat an average team of the same level (from simulated battles)', w - (port ? 40 : 0))), x, S.y + S.h - 16, { size: 10, color: '#8a7458' });
+  if (port) { button(R.close, '✕', { hover: inRect(mouse, R.close), size: 13 }); }
+}
 function drawRoster() {
   rosterLayout(); const port = PORTRAIT();
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
@@ -8520,6 +8662,7 @@ function drawRoster() {
   }
   if (canGive() && HERD.length) button(GIVE_BTN, 'Release / Donate…', { hover: inRect(mouse, GIVE_BTN), size: 14, color: PAL.cream });
   button(ROSTER_DONE, 'Done', { hover: over, size: 16, color: PAL.gold });
+  drawIdeas();
 }
 function drawGiveConfirm(list, xp) {
   const n = list.length, shinies = list.filter(it => it.g && it.g.shiny).length, don = GIVE.confirm === 'donate';
@@ -8569,6 +8712,7 @@ function giveClick(btn) {
 }
 function rosterClick(btn) {
   rosterLayout();
+  if (!GIVE && ideaClick(btn)) return null;   // (the Team ideas sheet)
   if (GIVE && !canGive()) GIVE = null;
   if (GIVE) return giveClick(btn);
   if (btn === 0 && canGive() && HERD.length && inRect(mouse, GIVE_BTN)) { GIVE = { picked: new Set(), confirm: null, shinyStep: false }; SFX.play('pick'); return null; }
@@ -8813,7 +8957,7 @@ function iconCell(sh) {
   return best;
 }
 function drawPetIcon(k, x, y, w, h, it) {
-  const sheet = speciesSheet(k), fr = animFrames(sheet, 'idle') || animFrames(sheet, 'fly'), img = art('anim/' + sheet);
+  const sheet = it ? petSheet(speciesSheet(k), it) : speciesSheet(k), fr = animFrames(sheet, 'idle') || animFrames(sheet, 'fly'), img = art('anim/' + sheet);   // (a baby shows as a baby)
   if (!fr || !img) return false;
   const [fx, fy, fw, fh] = fr[0], s = Math.min(w / fw, h / fh) * 0.85;
   ctx.save(); ctx.imageSmoothingEnabled = false; ctx.filter = it && it.g ? petFilter(k, sheet, it) : standInTint(k, sheet);
@@ -8845,7 +8989,7 @@ function drawItem(it, x, y, cs, alpha = 1) {
     if (!row[c + 1]) { ctx.moveTo(px + cs - 1, py); ctx.lineTo(px + cs - 1, py + cs); }
   }));
   ctx.stroke();
-  const ia = art('items/' + it.id);
+  const ia = d.pet && it.plvl && petLvl(it) < EVO_LVL && hasBabyArt(speciesSheet(d.pet)) ? null : art('items/' + it.id);   // (a baby's tile shows the baby, not the adult's icon)
   if (ia) { // pixel sprite, scaled from 18 art-px per cell and rotated with the item
     const k = d.pet ? Math.min(sh[0].length * cs / ia.width, sh.length * cs / ia.height) * 0.9 : cs / 18, rot = d.pet ? 0 : ((it.rot || 0) % 4 + 4) % 4;
     ctx.save(); ctx.imageSmoothingEnabled = false;
