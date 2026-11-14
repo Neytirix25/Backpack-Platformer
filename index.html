@@ -6099,18 +6099,20 @@ let pidN = 0;
 const newPid = () => Date.now().toString(36) + '-' + (pidN++).toString(36) + Math.floor(Math.random() * 46656).toString(36);
 function newPet(k, lvl = 1, g) {
   const it = makeItem('pet_' + k); it.pid = newPid(); it.plvl = lvl; it.xp = 0; it.talents = {}; it.talV = 1; it.g = g || rollGenes();
+  if (!Array.isArray(it.g.col)) Object.assign(it.g, rollCoat());   // (an egg laid before coats)
   HERD.push(it); return it;
 }
 function petItem(k) { return PET_ITEMS[k] || newPet(k); }
 // pets from before animals were individuals keep everything, and get fair (never poor) traits
-function migratedGenes() { const g = rollGenes({ shiny: false, col: [0, 0] }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
+function migratedGenes() { const g = rollGenes({ shiny: false }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
+let SAVE_COATS = false;
 function loadPets() {
-  PETS_LOADED = true;
+  PETS_LOADED = true; SAVE_COATS = false;
   HERD.length = 0;
   for (const r of SAVE.herd || []) if (r && ITEMS['pet_' + r.k]) {
     const it = makeItem('pet_' + r.k);
     Object.assign(it, { pid: r.pid || newPid(), plvl: clamp(r.lvl || 1, 1, PET_MAX_LVL), xp: r.xp || 0, talents: r.talents || {}, talV: 1, g: Object.assign(rollGenes(), r.g || {}) });
-    if (!r.g || !Array.isArray(r.g.col)) { it.g.col = [0, 0]; it.g.blend = false; }   // (from before coats: its colour as drawn)
+    if (!r.g || !Array.isArray(r.g.col)) { Object.assign(it.g, rollCoat()); SAVE_COATS = true; }   // (from before coats: it rolls a coat once, like a wild animal)
     HERD.push(it);
   }
   const legacy = {};
@@ -6120,7 +6122,7 @@ function loadPets() {
   petSlots = [null, null, null];
   (SAVE.team || []).forEach((id, i) => { if (i < 3 && id) petSlots[i] = HERD.find(it => it.pid === id) || legacy[id] || null; });
   if (!petSlots.some(Boolean)) HERD.slice(0, 3).forEach((it, i) => { petSlots[i] = it; });
-  if (Object.keys(legacy).length) savePets();
+  if (Object.keys(legacy).length || SAVE_COATS) savePets();   // (keep the coats it just rolled)
 }
 function savePets() {
   if (!PETS_LOADED) return;
