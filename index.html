@@ -103,7 +103,7 @@ const ART_FILES = {
   vfx: VFX_SPR,
   items: ['dish_minnow', 'dish_bluegill', 'dish_crawdad', 'dish_perch', 'dish_sunfish', 'dish_carp', 'dish_pike', 'dish_catfish', 'dish_pufferfish', 'dish_eel', 'dish_sturgeon', 'dish_goldkoi', 'fish_minnow', 'fish_bluegill', 'fish_crawdad', 'fish_perch', 'fish_sunfish', 'fish_carp', 'fish_pike', 'fish_catfish', 'fish_pufferfish', 'fish_eel', 'fish_sturgeon', 'fish_goldkoi', 'pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['oven', 'creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
+  props: ['doghouse', 'oven', 'creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
   bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'pond_bank'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}).concat(window.LOOKS ? window.LOOKS.masks.map(n => n + '_skin').concat(Object.entries(window.LOOKS.hair).flatMap(([h, v]) => Object.keys(v).map(w => 'hair_' + h + '_' + w))) : []),   // + skin masks and hair pieces (Wardrobe)
@@ -2146,7 +2146,7 @@ function showMsg(t, dur = 2.2) { G.msg = t; G.msgT = dur; }
 // =====================================================================
 // the rooms: walk up to a door and press E (or W) to go in; every indoor room has a door back out to the Yard
 const HUB_ROOMS = {
-  yard:     { name: 'The Yard', cols: 60 + 32, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  the post by the gate: choose your team  ·  the gate (right) starts a run  ·  far left: the pond (fishing)  ·  the stone oven: cooking  ·  I: Sanctuary bag (feed your pets)' },
+  yard:     { name: 'The Yard', cols: 60 + 32, bg: 'yard', tiles: 'glade', hint: 'A / D move  ·  W jump  ·  E use / pet  ·  doors: E or W  ·  the post by the gate: choose your team  ·  the gate (right) starts a run  ·  far left: the pond (fishing)  ·  the doghouse: choose who plays in the Yard  ·  the stone oven: cooking  ·  I: Sanctuary bag (feed your pets)' },
   menagerie:{ name: 'The Menagerie', cols: 40, bg: 'menagerie', tiles: 'camp', out: 37.4, hint: 'Every species, act by act  ·  stand by one to see it  ·  W hops up the tiers' },
   wardrobe: { name: 'The Wardrobe', cols: 32, bg: 'wardrobe', tiles: 'camp', hint: 'E at a banner: change class  ·  E at the mirror: outfit, hair and skin' },
   records:  { name: 'The Records Hall', cols: 32, bg: 'records', tiles: 'camp', hint: 'E at the board: your run records  ·  E at the shelf: trophies' },
@@ -2186,7 +2186,6 @@ function buildHubRoom(room, from) {
   buildArena(R, H0.cols, 18);
   if (room === 'menagerie') for (const row of MENAGERIE_ROWS.slice(1)) for (let x = 5; x < H0.cols - 4; x++) setTile(R, x, row, ONEWAY);   // the display tiers
   const ft = R.floorTop * TILE;
-  if (room === 'yard') R.fire = { x: HUB_SPOTS.fire * TILE - 22, y: ft - 30, w: 44, h: 30, used: true, hub: true };
   if (room === 'yard') {   // the pond: water down through both floor rows (you're back on the dock the moment you go under), the dock a walkable deck over its right part
     R.skipBake = new Set();
     for (let x = POND.w0; x <= POND.w1; x++) for (const y of [R.floorTop, R.floorTop + 1]) { setTile(R, x, y, y === R.floorTop && x >= POND.dock0 ? ONEWAY : WATER); R.skipBake.add(y * R.cols + x); }
@@ -2205,7 +2204,7 @@ function goHubRoom(to) {
 }
 function spawnHubPets(R) {
   G.pets = []; const ft = R.floorTop * TILE;
-  (G.visit ? G.visit.items.slice().sort(() => Math.random() - 0.5).slice(0, 10) : yardPicks()).forEach((it, i) => {   // (visiting a friend: 10 of theirs)
+  (G.visit ? G.visit.items.slice().sort(() => Math.random() - 0.5).slice(0, YARD_MAX) : yardPicks()).forEach((it, i) => {   // (visiting a friend: 5 of theirs)
     const k = it.def.pet, d = PETS[k], x = rand(R.hubRoom === 'yard' ? POND.cols + 4 : 6, R.cols - 6) * TILE;
     G.pets.push({ item: it, d, kind: k, hub: true, x, y: d.fly ? ft - 120 - rand(0, 80) : ft - d.h, w: d.w, h: d.h, vx: 0, vy: 0, face: Math.random() < 0.5 ? 1 : -1,
                   hp: 1, maxHp: 1, ko: 0, cd: 0, atkT: 0, phase: rand(0, 6), onGround: !d.fly, inv: 0, slot: i, wander: null, happyT: 0 });
@@ -2213,11 +2212,13 @@ function spawnHubPets(R) {
 }
 // the 10 of your animals that play in the Yard: picked at random once and kept (SAVE.yard.pets); animals you've given away
 // are replaced, and the campfire's "call different animals" picks a new 10
+const YARD_MAX = 5;   // how many of your animals play in the Yard
 function yardPicks(avoid = []) {   // avoid: the ones that were just out (they go to the back of the queue)
   const list = rosterList(), have = new Map(list.map(it => [it.pid, it]));
-  const ids = (Array.isArray(SAVE.yard.pets) ? SAVE.yard.pets : []).filter(id => have.has(id)).slice(0, 10);
+  const ids = (Array.isArray(SAVE.yard.pets) ? SAVE.yard.pets : []).filter(id => have.has(id)).slice(0, YARD_MAX);
+  if (SAVE.yard.chosen) { if (ids.length !== (SAVE.yard.pets || []).length) { SAVE.yard.pets = ids; saveData(); } return ids.map(id => have.get(id)); }   // you picked them: just yours (fewer is fine)
   const rest = list.filter(it => !ids.includes(it.pid)).map(it => [it, (avoid.includes(it.pid) ? 0 : 1) + Math.random() * 0.5]).sort((a, b) => a[1] - b[1]).map(a => a[0]);   // pop() takes the fresh ones first
-  while (ids.length < Math.min(10, list.length) && rest.length) ids.push(rest.pop().pid);
+  while (ids.length < Math.min(YARD_MAX, list.length) && rest.length) ids.push(rest.pop().pid);
   if (JSON.stringify(ids) !== JSON.stringify(SAVE.yard.pets || [])) { SAVE.yard.pets = ids; saveData(); }
   return ids.map(id => have.get(id));
 }
@@ -2482,6 +2483,70 @@ function closeFishBag() {   // (from closePack)
   saveBag(PK.bag || 'fish', pack);
   if (FB_AWAY) { pack = FB_AWAY.pack; PW = FB_AWAY.PW; PH = FB_AWAY.PH; FB_AWAY = null; }
   PK = null; G.mode = 'play'; stats = computeStats(); SFX.play('bag');
+}
+// ---------- the doghouse: choose which 5 of your animals play in the Yard ----------
+function drawDoghouse(x, ft) {
+  const img = art('props/doghouse');
+  if (img) { drawSprite(img, x, ft + 2, 1, { scale: 2 }); return; }
+  ctx.fillStyle = '#a0703c'; ctx.fillRect(x - 30, ft - 44, 60, 44); ctx.fillStyle = '#7a3a24'; ctx.beginPath(); ctx.moveTo(x - 38, ft - 42); ctx.lineTo(x, ft - 72); ctx.lineTo(x + 38, ft - 42); ctx.fill();
+  ctx.fillStyle = '#2a1a10'; ctx.beginPath(); ctx.ellipse(x, ft - 14, 12, 16, 0, Math.PI, 0); ctx.fill(); ctx.fillRect(x - 12, ft - 14, 24, 14);
+}
+function openYardPick() { G.panel = 'yardpick'; G.yardPick = { sel: yardPicks().map(it => it.pid) }; rosterScroll = 0; SFX.play('pick'); }
+const yardSlotRect = i => PORTRAIT() ? { x: ROSTER.x + 12 + i * 102, y: ROSTER.y + 112, w: 96, h: 118 } : { x: ROSTER.x + 196 + i * 122, y: ROSTER.y + 56, w: 114, h: 110 };
+const YARD_RANDOM = () => ({ x: ROSTER.x + 24, y: ROSTER.y + ROSTER.h - 46, w: 150, h: 34 });
+function yardPickDone() {
+  SAVE.yard.pets = G.yardPick.sel.slice(); SAVE.yard.chosen = true; saveData();
+  G.panel = null; G.yardPick = null; spawnHubPets(G.room); SFX.play('chest', true);
+  showMsg(SAVE.yard.pets.length ? 'Your chosen animals come out to play!' : 'The Yard is quiet for now.', 2);
+}
+function yardPickClick(btn) {
+  if (btn !== 0) return;
+  rosterLayout(); const Y = G.yardPick; if (!Y) return;
+  if (inRect(mouse, ROSTER_DONE)) { yardPickDone(); return; }
+  if (!inRect(mouse, ROSTER)) { G.panel = null; G.yardPick = null; SFX.play('pick'); return; }
+  if (inRect(mouse, YARD_RANDOM())) {   // five at random
+    Y.sel = rosterList().map(it => it.pid).sort(() => Math.random() - 0.5).slice(0, YARD_MAX); SFX.play('rotate'); return;
+  }
+  for (let i = 0; i < YARD_MAX; i++) if (inRect(mouse, yardSlotRect(i)) && Y.sel[i]) { Y.sel.splice(i, 1); SFX.play('pick'); return; }   // tap a chosen one: back in
+  if (rosterMax() > 0) { const b = ROSTER_BAR(), t = rosterThumb();
+    if (inRect(mouse, { x: b.x - 6, y: b.y, w: b.w + 12, h: b.h })) { if (inRect(mouse, { x: t.x - 6, y: t.y, w: t.w + 12, h: t.h })) rosterDrag = { off: mouse.y - t.y }; else scrollRoster((mouse.y < t.y ? -1 : 1) * ROSTER_GRID.h * 0.8); return; } }
+  if (inRect(mouse, ROSTER_GRID)) for (const [i, it] of rosterList().entries()) if (inRect(mouse, rosterCardRect(i))) {
+    const at = Y.sel.indexOf(it.pid);
+    if (at >= 0) { Y.sel.splice(at, 1); SFX.play('pick'); }
+    else if (Y.sel.length < YARD_MAX) { Y.sel.push(it.pid); SFX.play('place'); }
+    else { showMsg(`Five is plenty! Tap one at the top to send it back in first.`, 1.8); SFX.play('error'); }
+    return;
+  }
+}
+function drawYardPick() {
+  rosterLayout(); const Y = G.yardPick; if (!Y) return;
+  const port = PORTRAIT(), byId = new Map(HERD.map(it => [it.pid, it]));
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+  panel(ROSTER.x, ROSTER.y, ROSTER.w, ROSTER.h, 'leather');
+  label('Yard Animals', ROSTER.x + 26, ROSTER.y + 30, { title: true, size: 32, color: PAL.gold });
+  para(`Choose up to ${YARD_MAX} of your animals to play in the Yard  ·  ${TOUCH.on ? 'tap' : 'click'} one to add it or send it back in`, port ? ROSTER.x + 26 : ROSTER.x + 250, port ? ROSTER.y + 62 : ROSTER.y + 24, port ? ROSTER.w - 52 : ROSTER.w - 280, { size: 13, color: PAL.dim });
+  for (let i = 0; i < YARD_MAX; i++) {   // the chosen five
+    const r = yardSlotRect(i), it = byId.get(Y.sel[i]);
+    if (it) drawPetCard(it, r, { slot: true, over: inRect(mouse, r) });
+    else { panel(r.x, r.y, r.w, r.h, 'dark'); rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]); label('empty', r.x + r.w / 2, r.y + r.h / 2, { align: 'center', size: 13, color: '#8a7458' }); }
+  }
+  label(`Your animals (${HERD.length})  ·  ${Y.sel.length} of ${YARD_MAX} chosen`, ROSTER.x + 24, ROSTER_GRID.y - 6, { size: 14, bold: true, color: PAL.gold });
+  rosterScroll = clamp(rosterScroll, 0, rosterMax());
+  if (rosterDrag) { const b = ROSTER_BAR(), th = rosterThumb().h; rosterScroll = clamp((mouse.y - rosterDrag.off - b.y) / Math.max(1, b.h - th) * rosterMax(), 0, rosterMax()); }
+  const Gd = ROSTER_GRID, inGrid = inRect(mouse, Gd);
+  ctx.save(); ctx.beginPath(); ctx.rect(Gd.x, Gd.y, Gd.w, Gd.h); ctx.clip();
+  rosterList().forEach((it, i) => {
+    const r = rosterCardRect(i); if (r.y + r.h < Gd.y || r.y > Gd.y + Gd.h) return;
+    drawPetCard(it, r, { over: inGrid && inRect(mouse, r) });
+    if (Y.sel.includes(it.pid)) {   // chosen: a green tick
+      ctx.strokeStyle = '#66bb6a'; ctx.lineWidth = 3; rr(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 7); ctx.stroke();
+      ctx.fillStyle = '#43a047'; ctx.beginPath(); ctx.arc(r.x + r.w - 16, r.y + 16, 10, 0, 7); ctx.fill(); label('✓', r.x + r.w - 16, r.y + 17, { align: 'center', size: 13, bold: true, color: '#fff' });
+    }
+  });
+  ctx.restore();
+  if (rosterMax() > 0) { const b = ROSTER_BAR(), t = rosterThumb(); ctx.fillStyle = 'rgba(12,7,4,0.7)'; rr(b.x, b.y, b.w, b.h, 4); ctx.fill(); ctx.fillStyle = rosterDrag ? PAL.gold : PAL.brass; rr(t.x + 1, t.y + 1, t.w - 2, t.h - 2, 3); ctx.fill(); }
+  button(YARD_RANDOM(), 'Random five', { hover: inRect(mouse, YARD_RANDOM()), size: 14, color: PAL.cream });
+  button(ROSTER_DONE, 'Done', { hover: inRect(mouse, ROSTER_DONE), size: 16, color: PAL.gold });
 }
 // ---------- the stone oven: glowing embers and steam from its chiminea; its menu cooks fish into dishes ----------
 const OVEN_ART = { s: 2, mouth: [0.4, 0.7], chimney: [0.57, 0.02] };   // (fractions of the picture: the oven's mouth, the top of its chimney)
@@ -2763,7 +2828,7 @@ function hubStations() {
     for (const to of ['wardrobe', 'records', 'den', 'menagerie']) out.push({ kind: 'door', to, x: X(HUB_SPOTS.doors[to]), y: ft, label: `Enter ${HUB_ROOMS[to].name}` + (to === 'den' && denPair() && SAVE.den.ready ? '  (an egg is waiting!)' : '') });
     out.push({ kind: 'team', x: X(HUB_SPOTS.team), y: ft, label: 'Choose your team' });
     for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
-    out.push({ kind: 'yardcall', x: X(HUB_SPOTS.fire), y: ft, label: 'Call different animals out to play' });
+    out.push({ kind: 'doghouse', x: X(HUB_SPOTS.fire), y: ft, label: 'Choose who plays in the Yard' });
     out.push({ kind: 'oven', x: X(HUB_SPOTS.oven), y: ft, label: 'Cook at the stone oven' });
     out.push({ kind: 'fish', x: dockTipX(), y: ft, label: 'Go fishing' });
     out.push({ kind: 'creel', x: (POND.dock1 + 1.7) * TILE, y: ft, label: `Fish bag (${(SAVE.yard.fishbag || []).length} fish)` });
@@ -2815,10 +2880,7 @@ function hubInteract() {
   else if (s.kind === 'fish') fishStart();
   else if (s.kind === 'creel') openFishBag();
   else if (s.kind === 'oven') openOven();
-  else if (s.kind === 'yardcall') {
-    const was = (SAVE.yard.pets || []).slice(); SAVE.yard.pets = []; yardPicks(was); spawnHubPets(G.room); saveData(); SFX.play('chirp');
-    burst(s.x, s.y - 20, '#ffd54f', 18, 180); showMsg('A different bunch of animals comes out to play.', 2);
-  }
+  else if (s.kind === 'doghouse') openYardPick();
   else if (s.kind === 'team') { G.panel = 'team'; rosterSel = 0; rosterScroll = 0; GIVE = null; SFX.play('pick'); }
   else if (s.kind === 'pet') { if (G.visit) petYardAnimal(s.pet); else openBag('pantry', [], s.pet); }
 }
@@ -3068,6 +3130,7 @@ function hubPanelClick(btn = 0) {
   else if (G.panel === 'dress') dressClick(btn);
   else if (G.panel === 'trade') tradeClick(btn);
   else if (G.panel === 'oven') ovenClick(btn);
+  else if (G.panel === 'yardpick') yardPickClick(btn);
 }
 // stations, beds, silhouettes and the "press E" bubble (drawn in the world)
 function drawHubWorld() {
@@ -3080,6 +3143,7 @@ function drawHubWorld() {
   drawFriendPost(HUB_SPOTS.post * TILE, ft);
   drawDoor('door_menagerie', HUB_SPOTS.doors.menagerie * TILE, ft, HUB_ROOMS.menagerie.name);   // every species, act by act
   drawOvenProp(HUB_SPOTS.oven * TILE, ft);
+  drawDoghouse(HUB_SPOTS.fire * TILE, ft);
   drawRemoteHero();   // your friend, when you're together in a Yard
 }
 // a door into one of the rooms (ChatGPT art when it exists), with its name on a sign
@@ -3210,6 +3274,7 @@ function drawHubPanels() {
   if (G.panel === 'starter') drawStarter();
   if (G.panel === 'acts') { if (G.actFlash) G.actFlash.t -= 1 / 60; drawActSelect(); }
   if (G.panel === 'oven') drawOvenPanel();
+  if (G.panel === 'yardpick') drawYardPick();
   if (PK && PK.talent != null) drawTalents();
   drawHUDMessageOnly();
 }
@@ -7638,7 +7703,7 @@ function rosterCardRect(i) { const c = i % ROSTER_COLS, r = Math.floor(i / ROSTE
 const ROSTER_BAR = () => ({ x: ROSTER_GRID.x + ROSTER_GRID.w + 6, y: ROSTER_GRID.y + 2, w: 8, h: ROSTER_GRID.h - 4 });
 function rosterThumb() { const b = ROSTER_BAR(), M = rosterMax(), th = Math.max(28, b.h * ROSTER_GRID.h / (ROSTER_GRID.h + M)); return { x: b.x, y: b.y + (M ? (b.h - th) * rosterScroll / M : 0), w: b.w, h: th }; }
 function scrollRoster(dy) { rosterScroll = clamp(rosterScroll + dy, 0, rosterMax()); }
-const rosterOpen = () => !!G && ((!!PK && PK.roster && PK.talent == null) || (G.hub && G.panel === 'team' && !(PK && PK.talent != null)));
+const rosterOpen = () => !!G && ((!!PK && PK.roster && PK.talent == null) || (G.hub && (G.panel === 'team' || G.panel === 'yardpick') && !(PK && PK.talent != null)));
 function drawPetCard(it, r, opt = {}) {
   const k = it.def.pet, d = PETS[k], hp = runHp(it.pid) ?? 1, inTeam = petSlots.includes(it), g = it.g || {};
   panel(r.x, r.y, r.w, r.h, 'dark'); ctx.fillStyle = opt.sel ? 'rgba(255,211,107,0.16)' : opt.over ? 'rgba(255,230,180,0.08)' : 'rgba(0,0,0,0)'; rr(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 6); ctx.fill();
@@ -10223,6 +10288,7 @@ function update(dt) {
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
         if (G.panel === 'oven') { ovenKeys(dt); break; }
+        if (G.panel === 'yardpick') { if (hit('Escape')) { G.panel = null; G.yardPick = null; } else if (hit('Enter')) yardPickDone(); break; }
         if (G.panel === 'net' || G.panel === 'trade') { netPanelKeys(); break; }
         if (G.panel === 'dress') { dressKeys(); break; }
         if (G.panel === 'import') { if (hit('Escape', 'n')) { G.importing = null; G.panel = 'records'; } else if (hit('y')) confirmImport(); break; }
