@@ -3241,7 +3241,7 @@ function drawHubRoomProps(room, ft) {
       if (nest) drawSprite(nest, x, ft + 2, i ? -1 : 1); else { ctx.fillStyle = '#a1793f'; ctx.beginPath(); ctx.ellipse(x, ft - 6, 30, 10, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#c9a25c'; ctx.beginPath(); ctx.ellipse(x, ft - 10, 24, 6, 0, 0, 7); ctx.fill(); }
       const it = pair && pair[i];
       if (it) {   // the parents snooze on their nests
-        const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), rest = animFrames(sheet, 'rest') ? sheet : animFrames(sheet + '_rest', 'rest') ? sheet + '_rest' : null;
+        const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), rest = restSheetOf(sheet, it);
         ctx.filter = petFilter(k, sheet, it);
         if (rest) drawAnim(petSheet(rest, it), 'rest', TIME * 2.5 + i, x, ft - 8, i ? -1 : 1); else drawAnim(petSheet(sheet, it), d.fly ? 'fly' : 'idle', TIME * 4, x, d.fly ? ft - 30 : ft - 8, i ? -1 : 1);
         ctx.filter = 'none'; if (it.g.shiny) shinySparkle(x - 24, ft - 60, 48, 50, i, 1, k);
@@ -5819,7 +5819,7 @@ function drawPets() {
     const k = p.kind || (p.item && p.item.def.pet);
     let anim, i, sheet = speciesSheet(k);
     if (p.ko > 0) { anim = 'ko'; i = Math.min(3, Math.floor((6 - p.ko) / 0.12)); }
-    else if (p.resting && (animFrames(sheet + '_rest', 'rest') || animFrames(sheet, 'rest'))) { if (!animFrames(sheet, 'rest')) sheet = sheet + '_rest'; anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }   // the fire beasts keep their resting pose on their main sheet
+    else if (p.resting && restSheetOf(sheet, p.item)) { sheet = restSheetOf(sheet, p.item); anim = 'rest'; i = Math.floor(TIME * 2.5 + p.phase); }   // the fire beasts keep their resting pose on their main sheet
     else if (p.d.fly) { anim = 'fly'; i = Math.floor(TIME * 12 + p.phase); }
     else if (!p.onGround && p.airT > 0.08) { anim = 'run'; i = 2; }
     else if (p.moving) { anim = 'run'; i = Math.floor(p.runF || 0); }
@@ -5829,7 +5829,7 @@ function drawPets() {
     const pf = p.vface ?? p.face;
     if (p.item && p.item.pid) o.scale = PX * babyScale(p.item);   // your babies grow up as they level
     ctx.filter = petFilter(k, sheet, p.item);
-    if (!drawAnim(petSheet(sheet, p.item), anim, i, cx, y, pf, o) && !drawAnim(speciesSheet(k), p.d.fly ? 'fly' : 'idle', i, cx, y, pf, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
+    if (!drawAnim(petSheet(sheet, p.item), anim, i, cx, y, pf, o) && !drawAnim(petSheet(speciesSheet(k), p.item), p.d.fly ? 'fly' : 'idle', i, cx, y, pf, o)) { ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = p.d.color; rr(p.x, p.y, p.w, p.h, 6); ctx.fill(); ctx.globalAlpha = 1; }
     ctx.filter = 'none';
     if (p.item && p.item.g && p.item.g.shiny) shinySparkle(p.x - 6, p.y - 8, p.w + 12, p.h + 4, p.slot || 0, 1, k);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -6140,6 +6140,12 @@ const GOLD_SPARKLE = new Set(['rhino']);   // the shiny Rhino's horns are gold
 const shinyFilter = k => SHINY_SPECIAL[k] || `hue-rotate(${SHINY_HUE(k)}deg) saturate(1.45) brightness(1.08)`;
 // a shiny with its own art (pet_<k>_shiny, e.g. the spirit-blue Rhino with gold horns) uses that sheet instead of a colour shift
 const hasShinyArt = (sheet, it) => !!(it && it.g && it.g.shiny && sheet && animFrames(sheet + '_shiny', 'idle'));
+function restSheetOf(sheet, it) {   // the sheet holding this animal's resting pose, or null (a baby never borrows its adult's)
+  const b = petSheet(sheet, it);
+  if (animFrames(b, 'rest')) return b;
+  if (b !== sheet && b !== sheet + '_shiny') return null;
+  return animFrames(sheet + '_rest', 'rest') ? sheet + '_rest' : null;
+}
 const hasBabyArt = sheet => !!(window.ANIMS && window.ANIMS[sheet + '_baby'] && art('anim/' + sheet + '_baby'));
 const petSheet = (sheet, it) => (it && it.plvl && petLvl(it) < EVO_LVL && hasBabyArt(sheet) ? sheet + '_baby' : hasShinyArt(sheet, it) ? sheet + '_shiny' : sheet);   // (a baby with its own art uses it)
 function petFilter(k, sheet, it) {
@@ -8589,7 +8595,7 @@ function drawStarter() {
     if (port) {   // the pet on the left, its moves on the right
       ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
       const cx = r.x + 78, top = r.y + Math.max(8, (r.h - 190) / 2);
-      drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5 + i, cx, d.fly ? top + 54 : top + 88, 1, { scale: 3.2 });
+      drawAnim(hasBabyArt(d.anim) ? d.anim + '_baby' : d.anim, d.fly ? 'fly' : 'idle', TIME * 5 + i, cx, d.fly ? top + 54 : top + 88, 1, { scale: 3.2 });
       const nsz = Math.min(22, Math.floor(22 * 150 / Math.max(1, (ctx.font = `22px ${TITLE}`, ctx.measureText(b.baby).width))));   /* shrink a long name to fit */
       label(b.baby, cx, top + 112, { align: 'center', title: true, size: nsz, color: PAL.gold });
       label(d.role, cx, top + 136, { align: 'center', size: 13, color: PAL.good });
@@ -8598,7 +8604,7 @@ function drawStarter() {
       for (const a of b.abil) { label(ABIL[a].n, r.x + 166, y, { size: 13, bold: true, color: PAL.cream }); y = para(ABIL[a].d, r.x + 166, y + 16, r.w - 182, { size: 12, lh: 15, color: '#c9b08a' }) + 4; }
       ctx.restore(); ctx.textAlign = 'center'; return;
     }
-    drawAnim(d.anim, d.fly ? 'fly' : 'idle', TIME * 5 + i, r.x + r.w / 2, d.fly ? r.y + 62 : r.y + 92, 1, { scale: 4 * 0.7 });
+    drawAnim(hasBabyArt(d.anim) ? d.anim + '_baby' : d.anim, d.fly ? 'fly' : 'idle', TIME * 5 + i, r.x + r.w / 2, d.fly ? r.y + 62 : r.y + 92, 1, { scale: 4 * 0.7 });
     ctx.font = `26px ${TITLE}`; ctx.fillStyle = PAL.gold; ctx.fillText(b.baby, r.x + r.w / 2, r.y + 118);
     ctx.font = `13px ${UI}`; ctx.fillStyle = PAL.good; ctx.fillText(d.role, r.x + r.w / 2, r.y + 142); ctx.fillStyle = PAL.dim; ctx.fillText(`grows into a ${ITEMS['pet_' + k].name}`, r.x + r.w / 2, r.y + 158);
     ctx.textAlign = 'left'; let y = r.y + 184;
