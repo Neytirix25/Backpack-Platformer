@@ -117,7 +117,7 @@ function animFrames(name, anim) { const A = window.ANIMS && window.ANIMS[name]; 
 function animLen(name, anim) { const f = animFrames(name, anim); return f ? f.length : 0; }
 // draw frame i of an animation with its anchor (feet, or body centre for flyers) at (x, y)
 // sheets drawn with extra detail (more pixels) than their on-screen size: shrink them back so they match the others
-const ANIM_SCALE = { pet_lakewyrm: 22 / 32 };
+const ANIM_SCALE = { pet_lakewyrm: 22 / 32, pet_lakewyrm_baby: 22 / 32 };   // (sheets drawn with extra detail, shown smaller; its baby too)
 function drawAnim(name, anim, i, x, y, face = 1, o = {}) {
   const fr = animFrames(name, anim); if (!fr || !fr.length) return false;
   const img = art('anim/' + name), n = fr.length;
