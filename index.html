@@ -2306,7 +2306,7 @@ const castRange = () => [(POND.w0 + 0.8) * TILE, dockTipX() - TILE * 1.2];   // 
 function fishStart() {
   const P = G.player; P.x = dockTipX() - P.w / 2 + 8; P.vx = 0; P.face = -1;
   G.fish = { phase: 'aim', t: 0, a: 0 };
-  SFX.play('pick'); showMsg('Tap / press E when the target is on a ripple to cast there.', 2.4);
+  SFX.play('pick'); showMsg(TOUCH.on ? 'Tap when the target is on a ripple to cast.' : 'Press E when the target is on a ripple to cast there.', 2.4);
 }
 function fishEnd(msg, ok) {
   const F = G.fish; if (F && F.lure) { F.lure.scared = 1.5; F.lure.tx = null; }
@@ -9082,7 +9082,7 @@ function drawPortraitHUD() {
     ctx.globalAlpha = 0.7;
     wrapLines(TOUCH.on ? TOUCH_HINT : 'A/D move · W jump · S drop · Shift dash · E use · B backpack · T pets · N map · P pause', Wv - 30, 12).forEach((l, i, a) => label(l, Wv / 2, Hv - 14 - (a.length - 1 - i) * 16, { align: 'center', size: 12 }));
     ctx.globalAlpha = 1;
-    if (G.msgT > 0 && G.msg && portraitWorldOnly()) { W = 540; drawToast(G.msg, 500); }   // just above the bottom of the world's square (menus show it themselves)
+    if (G.msgT > 0 && G.msg && portraitWorldOnly()) { W = 540; drawToast(G.msg, 40); }   // at the top of the world's square, clear of the ground, the pond and whatever you're doing (menus show it themselves)
   } finally { W = keepW; H = keepH; }
 }
 function para(t, x, y, maxW, o = {}) {
@@ -9097,6 +9097,7 @@ function wrapLines(t, maxW, size, bold) {
   if (cur) out.push(cur); return out;
 }
 function drawHUDMessageOnly() {
+  if (PORTRAIT() && portraitWorldOnly()) return;   // (held upright, walking about: the portrait HUD shows it, at the top)
   if ((PK && (PK.talent != null || PK.roster)) || G.panel === 'starter' || G.panel === 'acts' || G.panel === 'team' || G.panel === 'den' || G.panel === 'newborn' || G.panel === 'trophies' || G.panel === 'trade' || G.panel === 'import' || G.panel === 'dress') return;   // full-screen panels cover the middle of the screen
   if (G.msgT > 0 && G.msg) drawToast(G.msg, G.panel === 'net' ? H - 30 : 86);
 }
