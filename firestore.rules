@@ -1,0 +1,15 @@
+rules_version = '2';
+// Backpack Sanctuary account saves: each player can read and write only their own save (saves/{their uid}),
+// a save is one text field under 900 KB, and nothing else in the database can be touched.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /saves/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['save', 'name', 'updated'])
+        && request.resource.data.save is string && request.resource.data.save.size() < 900000
+        && request.resource.data.name is string && request.resource.data.name.size() <= 16
+        && request.resource.data.updated is timestamp;
+    }
+  }
+}
