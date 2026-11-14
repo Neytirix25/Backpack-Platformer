@@ -3033,7 +3033,11 @@ function breedGenes(a, b) {
   const avg = s => clamp(Math.round(((a.g[s] || 0) + (b.g[s] || 0)) / 2 + Math.random() * 10), 0, 100);
   const shinyParents = (a.g.shiny ? 1 : 0) + (b.g.shiny ? 1 : 0);
   return { nat: Math.random() < 0.15 ? pick(NATURE_IDS) : pick([a.g.nat, b.g.nat]), atk: avg('atk'), def: avg('def'), hp: avg('hp'), bond: 0,
-           sex: Math.random() < 0.5 ? 'm' : 'f', shiny: Math.random() < SHINY_ODDS.bred[shinyParents] };
+           sex: Math.random() < 0.5 ? 'm' : 'f', shiny: Math.random() < SHINY_ODDS.bred[shinyParents], ...inheritCoat(a.g, b.g) };
+}
+function inheritCoat(ga, gb) {   // one colour gene from each parent; two different natural colours blend a quarter of the time
+  const col = [pick(geneCol(ga)), pick(geneCol(gb))];
+  return { col, blend: col[0] !== col[1] && col[0] < COAT_ALBINO && col[1] < COAT_ALBINO && Math.random() < 0.25 };
 }
 function openDen() { G.panel = 'den'; G.den = { k: null, m: null, f: null, mp: 0, fp: 0 }; SFX.play('pick'); }
 const DEN = { x: 40, y: 22, w: 880, h: 496 };
@@ -3056,7 +3060,7 @@ const denList = (k, sex) => herdOf(k).filter(it => it.g.sex === sex).sort((a, b)
 // what the pair's baby could look like
 function drawBabyOdds(m, f, x, y, w) {
   const narrow = w < 600;   // (portrait: nature and shiny odds go under the stats)
-  panel(x, y, w, narrow ? 178 : 118, 'dark');
+  panel(x, y, w, narrow ? 200 : 138, 'dark');
   label('Their baby will have', x + 16, y + 18, { size: 14, bold: true, color: PAL.gold });
   [['atk', 'Attack'], ['def', 'Defense'], ['hp', 'Health']].forEach(([s, nm], i) => {
     const lo = Math.round((m.g[s] + f.g[s]) / 2), hi = Math.min(100, lo + 10), a = grade(lo), b = grade(hi), yy = y + 42 + i * 18;
@@ -3068,6 +3072,8 @@ function drawBabyOdds(m, f, x, y, w) {
   const nx = narrow ? x + 16 : x + w / 2 + 70, ny = narrow ? y + 104 : y + 42;
   label(fitText(`Nature: ${natA === natB ? natA : natA + ' or ' + natB} (sometimes a new one)`, w - 30), nx, ny, { size: 12, color: PAL.cream });
   label(`Shiny chance: ${Math.round(SHINY_ODDS.bred[sp] * 100)}%`, nx, ny + 20, { size: 13, bold: true, color: sp ? PAL.gold : PAL.cream });
+  { const odds = coatOdds(m.def.pet, m.g, f.g).slice(0, 5).map(([n, q]) => `${n} ${q >= 0.995 ? 100 : Math.max(1, Math.round(q * 100))}%`).join('  ·  ');   // the colours, most likely first
+    label((ctx.font = `12px ${UI}`, fitText('Coat: ' + odds, narrow ? w - 30 : w - 32)), narrow ? nx : x + 16, narrow ? ny + 62 : y + 116, { size: 12, color: '#ffe0b2' }); }
   label('Bond starts at 0 · male or female 50/50', nx, ny + 40, { size: 12, color: PAL.dim });
 }
 function drawDen() {
@@ -3154,7 +3160,8 @@ function drawNewborn() {
   const bw = 460, bh = 330, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10, g = it.g;
   ctx.fillStyle = 'rgba(8,5,3,0.7)'; ctx.fillRect(0, 0, W, H);
   panel(bx, by, bw, bh, 'leather');
-  banner(g.shiny ? '★ A shiny baby! ★' : 'A baby is born!', W / 2, by + 4, { size: 26, h: 44, pad: 100 });
+  const cb = coatOf(it.def.pet, g);
+  banner(g.shiny ? '★ A shiny baby! ★' : cb.rare ? `★ ${cb.i === COAT_ALBINO ? 'An albino' : 'A melanistic'} baby! ★` : 'A baby is born!', W / 2, by + 4, { size: 26, h: 44, pad: 100 });
   const k = it.def.pet, d = PETS[k], sheet = speciesSheet(k), glow = ctx.createRadialGradient(bx + 110, by + 140, 4, bx + 110, by + 140, 90);
   glow.addColorStop(0, (g.shiny ? '#ffd36b' : d.color) + '66'); glow.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = glow; ctx.fillRect(bx + 20, by + 50, 180, 180);
   ctx.filter = petFilter(k, sheet, it); drawAnim(petSheet(sheet, it), d.fly ? 'fly' : 'idle', TIME * 5, bx + 110, d.fly ? by + 140 : by + 190, 1, { scale: 3.2 * babyScale(it) }); ctx.filter = 'none';
@@ -3265,7 +3272,7 @@ function drawHubBubble() {
   if (s.kind === 'pet') {
     const d = s.pet.d, it = s.pet.item;
     const g = it.g || {};
-    lines = [[(g.shiny ? '★ ' : '') + d.name + ' ' + sexSym(g), g.shiny ? '#8a5a00' : '#5a2e0c', 'bold 15px'], [`${d.role} · level ${petLvl(it)} · ${(NATURES[g.nat] || NATURES.calm).n}`, PAL.parchInk, '13px'], [`ATK ${grade(g.atk)[1]}  DEF ${grade(g.def)[1]}  HP ${grade(g.hp)[1]}  ·  bond ${Math.floor(g.bond || 0)}`, '#5a3a1a', '12px'], [G.visit ? `${G.visit.name}'s animal` : petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
+    lines = [[(g.shiny ? '★ ' : '') + d.name + ' ' + sexSym(g), g.shiny ? '#8a5a00' : '#5a2e0c', 'bold 15px'], [`${coatOf(s.pet.kind, g).name} · ${d.role} · level ${petLvl(it)} · ${(NATURES[g.nat] || NATURES.calm).n}`, PAL.parchInk, '13px'], [`ATK ${grade(g.atk)[1]}  DEF ${grade(g.def)[1]}  HP ${grade(g.hp)[1]}  ·  bond ${Math.floor(g.bond || 0)}`, '#5a3a1a', '12px'], [G.visit ? `${G.visit.name}'s animal` : petSlots.includes(it) ? `In your team (${['front', 'middle', 'back'][petSlots.indexOf(it)]})` : 'Resting in the Sanctuary', '#3f5a1c', '13px'], ['[E] Pet', '#7a2e14', 'bold 13px']];
   } else if (s.kind === 'species') {
     const n = HERD.filter(it => it.def.pet === s.id).length, d = PETS[s.id];
     lines = [[d.name, '#5a2e0c', 'bold 15px'], [`${d.role} · ${ACT_NAMES[s.act].split(' · ')[0]}`, PAL.parchInk, '13px'], [G.visit ? 'Your friend has found this one' : `You have ${n}`, '#2e5a1c', 'bold 13px']];
@@ -5948,11 +5955,98 @@ const NATURE_IDS = Object.keys(NATURES);
 const GRADES = [[90, 'S', '#ffd36b'], [75, 'A', '#a9d46b'], [60, 'B', '#81d4fa'], [45, 'C', '#e8dcc6'], [30, 'D', '#ffcc80'], [15, 'E', '#ff9e7a'], [0, 'F', '#ef7a6e']];
 const grade = v => GRADES.find(g => (v || 0) >= g[0]);
 const statMul = v => 1 + (clamp(v || 0, 0, 100) - 50) / 50 * 0.15;   // 0 -> -15%, 50 -> +0%, 100 -> +15%
+// ---------- coats: every species has 8 natural colours plus two rare ones (albino and melanistic) ----------
+// A colour is a recipe for a CSS filter over the animal's art (it never reads pixels, so it works from a folder too):
+// g grayscale, sp sepia, h hue-rotate (deg), s saturate, b brightness, c contrast. The first colour is the art as drawn.
+// Each animal carries two colour genes (g.col = [a, b]) and shows the stronger (earlier) one; albino and melanistic are
+// recessive (they show only with two copies). When the two genes are different natural colours it can come out a blend.
+const COAT_ALBINO = 8, COAT_MELAN = 9;
+const COAT_RARE = [['Albino', { g: 1, sp: 0.25, h: -35, s: 1.4, b: 1.75, c: 0.85 }], ['Melanistic', { g: 0.85, b: 0.4, c: 1.25 }]];
+const COATS = {
+  dog:        [['Silver', {}], ['Black & Tan', { sp: 0.4, h: -10, s: 1.3, b: 0.72 }], ['Red Sable', { sp: 0.6, h: -15, s: 1.6 }], ['Cream', { sp: 0.4, b: 1.12, s: 0.8 }], ['Liver', { sp: 0.7, h: -25, s: 1.3, b: 0.7 }], ['Blue', { sp: 0.2, h: 175, s: 0.6, b: 0.9 }], ['Sable', { sp: 0.5, b: 0.85, s: 1.1 }], ['Golden', { sp: 0.6, h: 5, s: 1.8, b: 1.05 }]],
+  catgray:    [['Grey Tabby', {}], ['Ginger', { sp: 0.8, h: -20, s: 2.2, b: 1.25 }], ['Cream', { sp: 0.5, b: 1.5, s: 0.9 }], ['Blue', { sp: 0.3, h: 180, s: 0.5, b: 1.2 }], ['Brown Tabby', { sp: 0.7, b: 1.1, s: 1.2 }], ['Silver', { g: 0.8, b: 1.5 }], ['Cinnamon', { sp: 0.8, h: -25, s: 1.6, b: 1.1 }], ['Lilac', { sp: 0.3, h: 220, s: 0.5, b: 1.4 }]],
+  catcalico:  [['Calico', {}], ['Tortoiseshell', { b: 0.75, s: 1.2, sp: 0.2 }], ['Dilute Calico', { s: 0.55, b: 1.15 }], ['Ginger & White', { sp: 0.5, h: -10, s: 1.6 }], ['Grey & White', { g: 0.9 }], ['Cream & White', { sp: 0.4, b: 1.2, s: 0.7 }], ['Brown & White', { sp: 0.6, b: 0.9 }], ['Blue Tortie', { sp: 0.3, h: 190, s: 0.5 }]],
+  sunday:     [['Sun', {}], ['Golden', { h: 15, s: 1.1 }], ['Turquoise', { h: 150 }], ['Pastel', { s: 0.7, b: 1.1 }], ['Jenday', { h: -10, s: 1.2 }], ['Dusky', { b: 0.75, s: 0.7 }], ['Red Factor', { h: -20, s: 1.4 }], ['Mint', { h: 100, s: 0.8 }]],
+  rhino:      [['Grey', {}], ['White Rhino', { b: 1.2, sp: 0.2 }], ['Black Rhino', { b: 0.62, s: 0.8 }], ['Dusty', { sp: 0.5 }], ['Clay', { sp: 0.7, h: -15, s: 1.3 }], ['Slate', { h: 190, sp: 0.2, s: 0.6 }], ['Sand', { sp: 0.5, b: 1.15, s: 0.9 }], ['Charcoal', { b: 0.78 }]],
+  cockatiel:  [['Normal Grey', {}], ['Lutino', { sp: 0.8, b: 1.5, s: 1.6 }], ['Pied', { b: 1.2, s: 0.8 }], ['Pearl', { sp: 0.3, b: 1.15 }], ['Cinnamon', { sp: 0.6, h: -15 }], ['Whiteface', { g: 1, b: 1.25 }], ['Yellowface', { sp: 0.5, b: 1.2, s: 1.3 }], ['Silver', { g: 0.7, h: 190, b: 1.1 }]],
+  dragon:     [['Ember', {}], ['Crimson', { h: -25, s: 1.2 }], ['Gold', { h: 20, s: 1.2, b: 1.1 }], ['Bronze', { sp: 0.5, b: 0.9 }], ['Emerald', { h: 90 }], ['Sapphire', { h: 190 }], ['Amethyst', { h: 250 }], ['Copper', { sp: 0.4, h: -10, b: 0.95 }]],
+  fox:        [['Red', {}], ['Cross', { b: 0.8, s: 0.9, sp: 0.2 }], ['Silver', { g: 0.8, b: 0.85 }], ['Platinum', { g: 0.7, b: 1.3 }], ['Amber', { h: 15, s: 1.2, b: 1.1 }], ['Marble', { g: 0.5, b: 1.4 }], ['Sable', { b: 0.7, s: 0.8 }], ['Fawn', { sp: 0.5, b: 1.1, s: 0.8 }]],
+  owl:        [['Barn Brown', {}], ['Snowy', { g: 0.9, b: 1.55 }], ['Tawny', { sp: 0.4, h: -10, s: 1.3 }], ['Grey', { g: 0.8, b: 1.05 }], ['Rufous', { sp: 0.5, h: -20, s: 1.6 }], ['Sandy', { sp: 0.5, b: 1.2, s: 0.9 }], ['Dusky', { b: 0.75 }], ['Cream', { sp: 0.3, b: 1.3 }]],
+  ferret:     [['Sable', {}], ['Champagne', { sp: 0.4, b: 1.3, s: 0.8 }], ['Cinnamon', { sp: 0.6, h: -15, s: 1.4, b: 1.1 }], ['Silver', { g: 0.8, b: 1.15 }], ['Chocolate', { sp: 0.5, b: 0.8, h: -10 }], ['Black Sable', { b: 0.7, s: 0.8 }], ['Panda', { g: 0.5, b: 1.4 }], ['Blaze', { b: 1.2, s: 0.7 }]],
+  boar:       [['Wild Brown', {}], ['Dark Brown', { b: 0.75 }], ['Red', { sp: 0.5, h: -15, s: 1.4 }], ['Sandy', { sp: 0.5, b: 1.25, s: 0.8 }], ['Grey', { g: 0.7, b: 1.05 }], ['Pale', { b: 1.1, s: 0.7 }], ['Ginger', { sp: 0.7, h: -20, s: 1.8, b: 1.1 }], ['Chestnut', { sp: 0.6, h: -10, b: 0.9 }]],
+  toad:       [['Olive', {}], ['Brown', { sp: 0.6, b: 0.9 }], ['Green', { h: 40, s: 1.3 }], ['Golden', { h: -15, s: 1.5, b: 1.15 }], ['Grey', { g: 0.7 }], ['Rust', { sp: 0.6, h: -30, s: 1.5 }], ['Mossy', { h: 60, s: 1.1, b: 0.9 }], ['Tan', { sp: 0.5, b: 1.15, s: 0.8 }]],
+  shadowwolf: [['Shadow', {}], ['Midnight', { h: -40 }], ['Smoke', { g: 0.6, b: 1.2 }], ['Dusk Violet', { h: 20, s: 1.3 }], ['Ash', { g: 0.8, b: 1.4 }], ['Storm', { h: -70, s: 0.8, b: 1.1 }], ['Twilight', { h: -20, b: 1.2 }], ['Plum', { h: 30, b: 1.1, s: 1.2 }]],
+  unicorn:    [['Moonwhite', {}], ['Rose', { h: 60, s: 1.3 }], ['Golden', { sp: 0.5, s: 1.4, b: 1.1 }], ['Sky', { h: -60, s: 1.2 }], ['Mint', { h: -120 }], ['Silver', { g: 0.8, b: 1.1 }], ['Dapple Grey', { g: 0.6, b: 0.9 }], ['Lavender', { h: 20, s: 1.5 }]],
+  elder:      [['Crimson', {}], ['Garnet', { h: -10, s: 1.2 }], ['Bronze', { sp: 0.6, b: 1.1 }], ['Verdant', { h: 110 }], ['Abyssal', { h: 190, b: 0.9 }], ['Ashen', { g: 0.7, b: 1.1 }], ['Gilded', { h: 40, s: 1.2, b: 1.25 }], ['Violet', { h: -40 }]],
+  phoenix:    [['Sunfire', {}], ['Crimson', { h: -20, s: 1.2 }], ['Azure Flame', { h: 180 }], ['Emerald Flame', { h: 100 }], ['Violet Flame', { h: 250 }], ['White Gold', { s: 0.5, b: 1.3 }], ['Rose', { h: -45, s: 1.1, b: 1.1 }], ['Ember', { b: 0.85, s: 1.3 }]],
+  hellhound:  [['Brimstone', {}], ['Ash', { g: 0.7 }], ['Blue Flame', { h: 190 }], ['Green Flame', { h: 100 }], ['Rust', { sp: 0.5 }], ['Violet Flame', { h: 250 }], ['Coal', { b: 0.6, s: 0.7 }], ['Gold', { h: 25, b: 1.15 }]],
+  salamander: [['Fire', {}], ['Red', { h: -20 }], ['Yellow', { h: 20, b: 1.1 }], ['Blue-spotted', { h: 180 }], ['Black & Gold', { b: 0.75, s: 1.2 }], ['Green', { h: 80 }], ['Pink', { h: -50, s: 0.9, b: 1.2 }], ['Olive', { sp: 0.5, h: 30 }]],
+  tortoise:   [['Magma', {}], ['Basalt', { g: 0.75, b: 0.9 }], ['Ember', { h: -15, s: 1.3 }], ['Ash', { g: 0.7, b: 1.1 }], ['Gold', { h: 25, b: 1.15 }], ['Jade', { h: 90 }], ['Obsidian', { b: 0.6, s: 0.6, c: 1.1 }], ['Rust', { sp: 0.5, h: -10 }]],
+  qilin:      [['Sunfire', {}], ['Jade', { h: 90 }], ['Azure', { h: 190 }], ['Rose', { h: -40 }], ['Ivory', { s: 0.4, b: 1.3 }], ['Crimson', { h: -25, s: 1.2 }], ['Bronze', { sp: 0.5, b: 0.9 }], ['Violet', { h: 250 }]],
+  chimera:    [['Wild', {}], ['Desert', { sp: 0.4, b: 1.15 }], ['Dusky', { b: 0.8 }], ['Russet', { sp: 0.5, h: -15, s: 1.3 }], ['Grey', { g: 0.7 }], ['Olive', { h: 30, sp: 0.3 }], ['Golden', { h: 15, s: 1.3, b: 1.1 }], ['Smoky', { g: 0.5, b: 0.9 }]],
+  lion:       [['Sunmane', {}], ['Tawny', { sp: 0.5, s: 0.9 }], ['Ivory', { s: 0.4, b: 1.35 }], ['Red Mane', { h: -20, s: 1.2 }], ['Dark Mane', { b: 0.8 }], ['Sandy', { sp: 0.4, b: 1.15 }], ['Copper', { h: -10, sp: 0.3 }], ['Golden', { h: 10, b: 1.1 }]],
+  mossbear:   [['Mossy', {}], ['Black Bear', { b: 0.65, s: 0.8 }], ['Cinnamon', { sp: 0.5, h: -10, s: 1.3 }], ['Grizzly', { g: 0.4, b: 1.1 }], ['Blonde', { sp: 0.5, b: 1.3, s: 0.9 }], ['Lichen', { h: 30, b: 1.1 }], ['Spirit Bear', { s: 0.4, b: 1.35 }], ['Chocolate', { sp: 0.6, b: 0.85 }]],
+  fairydragon:[['Blossom', {}], ['Lavender', { h: -30 }], ['Sky', { h: -90 }], ['Mint', { h: -150 }], ['Peach', { h: 30, s: 1.1 }], ['Butter', { h: 60 }], ['Rose', { h: 10, s: 1.3 }], ['Pearl', { s: 0.4, b: 1.2 }]],
+  wolpertinger:[['Hare Brown', {}], ['Snowshoe', { s: 0.3, b: 1.4 }], ['Grey', { g: 0.7, b: 1.1 }], ['Russet', { sp: 0.5, h: -15, s: 1.3 }], ['Sandy', { sp: 0.5, b: 1.2 }], ['Agouti', { sp: 0.3, b: 0.95 }], ['Chocolate', { b: 0.75 }], ['Golden', { h: 15, s: 1.4, b: 1.15 }]],
+  moonstag:   [['Moonlit', {}], ['Silver', { g: 0.7, b: 1.2 }], ['Dawn', { h: 100 }], ['Gold', { sp: 0.6, h: 10, s: 1.4, b: 1.1 }], ['Twilight', { h: 40 }], ['Frost', { s: 0.5, b: 1.3 }], ['Starlight', { h: -40 }], ['Dusk', { b: 0.8 }]],
+  viper:      [['Bramble', {}], ['Green', { h: 40, s: 1.3 }], ['Copper', { sp: 0.6, h: -20, s: 1.4 }], ['Sand', { sp: 0.5, b: 1.2, s: 0.8 }], ['Grey', { g: 0.7 }], ['Coral', { h: -50, s: 1.3 }], ['Emerald', { h: 70, s: 1.5 }], ['Banded', { b: 0.8 }]],
+  cusith:     [['Fey Green', {}], ['Moss', { h: -20, b: 1.1 }], ['Teal', { h: 40 }], ['Pine', { b: 0.8 }], ['Sage', { s: 0.6, b: 1.2 }], ['Olive', { h: -40, sp: 0.3 }], ['Jade', { h: 20, s: 1.3 }], ['Grey-green', { g: 0.4 }]],
+  puca:       [['Dark Bay', {}], ['Chestnut', { sp: 0.5, h: -15, s: 1.3 }], ['Grey', { g: 0.7, b: 1.15 }], ['Dun', { sp: 0.5, b: 1.2, s: 0.9 }], ['Raven', { b: 0.65, s: 0.8 }], ['Palomino', { sp: 0.6, h: 10, s: 1.5, b: 1.3 }], ['Roan', { g: 0.4, b: 1.05 }], ['Silver Dapple', { g: 0.8, b: 1.3 }]],
+  spiritwolf: [['Frost', {}], ['Aurora', { h: -60 }], ['Twilight', { h: 40 }], ['Ghost', { s: 0.3, b: 1.15 }], ['Rose', { h: 140 }], ['Sunlit', { h: 180 }], ['Deep Blue', { b: 0.8, s: 1.3 }], ['Teal', { h: -25 }]],
+  lakewyrm:   [['Lake', {}], ['Deep', { b: 0.75 }], ['Emerald', { h: -30 }], ['Azure', { h: 30 }], ['Silt', { sp: 0.5 }], ['Coral', { h: 160 }], ['Pearl', { s: 0.4, b: 1.25 }], ['Violet', { h: 70 }]],
+  kelpie:     [['Loch', {}], ['Kelp', { h: -40 }], ['Silver', { g: 0.7, b: 1.15 }], ['Dark Water', { b: 0.75 }], ['Seafoam', { s: 0.6, b: 1.25 }], ['Bay', { sp: 0.6, h: -20, s: 1.2 }], ['Storm', { h: 30, s: 0.7 }], ['Murk', { sp: 0.4, b: 0.85 }]],
+  kappa:      [['Pond Green', {}], ['Olive', { sp: 0.3, h: -15 }], ['Teal', { h: 40 }], ['Brown', { sp: 0.6, b: 0.9 }], ['Moss', { sp: 0.2, h: 10, b: 1.05 }], ['Jade', { h: 20, s: 1.4 }], ['Grey', { g: 0.6 }], ['Lime', { h: 25, s: 1.6, b: 1.25 }]],
+  axolotl:    [['Pink', {}], ['Wild', { h: 80, sp: 0.4, s: 0.9, b: 0.8 }], ['Gold', { h: 40, s: 1.2, b: 1.1 }], ['Copper', { h: 20, sp: 0.4 }], ['Lavender', { h: -30 }], ['Mosaic', { s: 0.7 }], ['Dusk Blue', { h: -80, s: 0.8 }], ['Peach', { h: 15, b: 1.1 }]],
+  coralcrab:  [['Coral', {}], ['Blue', { h: 180 }], ['Purple', { h: -60 }], ['Yellow', { h: 30, b: 1.1 }], ['Pale', { s: 0.4, b: 1.25 }], ['Speckled', { sp: 0.3 }], ['Teal', { h: 150 }], ['Deep Red', { b: 0.8, s: 1.2 }]],
+  hydra:      [['Swamp', {}], ['Olive', { sp: 0.3 }], ['Teal', { h: 40 }], ['Bronze', { sp: 0.6, b: 1.05 }], ['Crimson', { h: -100 }], ['Grey', { g: 0.7 }], ['Jade', { h: 20, s: 1.3 }], ['Ash', { g: 0.5, b: 1.2 }]],
+  selkie:     [['Harbor Grey', {}], ['Silver', { b: 1.2, s: 0.6 }], ['Brown', { sp: 0.5, b: 0.9 }], ['Dark', { b: 0.7 }], ['Ringed', { g: 0.9, b: 1.1 }], ['Sandy', { sp: 0.4, b: 1.2 }], ['Blue', { h: 190, sp: 0.2, s: 0.6 }], ['Mottled', { s: 0.7, b: 0.95 }]],
+  runeshell:  [['Rune Teal', {}], ['Deep', { b: 0.75 }], ['Jade', { h: -25 }], ['Azure', { h: 30 }], ['Bronze', { sp: 0.6 }], ['Coral', { h: 160 }], ['Amethyst', { h: 80 }], ['Pale', { s: 0.5, b: 1.2 }]],
+  moth:       [['Ember', {}], ['Luna Green', { h: 80 }], ['Rosy', { h: -30, s: 1.1 }], ['Atlas Brown', { sp: 0.5, b: 0.9 }], ['Ivory', { s: 0.4, b: 1.3 }], ['Blue', { h: 190 }], ['Yellow', { h: 20, b: 1.15 }], ['Dusk', { b: 0.8, s: 1.2 }]],
+};
+const COAT_W = [10, 8, 7, 6, 5, 4, 3, 3];   // how common each natural colour is in the wild (the first, the art as drawn, most)
+const coatList = k => (COATS[k] || [['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}], ['Natural', {}]]).concat(COAT_RARE);
+const coatP = (k, i) => Object.assign({ g: 0, sp: 0, h: 0, s: 1, b: 1, c: 1 }, (coatList(k)[i] || coatList(k)[0])[1]);
+const coatCss = p => [p.g ? `grayscale(${p.g})` : '', p.sp ? `sepia(${p.sp})` : '', p.h ? `hue-rotate(${p.h}deg)` : '', p.s !== 1 ? `saturate(${p.s})` : '', p.b !== 1 ? `brightness(${p.b})` : '', p.c !== 1 ? `contrast(${p.c})` : ''].filter(Boolean).join(' ');
+const geneCol = g => (g && Array.isArray(g.col) && g.col.length === 2 ? g.col : [0, 0]);
+// what an animal shows: { name, css, i (the colour, or -1 for a blend), rare }
+function coatOf(k, g) {
+  const [a, b] = geneCol(g), L = coatList(k), nat = i => i < COAT_ALBINO;
+  let i;
+  if (a === b) i = a;
+  else if (nat(a) && nat(b)) {
+    if (g && g.blend) {   // a blend of the two: halfway between their recipes
+      const A = coatP(k, a), B = coatP(k, b), m = {}; for (const key in A) m[key] = (A[key] + B[key]) / 2;
+      return { name: `${L[Math.min(a, b)][0]}-${L[Math.max(a, b)][0]}`, css: coatCss(m), i: -1, rare: false };
+    }
+    i = Math.min(a, b);
+  } else i = nat(a) ? a : nat(b) ? b : 0;   // a rare gene and a natural one: the natural one shows (albino with melanistic: the plain coat)
+  return { name: L[i][0], css: coatCss(coatP(k, i)), i, rare: i >= COAT_ALBINO };
+}
+const geneName = (k, i) => (coatList(k)[i] || coatList(k)[0])[0];
+function rollCoat(o = {}) {   // a wild-born animal's colour genes: ~1% albino, ~1% melanistic, ~5% carry one of them hidden
+  if (o.col) return { col: o.col.slice(), blend: !!o.blend };
+  const r = Math.random();
+  if (r < 0.01) return { col: [COAT_ALBINO, COAT_ALBINO], blend: false };
+  if (r < 0.02) return { col: [COAT_MELAN, COAT_MELAN], blend: false };
+  const nat = () => wpick(COAT_W.map((w, i) => [i, w]));
+  const a = nat(), b = Math.random() < 0.05 ? (Math.random() < 0.5 ? COAT_ALBINO : COAT_MELAN) : Math.random() < 0.65 ? a : nat();   // (wild animals mostly breed true, so every colour turns up)
+  return { col: [a, b], blend: a !== b && b < COAT_ALBINO && Math.random() < 0.08 };
+}
+// the colours a pair's babies could have, most likely first: [[name, chance], ...]
+function coatOdds(k, ga, gb) {
+  const A = geneCol(ga), B = geneCol(gb), out = new Map(), add = (n, p) => out.set(n, (out.get(n) || 0) + p);
+  for (const x of A) for (const y of B) {
+    const both = x < COAT_ALBINO && y < COAT_ALBINO && x !== y;
+    if (both) { add(coatOf(k, { col: [x, y], blend: false }).name, 0.25 * 0.75); add(coatOf(k, { col: [x, y], blend: true }).name, 0.25 * 0.25); }
+    else add(coatOf(k, { col: [x, y] }).name, 0.25);
+  }
+  return [...out.entries()].sort((a, b) => b[1] - a[1]);
+}
 const SHINY_ODDS = { wild: 0.02, bred: [0.02, 0.4, 0.9] };            // wild drops · bred from 0, 1 or 2 shiny parents
 const rollStat = () => Math.round((Math.random() + Math.random() + Math.random()) / 3 * 100);   // a bell curve: most land around C, very few F or S
 function rollGenes(o = {}) {
   return { nat: o.nat || pick(NATURE_IDS), atk: o.atk ?? rollStat(), def: o.def ?? rollStat(), hp: o.hp ?? rollStat(), bond: 0,
-           sex: o.sex || (Math.random() < 0.5 ? 'm' : 'f'), shiny: o.shiny ?? Math.random() < SHINY_ODDS.wild };
+           sex: o.sex || (Math.random() < 0.5 ? 'm' : 'f'), shiny: o.shiny ?? Math.random() < SHINY_ODDS.wild, ...rollCoat(o) };
 }
 const sexSym = g => (g && g.sex === 'f' ? '♀' : '♂');
 const gradeLine = g => ['atk', 'def', 'hp'].map(s => grade(g[s])[1]).join('·');
@@ -5970,8 +6064,8 @@ const shinyFilter = k => SHINY_SPECIAL[k] || `hue-rotate(${SHINY_HUE(k)}deg) sat
 const hasShinyArt = (sheet, it) => !!(it && it.g && it.g.shiny && sheet && animFrames(sheet + '_shiny', 'idle'));
 const petSheet = (sheet, it) => (hasShinyArt(sheet, it) ? sheet + '_shiny' : sheet);
 function petFilter(k, sheet, it) {
-  const a = standInTint(k, sheet), s = it && it.g && it.g.shiny && !hasShinyArt(sheet, it) ? shinyFilter(k) : '';
-  return a === 'none' ? (s || 'none') : s ? a + ' ' + s : a;
+  const a = standInTint(k, sheet), c = it && it.g ? coatOf(k, it.g).css : '', s = it && it.g && it.g.shiny && !hasShinyArt(sheet, it) ? shinyFilter(k) : '';
+  return [a === 'none' ? '' : a, c, s].filter(Boolean).join(' ') || 'none';
 }
 function shinySparkle(x, y, w, h, seed = 0, sc = 1, sp) {   // twinkles that drift over a shiny animal (golden ones, and more of them, for gold shinies)
   const gold = GOLD_SPARKLE.has(sp);
@@ -6006,13 +6100,14 @@ function newPet(k, lvl = 1, g) {
 }
 function petItem(k) { return PET_ITEMS[k] || newPet(k); }
 // pets from before animals were individuals keep everything, and get fair (never poor) traits
-function migratedGenes() { const g = rollGenes({ shiny: false }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
+function migratedGenes() { const g = rollGenes({ shiny: false, col: [0, 0] }); for (const s of ['atk', 'def', 'hp']) g[s] = Math.max(g[s], 40 + Math.floor(Math.random() * 30)); return g; }
 function loadPets() {
   PETS_LOADED = true;
   HERD.length = 0;
   for (const r of SAVE.herd || []) if (r && ITEMS['pet_' + r.k]) {
     const it = makeItem('pet_' + r.k);
     Object.assign(it, { pid: r.pid || newPid(), plvl: clamp(r.lvl || 1, 1, PET_MAX_LVL), xp: r.xp || 0, talents: r.talents || {}, talV: 1, g: Object.assign(rollGenes(), r.g || {}) });
+    if (!r.g || !Array.isArray(r.g.col)) { it.g.col = [0, 0]; it.g.blend = false; }   // (from before coats: its colour as drawn)
     HERD.push(it);
   }
   const legacy = {};
@@ -8922,6 +9017,11 @@ function drawTalentHead(it) {
 function drawTraits(it, x, y, w) {
   const g = it.g || {}, N = NATURES[g.nat] || NATURES.calm;
   label(`${g.sex === 'f' ? '♀ Female' : '♂ Male'}${g.shiny ? '   ★ SHINY' : ''}`, x, y, { size: 12, bold: true, color: g.shiny ? PAL.gold : g.sex === 'f' ? '#f8a5c2' : '#8fc3e0' }); y += 16;
+  { const k = it.def.pet, c = coatOf(k, g), [ga, gb] = geneCol(g);
+    const one = `${c.name} coat  ·  genes ${geneName(k, ga)} / ${geneName(k, gb)}`, col = c.rare ? '#ffd180' : '#d7ccc8';
+    ctx.font = `bold 12px ${UI}`;
+    if (ctx.measureText(one).width <= w) { label(one, x, y, { size: 12, bold: true, color: col }); y += 15; }
+    else { label(fitText(`${c.name} coat`, w), x, y, { size: 12, bold: true, color: col }); y += 13; label((ctx.font = `11px ${UI}`, fitText(`genes ${geneName(k, ga)} / ${geneName(k, gb)}`, w)), x, y, { size: 11, color: PAL.dim }); y += 14; } }
   label(N.n + ' nature', x, y, { size: 13, bold: true, color: PAL.cream }); y += 14;
   label(fitText(N.d, w), x, y, { size: 11, color: PAL.dim }); y += 17;
   for (const [key, nm] of [['atk', 'Attack'], ['def', 'Defense'], ['hp', 'Health']]) {
@@ -9919,6 +10019,7 @@ function cleanGenes(g) {
   if (NATURES[g.nat]) o.nat = g.nat;
   for (const s of ['atk', 'def', 'hp', 'bond']) if (Number.isFinite(+g[s])) o[s] = clamp(+g[s], 0, 100);
   o.sex = g.sex === 'f' ? 'f' : 'm'; o.shiny = !!g.shiny;
+  o.col = Array.isArray(g.col) && g.col.length === 2 && g.col.every(v => Number.isInteger(v) && v >= 0 && v <= COAT_MELAN) ? g.col.slice() : [0, 0]; o.blend = !!g.blend && o.col[0] !== o.col[1];
   return o;
 }
 function pvpCleanTeam(t) {
