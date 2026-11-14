@@ -104,6 +104,11 @@ for _pet in [k for k in list(SPECS) if k.startswith('pet_') and not any(r[0] == 
     _h = {'pet_ferret': 15, 'pet_fox': 20, 'pet_catcalico': 20}.get(_pet, _h)   # the source drew these idle poses differently: tuned by eye
     SPECS[_pet + '_rest'] = dict(rows=[_first, ('rest', 4)], height=_h, ref=_first[0], fly=_b.get('fly', False))
 
+# baby sheets (levels 1-20): ChatGPT redraws of each animal's sheet as a baby, same rows; 85% of the adult's height
+for _pet in [k for k in list(SPECS) if (k.startswith('pet_') or k in ('shadowwolf', 'elderdragon', 'unicorn')) and not k.endswith(('_rest', '_shiny', '_baby'))]:
+    _b = dict(SPECS[_pet]); _b['height'] = max(8, round(_b['height'] * 0.85)); _b.pop('match', None)
+    SPECS[_pet + '_baby'] = _b
+
 
 def components(im):
     """(box, cutout image) for every sprite on the sheet, neighbours' pixels removed."""
