@@ -1100,12 +1100,60 @@ const SFX = (() => {
     wipe3: () => { V.whoosh(0, 1.1, 0.35); V.dig(0.05, 0.45, 6); V.sparkle(0.45, 1, [1319, 1568, 2093, 2637], 0.06); V.wind(0.55, 0.8, 0.6); },
     vs: () => { V.boom(0, 1.1); tone({ type: 'square', f0: 330, f1: 110, dur: 0.22, vol: 0.09 }); noise({ dur: 0.3, vol: 0.18, f0: 5000, f1: 1500, filter: 'highpass' }); },
   };
+  // a happy noise for each species when it's fed: a few munches, then its own contented call
+  const munch = (d = 0, m = 1) => { for (let i = 0; i < 3; i++) noise({ dur: 0.05, vol: 0.2 * m, f0: 1000 + i * 120, f1: 380, filter: 'lowpass', attack: 0.005, delay: d + i * 0.11 }); };
+  const HAPPY = {
+    dog: () => { V.bark(0.4, 1, 1.25); V.bark(0.57, 0.9, 1.35); },
+    catgray: () => { V.purr(0.35, 1, 0.9); V.meow(0.55, 0.8, 1.2, 0.32, 1.4); },
+    catcalico: () => { V.meow(0.4, 0.9, 1.3, 0.3, 1.5); V.purr(0.62, 0.9, 0.8); },
+    sunday: () => V.whistle(0.4, 1, 1.1, [1568, 1760, 2093], 0.08),
+    rhino: () => { V.snort(0.4); V.grunt(0.56, 1, 1.25, 0.15); },
+    cockatiel: () => V.whistle(0.4, 1, 1, [1760, 2093, 2349, 2093], 0.09),
+    dragon: () => { V.roar(0.4, 0.45, 1.7, 0.35); V.sparkle(0.62, 0.6, [1319, 1568, 2093]); },
+    fox: () => { V.yip(0.4, 1, 1.1); V.yip(0.54, 0.9, 1.25); V.gekker(0.7, 0.5, 1.1, 4); },
+    owl: () => { V.hoot(0.4, 1, 1.1, 0.22); V.hoot(0.66, 0.9, 1.25, 0.22); },
+    ferret: () => V.dook(0.4, 1, 1.1, 4),
+    boar: () => V.oink(0.4, 1, 1.15),
+    toad: () => V.ribbit(0.4, 1, 1.2),
+    shadowwolf: () => { V.yip(0.4, 0.8, 0.9); V.howl(0.52, 0.55, 1.1, 0.55); },
+    unicorn: () => { V.whinny(0.4, 0.75, 1.15, 0.55); V.sparkle(0.62, 0.7); },
+    elder: () => { V.roar(0.4, 0.4, 1.4, 0.45); V.chord(0.62, 0.55, [392, 494, 587], 0.6); },
+    phoenix: () => { V.phoenixCry(0.4, 0.8, 1.1, 0.4); V.sparkle(0.6, 0.7, [1568, 2093, 2637]); },
+    hellhound: () => { V.bark(0.4, 1, 0.8); V.bark(0.56, 0.9, 0.85); V.fire(0.62, 0.35, 0.3); },
+    salamander: () => { V.bubbles(0.4, 0.9, 6, 400); V.yip(0.62, 0.55, 1.45); },
+    tortoise: () => { V.grunt(0.4, 0.8, 0.9, 0.2); V.sizzle(0.58, 0.45, 0.3); },
+    qilin: () => { V.whinny(0.4, 0.7, 1.25, 0.5); V.chord(0.6, 0.55, [523, 659, 784], 0.6); },
+    chimera: () => { V.purr(0.35, 1, 0.7); V.bleat(0.62, 0.8, 1.2, 0.3); },
+    lion: () => { V.purr(0.35, 1.2, 0.9); V.lionRoar(0.8, 0.35, 1.45, 0.4); },
+    mossbear: () => { V.grunt(0.4, 1, 0.9, 0.25); V.grunt(0.64, 0.9, 1.05, 0.2); },
+    fairydragon: () => { V.whistle(0.4, 0.9, 1.3, [2093, 2349, 2637], 0.07); V.sparkle(0.6, 0.8); },
+    wolpertinger: () => { V.squeal(0.4, 0.6, 1.4, 0.28); V.flutter(0.62, 0.8); },
+    moonstag: () => { V.bleat(0.4, 0.9, 1.1, 0.4); V.chord(0.62, 0.5, [440, 554, 659], 0.6); },
+    viper: () => { V.hiss(0.4, 0.7, 0.25); V.tongue(0.68); },
+    cusith: () => { V.bark(0.4, 1, 1.1); V.howl(0.56, 0.55, 1.2, 0.5); },
+    puca: () => { V.bleat(0.4, 0.9, 1, 0.35); V.sparkle(0.62, 0.6, [988, 1319, 1568]); },
+    spiritwolf: () => { V.howl(0.4, 0.6, 1.3, 0.65); V.sparkle(0.72, 0.6); },
+    lakewyrm: () => { V.bubbles(0.4, 1, 8, 250); V.roar(0.56, 0.35, 1.6, 0.4); },
+    kelpie: () => { V.whinny(0.4, 0.8, 1.1, 0.55); V.bubbles(0.62, 0.7, 6, 350); },
+    kappa: () => { V.ribbit(0.4, 0.9, 1.5); V.bubbles(0.66, 0.6, 5, 500); },
+    axolotl: () => { V.squeal(0.4, 0.5, 1.8, 0.25); V.bubbles(0.56, 0.8, 6, 600); },
+    coralcrab: () => { V.peckTick(0.4, 1, 4); V.bubbles(0.62, 0.7, 5, 500); },
+    hydra: () => { for (let i = 0; i < 3; i++) V.yip(0.4 + i * 0.12, 0.6, 0.8 + i * 0.25); },
+    selkie: () => { V.bark(0.4, 0.9, 1.45); V.bark(0.56, 0.8, 1.55); V.bubbles(0.72, 0.6, 5, 450); },
+    runeshell: () => { V.bubbles(0.4, 0.8, 6, 300); V.chord(0.56, 0.55, [523, 659, 784, 1047], 0.7); },
+    moth: () => { V.flutter(0.4, 1, 10, 0.035); V.sparkle(0.6, 0.6, [1568, 2093, 2637]); },
+  };
   const VOX_VOL = 0.6;   // ability sounds vs the rest of the effects
   let vox = null;
   for (const k in AB) S['ab_' + k] = p => {
     if (!vox) { vox = ac.createGain(); vox.gain.value = VOX_VOL; vox.connect(out); }
     const main = out; out = vox;   // every voice/tone/noise scheduled below lands on the ability bus
     try { AB[k](p || 1); } finally { out = main; }
+  };
+  for (const k in HAPPY) S['happy_' + k] = () => {   // (on the same bus as the abilities)
+    if (!vox) { vox = ac.createGain(); vox.gain.value = VOX_VOL; vox.connect(out); }
+    const main = out; out = vox;
+    try { munch(); HAPPY[k](); } finally { out = main; }
   };
   // minimum seconds between repeats of the same sound (stops stacking when lots happen at once)
   const GAP = { hit: 0.035, crit: 0.05, slimeHop: 0.15, spawn: 0.1, clank: 0.1, ghostAppear: 0.3, rattle: 0.15, enemyBow: 0.08, land: 0.1 };
@@ -2691,7 +2739,7 @@ function feedDish(it, dish, p) {
   const g = dishGain(dish), ups = givePetXp(it, g.xp), got = addBond(it, g.bond); savePets();
   const yp = p || (G.pets || []).find(q => q.item === it);
   if (yp) { yp.happyT = 2.4; for (let k = 0; k < 5; k++) addText(yp.x + yp.w / 2 + rand(-14, 14), yp.y - 4 - k * 9, '❤', '#ff80ab', 13 + k * 2); }
-  SFX.play(ups.length ? 'chest' : 'merge', !!ups.length);
+  SFX.play(SFX.has('happy_' + it.def.pet) ? 'happy_' + it.def.pet : 'merge'); if (ups.length) SFX.play('chest', true);   // its own happy noise (and a fanfare on a level up)
   showMsg(`${it.def.name} loves the ${dishName(dish)}! +${g.xp} XP${got > 0 ? `, +${Math.round(got * 10) / 10} bond` : ''}${ups.length ? `. Level ${ups[ups.length - 1]}!` : ''}`, 2.6);
   PK.flash = { it, t: 0.6 };
 }
