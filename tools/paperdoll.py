@@ -350,12 +350,196 @@ def keep_big(m, frac=0.08, floor=60):
     return out
 
 
+# ---------- one design in every frame ----------
+# ChatGPT draws every frame of a piece on its own, so left as drawn a garment changes from frame to frame (a sleeve there
+# and gone, a pelt a different shape). So each piece is made the same in every frame:
+#  - hats and hair (RIGID): one drawing (from the first idle frame), placed on the head of every frame with the head's own
+#    position and tilt (found by fitting the first frame's head onto that frame's head zone);
+#  - tops, bottoms and shoes (WORN): the same coverage of the body in every frame (learned from the idle frames: which
+#    parts, and how far along each arm or leg); ChatGPT's pixels where they fall inside it, and where they're missing the
+#    body's own shading recoloured with the garment's colours; stray bits outside it go;
+#  - everything: snapped to one palette, so colours can't drift between frames.
+# Capes and weapons swing and move, so they keep ChatGPT's frames (palette-snapped).
+RIGID = ('hair', 'head')
+WORN = {'top': dict(full=['torso'], limb=('arms', 'torso'), maybe=['hips']),
+        'bottom': dict(full=['hips'], limb=('legs', 'hips'), maybe=[]),
+        'shoe': dict(full=['feet'], limb=('legs', 'feet'), maybe=[])}
+
+
+def limb_t(zone, prox):
+    """How far along the limb each pixel of the zone is, 0 at the body part it joins (prox) .. 255 at its far end, per
+    limb (each connected part of the zone measured on its own). Returns an 'L' image."""
+    from collections import deque
+    w, h = zone.size; zp, pp = zone.load(), prox.load(); out = Image.new('L', zone.size, 0); op = out.load()
+    seen = bytearray(w * h)
+    nb = ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))
+    pb = prox.getbbox(); pc = ((pb[0] + pb[2]) / 2, (pb[1] + pb[3]) / 2) if pb else (w / 2, h / 2)
+    for y in range(h):
+        for x in range(w):
+            if not zp[x, y] or seen[y * w + x]: continue
+            comp = []; st = [(x, y)]; seen[y * w + x] = 1
+            while st:
+                cx, cy = st.pop(); comp.append((cx, cy))
+                for dx, dy in nb:
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < w and 0 <= ny < h and zp[nx, ny] and not seen[ny * w + nx]: seen[ny * w + nx] = 1; st.append((nx, ny))
+            seeds = [(cx, cy) for cx, cy in comp if any(0 <= cx + dx < w and 0 <= cy + dy < h and pp[cx + dx, cy + dy] for dx, dy in nb)]
+            if not seeds: seeds = [min(comp, key=lambda q: (q[0] - pc[0]) ** 2 + (q[1] - pc[1]) ** 2)]
+            dist = {q: 0 for q in seeds}; dq = deque(seeds); cs = set(comp)
+            while dq:
+                q = dq.popleft()
+                for dx, dy in nb:
+                    r = (q[0] + dx, q[1] + dy)
+                    if r in cs and r not in dist: dist[r] = dist[q] + 1; dq.append(r)
+            mx = max(dist.values()) or 1
+            for q, dd in dist.items(): op[q] = min(255, round(255 * dd / mx))
+    return out
+
+
+def worn_target(Z, cfg, T, hips_on):
+    """The body this garment covers in a frame: its full zones, its limb up to T (0..255 along it), the hips if it covers them."""
+    size = Z['head'].size; tgt = union([Z[z] for z in cfg['full']] + ([Z['hips']] if hips_on else []), size)
+    lz, pz = cfg['limb']
+    if T > 0:
+        t = limb_t(Z[lz], Z[pz]); lim = ImageChops.multiply(Z[lz], t.point(lambda v: 255 if v <= T else 0))
+        tgt = ImageChops.lighter(tgt, lim)
+    return tgt
+
+
+def lumi(px): return 0.3 * px[0] + 0.59 * px[1] + 0.11 * px[2]
+
+
+def make_worn(slot, frames):
+    """frames: [(ewin, mask, bwin, Z)] at raw size. The same coverage in every frame (see above); returns the new pieces."""
+    cfg = WORN[slot]; lz, pz = cfg['limb']
+    # learn the coverage from the idle frames (the steadiest drawing): how far along the limb, and whether the hips
+    ts, hips_cov = [], []
+    for ewin, m, bwin, Z in frames[:4]:
+        t = limb_t(Z[lz], Z[pz]); mp, tp, lp = m.load(), t.load(), Z[lz].load()
+        ts += [tp[x, y] for y in range(m.height) for x in range(m.width) if lp[x, y] and mp[x, y]]
+        if 'hips' in cfg['maybe']:
+            hz = ImageStat.Stat(Z['hips']).sum[0] / 255; hc = ImageStat.Stat(ImageChops.multiply(Z['hips'], m)).sum[0] / 255
+            hips_cov.append(hc / max(1, hz))
+    ts.sort()
+    covered = len(ts) / max(1, sum(ImageStat.Stat(f[3][lz]).sum[0] / 255 for f in frames[:4]))
+    T = ts[int(len(ts) * 0.9)] if ts and covered > 0.08 else 0
+    hips_on = bool(hips_cov) and sorted(hips_cov)[len(hips_cov) // 2] > 0.5
+    # the garment's colour for the body's shading in each zone (learned from all frames where it was drawn)
+    lut, glob = {}, {}
+    zid = {nm: z for z, (nm, _) in ZONES.items()}
+    tgts = [worn_target(Z, cfg, T, hips_on) for _, _, _, Z in frames]
+    for (ewin, m, bwin, Z), tgt in zip(frames, tgts):
+        ep, mp, bp, tp = ewin.load(), m.load(), bwin.load(), tgt.load()
+        zl = {nm: Z[nm].load() for nm in zid}
+        for y in range(m.height):
+            for x in range(m.width):
+                if mp[x, y] and tp[x, y] and bp[x, y][3] >= 128:
+                    zn = next((nm for nm in zid if zl[nm][x, y]), None); b = int(lumi(bp[x, y]) // 16)
+                    lut.setdefault((zn, b), []).append(ep[x, y][:3]); glob.setdefault(b, []).append(ep[x, y][:3])
+    med = lambda cs: tuple(sorted(c[k] for c in cs)[len(cs) // 2] for k in range(3))
+    lut = {k: med(v) for k, v in lut.items()}; glob = {k: med(v) for k, v in glob.items()}
+    def colour(zn, b):
+        if (zn, b) in lut: return lut[(zn, b)]
+        if b in glob: return glob[b]
+        near = min(glob, key=lambda k: abs(k - b)) if glob else None
+        return glob[near] if near is not None else (90, 90, 90)
+    out = []
+    for (ewin, m, bwin, Z), tgt in zip(frames, tgts):
+        body = alpha_of(bwin); w, h = m.size
+        keep = ImageChops.lighter(ImageChops.multiply(m, tgt), ImageChops.subtract(m, body))   # inside: only on its coverage; outside the body: as drawn
+        keep = touching(keep, tgt, reach=15, floor=8)
+        piece = Image.new('RGBA', (w, h)); pp, ep, kp, tp, bp = piece.load(), ewin.load(), keep.load(), tgt.load(), bwin.load()
+        zl = {nm: Z[nm].load() for nm in zid}
+        for y in range(h):
+            for x in range(w):
+                if kp[x, y]: pp[x, y] = ep[x, y][:3] + (255,)
+                elif tp[x, y] and bp[x, y][3] >= 128:   # covered here but ChatGPT's drawing left it out: the body's shading, in the garment's colours
+                    zn = next((nm for nm in zid if zl[nm][x, y]), None); pp[x, y] = colour(zn, int(lumi(bp[x, y]) // 16)) + (255,)
+        out.append(piece)
+    print(f'  {slot}: covers', cfg['full'] + (['hips'] if hips_on else []), f'+ {lz} to {round(T / 2.55)}% along')
+    return out
+
+
+def head_fit(H0, c0, Hi):
+    """The tilt (degrees) that best lays the first frame's head onto this frame's head zone, and the head's centre here."""
+    hb = Hi.getbbox()
+    if not hb: return 0, c0
+    xs = [x for y in range(Hi.height) for x in range(Hi.width) if Hi.getpixel((x, y))]
+    ys = [y for y in range(Hi.height) for x in range(Hi.width) if Hi.getpixel((x, y))]
+    ci = (sum(xs) / len(xs), sum(ys) / len(ys))
+    small = lambda im: im.resize((im.width // 2, im.height // 2), Image.BOX).point(lambda v: 255 if v > 100 else 0)
+    hs = small(Hi)
+    def score(a):
+        r = H0.rotate(a, resample=Image.NEAREST, center=c0, translate=(ci[0] - c0[0], ci[1] - c0[1]))
+        rs = small(r); inter = ImageStat.Stat(ImageChops.multiply(rs, hs)).sum[0]; tot = ImageStat.Stat(rs).sum[0] + ImageStat.Stat(hs).sum[0]
+        return 2 * inter / max(1, tot)
+    best = max(range(-100, 101, 10), key=score)
+    best = max(range(best - 8, best + 9, 2), key=score)
+    return best, ci
+
+
+def make_rigid(frames, Zs):
+    """frames: [(ewin, mask)]; the first idle frame's drawing placed on every frame's head (see above)."""
+    ewin0, m0 = frames[0]; tpl = ewin0.copy(); tpl.putalpha(m0)
+    H0 = Zs[0]['head']; xs = [x for y in range(H0.height) for x in range(H0.width) if H0.getpixel((x, y))]
+    ys = [y for y in range(H0.height) for x in range(H0.width) if H0.getpixel((x, y))]
+    c0 = (sum(xs) / len(xs), sum(ys) / len(ys)); out, tilts = [], []
+    for i, Z in enumerate(Zs):
+        a, ci = head_fit(H0, c0, Z['head']) if i else (0, c0)
+        out.append(tpl.rotate(a, resample=Image.BICUBIC, center=c0, translate=(ci[0] - c0[0], ci[1] - c0[1]))); tilts.append(a)
+    print('  head tilt per frame:', tilts)
+    return out
+
+
+def own_colours(slot, rule, frames, scores, thr=30, weak=0.6):
+    """Capes and weapons keep ChatGPT's frame-by-frame drawing (they swing). Where ChatGPT drew a frame's body in a
+    different pose (the frames that line up badly), the cut can carry a ghost of that body along; on those frames only
+    the piece's OWN colours (learned from its well-fitting frames) stay, so the ghost (skin, shorts) goes."""
+    if all(sc >= weak for sc in scores): return [(e, m) for e, m, _, _ in frames]
+    pix = []
+    for (ewin, m, bwin, Z), sc in zip(frames, scores):
+        if sc < weak: continue
+        ep, mp = ewin.load(), m.load()
+        pix += [ep[x, y][:3] for y in range(0, m.height, 2) for x in range(0, m.width, 2) if mp[x, y]]
+    if len(pix) < 40: return [(e, m) for e, m, _, _ in frames]
+    sample = Image.new('RGB', (len(pix), 1)); sample.putdata(pix)
+    pal = sample.quantize(colors=48, method=Image.Quantize.MEDIANCUT).convert('RGB')
+    cols = sorted(set(pal.getdata())); labs = list(lab(Image.new('RGB', (len(cols), 1))).getdata()) if False else None
+    lp = Image.new('RGB', (len(cols), 1)); lp.putdata(cols); labs = list(lab(lp).getdata())
+    out = []
+    for (ewin, m, bwin, Z), sc in zip(frames, scores):
+        if sc >= weak: out.append((ewin, m)); continue
+        el = lab(ewin).load(); mp = m.load(); keep = Image.new('L', m.size, 0); kp = keep.load()
+        for y in range(m.height):
+            for x in range(m.width):
+                if not mp[x, y]: continue
+                L, a, b = el[x, y]
+                if min(abs(L - c[0]) + abs(a - c[1]) + abs(b - c[2]) for c in labs) <= thr: kp[x, y] = 255
+        keep = keep.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+        if Z and rule: keep = touching(keep, union([Z[z] for z in rule['home']], keep.size), reach=rule.get('reach', 15), floor=12)
+        out.append((ewin, keep))
+    return out
+
+
+def snap_palette(cells, n=24):
+    """Every frame's pixels mapped to ONE palette (the piece's commonest colours over the whole sheet)."""
+    strip = Image.new('RGB', (sum(c.width for c in cells), cells[0].height)); x = 0; mask = Image.new('L', strip.size, 0)
+    for c in cells: strip.paste(c.convert('RGB'), (x, 0)); mask.paste(c.getchannel('A'), (x, 0)); x += c.width
+    pix = [p for p, a in zip(strip.getdata(), mask.getdata()) if a]
+    if len(pix) < n: return
+    sample = Image.new('RGB', (len(pix), 1)); sample.putdata(pix)
+    pal = sample.quantize(colors=n, method=Image.Quantize.MEDIANCUT)
+    for c in cells:
+        q = c.convert('RGB').quantize(palette=pal, dither=Image.Dither.NONE).convert('RGB'); a = c.getchannel('A')
+        c.paste(q); c.putalpha(a)
+
+
 def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
     meta = json.load(open(os.path.join(RAW, f'base_{sex}.meta.json')))
     bfr, bim = frames_of(os.path.join(RAW, f'base_{sex}.png'))
     efr, eim = frames_of(os.path.join(RAW, f'{name}_{sex}.png'))
     n = len(bfr); rows = (n + COLS - 1) // COLS
-    sheet = Image.new('RGBA', (COLS * CW, rows * CH)); report = []; cells = []
+    sheet = Image.new('RGBA', (COLS * CW, rows * CH)); report = []; cells = []; raws = []
     slot = name.split('_')[0]; rule = SLOT_RULES.get(slot)
     # 1) line every frame up with the body (by the skin, which mostly stays put)
     fits = []
@@ -393,10 +577,18 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
             if slot in ('top', 'cape', 'head', 'wep'):   # no bare skin in these: a hand or face ChatGPT moved a little stays the body's (tinted)
                 new = ImageChops.subtract(new, ImageChops.multiply(skin_mask(ewin), skin_mask(bwin).filter(ImageFilter.MaxFilter(11))))
             new = keep_big(new.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)))   # drop specks, slivers and stray bits
-        piece = ewin.copy(); piece.putalpha(new)
-        cells.append(shrink(piece, (CW, CH), cut=56))   # (a lower cut than the body's: thin hair and straps survive the shrink)
-        report.append(round(sc, 2))
+        raws.append((ewin, new, bwin, Z)); report.append(round(sc, 2))
+    # 4) one design in every frame (see make_worn / make_rigid)
+    if slot in RIGID and all(r[3] for r in raws): pieces = make_rigid([(r[0], r[1]) for r in raws], [r[3] for r in raws])
+    elif slot in WORN and all(r[3] for r in raws): pieces = make_worn(slot, raws)
+    else:
+        pairs = own_colours(slot, rule, raws, report) if slot in ('cape', 'wep') else [(r[0], r[1]) for r in raws]
+        pieces = []
+        for ewin, new in pairs: pc = ewin.copy(); pc.putalpha(new); pieces.append(pc)
+    cells = [shrink(pc, (CW, CH), cut=56) for pc in pieces]   # (a lower cut than the body's: thin hair and straps survive the shrink)
+    if not grey: snap_palette(cells)
     steady_idle(cells[:4])
+    for j in range(1, 4): cells[j] = cells[0].copy()   # (the body stands exactly still in the idle loop: so does every piece, drawing and all)
     if grey: to_grey(cells)   # hair: grey on one scale for the whole sheet (tinted in the game)
     for i, cell in enumerate(cells): sheet.paste(cell, cell_pos(i))
     sheet.save(os.path.join(OUT, f'{name}_{sex}.png'))
