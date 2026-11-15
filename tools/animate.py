@@ -231,7 +231,7 @@ def anchor(img, fly):
 
 
 # per-row size corrections so every pose of a pet reads as the same-sized animal (measured by on-screen area)
-# hero outfits (Wardrobe): bald heads with magenta key skin; tools/looks.py makes their skin masks and head anchors
+# (retired) the old per-class hero outfits; the hero is the paper doll now (tools/paperdoll.py, assets/doll)
 HERO_ROWS = [('idle', 4), ('run', 6), ('attack', 4), ('jump', 4), ('death', 4)]
 OUTFITS = {'warrior': ['stone', 'flame', 'thorn'], 'archer': ['scout', 'ember', 'glade'], 'rogue': ['cutpurse', 'ash', 'moon'], 'beastmaster': ['kennel', 'drake', 'wild']}
 for _c, _ids in OUTFITS.items():
