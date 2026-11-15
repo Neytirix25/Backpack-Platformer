@@ -85,7 +85,7 @@ Key constants: `W=960, H=540, TILE=30, PX=2, GRAV=1500`. Tiles: `EMPTY 0, SOLID 
 - **Run state:** `RUN.petHp[k]` = HP fraction during a run (fainted = 0); +25% per new floor, camps heal fully.
 - **Pets menu:** `T` / `PETS_BTN` → `openPetsMenu()` (the roster with `PK.rosterOnly`). Ability tooltips come from `abilityLines(u, ab)` + `drawTipBox`.
 - **Entering a floor:** `petsEnterRoom()` keeps pets at the door (`p.waiting`) and lets them in one by one as you walk on.
-- **Unicorn:** earned by `B.turn <= 1` wins (`SAVE.ach.first`), never wild.
+- **Unicorn:** roams wild in the Fae Wilds (glade and lake pools, ACT_ROLES[2] tank/heal; Menagerie tier 3), and is still earned by `B.turn <= 1` wins (`SAVE.ach.first`).
 - **UI look (leather & brass backpack):** draw menus with `panel`/`button`/`banner`/`label`/`meter` and `PAL` colours,
   never plain translucent boxes. Fonts: `UI` = Jersey 10 (body), `TITLE` = Jacquarda Bastarda 9 (short headings
   only; long or changing text uses `banner(..., { plain: true })`). The canvas `fillText`/`measureText` are wrapped:
