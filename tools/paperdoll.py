@@ -2,6 +2,7 @@
 
     python -P tools/paperdoll.py base m            # assets_raw/doll/base_m.png -> assets/doll/base_m.png (+ _skin) + base_m.json
     python -P tools/paperdoll.py piece m hat_cap   # assets_raw/doll/hat_cap_m.png -> assets/doll/hat_cap_m.png
+    python -P tools/paperdoll.py seg m             # assets_raw/doll/seg_m.png (ChatGPT's body-part colour map) -> zones per frame
     python -P tools/paperdoll.py check m hat_cap top_tunic ...   # assets_raw/doll/check_m.png: the base with those pieces on, every frame
 
 Every sheet (base and piece) has the same 8 rows: idle 4, run 6, jump 4, death 4, sword 4, bow 4, dagger 4, whip 4.
@@ -107,7 +108,7 @@ def do_base(sex):
     idle_h = sorted(f[1].height for f in fr[:4])[2]
     meta = {'scale': HEIGHT / idle_h, 'frames': [{'box': list(b), 'anchor': [a[0], a[1]]} for b, _, a in fr]}
     n = len(fr); rows = (n + COLS - 1) // COLS
-    sheet = Image.new('RGBA', (COLS * CW, rows * CH)); skin = Image.new('RGBA', sheet.size)
+    sheet = Image.new('RGBA', (COLS * CW, rows * CH)); skin = Image.new('RGBA', sheet.size); cells = []
     for i, (box, spr, anc) in enumerate(fr):
         win = place(spr, box, meta, i); cell = shrink(win, (CW, CH))
         sk = Image.new('RGBA', cell.size); sp, cp = sk.load(), cell.load(); rest = cell.copy(); rp = rest.load()
@@ -116,17 +117,153 @@ def do_base(sex):
                 r, g, b, a = cp[x, y]
                 if a and is_skin(r, g, b):   # skin: its own grey layer (lightest skin = white), tinted in the game
                     sp[x, y] = (r, g, b, 255); rp[x, y] = (0, 0, 0, 0)
-        lum = [0.3 * p[0] + 0.59 * p[1] + 0.11 * p[2] for p in sk.getdata() if p[3]]
-        top = sorted(lum)[int(len(lum) * 0.97)] if lum else 255
-        for y in range(CH):
-            for x in range(CW):
-                r, g, b, a = sp[x, y]
-                if a: v = min(255, round((0.3 * r + 0.59 * g + 0.11 * b) * 255 / max(1, top))); sp[x, y] = (v, v, v, 255)
+        cells.append((i, rest, sk))
+    to_grey([c[2] for c in cells])   # (one brightness scale for the whole sheet, so the skin doesn't pulse from frame to frame)
+    for i, rest, sk in cells:
         cx, cy = cell_pos(i); sheet.paste(rest, (cx, cy)); skin.paste(sk, (cx, cy))
     sheet.save(os.path.join(OUT, f'base_{sex}.png')); skin.save(os.path.join(OUT, f'base_{sex}_skin.png'))
     json.dump(meta, open(os.path.join(RAW, f'base_{sex}.meta.json'), 'w'))
     json.dump(sheet_json(f'base_{sex}'), open(os.path.join(OUT, f'base_{sex}.json'), 'w'))
     print('base', sex, 'frames', n, 'scale', round(meta['scale'], 4), 'sheet', sheet.size)
+
+
+def steady_idle(cells):
+    """The idle loop: the body stands still in it (its frames match), so the piece should too. A pixel the piece has in
+    all but one of the frames is real, and the odd frame borrows it from its neighbour; one it has in fewer (a stray bit,
+    or a lock of hair ChatGPT drew on every other frame) goes from all of them. (Otherwise bits blink on and off while the
+    hero stands there.)"""
+    n = len(cells); px = [c.load() for c in cells]; w, h = cells[0].size
+    for y in range(h):
+        for x in range(w):
+            have = [j for j in range(n) if px[j][x, y][3]]
+            if 0 < len(have) < n - 1:
+                for j in have: px[j][x, y] = (0, 0, 0, 0)
+            elif len(have) == n - 1:
+                j = next(j for j in range(n) if j not in have); src = min(have, key=lambda k: min(abs(k - j), n - abs(k - j)))
+                px[j][x, y] = px[src][x, y]
+
+
+def to_grey(cells):
+    """Grey versions of these cells (skin or hair, tinted in the game), all on ONE brightness scale (the sheet's lightest
+    3% = white): scaled frame by frame instead, their brightness would flicker as the animation plays."""
+    lum = sorted(0.3 * p[0] + 0.59 * p[1] + 0.11 * p[2] for c in cells for p in c.getdata() if p[3])
+    top = lum[int(len(lum) * 0.97)] if lum else 255
+    for c in cells:
+        px = c.load()
+        for y in range(c.height):
+            for x in range(c.width):
+                r, g, b, a = px[x, y]
+                if a: v = min(255, round((0.3 * r + 0.59 * g + 0.11 * b) * 255 / max(1, top))); px[x, y] = (v, v, v, 255)
+
+
+# ---------- body zones (from ChatGPT's colour map of the body: tools/paperdoll.py seg <sex>) ----------
+ZONES = {1: ('head', (255, 0, 0)), 2: ('torso', (0, 255, 0)), 3: ('arms', (0, 0, 255)), 4: ('hands', (255, 255, 0)),
+         5: ('hips', (255, 128, 0)), 6: ('legs', (0, 255, 255)), 7: ('feet', (255, 255, 255))}
+# per slot: home = where the piece grows from (only parts of it connected to these are kept); ban = body parts it never
+# covers; bare = body parts where it never brings bare skin along (that skin is the body's, tinted to the skin tone)
+SLOT_RULES = {
+    'hair': dict(home=['head'], ban=['arms', 'hands', 'hips', 'legs', 'feet'], bare=[], reach=3),   # (hair and hats grow from the head itself)
+    'head': dict(home=['head'], ban=['arms', 'hands', 'hips', 'legs', 'feet'], bare=['head', 'torso'], reach=3),
+    'top': dict(home=['torso', 'arms'], ban=['legs', 'feet'], bare=['head', 'hands', 'arms', 'torso']),
+    'cape': dict(home=['torso', 'arms', 'hips', 'legs'], ban=['hands', 'legs', 'feet'], bare=['head', 'arms', 'torso']),   # (it hangs behind: what shows is next to any of these)
+    'bottom': dict(home=['hips', 'legs'], ban=['head', 'torso', 'arms', 'hands'], bare=['feet']),
+    'shoe': dict(home=['feet'], ban=['head', 'torso', 'arms', 'hands', 'hips'], bare=[]),
+    'wep': dict(home=['hands'], ban=[], bare=['head', 'torso', 'arms', 'hands', 'hips', 'legs', 'feet']),
+}
+
+
+def align(emask, ebox, eanc, meta, i, bmask, ks=(0.94, 0.97, 1.0, 1.03, 1.06), r=12):
+    """Best (score, k, dx, dy) lining up a full-size mask of an edited frame with the base window's mask (Dice, a third
+    of full size; coarse then fine)."""
+    w, h = bmask.size; bs = bmask.resize((w // 3, h // 3), Image.BOX).point(lambda v: 255 if v > 100 else 0)
+    def score(k, dx, dy):
+        m = warp(emask, ebox, eanc, meta, i, k, dx, dy, w, h).resize((w // 3, h // 3), Image.BOX).point(lambda v: 255 if v > 100 else 0)
+        inter = ImageStat.Stat(ImageChops.multiply(m, bs)).sum[0] / 255; tot = (ImageStat.Stat(m).sum[0] + ImageStat.Stat(bs).sum[0]) / 255
+        return 2 * inter / max(1, tot)
+    best = (-1, 1, 0, 0)
+    for k in ks:
+        for dy in range(-r, r + 1, 3):
+            for dx in range(-r, r + 1, 3):
+                sc = score(k, dx, dy)
+                if sc > best[0]: best = (sc, k, dx, dy)
+    _, k0, dx0, dy0 = best
+    for k in ([k0 - 0.015, k0, k0 + 0.015] if len(ks) > 1 else [k0]):
+        for dy in range(dy0 - 2, dy0 + 3):
+            for dx in range(dx0 - 2, dx0 + 3):
+                sc = score(k, dx, dy)
+                if sc > best[0]: best = (sc, k, dx, dy)
+    return best
+
+
+def alpha_of(im): return im.getchannel('A').point(lambda a: 255 if a >= 128 else 0)
+
+
+def do_seg(sex):
+    """Body zones for every frame, at the base window's raw size: assets_raw/doll/seg_<sex>/<frame>.png (0 = no body,
+    1..7 = ZONES). The colour map is lined up with the base by silhouette; body pixels it doesn't cover take the nearest zone."""
+    meta = json.load(open(os.path.join(RAW, f'base_{sex}.meta.json')))
+    bfr, _ = frames_of(os.path.join(RAW, f'base_{sex}.png')); sfr, _ = frames_of(os.path.join(RAW, f'seg_{sex}.png'))
+    d = os.path.join(RAW, f'seg_{sex}'); os.makedirs(d, exist_ok=True); report = []
+    for i in range(len(bfr)):
+        bbox, bspr, _ = bfr[i]; sbox, sspr, sanc = sfr[i]
+        bwin = place(bspr, bbox, meta, i); w, h = bwin.size; body = alpha_of(bwin)
+        sc, k, dx, dy = align(alpha_of(sspr), sbox, sanc, meta, i, body)
+        swin = warp(sspr, sbox, sanc, meta, i, k, dx, dy, w, h); sp = swin.load(); bp = body.load()
+        lab = Image.new('L', (w, h), 0); lp = lab.load()
+        for y in range(h):
+            for x in range(w):
+                if not bp[x, y]: continue
+                r, g, b, a = sp[x, y]
+                if a < 128: continue
+                lp[x, y] = min(ZONES, key=lambda z: sum((u - v) ** 2 for u, v in zip((r, g, b), ZONES[z][1])))
+        for _ in range(40):   # body pixels the map missed: the nearest zone (grown in from the neighbours)
+            gaps = [(x, y) for y in range(h) for x in range(w) if bp[x, y] and not lp[x, y]]
+            if not gaps: break
+            grown = lab.filter(ImageFilter.MaxFilter(3)); gp = grown.load()
+            for x, y in gaps: lp[x, y] = gp[x, y]
+        lab.save(os.path.join(d, f'{i}.png')); report.append(round(sc, 2))
+    print('seg', sex, 'fit (silhouette match per frame):', report)
+
+
+def arms_over_head(Z):
+    """True when the arms or hands are up over the head (an overhead swing): more than a fifth of the head's area of
+    arm/hand above the middle of the head and no further out to the sides than the head is wide."""
+    hb = Z['head'].getbbox()
+    if not hb: return False
+    x0, y0, x1, y1 = hb; w = x1 - x0; ym = (y0 + y1) // 2
+    box = (max(0, x0 - w // 2), 0, x1 + w // 2, ym)
+    up = union([Z['arms'], Z['hands']], Z['head'].size).crop(box)
+    return ImageStat.Stat(up).sum[0] > 0.2 * ImageStat.Stat(Z['head']).sum[0]
+
+
+def zones_of(sex, i):
+    p = os.path.join(RAW, f'seg_{sex}', f'{i}.png')
+    if not os.path.exists(p): return None
+    lab = Image.open(p)
+    return {nm: lab.point(lambda v, z=z: 255 if v == z else 0) for z, (nm, _) in ZONES.items()}
+
+
+def union(masks, size):
+    out = Image.new('L', size, 0)
+    for m in masks: out = ImageChops.lighter(out, m)
+    return out
+
+
+def touching(m, home, reach=15, floor=20):
+    """Only the connected parts of the mask that touch the home zone (grown by `reach` px), and none smaller than `floor`."""
+    near = home.filter(ImageFilter.MaxFilter(reach)); np_ = near.load()
+    w, h = m.size; px = m.load(); seen = bytearray(w * h); out = Image.new('L', m.size, 0); op = out.load()
+    for y in range(h):
+        for x in range(w):
+            if px[x, y] and not seen[y * w + x]:
+                st = [(x, y)]; seen[y * w + x] = 1; pts = []; hit = False
+                while st:
+                    cx, cy = st.pop(); pts.append((cx, cy)); hit = hit or bool(np_[cx, cy])
+                    for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1), (cx + 1, cy + 1), (cx - 1, cy - 1), (cx + 1, cy - 1), (cx - 1, cy + 1)):
+                        if 0 <= nx < w and 0 <= ny < h and px[nx, ny] and not seen[ny * w + nx]: seen[ny * w + nx] = 1; st.append((nx, ny))
+                if hit and len(pts) >= floor:
+                    for x2, y2 in pts: op[x2, y2] = 255
+    return out
 
 
 _LAB = None
@@ -218,47 +355,50 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
     bfr, bim = frames_of(os.path.join(RAW, f'base_{sex}.png'))
     efr, eim = frames_of(os.path.join(RAW, f'{name}_{sex}.png'))
     n = len(bfr); rows = (n + COLS - 1) // COLS
-    sheet = Image.new('RGBA', (COLS * CW, rows * CH)); report = []
+    sheet = Image.new('RGBA', (COLS * CW, rows * CH)); report = []; cells = []
+    slot = name.split('_')[0]; rule = SLOT_RULES.get(slot)
+    # 1) line every frame up with the body (by the skin, which mostly stays put)
+    fits = []
+    for i in range(n):
+        bbox, bspr, _ = bfr[i]; ebox, espr, eanc = efr[i]
+        fits.append(align(skin_mask(espr), ebox, eanc, meta, i, skin_mask(place(bspr, bbox, meta, i))))
+    # 2) one scale per row (ChatGPT draws a row at one size): frame by frame, the piece would grow and shrink as it animates
+    i0 = 0
+    for _, cnt in ROWS:
+        ks = sorted(f[1] for f in fits[i0:i0 + cnt]); km = ks[len(ks) // 2]
+        for i in range(i0, i0 + cnt):
+            if abs(fits[i][1] - km) > 0.005:
+                bbox, bspr, _ = bfr[i]; ebox, espr, eanc = efr[i]
+                fits[i] = align(skin_mask(espr), ebox, eanc, meta, i, skin_mask(place(bspr, bbox, meta, i)), ks=(km,))
+        i0 += cnt
+    # 3) cut the piece out of every frame
     for i in range(n):
         bbox, bspr, _ = bfr[i]; ebox, espr, eanc = efr[i]
         bwin = place(bspr, bbox, meta, i); w, h = bwin.size
-        bsk = skin_mask(bwin).resize((w // 3, h // 3), Image.BOX).point(lambda v: 255 if v > 100 else 0)
-        esk_full = skin_mask(espr)
-        best = (-1, 1, 0, 0)
-        for k in [0.94, 0.97, 1.0, 1.03, 1.06]:   # coarse, then fine
-            for dy in range(-12, 13, 3):
-                for dx in range(-12, 13, 3):
-                    m = warp(esk_full, ebox, eanc, meta, i, k, dx, dy, w, h).resize((w // 3, h // 3), Image.BOX).point(lambda v: 255 if v > 100 else 0)
-                    inter = ImageStat.Stat(ImageChops.multiply(m, bsk)).sum[0] / 255
-                    tot = (ImageStat.Stat(m).sum[0] + ImageStat.Stat(bsk).sum[0]) / 255
-                    sc = 2 * inter / max(1, tot)
-                    if sc > best[0]: best = (sc, k, dx, dy)
-        _, k0, dx0, dy0 = best
-        for k in [k0 - 0.015, k0, k0 + 0.015]:
-            for dy in range(dy0 - 2, dy0 + 3):
-                for dx in range(dx0 - 2, dx0 + 3):
-                    m = warp(esk_full, ebox, eanc, meta, i, k, dx, dy, w, h).resize((w // 3, h // 3), Image.BOX).point(lambda v: 255 if v > 100 else 0)
-                    inter = ImageStat.Stat(ImageChops.multiply(m, bsk)).sum[0] / 255
-                    tot = (ImageStat.Stat(m).sum[0] + ImageStat.Stat(bsk).sum[0]) / 255
-                    sc = 2 * inter / max(1, tot)
-                    if sc > best[0]: best = (sc, k, dx, dy)
-        sc, k, dx, dy = best
+        sc, k, dx, dy = fits[i]
         ewin = warp(espr, ebox, eanc, meta, i, k, dx, dy, w, h)
         new = region_of(ewin, bwin, thresh)
         if not allow_skin: new = ImageChops.subtract(new, skin_mask(ewin))
-        if name.split('_')[0] in ('top', 'cape', 'head', 'wep'):   # no bare skin in these: a hand or face ChatGPT moved a little stays the body's (tinted)
-            new = ImageChops.subtract(new, ImageChops.multiply(skin_mask(ewin), skin_mask(bwin).filter(ImageFilter.MaxFilter(11))))
-        new = keep_big(new.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)))   # drop specks, slivers and stray bits
+        Z = zones_of(sex, i) if rule else None
+        if Z:   # only where this kind of piece goes, grown from its home on the body, never bringing that body's bare skin along
+            new = ImageChops.subtract(new, union([Z[z] for z in rule['ban']], new.size))
+            new = ImageChops.subtract(new, ImageChops.multiply(skin_mask(ewin), union([Z[z] for z in rule['bare']], new.size)))
+            home = union([Z[z] for z in rule['home']], new.size); reach = rule.get('reach', 15)
+            if reach < 15:   # hair and hats: from the head itself, or anything near it ABOVE its bottom (a plume or twin tail the
+                hb = Z['head'].getbbox()   # raised arms cut off in an overhead swing), but never body bits below it (chest, shoulders)
+                if hb:
+                    band = Z["head"].filter(ImageFilter.MaxFilter(41)); band.paste(0, (0, (hb[1] + hb[3]) // 2, band.width, band.height)); home = ImageChops.lighter(home, band)   # (above the middle of the head)
+            new = touching(new.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)), home, reach=reach)
+        else:
+            if slot in ('top', 'cape', 'head', 'wep'):   # no bare skin in these: a hand or face ChatGPT moved a little stays the body's (tinted)
+                new = ImageChops.subtract(new, ImageChops.multiply(skin_mask(ewin), skin_mask(bwin).filter(ImageFilter.MaxFilter(11))))
+            new = keep_big(new.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3)))   # drop specks, slivers and stray bits
         piece = ewin.copy(); piece.putalpha(new)
-        cell = shrink(piece, (CW, CH), cut=56)   # (a lower cut than the body's: thin hair and straps survive the shrink)
-        if grey:   # hair: grey, lightest = white (tinted in the game)
-            cp = cell.load(); lum = [0.3 * p[0] + 0.59 * p[1] + 0.11 * p[2] for p in cell.getdata() if p[3]]
-            top = sorted(lum)[int(len(lum) * 0.97)] if lum else 255
-            for y in range(CH):
-                for x in range(CW):
-                    r, g, b, a = cp[x, y]
-                    if a: v = min(255, round((0.3 * r + 0.59 * g + 0.11 * b) * 255 / max(1, top))); cp[x, y] = (v, v, v, 255)
-        sheet.paste(cell, cell_pos(i)); report.append(round(sc, 2))
+        cells.append(shrink(piece, (CW, CH), cut=56))   # (a lower cut than the body's: thin hair and straps survive the shrink)
+        report.append(round(sc, 2))
+    steady_idle(cells[:4])
+    if grey: to_grey(cells)   # hair: grey on one scale for the whole sheet (tinted in the game)
+    for i, cell in enumerate(cells): sheet.paste(cell, cell_pos(i))
     sheet.save(os.path.join(OUT, f'{name}_{sex}.png'))
     weak = [i for i, s in enumerate(report) if s < 0.55]
     print('piece', name, sex, 'fit (skin match per frame):', report, '| weak frames:', weak or 'none')
@@ -293,4 +433,5 @@ if __name__ == '__main__':
     cmd, sex = sys.argv[1], sys.argv[2]
     if cmd == 'base': do_base(sex)
     elif cmd == 'piece': do_piece(sex, sys.argv[3], grey=sys.argv[3].startswith('hair'))
+    elif cmd == 'seg': do_seg(sex)
     elif cmd == 'check': do_check(sex, sys.argv[3:])

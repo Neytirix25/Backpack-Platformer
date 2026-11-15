@@ -111,13 +111,16 @@ const DOLL_NONE = { hair: 'Shaved', head: 'None', top: 'Undershirt', cape: 'None
 const DOLL = {
   m: { hair: [['crop', 'Short crop'], ['messy', 'Tousled'], ['long', 'Long'], ['ponytail', 'Ponytail'], ['curly', 'Curly'], ['mohawk', 'Mohawk']],
        head: [['ranger', 'Ranger cap'], ['hood', 'Shadow cowl'], ['helm', 'Plumed helm'], ['wolf', 'Wolf pelt']],
-       top: [['gambeson', 'Padded gambeson'], ['jerkin', 'Fur-collar jerkin'], ['plate', 'Knight plate'], ['mage', 'Battle-mage coat']],
+       top: [['gambeson', 'Padded gambeson'], ['jerkin', 'Fur-collar jerkin'], ['plate', 'Knight plate'], ['mage', 'Midnight mage coat']],
        cape: [['ranger', 'Ranger cloak'], ['tattered', 'Tattered cloak'], ['knight', 'Crimson cape'], ['fur', 'Bear mantle']],
        bottom: [['trousers', 'Trousers'], ['breeches', 'Strapped breeches'], ['greaves', 'Plate greaves'], ['kilt', 'Highland kilt']],
        shoe: [['boots', 'Leather boots'], ['rogue', 'Laced shoes'], ['sabatons', 'Steel sabatons'], ['fur', 'Fur boots']] },
   f: { hair: [['long', 'Long waves'], ['braid', 'Braid'], ['bob', 'Bob'], ['twintails', 'Twin tails'], ['bun', 'Bun'], ['wavy', 'Wavy curls']],
-       head: [['flowers', 'Flower crown'], ['plume', 'Plumed hat']],
-       top: [], cape: [], bottom: [], shoe: [] },
+       head: [['flowers', 'Flower crown'], ['plume', 'Plumed hat'], ['tiara', 'Sapphire tiara'], ['hood', 'Velvet hood']],
+       top: [['blouse', 'Laced blouse'], ['corset', 'Leather corset jacket'], ['breastplate', 'Silver breastplate'], ['bodice', 'Emerald mage bodice']],
+       cape: [['leaf', 'Leaf cloak'], ['rose', 'Rose silk cape'], ['whitefur', 'Frost mantle'], ['starry', 'Starlit cloak']],
+       bottom: [['tassets', 'Plated leggings'], ['slim', 'Slim trousers'], ['skirt', 'Flowing skirt'], ['battleskirt', 'Battle skirt']],
+       shoe: [['boots', 'Heeled boots'], ['slippers', 'Ballet slippers'], ['greaves', 'Silver greaves'], ['sandals', 'Laced sandals']] },
 };
 // the first pieces of each slot are yours from the start; the last two of each are earned (the hairstyles: the last two)
 const DOLL_EARN = {
@@ -128,15 +131,15 @@ const DOLL_EARN = {
 const DOLL_EARN_OF = { hair: [, , , , 'kills', 'shiny'], head: [, , 'wolf', 'species'], top: [, , 'dragon', 'wyrm'], cape: [, , 'wolf', 'dragon'], bottom: [, , 'wolf', 'bred'], shoe: [, , 'kills', 'wyrm'] };
 // what each class starts out wearing (all free pieces)
 const DOLL_START = {
-  warrior: { m: { hair: 'crop', head: '', top: 'gambeson', cape: '', bottom: 'trousers', shoe: 'boots' }, f: { hair: 'braid', head: '', top: 'blouse', cape: '', bottom: 'tassets', shoe: 'boots' } },
+  warrior: { m: { hair: 'crop', head: '', top: 'gambeson', cape: '', bottom: 'trousers', shoe: 'boots' }, f: { hair: 'braid', head: '', top: 'corset', cape: '', bottom: 'tassets', shoe: 'boots' } },
   archer: { m: { hair: 'ponytail', head: 'ranger', top: 'jerkin', cape: 'ranger', bottom: 'trousers', shoe: 'boots' }, f: { hair: 'long', head: 'plume', top: 'blouse', cape: 'leaf', bottom: 'slim', shoe: 'boots' } },
-  rogue: { m: { hair: 'messy', head: 'hood', top: 'jerkin', cape: 'tattered', bottom: 'breeches', shoe: 'rogue' }, f: { hair: 'bob', head: '', top: 'corset', cape: '', bottom: 'slim', shoe: 'slippers' } },
-  beastmaster: { m: { hair: 'long', head: '', top: 'jerkin', cape: '', bottom: 'trousers', shoe: 'boots' }, f: { hair: 'wavy', head: 'flowers', top: 'corset', cape: '', bottom: 'skirt', shoe: 'boots' } },
+  rogue: { m: { hair: 'messy', head: 'hood', top: 'jerkin', cape: 'tattered', bottom: 'breeches', shoe: 'rogue' }, f: { hair: 'bob', head: '', top: 'corset', cape: 'rose', bottom: 'slim', shoe: 'slippers' } },
+  beastmaster: { m: { hair: 'long', head: '', top: 'jerkin', cape: '', bottom: 'trousers', shoe: 'boots' }, f: { hair: 'wavy', head: 'flowers', top: 'blouse', cape: '', bottom: 'slim', shoe: 'boots' } },
 };
 // an older save's hairstyle, for each body
 const OLD_HAIR = { m: { crop: 'crop', long: 'long', bob: 'crop', ponytail: 'ponytail', curly: 'curly', bun: 'ponytail', braids: 'long', mohawk: 'mohawk', spiky: 'messy', undercut: 'crop', afro: 'curly', locs: 'long', bald: '' },
                    f: { crop: 'bob', long: 'long', bob: 'bob', ponytail: 'twintails', curly: 'wavy', bun: 'bun', braids: 'braid', mohawk: 'bob', spiky: 'bob', undercut: 'bob', afro: 'wavy', locs: 'long', bald: '' } };
-const DOLL_WEP = { m: ['sword', 'bow', 'dagger', 'whip'], f: [] };   // the weapons drawn for each body
+const DOLL_WEP = { m: ['sword', 'bow', 'dagger', 'whip'], f: ['sword', 'bow', 'dagger', 'whip'] };   // the weapons drawn for each body
 const dollFile = (slot, id, sex) => slot + '_' + id + '_' + sex;
 const DOLL_FILES = ['m', 'f'].flatMap(sex => ['base_' + sex, 'base_' + sex + '_skin'].concat(DOLL_SLOTS.flatMap(sl => DOLL[sex][sl].map(p => dollFile(sl, p[0], sex))), DOLL_WEP[sex].map(w => dollFile('wep', w, sex))));
 const ART_FILES = {
