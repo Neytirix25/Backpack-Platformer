@@ -521,6 +521,33 @@ def own_colours(slot, rule, frames, scores, thr=30, weak=0.6):
     return out
 
 
+def fill_gaps(cells, sex, floor=6):
+    """A weapon or cape that ChatGPT left out of a frame (hidden behind the body, or just missing) would blink out of the
+    hand: the empty frame borrows the nearest frame of the same animation, moved along with the hands."""
+    def hand(i):
+        Z = zones_of(sex, i)
+        if not Z: return None
+        hm = union([Z['hands'], Z['arms']], Z['hands'].size) if not Z['hands'].getbbox() else Z['hands']
+        st = ImageStat.Stat(hm); tot = st.sum[0] / 255
+        if not tot: return None
+        xs = sum(x for y in range(hm.height) for x in range(hm.width) if hm.getpixel((x, y))) / tot
+        ys = sum(y for y in range(hm.height) for x in range(hm.width) if hm.getpixel((x, y))) / tot
+        k = CW / hm.width
+        return xs * k, ys * k
+    count = lambda c: sum(1 for a in c.getchannel('A').getdata() if a)
+    i0, filled = 0, []
+    for row, n in ROWS:
+        for i in range(i0, i0 + n):
+            if row == 'death' or count(cells[i]) >= floor: continue
+            src = sorted((j for j in range(i0, i0 + n) if count(cells[j]) >= floor), key=lambda j: abs(j - i))
+            if not src: continue
+            j = src[0]; hi, hj = hand(i), hand(j)
+            dx, dy = (round(hi[0] - hj[0]), round(hi[1] - hj[1])) if hi and hj else (0, 0)
+            moved = Image.new('RGBA', cells[j].size); moved.paste(cells[j], (dx, dy)); cells[i] = moved; filled.append((i, j))
+        i0 += n
+    if filled: print('  filled empty frames from neighbours:', filled)
+
+
 def snap_palette(cells, n=24):
     """Every frame's pixels mapped to ONE palette (the piece's commonest colours over the whole sheet)."""
     strip = Image.new('RGB', (sum(c.width for c in cells), cells[0].height)); x = 0; mask = Image.new('L', strip.size, 0)
@@ -586,6 +613,7 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
         pieces = []
         for ewin, new in pairs: pc = ewin.copy(); pc.putalpha(new); pieces.append(pc)
     cells = [shrink(pc, (CW, CH), cut=56) for pc in pieces]   # (a lower cut than the body's: thin hair and straps survive the shrink)
+    if slot in ('wep', 'cape'): fill_gaps(cells, sex)
     if not grey: snap_palette(cells)
     steady_idle(cells[:4])
     for j in range(1, 4): cells[j] = cells[0].copy()   # (the body stands exactly still in the idle loop: so does every piece, drawing and all)
