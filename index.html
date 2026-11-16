@@ -2141,7 +2141,8 @@ function drawDress() {
 }
 // a run ended (death or victory): fold it into the records
 function logRun(won) {
-  if (!G || G.hub) return;
+  // MP: a co-op session is not a solo run (no records)
+  if (!G || G.hub || G.coop) return;
   const R = SAVE.rec, k = G.kills - (G.loggedKills || 0);
   R.kills += k; G.loggedKills = G.kills;
   if (won) R.wins++; else R.deaths++;
@@ -4528,6 +4529,8 @@ function updatePlayer(dt) {
 
   // exit
   if (G.hub) { if (G.mode === 'play' && G.hubRoom === 'yard' && !G.visit && overlap(P, exitRect(R))) { startRunFromHub(); if (G.hub) { P.x -= 40; } return; } if (G.panel === 'records' && Math.abs(P.vx) > 40) G.panel = null; }
+  // MP: in co-op the party leaves a floor together (mp/coop.js watches the door)
+  else if (G.coop) {}
   else if (G.mode === 'play' && overlap(P, exitRect(R)) && exitOpen()) {
     if (R.n >= FINAL_FLOOR && !G.endless) {
       G.mode = 'won'; G.wonT = 0; SFX.play('kill_boss'); logRun(true);
@@ -6005,6 +6008,8 @@ function roamFlyer(e, dt, P) {
   if (Math.abs(e.vx) > 18) e.face = Math.sign(e.vx);
 }
 function updateWild(dt) {
+  // MP: in co-op the party leader's game moves the wild animals (mp/coop.js)
+  if (G.coop) return;
   const P = G.player, R = G.room;
   G.graceT = (G.graceT || 0) - dt;
   for (const e of G.wild || []) {
@@ -8858,9 +8863,10 @@ function openPack(newItems) {
   stats = computeStats();
   if (newItems.length) showMsg(`Found: ${newItems.map(i => i.def.name).join(', ')}!`, 2.5);
 }
-function tryOpenPack() { openPack([]); }
+// MP: no backpack and no pets menu in a co-op session
+function tryOpenPack() { if (G && G.coop) return; openPack([]); }
 const PETS_BTN = { x: 486, y: 8, w: 84, h: 38 };
-function openPetsMenu() { openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
+function openPetsMenu() { if (G && G.coop) return; openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
 function closeRoster() { PK.roster = false; SFX.play('pick'); if (PK.rosterOnly) closePack(); }
 function closePack() {
   if (PK.drag) return;
@@ -8905,6 +8911,8 @@ function onMouseDown(btn) {
   }
   if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
   if (G.mode === 'pause') { if (btn === 0) pauseClick(); return; }
+  // MP: clicks in the co-op world (its panels' buttons; no pets menu there)
+  if (G.coop && G.mode !== 'battle') { if (MP.coop) MP.coop.click(btn); return; }
   if (G.mode === 'battle') { battleClick(btn); return; }
   if (G.mode === 'play' && !G.hub && btn === 0 && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { openPetsMenu(); return; }
   if (G.hub && (G.panel || (PK && PK.talent != null))) { hubPanelClick(btn); return; }
@@ -9385,6 +9393,8 @@ function drawFx() {
 }
 
 function drawHUD() {
+  // MP: the co-op HUD (party list, dungeon floor, door countdown)
+  if (G.coop) { if (MP.coop) MP.coop.drawHUD(); return; }
   const P = G.player, R = G.room;
   // your team: a leather plaque per pet
   petSlots.forEach((it, i) => {
@@ -10211,12 +10221,14 @@ const PAUSE_DY = () => (PORTRAIT() ? Math.round((H - 540) / 2) : 0);   // (portr
 const PAUSE_BTN = i => ({ x: W / 2 - 150, y: 204 + PAUSE_DY() + i * 56, w: 300, h: 44 });
 const CONFIRM_BTN = i => ({ x: W / 2 - 150 + i * 160, y: 302 + PAUSE_DY(), w: 140, h: 42 });
 const CONFIRM_TXT = { restart: 'Restart this run from the beginning?', hub: 'Leave this run and return to the Sanctuary?', title: 'Leave this run and go to the title screen?', forfeit: 'Give up this friendly battle?' };
-function pauseItems() { if (B && B.pvp && G.pauseFrom === 'battle') return [['resume', 'Resume'], ['forfeit', 'Give up the battle']]; return G.hub ? [['resume', 'Resume'], ['animals', 'My Animals'], ['title', 'Title screen']] : [['resume', 'Resume'], ['animals', 'My Animals'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
+// MP: in a co-op session the run-ending choices are one "Leave the party" (pauseItems, pauseDo, the confirm text)
+function pauseItems() { if (G.coop && MP.coop && !(B && B.pvp)) return MP.coop.pauseItems(); if (B && B.pvp && G.pauseFrom === 'battle') return [['resume', 'Resume'], ['forfeit', 'Give up the battle']]; return G.hub ? [['resume', 'Resume'], ['animals', 'My Animals'], ['title', 'Title screen']] : [['resume', 'Resume'], ['animals', 'My Animals'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
 function openPause() { G.pauseFrom = G.mode; G.mode = 'pause'; G.pauseSel = 0; G.confirm = null; SFX.play('pause'); }
 function closePause() { G.mode = G.pauseFrom === 'battle' && B ? 'battle' : 'play'; G.confirm = null; SFX.play('pause'); }
 // leaving a run early: it counts as abandoned (not a defeat); pets keep every level, the run's items are lost
 function abandonRun() {
-  if (!G || G.hub) return;
+  // MP: a co-op session is not a solo run (no records)
+  if (!G || G.hub || G.coop) return;
   B = null; PK = null;
   const R = SAVE.rec; R.kills += G.kills - (G.loggedKills || 0); G.loggedKills = G.kills;
   R.abandoned = (R.abandoned || 0) + 1; R.bestFloor = Math.max(R.bestFloor || 0, G.roomNum); denRunEnded();
@@ -10227,6 +10239,8 @@ function pauseDo(k) {
   if (k === 'animals') { G.confirm = null; openColl(); return; }
   if (!G.confirm && (!G.hub || k === 'forfeit')) { G.confirm = k; G.confirmSel = 1; SFX.play('pick'); return; }   // run-ending choices ask first ("No" picked)
   G.confirm = null; SFX.play('pick');
+  // MP: leaving the party
+  if (k === 'leave') { if (MP.coop) MP.coop.leaveParty(); return; }
   if (k === 'forfeit') { closePause(); if (B && B.pvp && B.phase !== 'won' && B.phase !== 'lost') { netSend({ t: 'forfeit' }); pvpFinish(false, 'You gave up this one.'); } return; }
   if (k === 'title') { abandonRun(); G = null; B = null; PK = null; SCREEN = 'title'; return; }
   if (k === 'hub') { abandonRun(); enterHub(); return; }
@@ -10261,13 +10275,15 @@ function drawPauseMenu() {
     banner('Are you sure?', W / 2, 188 + dy, { size: 38, h: 56, pad: PORTRAIT() ? 80 : 120 });
     panel(W / 2 - Math.min(240, W / 2 - 10), 226 + dy, Math.min(480, W - 20), 136, 'parch');
     label(fitText(CONFIRM_TXT[G.confirm], W - 50), W / 2, 254 + dy, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
-    label((ctx.font = `13px ${UI}`, fitText(G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W - 50)), W / 2, 278 + dy, { align: 'center', size: 12, color: '#6b4a2a' });
+    label((ctx.font = `13px ${UI}`, fitText(G.confirm === 'leave' ? 'The party goes on without you. Your pets keep every level they earned.' : G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W - 50)), W / 2, 278 + dy, { align: 'center', size: 12, color: '#6b4a2a' });
     ['Yes', 'No'].forEach((t, i) => button(CONFIRM_BTN(i), t, { hover: inRect(mouse, CONFIRM_BTN(i)) || (G.confirmSel === i && !inRect(mouse, CONFIRM_BTN(1 - i))), size: 17, color: i ? PAL.cream : '#ffb199' }));
     if (!TOUCH.on) label('Y / N  ·  or arrows + Enter', W / 2, 392 + dy, { align: 'center', size: 12, color: PAL.dim });
     return;
   }
   const items = pauseItems();
   banner('Paused', W / 2, 134 + dy, { size: 46, h: 66, pad: PORTRAIT() ? 90 : 130 });
+  // MP: the co-op session's line
+  if (G.coop) label(MP.coop ? MP.coop.where() : '', W / 2, 180 + dy, { align: 'center', size: 14, color: PAL.dim }); else
   if (!G.hub) label(`${CLASSES[G.cls].name}  ·  Floor ${G.roomNum}${G.roomNum <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''}  ·  ${G.battlesWon || 0} battles won`, W / 2, 180 + dy, { align: 'center', size: 14, color: PAL.dim });
   let hov = -1; items.forEach((_, i) => { if (inRect(mouse, PAUSE_BTN(i))) hov = i; });
   items.forEach(([k, t], i) => button(PAUSE_BTN(i), t, { hover: hov === i || (hov < 0 && G.pauseSel === i), size: 17, color: k === 'resume' ? PAL.gold : PAL.cream }));
@@ -10352,6 +10368,8 @@ function drawPortraitHUD() {
     ctx.fillStyle = '#140d08'; ctx.fillRect(0, y0, Wv, Hv - y0);
     ctx.fillStyle = PAL.brassDk || '#6b4a1e'; ctx.fillRect(0, y0, Wv, 3);
     let y = y0 + 8;
+    // MP: the co-op HUD's portrait layout
+    if (G.coop) { if (MP.coop) MP.coop.drawPortraitHUD(y); W = keepW; H = keepH; return; }
     if (G.hub) {   // the Sanctuary: where you are, who you are, and what you can do here
       const have = ownedIds().length;
       panel(6, y, Wv - 12, 58, 'leather');
@@ -11588,6 +11606,8 @@ function update(dt) {
         }
         updateWorld(dt); break;
       }
+      // MP: the co-op world (no backpack; it stands still while the party fights)
+      if (G.coop) { if (MP.coop) MP.coop.play(dt); break; }
       if (hit('p', 'Escape')) { openPause(); break; }
       if (hit('b', 'i', 'Tab')) { tryOpenPack(); if (G.mode === 'pack') break; }
       if (hit('t')) { openPetsMenu(); break; }
@@ -11616,6 +11636,9 @@ function update(dt) {
       break;
     case 'trans':
       G.fade += dt * 3.5 * G.fadeDir;
+      // MP: co-op floors come from the party leader (mp/coop.js builds them at the dark moment of the fade)
+      if (G.coop && G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; G.fadeDir = -1; if (MP.coop) MP.coop.mid(); }
+      else
       if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; if (!G.hub) nextRoom(); else if (G.hubTo) { buildHubRoom(G.hubTo.room, G.hubTo.from); G.hubTo = null; } G.fadeDir = -1; }
       else if (G.fadeDir < 0 && G.fade <= 0) { G.fade = 0; G.fadeDir = 0; G.mode = 'play'; }
       updateFx(dt);
