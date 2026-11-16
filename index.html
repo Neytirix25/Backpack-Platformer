@@ -146,9 +146,9 @@ const ART_FILES = {
   vfx: VFX_SPR,
   items: ['dish_minnow', 'dish_bluegill', 'dish_crawdad', 'dish_perch', 'dish_sunfish', 'dish_carp', 'dish_pike', 'dish_catfish', 'dish_pufferfish', 'dish_eel', 'dish_sturgeon', 'dish_goldkoi', 'fish_minnow', 'fish_bluegill', 'fish_crawdad', 'fish_perch', 'fish_sunfish', 'fish_carp', 'fish_pike', 'fish_catfish', 'fish_pufferfish', 'fish_eel', 'fish_sturgeon', 'fish_goldkoi', 'pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
   chars: ['hero', 'slime', 'bat', 'skeleton', 'archer', 'ghost', 'brute', 'boss'].flatMap(n => [n + '_idle', n + '_attack']),
-  props: ['dashwall_wood', 'dashwall_fire', 'dashwall_thorn', 'dashwall_coral', 'doghouse', 'oven', 'creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house'],
+  props: ['dashwall_wood', 'dashwall_fire', 'dashwall_thorn', 'dashwall_coral', 'doghouse', 'oven', 'creel', 'dock_deck', 'dock_post', 'dock_end', 'door_menagerie', 'vine_curtain', 'friend_post', 'hub_banner_warrior', 'hub_banner_archer', 'hub_banner_rogue', 'hub_banner_beastmaster', 'hub_mirror', 'hub_board', 'hub_petbed', 'barrier', 'cage', 'cage_open', 'plant_bloodberry', 'plant_ember', 'plant_stone', 'plant_swift', 'plant_catnip', 'plant_mandrake', 'chest_secret', 'spikes', 'crumble', 'vent', 'chest_gold', 'chest_closed', 'chest_open', 'campfire', 'torch', 'gate', 'ledge', 'tombstone', 'arrow', 'mushrooms', 'candle', 'bones', 'chain', 'thorns', 'shroom', 'vine', 'door_wardrobe', 'door_records', 'door_den', 'door_out', 'nest', 'pedestal', 'trophy_shelf', 'dye_rack', 'sparkle_0', 'sparkle_1', 'sparkle_2', 'sparkle_3', 'sanct_house', 'mp_missions', 'mp_auction', 'mp_shop', 'mp_dungeon', 'mp_raid'],
   bgfx: [...new Set(Object.values(window.BGFX || {}).flat().flatMap(e => [e.s, e.m]).filter(Boolean))],   // strips, masks and swaying parts
-  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'pond_bank'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
+  bg: ['hall', 'cave', 'crypt', 'camp', 'boss', 'forge', 'hollow', 'sanctum', 'hub', 'thornwood', 'glade', 'lake', 'yard', 'wardrobe', 'records', 'temple', 'coral', 'trench', 'menagerie', 'pond_bank', 'street'].concat(BG_LAYERED.flatMap(k => [k + '_far', k + '_mid', k + '_near'])).concat(['yard_far', 'yard_fields', 'yard_fence', 'yard_grass']),
   anim: Object.keys(window.ANIMS || {}),
   doll: DOLL_FILES,
   ui: ['panel_leather', 'panel_parch', 'btn', 'btn_hover', 'btn_off', 'slot', 'banner', 'seal', 'talent_icons'].concat(['burn', 'poison', 'bleed', 'stun', 'blind', 'weak', 'mark', 'shield', 'regen', 'str', 'guard', 'taunt', 'evade', 'lucky', 'undying', 'charging'].map(k => 'st_' + k)),   // st_*: status icons
@@ -374,7 +374,9 @@ function touchEnd(e) {
       for (const k of [...TOUCH.held]) vkey(k, false);
       if (!TOUCH.moved && dur < 300) {   // a tap: a HUD button if it's on one, otherwise use what's nearby
         tpos(t);
-        if (!G.hub && VIEW.portrait && inRect(mouse, PORT_TEAM())) openPetsMenu();
+        // MP: a tap on the Kingdom Street's HUD buttons (chat, players, group badge)
+        if (G.hub && MP.hub && MP.hub.click(0)) { /* handled */ }
+        else if (!G.hub && VIEW.portrait && inRect(mouse, PORT_TEAM())) openPetsMenu();
         else if (!G.hub && !VIEW.portrait && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { onMouseDown(0); onMouseUp(0); }
         else vtap('e');
       }
@@ -2241,13 +2243,15 @@ const HUB_ROOMS = {
   menagerie:{ name: 'The Menagerie', cols: 40, bg: 'menagerie', tiles: 'camp', out: 37.4, hint: 'Every species, act by act  ·  stand by one to see it  ·  W hops up the tiers' },
   wardrobe: { name: 'The Wardrobe', cols: 32, bg: 'wardrobe', tiles: 'camp', hint: 'E at a banner: change class  ·  E at the mirror: outfit, hair and skin' },
   records:  { name: 'The Records Hall', cols: 32, bg: 'records', tiles: 'camp', hint: 'E at the board: your run records  ·  E at the shelf: trophies' },
+  // MP: the Kingdom Street (mp/hub.js): other players, the chat, the Dungeon and Raid boards
+  street:   { name: 'Kingdom Street', cols: 72, bg: 'street', tiles: 'hall', hint: 'E use  ·  Enter chat  ·  Tab players  ·  G your group  ·  the Dungeon and Raid boards: form a group of 2-4' },
   den:      { name: 'The Breeding Den', cols: 32, bg: 'hub', tiles: 'camp', hint: 'E at a nest: pair a male and a female  ·  after your next run, an egg waits on the pedestal' },
 };
 const HUB_COLS = HUB_ROOMS.yard.cols;
 // the Yard's left end is the pond meadow (POND.cols tiles); its stations sit to the right of it
 const POND = { cols: 32, w0: 2, w1: 23, dock0: 14, dock1: 23, surf: 9 };   // tile columns: water w0..w1 in the floor's top row, the dock over dock0..dock1; surf = the waterline's depth below the ground (px)
 const HUB_SPOTS = {   // tile x of each station
-  doors: { wardrobe: 4 + POND.cols, records: 8.5 + POND.cols, den: 13 + POND.cols, menagerie: 31 + POND.cols }, post: 16.1 + POND.cols, fire: 18 + POND.cols, oven: 25 + POND.cols, team: 54.2 + POND.cols, out: 2.6,   // the team post stands by the gate
+  doors: { wardrobe: 4 + POND.cols, records: 8.5 + POND.cols, den: 13 + POND.cols, menagerie: 31 + POND.cols, street: 44 + POND.cols }, post: 16.1 + POND.cols, fire: 18 + POND.cols, oven: 25 + POND.cols, team: 54.2 + POND.cols, out: 2.6,   // the team post stands by the gate
   banners: { warrior: 8, archer: 11, rogue: 14, beastmaster: 17 }, mirror: 21, dye: 25, board: 11, trophies: 19, nests: [11, 16], pedestal: 21,
 };
 // outfit dyes (Wardrobe), saved per class
@@ -2292,6 +2296,8 @@ function buildHubRoom(room, from) {
 }
 function goHubRoom(to) {
   if (!G || !G.hub || G.mode !== 'play') return;
+  // MP: no Kingdom Street during a Yard visit
+  if (to === 'street' && MP.hub && !MP.hub.canEnter()) return;
   G.hubTo = { room: to, from: G.hubRoom }; G.panel = null; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door');
 }
 function spawnHubPets(R) {
@@ -2919,6 +2925,8 @@ function hubStations() {
     out.push({ kind: 'post', x: X(HUB_SPOTS.post), y: ft, label: NET.state === 'linked' && NET.friend ? `Friend post (${NET.friend.name})` : 'Play with a friend' });
     for (const to of ['wardrobe', 'records', 'den', 'menagerie']) out.push({ kind: 'door', to, x: X(HUB_SPOTS.doors[to]), y: ft, label: `Enter ${HUB_ROOMS[to].name}` + (to === 'den' && denPair() && SAVE.den.ready ? '  (an egg is waiting!)' : '') });
     out.push({ kind: 'team', x: X(HUB_SPOTS.team), y: ft, label: 'Choose your team' });
+    // MP: the road to the Kingdom Street
+    if (MP.hub) out.push({ kind: 'door', to: 'street', x: X(HUB_SPOTS.doors.street), y: ft, label: 'To the Kingdom Street' });
     for (const p of G.pets) out.push({ kind: 'pet', pet: p, x: p.x + p.w / 2, y: p.y + p.h, label: `Pet the ${p.d.name}` });
     out.push({ kind: 'doghouse', x: X(HUB_SPOTS.fire), y: ft, label: 'Choose who plays in the Yard' });
     out.push({ kind: 'oven', x: X(HUB_SPOTS.oven), y: ft, label: 'Cook at the stone oven' });
@@ -2927,6 +2935,8 @@ function hubStations() {
     return out;
   }
   out.push({ kind: 'door', to: 'yard', x: X(HUB_ROOMS[room].out || HUB_SPOTS.out), y: ft, label: 'Back out to the Yard' });
+  // MP: the Kingdom Street's boards and shops
+  if (room === 'street') { if (MP.hub) MP.hub.stations(out, ft); return out; }
   if (room === 'menagerie') for (const m of menagerieSpots()) {
     const have = G.visit ? G.visit.owned.has(m.k) : owned(m.k);
     out.push(have ? { kind: 'species', id: m.k, act: m.act, x: m.x, y: m.y, label: PETS[m.k].name } : { kind: 'locked', id: m.k, x: m.x, y: m.y, label: '' });
@@ -2946,7 +2956,7 @@ function hubStations() {
 function hubNearest() {
   const P = G.player, cx = P.x + P.w / 2, cy = P.y + P.h; let best = null, bd = 1e9;
   for (const s of hubStations()) {
-    const dx = Math.abs(s.x - cx), dy = Math.abs(s.y - cy), r = s.kind === 'pet' ? 46 : s.kind === 'locked' ? 26 : 34;
+    const dx = Math.abs(s.x - cx), dy = Math.abs(s.y - cy), r = s.r || (s.kind === 'pet' ? 46 : s.kind === 'locked' ? 26 : 34);
     if (dx < r && dy < 70) { const d = dx + dy * 0.3 + (s.kind === 'pet' ? 14 : 0); if (d < bd) { bd = d; best = s; } }   // (a station you're at wins over an animal wandering past)
   }
   return best;
@@ -2954,6 +2964,8 @@ function hubNearest() {
 function hubInteract() {
   const s = hubNearest(); if (!s) return;
   const P = G.player;
+  // MP: the Kingdom Street's stations
+  if (MP.hub && MP.hub.interact(s)) return;
   if (s.kind === 'class' && s.cls !== G.cls) {
     selClass = G.cls = s.cls; try { localStorage.setItem(sk('packrat_class'), s.cls); } catch (e) {}
     pack = startItems(s.cls); stats = computeStats(); P.hp = stats.maxHp;
@@ -3232,6 +3244,8 @@ function hubPanelClick(btn = 0) {
   else if (G.panel === 'trade') tradeClick(btn);
   else if (G.panel === 'oven') ovenClick(btn);
   else if (G.panel === 'yardpick') yardPickClick(btn);
+  // MP: the Kingdom Street's panels
+  else if (MP.hub) MP.hub.panelClick(btn);
 }
 // stations, beds, silhouettes and the "press E" bubble (drawn in the world)
 function drawHubWorld() {
@@ -3245,6 +3259,8 @@ function drawHubWorld() {
   drawDoor('door_menagerie', HUB_SPOTS.doors.menagerie * TILE, ft, HUB_ROOMS.menagerie.name);   // every species, act by act
   drawOvenProp(HUB_SPOTS.oven * TILE, ft);
   drawDoghouse(HUB_SPOTS.fire * TILE, ft);
+  // MP: the signpost to the Kingdom Street
+  if (MP.hub) MP.hub.drawYardSign(HUB_SPOTS.doors.street * TILE, ft);
   drawRemoteHero();   // your friend, when you're together in a Yard
 }
 // a door into one of the rooms (ChatGPT art when it exists), with its name on a sign
@@ -3263,6 +3279,8 @@ function drawDoor(key, x, ft, name, glow) {
 function drawHubRoomProps(room, ft) {
   const X = t => t * TILE;
   drawDoor('door_out', X(HUB_ROOMS[room].out || HUB_SPOTS.out), ft, 'The Yard');
+  // MP: the Kingdom Street's boards and shops
+  if (room === 'street') { if (MP.hub) MP.hub.drawProps(ft); return; }
   if (room === 'menagerie') { drawMenagerie(ft); return; }
   if (room === 'wardrobe') { drawWardrobeProps(ft); return; }
   if (room === 'records') {
@@ -3376,6 +3394,8 @@ function drawHubPanels() {
   if (G.panel === 'acts') { if (G.actFlash) G.actFlash.t -= 1 / 60; drawActSelect(); }
   if (G.panel === 'oven') drawOvenPanel();
   if (G.panel === 'yardpick') drawYardPick();
+  // MP: the Kingdom Street's HUD (status, chat, group badge) and panels
+  if (MP.hub) MP.hub.drawUI();
   if (PK && PK.talent != null) drawTalents();
   drawHUDMessageOnly();
 }
@@ -4320,8 +4340,10 @@ function drawParallax(R) {
   if (R.bgKey === 'yard' && drawYardDepth(R)) { ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); return; }
   const img = art('bg/' + R.bgKey);
   ctx.fillStyle = R.theme.bg; ctx.fillRect(0, 0, W, H);
+  // MP: the Kingdom Street's backdrop scrolls like a dungeon's; a code-drawn town stands in until its art exists
+  if (!img && R.bgKey === 'street' && MP.hub) { MP.hub.drawBg(R); return; }
   if (!img) return;
-  if (R.hubRoom && R.hubRoom !== 'yard') {
+  if (R.hubRoom && R.hubRoom !== 'yard' && R.bgKey !== 'street') {
     const sh0 = BG_CROP[R.bgKey] || img.height; ctx.drawImage(img, 0, 0, img.width, sh0, 0, 0, W, R.bgKey === 'hub' ? R.floorTop * TILE + 4 : H);
     ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); return;
   }
@@ -8907,6 +8929,8 @@ function onMouseDown(btn) {
   if (G.mode === 'pause') { if (btn === 0) pauseClick(); return; }
   if (G.mode === 'battle') { battleClick(btn); return; }
   if (G.mode === 'play' && !G.hub && btn === 0 && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { openPetsMenu(); return; }
+  // MP: the Kingdom Street's HUD buttons (chat, players, group badge)
+  if (G.hub && MP.hub && MP.hub.click(btn)) return;
   if (G.hub && (G.panel || (PK && PK.talent != null))) { hubPanelClick(btn); return; }
   if (G.mode !== 'pack' || !PK) return;
   if (PK.talent != null) { if (btn === 0) talentClick(); else PK.talent = null; return; }
@@ -10913,6 +10937,8 @@ function netReceive(m) {
   }
 }
 function netCantDo(kind, mine) {
+  // MP: battles, trades and visits with a friend wait while either of you is in the Kingdom Street
+  if (G && G.hub && G.hubRoom === 'street') return mine ? 'Go back to your Yard first: the Kingdom Street is shared with everyone.' : 'is in the Kingdom Street right now';
   if (!G || !G.hub || G.mode === 'battle') return mine ? 'You can do that from the Sanctuary.' : G && !G.hub ? 'is out in the dungeon right now' : 'is busy right now';
   if (G.visit || NET.visitor || NET.trade || NET.battle) return mine ? 'Finish what you are doing with your friend first.' : 'is busy';
   if (kind === 'battle' && !petSlots.some(Boolean)) return mine ? 'Put at least one animal in your team first.' : "doesn't have a team yet";
@@ -11484,6 +11510,8 @@ function netPanelKeys() {
 // typing a name or a room code (keys go here instead of the game while a box is active)
 function netType(e) {
   const k = e.key; if (e.preventDefault) e.preventDefault();
+  // MP: typing in the Kingdom Street's chat
+  if (NET.typing === 'chat') { if (MP.hub) MP.hub.type(e); else NET.typing = null; return; }
   if (k === 'Escape') { if (NET.typing === 'nick') { NET.typing = null; NET.nickIt = null; return; } NET.typing = null; if (NET.state === 'join') NET.state = 'off'; return; }
   if (k === 'Enter') { if (NET.typing === 'nick') nickDone(); else netTypeDone(); return; }
   if (k === 'Backspace') { NET.buf = NET.buf.slice(0, -1); return; }
@@ -11566,6 +11594,8 @@ function update(dt) {
         G.gateHintT = (G.gateHintT || 0) - dt;
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
+        // MP: the Kingdom Street's keys (chat, players, boards)
+        if (MP.hub && MP.hub.keys(dt)) break;
         if (G.panel === 'oven') { ovenKeys(dt); break; }
         if (G.panel === 'yardpick') { if (hit('Escape')) { G.panel = null; G.yardPick = null; } else if (hit('Enter')) yardPickDone(); break; }
         if (G.panel === 'net' || G.panel === 'trade') { netPanelKeys(); break; }
