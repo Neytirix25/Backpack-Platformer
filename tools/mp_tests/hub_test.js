@@ -143,6 +143,8 @@ async function main() {
   for (const [kind, title] of [['mp_missions', 'Mission Board'], ['mp_auction', 'Auction House'], ['mp_shop', 'Cosmetics Shop']]) {
     for (const port of [false, true]) {
       C.setPortrait(port); C.at(C.run(`MP.hub._.PLACES.find(p => p.kind === '${kind}').t`)); C.frame(); C.tap('e');
+      // a place whose module is loaded (MP.stations) opens its own panel instead ('mpmissions' / 'mpauction' / 'mpshop': each has its own test suite); Escape closes it
+      if (C.run(`typeof MP.stations['${kind}']`) === 'function') { eq(C.run('G.panel'), 'mp' + kind.slice(3), title + ' opens its own panel'); C.frame(); C.frame(); C.tap('Escape'); eq(C.run('G.panel'), null, title + ' closes'); continue; }
       eq(C.run('G.panel'), 'mpsoon', title + ' opens'); C.frame(); C.frame();
       eq(C.run('MP.hub._.panelButtons().map(b => b.id).join()'), 'close', 'only a Close button');
       if (port) C.clickBtn('close'); else C.tap('Escape');

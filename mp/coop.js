@@ -646,7 +646,9 @@
     SAVE.rec[key] = (SAVE.rec[key] || 0) + 1;
     for (const it of petSlots) if (it) { const u = givePetXp(it, Math.round(XP_NEED(petLvl(it)) * (raid ? 0.5 : 0.35))); if (u && u.length) ups.push(`${petName(it)} reached level ${u[u.length - 1]}`); }
     savePets(); saveData(); syncPets(); SFX.play('kill_boss');
-    S.result = { title: raid ? 'Raid complete!' : 'Dungeon complete!', good: true, lines: [`${title()}  ·  ${ids().length} adventurer${ids().length === 1 ? '' : 's'}`, `Time ${clock(secs)}  ·  ${won} battle${won === 1 ? '' : 's'} won`,
+    // MP: Gold for a completed co-op run (50 a dungeon, 100 a raid; solo runs pay nothing)
+    const pay = MP.econ ? MP.econ.payout(raid ? 'raid' : 'dungeon') : 0;
+    S.result = { title: raid ? 'Raid complete!' : 'Dungeon complete!', good: true, lines: [`${title()}  ·  ${ids().length} adventurer${ids().length === 1 ? '' : 's'}`, `Time ${clock(secs)}  ·  ${won} battle${won === 1 ? '' : 's'} won` + (pay ? `  ·  +${pay} Gold` : ''),
       'Your pets learned from it: bonus experience for your team.' + (ups.length ? ' ' + ups.join(', ') + '!' : '')] };
   }
   const clock = s => { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
