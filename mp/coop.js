@@ -435,6 +435,7 @@
     } else if (E.on ? E.off > 8 : E.t > 20) { S.enc = null; S.grace = 1.5; }
   }
   // MP.battle.onEnd: on every client, once its result screen is closed
+  const FALLS_MAX = 3;
   function battleEnded(r) {
     const E = S.enc; S.enc = null; S.grace = 1.2;
     if (G.mode === 'battle') G.mode = 'play';
@@ -444,7 +445,16 @@
       beat(E.w);
       if (amHost()) { send({ t: 'c.beat', i: S.fl, w: E.w }); if (final) { const s = Math.round(S.t - S.t0); send({ t: 'c.done', s, won: S.won }); done(s, S.won); } }
       else if (final) done(Math.round(S.t - S.t0), S.won);
-    } else { if (amHost()) send({ t: 'c.over' }); over(); }
+    } else {
+      // beaten back: the party gets up again (FALLS_MAX defeats in one dungeon or raid end it for everyone)
+      S.falls = (S.falls || 0) + 1;
+      if (S.falls >= FALLS_MAX) { if (amHost()) send({ t: 'c.over' }); over(); return; }
+      const left = FALLS_MAX - S.falls; S.grace = 4;
+      showMsg(`Beaten back! Your animals get up again  ·  ${left} more defeat${left > 1 ? 's' : ''} and the ${S.kind === 'raid' ? 'raid' : 'dungeon'} is lost.`, 4.5);
+    }
+    // every fight starts fresh: the scaling was fitted for teams at full health
+    for (const it of petSlots) if (it) RUN.petHp[it.pid] = 1;
+    if (typeof syncPets === 'function') syncPets();
   }
   function beat(w) {
     const e = G.wild[w]; if (!e || e.beaten) return;

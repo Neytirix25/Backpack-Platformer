@@ -288,9 +288,13 @@ const TESTS = {
     const before = gs.map(g => g.run('JSON.stringify([SAVE.rec.runs, SAVE.rec.deaths, SAVE.rec.coopDungeons || 0])'));
     await gather(gs, info(gs, 'dungeon', 4, 'LOSE', 5));
     ok(A.run('G.room.act') === 4, 'tier 4 floor'); ok(gridSig(A) === gridSig(B), 'identical');
-    await frames(gs, 80); onto(A, 1); await until(gs, () => gs.every(battling), 400, 'battle');
-    await fight(gs, false);
-    await until(gs, () => gs.every(g => phase(g) === 'over'), 600, 'a lost battle fails the dungeon for everyone');
+    // beaten back twice: the party gets up again at full health; the third defeat loses the dungeon
+    for (let k = 0; k < 3; k++) {
+      await frames(gs, k ? 330 : 80); onto(A, 1); await until(gs, () => gs.every(battling), 600, 'battle ' + (k + 1));
+      await fight(gs, false);
+      if (k < 2) { await until(gs, () => gs.every(g => !g.run('!!B')), 600, 'the lost battle closes'); await frames(gs, 10); ok(gs.every(g => phase(g) === 'play'), 'defeat ' + (k + 1) + ': the dungeon goes on'); ok(gs.every(g => g.run('petSlots.filter(Boolean).every(it => RUN.petHp[it.pid] === 1)')), 'the team is back at full health'); }
+    }
+    await until(gs, () => gs.every(g => phase(g) === 'over'), 600, 'the third lost battle fails the dungeon for everyone');
     await frames(gs, 40); for (const g of gs) g.step(1, true);
     ok(gs.every(g => /lost|failed/.test(g.run('MP.coop.state().result.title'))), 'the failure panel is up');
     await backHome(gs);

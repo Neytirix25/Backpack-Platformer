@@ -67,7 +67,7 @@
     { foes: 8, hp: 0.84, atk: 1.05, aoe: 0.65, minions: 5, bossHp: 0.8, bossAtk: 0.9, bossActs: 4, raidHp: 1.5, raidAtk: 0.9, raidActs: 4, raidMin: 0, adds: 3, shield: 0.06 }];
   // one dial per kind of fight over all of the above, for whoever designs the dungeons: every foe's attack is multiplied
   // by it (1 = the fitted targets: wild ~88% wins from full HP, boss ~70%, raid ~55%; lower = easier; the sim's --diff tries values)
-  const DIFF = { wild: 1, boss: 1, raid: 1 };
+  const DIFF = { wild: 1, boss: 0.85, raid: 0.8 };   /* shipped a little under the fitted numbers for bosses and raids: real players are not the simulation's tireless AI */
   const TURN_T = 25, AI_T = 0.7, CALL_T = 5, BOSS_ENRAGE = { elder: 'meteorrain', wyrm: 'moontide', rune: 'abyssalrune', shadow: 'callshades' };
   const MB = MP.battle = { TIERS, SCALE, DIFF, TURN_T, active: false, onEnd: null, link: null, desync: 0 };
   let P = null, BID = 1, CUR = null;   /* P: a battle being set up (host: collecting teams · guest: waiting for the start) */
