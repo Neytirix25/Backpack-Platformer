@@ -19,6 +19,7 @@ HAZE = {'thornwood': 0.25, 'trench': 0.2}   # middle layers that sit in fog: ble
 NO_NEAR = set()   # backgrounds whose near layer is empty
 MIST = {'crypt': 236}   # near layers whose pieces above this row are mist: made soft and see-through (the ledge below stays solid)
 GREEN_KEY = {'crypt', 'sanctum', 'glade', 'boss'}   # purple / pink art: these layers are made on flat green #00FF00 instead of magenta
+EDGE_KEY = {'street'}   # art with its own purples AND greens (wisteria, awnings, ivy): only key colour joined to the image edge is cut, and only pixels right at the cut are despilled
 
 
 def is_key(r, g, b, green=False):   # the flat key colour (magenta, or green for purple art), never the art's own colours
@@ -30,7 +31,7 @@ def is_fringe(r, g, b, green=False):   # a pixel blended with the key, right nex
     return (g > r + 35 and g > b + 35) if green else (r > g + 35 and b > g + 35)
 
 
-def keyed(im, green=False):
+def keyed(im, green=False, edge_only=False):
     """Full-size RGBA with the magenta gone; a 1px rim of pinkish pixels around the cut is dropped too."""
     im = im.convert('RGBA'); px = im.load(); W, H = im.size
     mask = Image.new('L', im.size, 255); mp = mask.load()
@@ -38,11 +39,22 @@ def keyed(im, green=False):
         for x in range(W):
             r, g, b, a = px[x, y]
             if a < 10 or is_key(r, g, b, green): mp[x, y] = 0
+    near = None
+    if edge_only:   # keep key-coloured pixels that are not joined to the image edge (they are the art's own purple), despill only by the cut
+        keep = Image.new('L', im.size, 255); kp = keep.load()
+        todo = [(x, y) for x in range(W) for y in (0, H - 1) if not mp[x, y]] + [(x, y) for y in range(H) for x in (0, W - 1) if not mp[x, y]]
+        for q in todo: kp[q] = 0
+        while todo:
+            x, y = todo.pop()
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if 0 <= nx < W and 0 <= ny < H and kp[nx, ny] and not mp[nx, ny]: kp[nx, ny] = 0; todo.append((nx, ny))
+        mask = keep; mp = mask.load()
+        near = mask.filter(ImageFilter.MinFilter(9)).load()   # 0 within 4 px of the cut
     # despill: a pixel that is partly key colour (anti-aliased edges, thin strands) gets the key taken back out, and the
     # share of key it held becomes its transparency, so thin webs and hair stay soft and continuous, edges stay clean
     for y in range(H):
         for x in range(W):
-            if not mp[x, y]: continue
+            if not mp[x, y] or (near and near[x, y]): continue
             r, g, b, a = px[x, y]
             sp = max(0, g - max(r, b)) if green else max(0, min(r, b) - g)
             if sp <= 12: continue
@@ -123,7 +135,7 @@ def build(key):
         if n == 'near' and key in NO_NEAR:
             im = Image.new('RGBA', size); im.save(os.path.join(OUT, f'{key}_{n}.png')); layers.append(im); continue
         src = Image.open(os.path.join(RAW, f'{key}_{n}.png'))
-        im = src.convert('RGB').resize(size, Image.BOX).convert('RGBA') if n == 'far' else despeckle(shrink(keyed(src, key in GREEN_KEY), size))
+        im = src.convert('RGB').resize(size, Image.BOX).convert('RGBA') if n == 'far' else despeckle(shrink(keyed(src, key in GREEN_KEY, key in EDGE_KEY), size))
         if n == 'mid' and key in HAZE:   # a little of the fog's colour, as distance looks in the original
             fr, fg, fb = [round(sum(i * c for i, c in enumerate(layers[0].getchannel(ch).histogram())) / (size[0] * size[1])) for ch in 'RGB']
             px = im.load(); k = HAZE[key]
