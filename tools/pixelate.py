@@ -726,7 +726,7 @@ if __name__ == '__main__' and sys.argv[1] == 'seaterrain':
 
 
 # ---------- Kingdom Street props (multiplayer hub): one sheet on magenta, 3 + 2: mission board, auction house, cosmetics shop, dungeon entrance, raid gate ----------
-STREET_PROPS = [('mp_missions', 44, 50), ('mp_auction', 120, 100), ('mp_shop', 104, 92), ('mp_dungeon', 96, 96), ('mp_raid', 104, 112)]   # name, max art px (drawn at 2x, bottom edge = the ground)
+STREET_PROPS = [('mp_missions', 44, 50), ('mp_auction', 120, 100), ('mp_shop', 104, 92), ('mp_dungeon', 104, 84), ('mp_raid', 130, 88)]   # name, max art px (drawn at 2x, bottom edge = the ground); the two gates include their notice boards, so they are wide
 
 
 def do_streetprops():
