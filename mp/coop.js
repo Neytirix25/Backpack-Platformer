@@ -139,6 +139,7 @@
   // leave everything behind without going anywhere (start() over an old session, or the world was replaced under us)
   function quit() {
     const s = S; if (!s) return;
+    try { if (MP.battle && MP.battle.abort) MP.battle.abort(); } catch (e) { console.error(e); }   /* a battle in progress closes with the session */
     S = null; MP.coop.active = false;
     try { if (s.room && s.room.state !== 'closed') s.room.leave(); } catch (e) {}
     if (MP.battle && MP.battle.onEnd) MP.battle.onEnd = null;
@@ -409,11 +410,11 @@
   function hostTouch(w, by) {
     const e = G.wild[w];
     if (!e || e.beaten || S.enc || S.pend || battleOn() || S.phase !== 'play' || !ids().includes(by)) return;
+    const enc = e.boss ? { kind: S.kind === 'raid' ? 'raid' : 'boss', tier: S.tier } : { kind: 'wild', tier: S.tier, k: e.k, comp: e.comp, theme: G.room.type, coat: e.coat || null, floor: G.room.n };
+    try { if (MP.battle && MP.battle.hostBegin && MP.battle.hostBegin(enc) === false) return; } catch (err) { console.error(err); return; }   /* (the battle module is not ready for one) */
     send({ t: 'c.enc', i: S.fl, w, by });
     encounter(w, by);
-    const enc = e.boss ? { kind: S.kind === 'raid' ? 'raid' : 'boss', tier: S.tier } : { kind: 'wild', tier: S.tier, k: e.k, comp: e.comp, theme: G.room.type, coat: e.coat || null, floor: G.room.n };
-    S.enc.enc = enc;
-    try { if (MP.battle && MP.battle.hostBegin) MP.battle.hostBegin(enc); } catch (err) { console.error(err); }
+    if (S.enc) S.enc.enc = enc;
   }
   // the '!' moment on every client; the world stands still until the battle is over
   function encounter(w, by) {
@@ -557,7 +558,7 @@
     if (S.enc || battleOn()) { G.player.vx = 0; updateFx(dt); return; }
     updateWorld(dt);
   }
-  const pauseItems = () => [['resume', 'Resume'], ['animals', 'My Animals'], ['leave', 'Leave the party']];
+  const pauseItems = () => (G.pauseFrom === 'battle' ? [['resume', 'Resume'], ['leave', 'Leave the party']] : [['resume', 'Resume'], ['animals', 'My Animals'], ['leave', 'Leave the party']]);
   function click(btn) {
     if (btn !== 0 || !S) return;
     if (S.result && S.result.t > 0.6 && inRect(mouse, resultBtn())) end();
