@@ -531,8 +531,8 @@
   const atDoor = id => (id === me() ? S.myDoor : !!(S.door[id] && S.door[id].on && S.door[id].i === S.fl));
   function gatherTick() {
     const room = S.room, open = room && room.state === 'open';
-    const leader = S.leader === me(), here = open ? ids() : [me()];
-    if (S.t > GATHER_MAX && here.length < 2 && !S.pend) { end('Nobody else made it to the party: back to the street.'); return; }
+    const leader = S.leader === me(), here = open ? ids() : [me()], need = Math.min(2, S.listed.length);   /* (a party of one: only the hub's debug switch makes those) */
+    if (S.t > GATHER_MAX && here.length < need && !S.pend) { end('Nobody else made it to the party: back to the street.'); return; }
     if (S.t > GATHER_MAX + 16 && !S.pend) { end('The party never set out: back to the street.'); return; }
     // the room is hosted by somebody who is not the leader (a guest got there first): everyone lets go of it and
     // comes back a little later, each guest at its own moment, so the id is free for the leader to claim
@@ -544,7 +544,7 @@
     }
     if (here.length > 1 && S.firstGuest == null) S.firstGuest = S.t;
     if (leader && open && room.isHost && !S.pend) {
-      if (here.length >= 2 && (here.length >= S.listed.length || S.t - S.firstGuest > GATHER_GO)) { hostFloor(0); S.pend.go = true; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door'); return; }
+      if (here.length >= need && (here.length >= S.listed.length || S.t - S.firstGuest > GATHER_GO)) { hostFloor(0); S.pend.go = true; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door'); return; }
     }
     if (S.pend && !S.pend.go && (G.mode === 'play' || G.mode === 'pause')) { S.pend.go = true; if (G.coll) G.coll = null; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door'); }
   }

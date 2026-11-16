@@ -307,6 +307,9 @@ const TESTS = {
     B.win.__info = info([A, B], 'dungeon', 1, 'ALONE2'); B.run('MP.coop.start(__info)');
     await frames([B], 1300);
     ok(B.run('!MP.coop.active && !!G.hub'), 'a guest without a leader goes home too');
+    // a party of one (the hub's debug switch) sets out at once
+    A.win.__info = info([A], 'raid', 1, 'SOLO1'); A.run('MP.coop.start(__info)');
+    await until([A], () => fl(A) === 0 && A.run('G.mode') === 'play', 400, 'a party of one starts'); A.run('MP.coop.end()'); await frames([A], 20);
     // rubbish from the hub is refused
     ok(A.run('MP.coop.start({ code: "x y", members: [] })') === false && A.run('MP.coop.start(null)') === false && !A.run('MP.coop.active'), 'a malformed info is refused');
   },
