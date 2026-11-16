@@ -3543,7 +3543,9 @@ function drawHubBubble() {
 function drawHubHUD() {
   const have = ownedIds().length;
   const who = G.visit ? `Visiting ${G.visit.name}  ·  ${G.visit.items.length} animals, ${G.visit.owned.size}/${PET_IDS.length} species` : `${CLASSES[G.cls].name} (${SAVE.skin[G.cls] === 'f' ? 'female' : 'male'})  ·  ${HERD.length} animals, ${have}/${PET_IDS.length} species  ·  Team ${petSlots.filter(Boolean).length}/3`;
-  ctx.font = `13px ${UI}`; panel(8, 6, Math.max(240, ctx.measureText(who).width + 40), 58, 'leather');
+  ctx.font = `13px ${UI}`; const hw = Math.max(240, ctx.measureText(who).width + 40); panel(8, 6, hw, 58, 'leather');
+  // MP: the Gold counter, at the right end of the title line
+  if (MP.econ) MP.econ.hud(8, 6, hw, 58);
   label(G.visit ? `${G.visit.name}'s Yard` : HUB_ROOMS[G.hubRoom || 'yard'].name, 24, 25, { title: true, size: 24, color: PAL.gold });
   label(who, 24, 47, { size: 13, color: PAL.cream });
   ctx.globalAlpha = 0.8;
@@ -3558,6 +3560,8 @@ function drawHubPanels() {
   if (G.panel === 'records') {
     const r = SAVE.rec, rows = [['Runs started', r.runs], ['Victories', r.wins], ['Defeats', r.deaths], ['Runs abandoned', r.abandoned || 0], ['Deepest floor', Math.max(r.bestFloor, BEST)], ['Wild animals beaten', r.kills], ['Pets befriended', `${have} of ${PET_IDS.length} species`], ['Animals in your Sanctuary', HERD.length], ['Shinies found', r.shinies || 0], ['Animals bred', r.bred || 0], ['Friend battles', `${r.pvpW || 0} won · ${r.pvpL || 0} lost`], ['Animals traded', r.trades || 0], ['Co-op battles', `${r.coopW || 0} won · ${r.coopL || 0} lost`], ['Dungeons · raids with friends', `${r.coopDungeons || 0} · ${r.coopRaids || 0}`],
       ['Shadow Wolf in 3 turns', SAVE.ach.shadow ? '★ done' : '—'], ['Elder Dragon, no faints', SAVE.ach.elder ? '★ done' : '—'], ['Win on the first turn', SAVE.ach.first ? '★ done' : '—'], ['Lake Wyrm defeated', SAVE.ach.wyrm ? '★ done' : '—']];
+    // MP: Gold in the purse and earned in all
+    if (MP.econ) rows.push(['Gold · earned in all', `${MP.econ.fmt(MP.econ.gold())} · ${MP.econ.fmt(MP.econ.data.earned)}`]);
     const port = PORTRAIT(), half = port ? rows.length : Math.ceil(rows.length / 2), RH = port ? 25 : 27, bw = port ? W - 20 : 760, bh = 96 + half * RH + 140, bx = W / 2 - bw / 2, by = H / 2 - bh / 2 - 10; G.recBox = { bx, by, bw, bh };
     ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H);
     panel(bx, by, bw, bh, 'parch');
@@ -10653,6 +10657,8 @@ function drawPortraitHUD() {
     if (G.hub) {   // the Sanctuary: where you are, who you are, and what you can do here
       const have = ownedIds().length;
       panel(6, y, Wv - 12, 58, 'leather');
+      // MP: the Gold counter, at the right end of the title line
+      if (MP.econ) MP.econ.hud(6, y, Wv - 12, 58);
       label(G.visit ? `${G.visit.name}'s Yard` : HUB_ROOMS[G.hubRoom || 'yard'].name, 20, y + 20, { title: true, size: 24, color: PAL.gold });
       label(G.visit ? `${G.visit.items.length} animals · ${G.visit.owned.size}/${PET_IDS.length} species` : `${CLASSES[G.cls].name} · ${HERD.length} animals · ${have}/${PET_IDS.length} species · Team ${petSlots.filter(Boolean).length}/3`, 20, y + 43, { size: 13, color: PAL.cream });
       y += 70;
@@ -10791,6 +10797,8 @@ function saveFileApply(data) {
   SAVE_LOCK = true;
   for (const k of SAVE_KEYS) { try { if (data[k] !== undefined) localStorage.setItem(sk(k), data[k]); else localStorage.removeItem(sk(k)); } catch (e) {} }
   try { localStorage.setItem(sk('packrat_reset'), 'imported'); } catch (e) {}   // never adopt an old save over an imported one
+  // MP: Gold follows the save that was just put in place (a save file or the account's cloud copy)
+  if (typeof MP !== 'undefined' && MP.econ) MP.econ.load();
 }
 function importSave() {
   try {
