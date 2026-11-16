@@ -76,13 +76,26 @@ const onto = (g, w) => g.run(`(() => { const e = G.wild[${w}], P = G.player; P.x
 const toExit = g => g.run('(() => { const r = exitRect(G.room), P = G.player; P.x = r.x + 10; P.y = r.y + r.h - P.h; P.vx = P.vy = 0; })()');
 const toEntry = g => g.run('(() => { const R = G.room, P = G.player; P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vx = P.vy = 0; })()');
 const battling = g => (REAL_BATTLE ? g.run('!!(MP.battle && MP.battle.active)') : g.battle.active);
+// the encounter the battle module was given (once the battle is really open on that client)
+const opened = gs => (REAL_BATTLE ? until(gs, () => gs.every(g => g.run('!!(B && B.coop) && G.mode === "battle"')), 1200, 'the battle screen is open for everyone') : Promise.resolve(true));
+const encOf = g => (REAL_BATTLE ? JSON.parse(g.run('JSON.stringify(B && B.coop ? B.coop.enc : {})')) : g.battle.enc) || {};
 const host = gs => gs.find(g => g.run('!!(MP.coop.state() && MP.coop.state().room.isHost)'));
 // ---- finishing a battle: the stand-in's switch, or the real battle auto-played through its own API/UI ----
 async function fight(gs, won) {
   if (!REAL_BATTLE) { host(gs).battle.finish(won); await frames(gs, 3); return; }
   await realFight(gs, won);
 }
-async function realFight(gs, won) { throw new Error('realFight: not wired yet'); }
+// the real battle: the host's game lets the AI play every pet at full speed, with the outcome forced (the foes, or the
+// party, are one hit from fainting); then every player closes their own result screen
+async function realFight(gs, won) {
+  const H = host(gs);
+  if (!await until(gs, () => gs.every(g => g.run('!!(B && B.coop) && G.mode === "battle"')), 1200, 'the battle screen is open for everyone')) return;
+  const rig = () => H.run(`(() => { if (!B || !B.coop) return; B.coop.auto = true; B.coop.fast = true; ${won ? 'for (const f of B.foes) { f.hp = Math.min(f.hp, 1); f.shield = 0; f.atk = 0; } for (const u of B.allies) if (!u.fainted) u.hp = u.maxHp;' : 'for (const u of B.allies) { u.hp = Math.min(u.hp, 1); u.shield = 0; } for (const f of B.foes) f.atk = 9999;'} })()`);
+  await until(gs, () => { rig(); return gs.every(g => g.run('!B || !B.coop || B.phase === "won" || B.phase === "lost"')); }, 9000, 'the battle is decided on every client');
+  ok(gs.every(g => g.run('!B || !B.coop || B.phase') === (won ? 'won' : 'lost') || !g.run('!!(B && B.coop)')), 'every client saw the same outcome (' + (won ? 'won' : 'lost') + ')');
+  for (const g of gs) g.step(1, true);
+  for (let k = 0; k < 60 && gs.some(g => g.run('!!(B && B.coop)')); k++) { const still = gs.filter(g => g.run('!!(B && B.coop)')); for (const g of still) g.press('Enter'); await frames(gs, 2); for (const g of still) g.release('Enter'); await frames(gs, 20); }
+}
 // win one group: `g` walks into wild group w, everyone fights, the host's side wins
 async function winGroup(gs, g, w) {
   onto(g, w);
@@ -132,7 +145,9 @@ const TESTS = {
     // the guest touches a group: battle for everyone, world frozen
     toEntry(A); await frames(gs, 5);
     onto(B, 0); await until(gs, () => gs.every(battling), 400, 'guest touch -> battle for both');
-    ok(!REAL_BATTLE ? A.battle.enc.kind === 'wild' && A.battle.enc.tier === 1 && !!A.battle.enc.k : true, 'the encounter describes a wild group of the tier');
+    await opened(gs);
+    ok(encOf(A).kind === 'wild' && encOf(A).tier === 1 && !!encOf(A).k && encOf(B).kind === 'wild', 'the encounter describes a wild group of the tier');
+    if (REAL_BATTLE) ok(A.run('B.coop.pl.length') === 2 && B.run('B.allies.length') === 6, "both players' teams are in the one battle");
     const ax = A.run('G.player.x'); A.press('d'); await frames(gs, 30); A.release('d');
     ok(Math.abs(A.run('G.player.x') - ax) < 2, 'the world is frozen during the battle');
     await fight(gs, true);
@@ -156,7 +171,8 @@ const TESTS = {
     toExit(A); toExit(B); await until(gs, () => gs.every(g => fl(g) === 3 && g.run('G.mode') === 'play'), 600, 'boss floor reached');
     ok(gs.every(g => g.run('G.room.type') === 'boss' && g.run('G.room.boss') === 'shadow' && g.run('G.room.cols') === 64 && g.run('G.wild.length') === 1 && g.run('!!G.wild[0].boss')), 'floor 4 is the Shadow Wolf arena');
     await frames(gs, 80); onto(A, 0); await until(gs, () => gs.every(battling), 400, 'boss battle opens');
-    ok(!REAL_BATTLE ? B.battle.enc.kind === 'boss' && B.battle.enc.tier === 1 : true, "enc.kind === 'boss'");
+    await opened(gs);
+    ok(encOf(B).kind === 'boss' && encOf(B).tier === 1, "enc.kind === 'boss'");
     await fight(gs, true);
     await until(gs, () => gs.every(g => phase(g) === 'done'), 600, 'completion panel for everyone');
     ok(gs.every(g => g.run('SAVE.rec.coopDungeons') === 1), 'SAVE.rec.coopDungeons += 1');
@@ -203,8 +219,10 @@ const TESTS = {
     ok(rest.every(g => g.run(`MP.coop.active && MP.coop.state().others.get(${JSON.stringify(D.uid)}).gone`)) && A.run('MP.coop.ids().length') === 3, "the others go on; D's hero is gone");
     // a member leaves in the middle of a battle
     toEntry(A); toEntry(B); onto(C, 0); await until(rest, () => rest.every(battling), 400, 'battle for the three');
+    await opened(rest);
     B.run('MP.coop.end("test: B drops out")'); await frames(rest, 10);
-    ok(!REAL_BATTLE ? A.battle.left.includes(B.uid) : true, 'MP.battle.playerLeft(B) was called on the host');
+    ok(REAL_BATTLE ? A.run(`B.coop.pl.find(o => o.id === ${JSON.stringify(B.uid)}).gone`) === true : A.battle.left.includes(B.uid), 'MP.battle.playerLeft(B) reached the battle on the host');
+    ok(B.run('!MP.coop.active && !!G.hub && !B'), 'B is home, its battle closed');
     await fight([A, C], true);
     const two = [A, C];
     await until(two, () => two.every(g => g.run('G.wild[0].beaten') && !battling(g)), 600, 'the battle still ends for the two who stayed');
@@ -249,7 +267,8 @@ const TESTS = {
     ok(/Raid/.test(A.run('MP.coop.where()')), 'HUD says Raid: ' + A.run('MP.coop.where()'));
     for (const g of gs) g.step(1, true);
     await frames(gs, 90); onto(C, 0); await until(gs, () => gs.every(battling), 400, 'raid battle opens for all three');
-    ok(!REAL_BATTLE ? A.battle.enc.kind === 'raid' && A.battle.enc.tier === 2 : true, "enc.kind === 'raid'");
+    await opened(gs);
+    ok(encOf(A).kind === 'raid' && encOf(A).tier === 2, "enc.kind === 'raid'");
     await fight(gs, true);
     await until(gs, () => gs.every(g => phase(g) === 'done'), 600, 'raid complete for everyone');
     ok(gs.every((g, k) => g.run('SAVE.rec.coopRaids') === before[k] + 1), 'SAVE.rec.coopRaids += 1');
