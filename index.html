@@ -7832,7 +7832,8 @@ function battleClick(btn) {
     if (B.stPin) { B.stPin = null; if (btn === 2) return; }
   }
   if (B.phase === 'won' || B.phase === 'lost') { if (B.t > (B.vic ? 0.35 : 0.6)) B.clicked = true; return; }
-  if (B.phase !== 'player' || B.lock > 0) return;
+  // MP: (a co-op pick is only a request to the host: it does not wait for the animations)
+  if (B.phase !== 'player' || (B.lock > 0 && !B.coop)) return;
   if (btn === 2) { B.pick = null; return; }
   const u = B.allies[B.cur]; if (!u) return;
   for (const r of abilityRects(u)) if (inRect(mouse, r)) { chooseAbility(u, r.ab); return; }
@@ -7865,7 +7866,8 @@ const unitSheet = u => u.sheet && animFrames(u.sheet, 'idle') ? u.sheet : specie
 function speciesSheet(k) { const d = PETS[k] || PETS.dog; return animFrames(d.anim, 'idle') || animFrames(d.anim, 'fly') ? d.anim : (d.fallback || 'pet_dog'); }
 const unitScale = u => 4.1 * (u.boss ? 0.78 : 1) * (u.scale || 1) * (PETS[u.k] && PETS[u.k].bscale || 1) * (u.cs || 1);
 const unitFly = u => !!(PETS[u.k] && PETS[u.k].fly);
-const unitAnchorY = u => (unitFly(u) ? groundOf(u) - 100 * (u.cs || 1) : groundOf(u));
+// MP: in a co-op battle a flying animal hovers just over its own spot (u.hov: see MP.battle.place)
+const unitAnchorY = u => (unitFly(u) ? groundOf(u) - (u.hov != null ? u.hov : 100 * (u.cs || 1)) : groundOf(u));
 function unitFrame(u) { const sh = unitSheet(u), fr = animFrames(sh, unitFly(u) ? 'fly' : 'idle') || animFrames(sh, 'idle') || animFrames(sh, 'fly'); return fr ? fr[0] : [0, 0, 26, 22, 13, unitFly(u) ? 11 : 22]; }
 function unitRect(u) { const s = unitScale(u) * (ANIM_SCALE[unitSheet(u)] || 1), f = unitFrame(u), y = unitAnchorY(u); return { x: u.x - f[2] * s / 2, y: y - f[5] * s, w: f[2] * s, h: f[3] * s }; }
 function unitTop(u) { return unitRect(u).y; }
@@ -8290,6 +8292,8 @@ function drawBattleUnit(u) {
   if (hurt) o.flash = true;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
   ctx.filter = u.tint || (u.it ? petFilter(u.k, sheet, u.it) : wildFilter(u.k, sheet, u.coat));   // a unit's own tint (e.g. a stand-in boss) wins
+  // MP: the fainted of a crowded co-op field go grey
+  if (B.coop && down) ctx.filter = (ctx.filter && ctx.filter !== 'none' ? ctx.filter + ' ' : '') + 'grayscale(1)';
   const anim = down ? 'ko' : u.atkT > 0 ? 'attack' : fly ? 'fly' : 'idle', fr = down ? Math.min(3, u.faintT * 8) : u.atkT > 0 ? (0.4 - u.atkT) / 0.1 : B.t * 5 + u.x;
   if (!drawAnim(petSheet(sheet, u.it), anim, fr, x, y, u.face, o) && !drawAnim(petSheet(sheet, u.it), fly ? 'fly' : 'idle', B.t * 5, x, y, u.face, o)) {
     ctx.fillStyle = (PETS[u.k] || {}).color || '#888'; rr(x - 14 * s, y - 24 * s, 28 * s, 24 * s, 6); ctx.fill();
@@ -8429,6 +8433,8 @@ function drawBattle() {
   B.heroAnim = Math.max(0, (B.heroAnim || 0) - 1 / 60);
   ctx.save(); if (B.shakeT > 0) ctx.translate(rand(-1, 1) * (B.shakeA || 4), rand(-1, 1) * (B.shakeA || 4) * 0.6);
   for (const u of (B.coop ? MP.battle.order() : [...B.allies, ...B.foes])) drawBattleUnit(u);   // MP: (co-op: back rows first)
+  // MP: the unit under the mouse again, on top, with all its statuses
+  if (B.coop) MP.battle.drawTop();
   drawVfx(); ctx.restore(); drawVfxFlash();
   for (const f of B.fx) { if (f.wait > 0) continue; ctx.globalAlpha = Math.min(1, f.t * 2); ctx.font = `bold ${f.size}px ${UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(f.txt, f.x + 1, f.y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, f.y); ctx.globalAlpha = 1; }
   // top bar: turn, boss bar, log
@@ -8470,7 +8476,8 @@ function drawBattle() {
       if (over) hov.push({ title: r.g.it.def.name + ((r.g.it.lvl || 1) > 1 ? ' ' + ROMAN[r.g.it.lvl] : ''), lines: [r.g.it.def.desc, levelLine(r.g.it) ? 'This one: ' + levelLine(r.g.it) + '.' : ''].filter(Boolean) });
     }
     ctx.textAlign = 'left'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.gold;
-    ctx.fillText(u ? `${u.name}'s move` : '', 14, BX.panelY + 4);
+    // MP: (co-op: choosing ahead for a pet whose turn has not come)
+    ctx.fillText(u ? `${B.coop && B.coop.planning ? 'Plan ahead: ' : ''}${u.name}'s move` : '', 14, BX.panelY + 4);
     const soloItems = !B.pvp && !B.coop, itemsLabel = `Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`;
     if (port) { ctx.textAlign = 'left'; if (soloItems) ctx.fillText(itemsLabel, 14, BPORT().itemsY - 10); }
     else { ctx.textAlign = 'right'; if (soloItems) ctx.fillText(itemsLabel, W - 14, BX.panelY + 4); }
