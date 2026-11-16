@@ -94,7 +94,7 @@ const VFX_SPR = ['star', 'fireball', 'flame', 'spark', 'meteor', 'sun', 'moon', 
   'vine', 'thorn', 'petal', 'lily', 'splash', 'whirl', 'spore', 'pixie', 'antler', 'paw', 'mist', 'acorn'];   // vfx4: the Fey Wilds
 // backgrounds cut into three depth layers for parallax: assets/bg/<key>_far / _mid / _near (same size as <key>.png;
 // far is complete, mid and near are transparent around their pieces)
-const BG_LAYERED = ['hall', 'cave', 'crypt', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'camp', 'boss', 'temple', 'coral', 'trench'];
+const BG_LAYERED = ['hall', 'cave', 'crypt', 'forge', 'hollow', 'sanctum', 'thornwood', 'glade', 'lake', 'camp', 'boss', 'temple', 'coral', 'trench', 'street'];
 // how far each layer travels (far, mid, near): the near layer moves like the old single backdrop; a background whose middle pieces
 // sit close to its back wall (banners on a wall) gives them a number close to the far one, so they don't slide across it
 const BG_DEPTH = { default: [0.35, 0.65, 1], hall: [0.35, 0.42, 1], crypt: [0.35, 0.55, 1], boss: [0.35, 0.45, 1] };
@@ -4337,6 +4337,23 @@ function drawYardDepth(R) {
   drawBgFx('yard', 3, { x: -Math.round(cx), y: 0, s: 2 });   // butterflies over the fields: part of the Yard, so they stay put as you walk
   return true;
 }
+// the Kingdom Street's backdrop: drawn at 2x like the Sanctuary's rooms (so its houses match the street's own buildings), its
+// kerb (row STREET_KERB of the art) on the floor's top; each layer is repeated along the street, every other copy mirrored so
+// the joins are seamless. The houses (near) move with the ground, the castle hill and the mountains slide behind them.
+const STREET_KERB = 221, STREET_DEPTH = [0.12, 0.4, 1];
+function drawStreetBg(R, img) {
+  const L = ['far', 'mid', 'near'].map(n => art('bg/street_' + n)), s = 2, top = R.floorTop * TILE - STREET_KERB * s - Math.round(G.cam.y);
+  const lay = (im, k, y) => {
+    const w = im.width * s, h = im.height * s, ox = Math.round(G.cam.x * k);
+    for (let i = Math.floor(ox / w); i * w - ox < W; i++) {
+      const x = i * w - ox;
+      if (i % 2) { ctx.save(); ctx.translate(x + w, y); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0, w, h); ctx.restore(); } else ctx.drawImage(im, x, y, w, h);
+    }
+  };
+  if (L.every(Boolean)) { lay(L[0], STREET_DEPTH[0], Math.min(0, top)); lay(L[1], STREET_DEPTH[1], top); lay(L[2], STREET_DEPTH[2], top); }
+  else lay(img, 1, top);
+  ctx.fillStyle = 'rgba(10,8,20,0.32)';   /* pushed back a little more than a dungeon's, so the street's own buildings stand out */ ctx.fillRect(0, 0, W, H);
+}
 function drawParallax(R) {
   if (R.bgKey === 'yard' && drawYardDepth(R)) { ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); return; }
   const img = art('bg/' + R.bgKey);
@@ -4344,7 +4361,8 @@ function drawParallax(R) {
   // MP: the Kingdom Street's backdrop scrolls like a dungeon's; a code-drawn town stands in until its art exists
   if (!img && R.bgKey === 'street' && MP.hub) { MP.hub.drawBg(R); return; }
   if (!img) return;
-  if (R.hubRoom && R.hubRoom !== 'yard' && R.bgKey !== 'street') {
+  if (R.bgKey === 'street') { drawStreetBg(R, img); return; }
+  if (R.hubRoom && R.hubRoom !== 'yard') {
     const sh0 = BG_CROP[R.bgKey] || img.height; ctx.drawImage(img, 0, 0, img.width, sh0, 0, 0, W, R.bgKey === 'hub' ? R.floorTop * TILE + 4 : H);
     ctx.fillStyle = `rgba(0,0,0,${R.theme.dim ?? 0.22})`; ctx.fillRect(0, 0, W, H); return;
   }

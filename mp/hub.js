@@ -725,7 +725,8 @@
     const C = chatRects(), typing = NET.typing === 'chat', lines = visibleLines();
     const a = typing ? 1 : clamp((10 - S.chatT) / 2, 0, 1);
     if (a > 0 && (lines.length || typing)) {
-      ctx.globalAlpha = a; panel(C.box.x, C.box.y, C.box.w, C.box.h, 'leather');
+      const bh = Math.min(C.box.h, Math.max(1, lines.length) * 16 + 18);   /* only as tall as what is said: the street stays in view */
+      ctx.globalAlpha = a * 0.92; panel(C.box.x, C.box.y + C.box.h - bh, C.box.w, bh, 'leather');
       lines.forEach((l, i) => {
         const y = C.box.y + C.box.h - 16 - (lines.length - 1 - i) * 16, e = l.e;
         if (e.sys) { label(l.txt, C.box.x + 11, y, { size: 13, color: PAL.dim }); return; }
