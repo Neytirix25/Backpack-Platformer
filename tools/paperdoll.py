@@ -616,6 +616,7 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
         pieces = []
         for ewin, new in pairs: pc = ewin.copy(); pc.putalpha(new); pieces.append(pc)
     cells = [shrink(pc, (CW, CH), cut=56) for pc in pieces]   # (a lower cut than the body's: thin hair and straps survive the shrink)
+    if wings: wing_specks(cells, [shrink(r[2], (CW, CH)) for r in raws])
     if slot in ('wep', 'cape'): fill_gaps(cells, sex)
     if not grey: snap_palette(cells)
     steady_idle(cells[:4])
@@ -738,6 +739,30 @@ def wing_colours(rule, frames, far=21, thr=34):
         if Z and rule: keep = touching(keep, union([Z[z] for z in rule['home']], keep.size), reach=rule.get('reach', 15), floor=40)
         out.append((ewin, keep))
     return out
+
+
+def wing_specks(cells, bodies, floor=8):
+    """The game draws the wings behind the body, so what counts is what shows around it. Here every loose bit that
+    shows (not joined to the biggest showing part) and is under `floor` px goes: a pixel or two of re-drawn body outline
+    in a wing's dark colour, left at the body's edge, would blink as the animation plays."""
+    gone = 0
+    for cell, body in zip(cells, bodies):
+        w, h = cell.size; cp, bp = cell.load(), body.load(); seen = set(); comps = []
+        for y in range(h):
+            for x in range(w):
+                if cp[x, y][3] and not bp[x, y][3] and (x, y) not in seen:
+                    st = [(x, y)]; seen.add((x, y)); pts = []
+                    while st:
+                        cx, cy = st.pop(); pts.append((cx, cy))
+                        for q in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1), (cx + 1, cy + 1), (cx - 1, cy - 1), (cx + 1, cy - 1), (cx - 1, cy + 1)):
+                            if 0 <= q[0] < w and 0 <= q[1] < h and cp[q][3] and not bp[q][3] and q not in seen: seen.add(q); st.append(q)
+                    comps.append(pts)
+        comps.sort(key=len, reverse=True)
+        for c in comps[1:]:
+            if len(c) < floor:
+                gone += len(c)
+                for q in c: cp[q] = (0, 0, 0, 0)
+    if gone: print('  wings: dropped', gone, 'px of loose specks at the edge of the body')
 
 
 def do_wingbase(sex):
