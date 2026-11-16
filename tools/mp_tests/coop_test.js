@@ -362,6 +362,31 @@ const TESTS = {
     console.log('  (packed floors: ' + Math.min(...sizes) + ' to ' + Math.max(...sizes) + ' characters)');
   },
 
+  // WORLD: seeded floors do not depend on the browser's sort algorithm. Bob's copy of the game gets another (correct,
+  // but NOT stable) Array.prototype.sort: a selection sort, which asks the comparator in a different order than V8's
+  // TimSort. A `sort(() => Math.random() - 0.5)` anywhere on the generation path gives another floor under it.
+  async engines() {
+    const [A, B] = games; let n = 0, bad = 0, calls = 0;
+    B.run(`(() => { const AP = [].constructor.prototype; window.__sort = AP.sort; window.__sorts = 0;
+      AP.sort = function (cmp) { window.__sorts++; const c = cmp || ((x, y) => (String(x) < String(y) ? -1 : String(x) > String(y) ? 1 : 0)), a = this, n = a.length;
+        for (let i = 0; i < n - 1; i++) { let m = i; for (let j = n - 1; j > i; j--) if (c(a[j], a[m]) < 0) m = j; if (m !== i) { const t = a[i]; a[i] = a[m]; a[m] = t; } }
+        return a; }; })()`);
+    ok(B.run('[5, 3, 9, 1, 4].sort((a, b) => a - b).join()') === '1,3,4,5,9' && B.run('window.__sorts') > 0, "Bob's game sorts with another algorithm (a selection sort)");
+    try {
+      for (let tier = 1; tier <= 4; tier++) for (const seed of [3, 501, 90210, 20261115, 4000000001, 8675309]) {
+        for (const g of [A, B]) { g.win.__info = info([g], 'dungeon', tier, 'ENG' + tier, seed); g.run('MP.coop.start(__info)'); }
+        const code = `JSON.stringify([0, 1, 2, 3].map(i => { const F = MP.coop.genFloor(i, (${seed} * 131 + i * 7919) >>> 0); return [F.sum, F.R.plan ? F.R.plan.join(' ') : '', F.wild.length, F.R.plants.length, F.R.decor.length + F.R.baked.length]; }))`;
+        const a = JSON.parse(A.run(code)), b = JSON.parse(B.run(code));
+        for (let i = 0; i < 4; i++) { n++; if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) { bad++; if (bad <= 4) console.log('  differs: tier ' + tier + ' seed ' + seed + ' floor ' + i + (a[i][1] !== b[i][1] ? ' (another plan of sections)' : a[i][0] !== b[i][0] ? ' (same sections, other contents)' : '')); } }
+        for (const g of [A, B]) g.run('MP.coop.end()');
+        await frames([A, B], 3);
+      }
+      calls = B.run('window.__sorts');
+    } finally { B.run('[].constructor.prototype.sort = window.__sort'); }
+    ok(bad === 0, n + ' seeded floors (4 tiers) are identical under two different sort algorithms' + (bad ? ': ' + bad + ' differ' : ''));
+    console.log('  (' + n + ' floors compared; the other sort ran ' + calls + ' times)');
+  },
+
   async soloAfter() {
     const A = games[0], runs = A.run('SAVE.rec.runs');
     A.run('G.panel = null; newGame(selClass)'); A.step(30);
