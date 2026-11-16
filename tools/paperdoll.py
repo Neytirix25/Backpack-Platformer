@@ -4,6 +4,7 @@
     python -P tools/paperdoll.py piece m hat_cap   # assets_raw/doll/hat_cap_m.png -> assets/doll/hat_cap_m.png
     python -P tools/paperdoll.py seg m             # assets_raw/doll/seg_m.png (ChatGPT's body-part colour map) -> zones per frame
     python -P tools/paperdoll.py check m hat_cap top_tunic ...   # assets_raw/doll/check_m.png: the base with those pieces on, every frame
+    python -P tools/paperdoll.py wingbase m        # assets_raw/doll/base_wings_m.png: the roomier body sheet ChatGPT draws WINGS on (see WINGS below; check them with tools/wingcheck.py)
 
 Every sheet (base and piece) has the same 8 rows: idle 4, run 6, jump 4, death 4, sword 4, bow 4, dagger 4, whip 4.
 A piece sheet is ChatGPT's edit of the base sheet with the piece drawn on. For every frame the edited figure is lined up
@@ -43,11 +44,11 @@ def skin_mask(im):
     return m
 
 
-def frames_of(path):
+def frames_of(path, counts=None):
     """The sheet's frames: [(box, isolated crop, feet anchor in sheet coords)] in row order."""
-    im = keyed(Image.open(path))
+    im = wing_keyed(Image.open(path)) if counts else keyed(Image.open(path))
     comps = A.components(im)
-    rows = A.rows_of(comps, COUNTS, im)
+    rows = A.rows_of(comps, counts or COUNTS, im)
     out = []
     for row in rows:
         for box, spr in row:
@@ -564,14 +565,17 @@ def snap_palette(cells, n=24):
 def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
     meta = json.load(open(os.path.join(RAW, f'base_{sex}.meta.json')))
     bfr, bim = frames_of(os.path.join(RAW, f'base_{sex}.png'))
-    efr, eim = frames_of(os.path.join(RAW, f'{name}_{sex}.png'))
+    wings = name in WINGS
+    efr, eim = frames_of(os.path.join(RAW, f'{name}_{sex}.png'), WING_COUNTS if wings else None)
     n = len(bfr); rows = (n + COLS - 1) // COLS
     sheet = Image.new('RGBA', (COLS * CW, rows * CH)); report = []; cells = []; raws = []
     slot = name.split('_')[0]; rule = SLOT_RULES.get(slot)
     # 1) line every frame up with the body (by the skin, which mostly stays put)
     fits = []
+    if wings: efr, k0 = wing_anchors(bfr, efr, eim)
     for i in range(n):
         bbox, bspr, _ = bfr[i]; ebox, espr, eanc = efr[i]
+        if wings: fits.append(align(body_skin(espr), ebox, eanc, meta, i, skin_mask(place(bspr, bbox, meta, i)), ks=tuple(k0 * f for f in (0.94, 0.97, 1.0, 1.03, 1.06)))); continue
         fits.append(align(skin_mask(espr), ebox, eanc, meta, i, skin_mask(place(bspr, bbox, meta, i))))
     # 2) one scale per row (ChatGPT draws a row at one size): frame by frame, the piece would grow and shrink as it animates
     i0 = 0
@@ -580,7 +584,7 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
         for i in range(i0, i0 + cnt):
             if abs(fits[i][1] - km) > 0.005:
                 bbox, bspr, _ = bfr[i]; ebox, espr, eanc = efr[i]
-                fits[i] = align(skin_mask(espr), ebox, eanc, meta, i, skin_mask(place(bspr, bbox, meta, i)), ks=(km,))
+                fits[i] = align(body_skin(espr) if wings else skin_mask(espr), ebox, eanc, meta, i, skin_mask(place(bspr, bbox, meta, i)), ks=(km,))
         i0 += cnt
     # 3) cut the piece out of every frame
     for i in range(n):
@@ -609,10 +613,11 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
     if slot in RIGID and all(r[3] for r in raws): pieces = make_rigid([(r[0], r[1]) for r in raws], [r[3] for r in raws])
     elif slot in WORN and all(r[3] for r in raws): pieces = make_worn(slot, raws)
     else:
-        pairs = own_colours(slot, rule, raws, report) if slot in ('cape', 'wep') else [(r[0], r[1]) for r in raws]
+        pairs = wing_colours(rule, raws) if wings else own_colours(slot, rule, raws, report) if slot in ('cape', 'wep') else [(r[0], r[1]) for r in raws]
         pieces = []
         for ewin, new in pairs: pc = ewin.copy(); pc.putalpha(new); pieces.append(pc)
     cells = [shrink(pc, (CW, CH), cut=56) for pc in pieces]   # (a lower cut than the body's: thin hair and straps survive the shrink)
+    if wings: bodies = [shrink(r[2], (CW, CH)) for r in raws]; wing_specks(cells, bodies); wing_gaps(cells, bodies, sex)
     if slot in ('wep', 'cape'): fill_gaps(cells, sex)
     if not grey: snap_palette(cells)
     steady_idle(cells[:4])
@@ -649,8 +654,158 @@ def do_check(sex, names, z=4):
     p = os.path.join(RAW, f'check_{sex}.png'); out.save(p); print('check ->', p)
 
 
+# ---------- wings (worn in the cape slot) ----------
+# Wings reach much further out than a cape, and on the body sheet the frames stand too close together for them (ChatGPT
+# would draw one frame's wing into its neighbour). So wings are drawn on a ROOMIER copy of the body sheet
+# (`wingbase <sex>` -> assets_raw/doll/base_wings_<sex>.png: the same 34 frames in the same order, on a 2:3 canvas, the
+# 4-frame rows spread wide and the run row split into two rows of 3), and `piece` reads a wings raw with that layout.
+WINGS = ('cape_wingdemon', 'cape_wingangel', 'cape_wingdragon', 'cape_wingfairy')
+WING_COUNTS = [4, 3, 3, 4, 4, 4, 4, 4, 4]   # (rows of the roomy sheet: idle, run 1-3, run 4-6, jump, death, sword, bow, dagger, whip)
+WING_SHEET = (1206, 1808)                   # (ChatGPT returns 1024x1536: the figures come back at about 0.85 of the base's size)
+
+
+def wing_keyed(im, rim=2):
+    """The magenta gone, like bglayers.keyed, but the key colour is only taken back out of pixels right at the cut
+    (within `rim` px of it). keyed does that everywhere, which turns a wing's own purplish reds (a demon's membrane)
+    into pale half-clear specks."""
+    from bglayers import is_key
+    im = im.convert('RGBA'); px = im.load(); W, H = im.size; mask = Image.new('L', im.size, 255); mp = mask.load()
+    for y in range(H):
+        for x in range(W):
+            r, g, b, a = px[x, y]
+            if a < 10 or is_key(r, g, b, False): mp[x, y] = 0
+    inner = mask.filter(ImageFilter.MinFilter(2 * rim + 1)).load()
+    for y in range(H):
+        for x in range(W):
+            if not mp[x, y] or inner[x, y]: continue
+            r, g, b, a = px[x, y]; sp = max(0, min(r, b) - g)
+            if sp <= 12: continue
+            k = min(0.95, sp / 255)
+            if k > 0.35: mp[x, y] = 0; continue   # (mostly key: it goes, rather than staying as a pale speck)
+            px[x, y] = tuple(max(0, min(255, round(c))) for c in ((r - 255 * k) / (1 - k), g / (1 - k), (b - 255 * k) / (1 - k))) + (255,)
+            mp[x, y] = round(mp[x, y] * (1 - k))
+    im.putalpha(mask)
+    return im
+
+
+def body_skin(im):
+    """The body's skin in a wings frame: skin colours, but not the strong reds a wing may have (a demon's veins)."""
+    m = Image.new('L', im.size, 0); mp = m.load(); px = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if a >= 128 and is_skin(r, g, b) and 2 * g > r: mp[x, y] = 255
+    return m
+
+
+def median_xy(m):
+    w, h = m.size; px = m.load()
+    xs = sorted(x for y in range(h) for x in range(w) if px[x, y]); ys = sorted(y for y in range(h) for x in range(w) if px[x, y])
+    return (xs[len(xs) // 2], ys[len(ys) // 2]) if xs else None
+
+
+def wing_anchors(bfr, efr, eim):
+    """A wings frame's box is the body plus its wings, so its feet anchor (worked out from the box) isn't the body's.
+    Here each frame gets the anchor that puts the middle of its skin on the middle of the base frame's skin; the usual
+    search (align) then refines it. Returns the frames with those anchors, and the sheet's scale next to the base's."""
+    k0 = eim.width / WING_SHEET[0]; out = []
+    for (bbox, bspr, banc), (ebox, espr, eanc) in zip(bfr, efr):
+        cb, ce = median_xy(skin_mask(bspr)), median_xy(body_skin(espr))
+        if cb and ce: eanc = (ebox[0] + ce[0] - k0 * (bbox[0] + cb[0] - banc[0]), ebox[1] + ce[1] - k0 * (bbox[1] + cb[1] - banc[1]))
+        out.append((ebox, espr, eanc))
+    return out, k0
+
+
+def wing_colours(rule, frames, far=21, thr=34):
+    """Wings keep ChatGPT's frame-by-frame drawing (they beat), but in EVERY frame only in the wings' own colours: the
+    colours of what was cut well clear of the body (that can only be wing), so no re-drawn bit of body (skin, shirt,
+    shorts) comes along at the body's edge. Then thin leftovers go and only what still hangs on the body stays."""
+    pix = []
+    for ewin, m, bwin, Z in frames:
+        clear = ImageChops.subtract(m, alpha_of(bwin).filter(ImageFilter.MaxFilter(far))); ep, cp = ewin.load(), clear.load()
+        pix += [ep[x, y][:3] for y in range(0, m.height, 2) for x in range(0, m.width, 2) if cp[x, y]]
+    if len(pix) < 200: print('  wings: too little clear of the body to learn the colours from'); return [(e, m) for e, m, _, _ in frames]
+    sample = Image.new('RGB', (len(pix), 1)); sample.putdata(pix)
+    cols = sorted(set(sample.quantize(colors=40, method=Image.Quantize.MEDIANCUT).convert('RGB').getdata()))
+    lp = Image.new('RGB', (len(cols), 1)); lp.putdata(cols); labs = list(lab(lp).getdata()); out = []; cache = {}
+    for ewin, m, bwin, Z in frames:
+        el = lab(ewin).load(); mp = m.load(); skin = body_skin(ewin).load(); keep = Image.new('L', m.size, 0); kp = keep.load()
+        for y in range(m.height):
+            for x in range(m.width):
+                if not mp[x, y] or skin[x, y]: continue
+                c = el[x, y]; ok = cache.get(c)
+                if ok is None: ok = cache[c] = min(abs(c[0] - q[0]) + abs(c[1] - q[1]) + abs(c[2] - q[2]) for q in labs) <= thr
+                if ok: kp[x, y] = 255
+        keep = keep.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.MaxFilter(3))
+        if Z and rule: keep = touching(keep, union([Z[z] for z in rule['home']], keep.size), reach=rule.get('reach', 15), floor=40)
+        out.append((ewin, keep))
+    return out
+
+
+def wing_specks(cells, bodies, floor=8):
+    """The game draws the wings behind the body, so what counts is what shows around it. Here every loose bit that
+    shows (not joined to the biggest showing part) and is under `floor` px goes: a pixel or two of re-drawn body outline
+    in a wing's dark colour, left at the body's edge, would blink as the animation plays."""
+    gone = 0
+    for cell, body in zip(cells, bodies):
+        w, h = cell.size; cp, bp = cell.load(), body.load(); seen = set(); comps = []
+        for y in range(h):
+            for x in range(w):
+                if cp[x, y][3] and not bp[x, y][3] and (x, y) not in seen:
+                    st = [(x, y)]; seen.add((x, y)); pts = []
+                    while st:
+                        cx, cy = st.pop(); pts.append((cx, cy))
+                        for q in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1), (cx + 1, cy + 1), (cx - 1, cy - 1), (cx + 1, cy - 1), (cx - 1, cy + 1)):
+                            if 0 <= q[0] < w and 0 <= q[1] < h and cp[q][3] and not bp[q][3] and q not in seen: seen.add(q); st.append(q)
+                    comps.append(pts)
+        comps.sort(key=len, reverse=True)
+        for c in comps[1:]:
+            if len(c) < floor:
+                gone += len(c)
+                for q in c: cp[q] = (0, 0, 0, 0)
+    if gone: print('  wings: dropped', gone, 'px of loose specks at the edge of the body')
+
+
+def wing_gaps(cells, bodies, sex, low=0.6, good=0.8):
+    """A frame where ChatGPT drew much less wing than in the rest of its animation (half the wings left out behind a
+    raised arm, say) would make the wings shrink and pop back as it plays: under `low` of the row's median showing area,
+    the frame borrows the wings of the nearest frame that has at least `good` of it, moved along with the torso. (Not
+    in the death row: there the wings fold away on purpose.)"""
+    def show(i): return sum(1 for p, b in zip(cells[i].getdata(), bodies[i].getdata()) if p[3] and not b[3])
+    def torso(i):
+        Z = zones_of(sex, i)
+        if not Z: return None
+        t = Z['torso'].resize((CW, CH), Image.BOX); px = t.load(); pts = [(x, y) for y in range(CH) for x in range(CW) if px[x, y] > 60]
+        return (sum(q[0] for q in pts) / len(pts), sum(q[1] for q in pts) / len(pts)) if pts else None
+    i0, done = 0, []
+    for row, n in ROWS:
+        ar = [show(i) for i in range(i0, i0 + n)]; med = sorted(ar)[n // 2]
+        for j in range(n):
+            if row == 'death' or ar[j] >= low * med: continue
+            src = sorted((k for k in range(n) if ar[k] >= good * med), key=lambda k: abs(k - j))
+            if not src: continue
+            ti, tk = torso(i0 + j), torso(i0 + src[0])
+            dx, dy = (round(ti[0] - tk[0]), round(ti[1] - tk[1])) if ti and tk else (0, 0)
+            moved = Image.new('RGBA', (CW, CH)); moved.paste(cells[i0 + src[0]], (dx, dy)); cells[i0 + j] = moved; done.append((i0 + j, i0 + src[0]))
+        i0 += n
+    if done: print('  wings: frames with too little wing borrowed a neighbour (frame, from):', done)
+
+
+def do_wingbase(sex):
+    fr, _ = frames_of(os.path.join(RAW, f'base_{sex}.png'))
+    W, H = WING_SHEET; rh = H / len(WING_COUNTS); out = Image.new('RGBA', (W, H), (255, 0, 255, 255)); i = 0
+    for r, n in enumerate(WING_COUNTS):
+        for c in range(n):
+            box, spr, anc = fr[i]; i += 1
+            wide = spr.width > 150   # (lying flat: in the middle of its cell; everyone else stands a little forward, the room is behind the back)
+            fx = (c + 0.5) * W / n + (0 if wide else 24); fy = (r + 1) * rh - 26
+            out.alpha_composite(spr, (round(fx - (anc[0] - box[0])), round(fy - (anc[1] - box[1]))))
+    p = os.path.join(RAW, f'base_wings_{sex}.png'); out.convert('RGB').save(p); print('wingbase ->', p)
+
+
 if __name__ == '__main__':
     cmd, sex = sys.argv[1], sys.argv[2]
+    if cmd == 'wingbase': do_wingbase(sex); sys.exit()
     if cmd == 'base': do_base(sex)
     elif cmd == 'piece': do_piece(sex, sys.argv[3], grey=sys.argv[3].startswith('hair'))
     elif cmd == 'seg': do_seg(sex)

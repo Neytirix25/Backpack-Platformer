@@ -559,6 +559,7 @@
   function tierForLv(lv) { let t = 1; for (let i = 1; i <= 4; i++) if (lv >= tierOf(i).lo) t = i; return t; }
   function interact(s) {
     if (!s || typeof s.kind !== 'string' || !s.kind.startsWith('mp_')) return false;
+    if (MP.stations[s.kind]) { MP.stations[s.kind](); return true; }   /* (the mission board, auction house and shop, once their modules are loaded) */
     if (SOON[s.kind]) { S.soon = s.kind; G.panel = 'mpsoon'; SFX.play('pick'); }
     else if (s.kind === 'mp_dungeon' || s.kind === 'mp_raid') openBoard(s.kind === 'mp_raid' ? 'raid' : 'dungeon');
     else if (s.kind === 'mp_sign') {

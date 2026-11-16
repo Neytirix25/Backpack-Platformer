@@ -1,6 +1,8 @@
 rules_version = '2';
 // Backpack Sanctuary account saves: each player can read and write only their own save (saves/{their uid}),
-// a save is one text field under 900 KB, and nothing else in the database can be touched.
+// a save is one text field under 900 KB. The auction house's listings (auctions/{id}) can be read by anyone, put up
+// only by a logged-in player as themselves, bought only by another logged-in player, and removed only by their
+// seller. Nothing else in the database can be touched.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /saves/{uid} {
@@ -10,6 +12,54 @@ service cloud.firestore {
         && request.resource.data.save is string && request.resource.data.save.size() < 900000
         && request.resource.data.name is string && request.resource.data.name.size() <= 16
         && request.resource.data.updated is timestamp;
+    }
+
+    // THE AUCTION HOUSE: one document per listing (auctions/{id}). A listing is 'open' for 48 hours after it was
+    // created, or 'sold' once somebody bought it. The game's mp/auction.js describes every field.
+    match /auctions/{id} {
+      // Anyone may look at listings, logged in or not (they hold nothing private: an item, a price, a street name).
+      // A search may ask for at most 100 listings at a time.
+      allow get: if true;
+      allow list: if request.query.limit <= 100;
+
+      // Putting something up for sale: only a logged-in player, only as themselves, and every field is checked:
+      // exactly these fields, short texts, a whole-number price from 1 to 99999, the item text at most 6000 long,
+      // the time of creation is the server's own clock, and it starts 'open' with no buyer.
+      allow create: if request.auth != null
+        && id.matches('[A-Za-z0-9]{20}')
+        && request.resource.data.keys().hasOnly(['seller', 'sellerName', 'cat', 'sub', 'title', 'price', 'item', 'lvl', 'rarity', 'shiny', 'created', 'state', 'buyer', 'buyerName', 'soldAt'])
+        && request.resource.data.keys().hasAll(['seller', 'sellerName', 'cat', 'sub', 'title', 'price', 'item', 'lvl', 'rarity', 'shiny', 'created', 'state', 'buyer', 'buyerName', 'soldAt'])
+        && request.resource.data.seller == request.auth.uid
+        && request.resource.data.sellerName is string && request.resource.data.sellerName.size() <= 16
+        && request.resource.data.cat in ['animal', 'fish', 'dish']
+        && request.resource.data.sub is string && request.resource.data.sub.size() <= 24
+        && request.resource.data.title is string && request.resource.data.title.size() >= 1 && request.resource.data.title.size() <= 40
+        && request.resource.data.price is int && request.resource.data.price >= 1 && request.resource.data.price <= 99999
+        && request.resource.data.item is string && request.resource.data.item.size() <= 6000
+        && request.resource.data.lvl is int && request.resource.data.lvl >= 0 && request.resource.data.lvl <= 100
+        && request.resource.data.rarity is string && request.resource.data.rarity.size() <= 12
+        && request.resource.data.shiny is bool
+        && request.resource.data.created == request.time
+        && request.resource.data.state == 'open'
+        && request.resource.data.buyer == null
+        && request.resource.data.buyerName == ''
+        && request.resource.data.soldAt == null;
+
+      // Buying: the only change ever allowed. A logged-in player who is not the seller turns an 'open' listing
+      // into a 'sold' one in their own name, within 48 hours of its creation, and touches nothing else
+      // (not the price, not the item, not the seller).
+      allow update: if request.auth != null
+        && resource.data.state == 'open'
+        && request.auth.uid != resource.data.seller
+        && request.time < resource.data.created + duration.value(48, 'h')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'buyer', 'buyerName', 'soldAt'])
+        && request.resource.data.state == 'sold'
+        && request.resource.data.buyer == request.auth.uid
+        && request.resource.data.buyerName is string && request.resource.data.buyerName.size() <= 16
+        && request.resource.data.soldAt == request.time;
+
+      // Taking a listing down (cancelled, run out, or sold and paid): only the player who put it up.
+      allow delete: if request.auth != null && request.auth.uid == resource.data.seller;
     }
   }
 }
