@@ -134,7 +134,7 @@ function testFull(n, enc, opt = {}) {
   console.log(`  -> ${won ? 'WON' : 'lost'} on turn ${E.st.turn}, desyncs ${E.desync}, ${P.stats.msgs} messages (largest ${P.stats.big} bytes)${E.st.rp ? ', raid phase ' + E.st.rp : ''}`);
   if (enc.kind !== 'wild' || !won) {   /* (a won wild fight: see testRewards) */
     const off = P.all(`JSON.stringify({ off: B.rewards.off || null, seen: [...B.coop.seen].filter(k => k !== 'shade' && k !== 'elder' && BS[k].off), bossK: (B.foes.find(f => f.boss) || {}).k })`).map(s => JSON.parse(s));
-    ok(off.every(o => (won ? o.off && o.off.length === (o.seen.length ? 1 : 0) && o.off.every(x => o.seen.includes(x.k) && x.k !== o.bossK) : o.off === null)), `${name}: ${won ? 'one offspring of a helper species for everyone (or none without helpers)' : 'no offspring after a defeat'} (${JSON.stringify(off.map(o => o.off && o.off.map(x => x.k)))} of ${off[0].seen})`);
+    ok(off.every(o => (won ? o.off && o.off.filter(x => x.k !== o.bossK).length === (o.seen.length ? 1 : 0) && o.off.filter(x => x.k !== o.bossK).every(x => o.seen.includes(x.k)) && o.off.filter(x => x.k === o.bossK).length <= (enc.kind === 'raid' ? 1 : 0) : o.off === null)), `${name}: ${won ? 'one offspring of a helper species for everyone (or none without helpers)' : 'no offspring after a defeat'} (${JSON.stringify(off.map(o => o.off && o.off.map(x => x.k)))} of ${off[0].seen})`);
   }
   if (opt.end) opt.end(P, E, name);
   finishUp(P, name);
@@ -440,7 +440,27 @@ function testScale() {
   ok(g.run('MP.battle.scale(0) === MP.battle.scale(1) && MP.battle.scale(9) === MP.battle.scale(4)'), 'scale(n) clamps n');
 }
 
+// ---------- 9. a won raid: a 60% chance (each player's own roll) of the raid boss's own baby ----------
+function testRaidOffspring() {
+  const name = 'raid offspring';
+  console.log('2 players, a raid of every tier: the boss baby on a good roll, none on a bad one');
+  ok(Math.abs(party(2).games[0].run('MP.battle.RAID_OFFSPRING') - 0.6) < 1e-9, `${name}: the chance is 60%`);
+  for (const tier of [1, 2, 3, 4]) {
+    const P = party(2); const [H, G1] = P.games;
+    ok(P.begin({ kind: 'raid', tier }), `${name} (tier ${tier}): the raid starts`);
+    const bossK = H.run(`(B.foes.find(f => f.boss) || {}).k`);
+    H.run('MP.battle._roll = () => 0; 1'); G1.run('MP.battle._roll = () => 0.99; 1');
+    const got = P.games.map(g => JSON.parse(g.run(`JSON.stringify(MP.battle._offspring(B.coop).map(it => ({ k: it.def.pet, how: it.born && it.born.how, name: it.def.name })))`)));
+    ok(got[0].filter(x => x.k === bossK).length === 1, `${name} (tier ${tier}): a good roll gives a baby of the boss (${bossK}: ${JSON.stringify(got[0].filter(x => x.k === bossK))})`);
+    ok(got[1].every(x => x.k !== bossK), `${name} (tier ${tier}): a bad roll gives none of the boss`);
+    ok(got[0].every(x => x.how === 'hatched' || x.how === 'rescued'), `${name} (tier ${tier}): it joins the Sanctuary at once`);
+    console.log(`  -> tier ${tier} raid boss ${bossK}: good roll ${JSON.stringify(got[0].map(x => x.name))} · bad roll ${JSON.stringify(got[1].map(x => x.name))}`);
+    P.all('MP.battle.abort("test over"); 1');   /* (the raid itself is not played out here) */
+  }
+}
+
 try {
+  testRaidOffspring();
   testScale();
   if (!process.env.QUICK) testLayout();
   testCaller();
