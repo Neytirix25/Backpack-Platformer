@@ -107,7 +107,10 @@ const DOLL_CELL = { w: 96, h: 56, ax: 48, ay: 48, cols: 8 };   // every frame: a
 const WEAPON_OF = { warrior: 'sword', archer: 'bow', rogue: 'dagger', beastmaster: 'whip' };
 const WEAPON_NAME = { sword: 'Longsword', bow: 'Longbow', dagger: 'Twin daggers', whip: 'Beast whip' };
 const SKIN_TONES = [['porcelain', 'Porcelain', '#f6d7c3'], ['fair', 'Fair', '#eac09f'], ['tan', 'Tan', '#c99467'], ['olive', 'Olive', '#b08a5a'], ['brown', 'Brown', '#8a5a3a'], ['deep', 'Deep', '#5a3824']];
-const HAIR_COLORS = [['black', 'Black', '#2a2422'], ['brown', 'Brown', '#5e3c25'], ['chestnut', 'Chestnut', '#8a4f2a'], ['auburn', 'Auburn', '#b04a2c'], ['blonde', 'Blonde', '#e0bb62'], ['silver', 'Silver', '#d6d6de']];
+const HAIR_COLORS = [['black', 'Black', '#2a2422'], ['brown', 'Brown', '#5e3c25'], ['chestnut', 'Chestnut', '#8a4f2a'], ['auburn', 'Auburn', '#b04a2c'], ['blonde', 'Blonde', '#e0bb62'], ['silver', 'Silver', '#d6d6de'],
+  // the wacky ones, sold at the Cosmetics Shop (a 4th entry 'shop' = locked until bought: MP.econ.owns('hc:<id>'))
+  ['pink', 'Pink', '#ff6fb5', 'shop'], ['green', 'Green', '#4fd65a', 'shop'], ['blue', 'Blue', '#3f8cff', 'shop'], ['purple', 'Purple', '#a05cf0', 'shop'], ['teal', 'Teal', '#1fcdb8', 'shop'],
+  ['fire', 'Fire red', '#ff3324', 'shop'], ['white', 'White', '#ffffff', 'shop'], ['sunset', 'Sunset', '#ff8442', 'shop'], ['lemon', 'Lemon', '#ffe24a', 'shop']];
 const DOLL_SLOTS = ['hair', 'head', 'top', 'cape', 'bottom', 'shoe'];
 const DOLL_NONE = { hair: 'Shaved', head: 'None', top: 'Undershirt', cape: 'None', bottom: 'Shorts', shoe: 'Barefoot' };
 // every piece there is, per body and slot, in order (art: assets/doll/<slot>_<id>_<m|f>.png)
@@ -144,7 +147,41 @@ const OLD_HAIR = { m: { crop: 'crop', long: 'long', bob: 'crop', ponytail: 'pony
                    f: { crop: 'bob', long: 'long', bob: 'bob', ponytail: 'twintails', curly: 'wavy', bun: 'bun', braids: 'braid', mohawk: 'bob', spiky: 'bob', undercut: 'bob', afro: 'wavy', locs: 'long', bald: '' } };
 const DOLL_WEP = { m: ['sword', 'bow', 'dagger', 'whip'], f: ['sword', 'bow', 'dagger', 'whip'] };   // the weapons drawn for each body
 const dollFile = (slot, id, sex) => slot + '_' + id + '_' + sex;
-const DOLL_FILES = ['m', 'f'].flatMap(sex => ['base_' + sex, 'base_' + sex + '_skin'].concat(DOLL_SLOTS.flatMap(sl => DOLL[sex][sl].map(p => dollFile(sl, p[0], sex))), DOLL_WEP[sex].map(w => dollFile('wep', w, sex))));
+// ---- the Cosmetics Shop's wares (mp/shop.js sells them for Gold; what you own: MP.econ.owns(id)) ----
+// WINGS are worn in the cape slot (ids 'wing...': art cape_wing<kind>_<m|f>.png on the same grid as every piece, drawn in the
+// cape's layer behind the body). Owned as 'wing:<kind>' (one purchase covers both bodies).
+const DOLL_WINGS = [['wingdemon', 'Demon wings'], ['wingangel', 'Angel wings'], ['wingdragon', 'Dragon wings'], ['wingfairy', 'Fairy wings']];
+const dollWing = id => typeof id === 'string' && DOLL_WINGS.some(w => w[0] === id);
+for (const sex of ['m', 'f']) DOLL[sex].cape.push(...DOLL_WINGS);
+// OUTFIT COLOURS: a look may name a colourway for the piece in each of these slots in `<slot>C` (headC, topC, capeC, bottomC,
+// shoeC; nothing = the piece as painted; never on wings). [id, name, { h: hue 0..360, s: saturation, l: lightness } the colour
+// the piece's main fabric becomes (see dyePlan / dyeColor in THE HERO), swatch, the ctx.filter used instead when the game is
+// opened from a folder and pixels can't be read]. Owned as 'dye:<slot>:<colour>' (one colour for every piece of that slot).
+const DOLL_DYE_SLOTS = ['head', 'top', 'cape', 'bottom', 'shoe'];
+const DOLL_DYES = [
+  ['crimson', 'Crimson', { h: 354, s: 0.70, l: 0.40 }, '#b01e2c', 'grayscale(1) sepia(1) saturate(3.2) hue-rotate(-44deg) brightness(0.9)'],
+  ['royal', 'Royal blue', { h: 222, s: 0.66, l: 0.44 }, '#2a55ba', 'grayscale(1) sepia(1) saturate(2.6) hue-rotate(184deg)'],
+  ['forest', 'Forest', { h: 136, s: 0.46, l: 0.33 }, '#2e7a42', 'grayscale(1) sepia(1) saturate(2) hue-rotate(98deg) brightness(0.85)'],
+  ['midnight', 'Midnight', { h: 244, s: 0.38, l: 0.22 }, '#25234e', 'grayscale(1) sepia(1) saturate(1.6) hue-rotate(206deg) brightness(0.55)'],
+  ['snow', 'Snow', { h: 210, s: 0.14, l: 0.84 }, '#d2d9e0', 'grayscale(1) brightness(1.55)'],
+  ['gold', 'Gold', { h: 44, s: 0.78, l: 0.52 }, '#e4ad25', 'grayscale(1) sepia(1) saturate(2.8) hue-rotate(6deg) brightness(1.15)'],
+  ['amethyst', 'Amethyst', { h: 276, s: 0.50, l: 0.44 }, '#7c38a8', 'grayscale(1) sepia(1) saturate(2.2) hue-rotate(238deg)'],
+];
+const DOLL_PRICE = { wing: 1000, hc: 150, dye: 120 };   // Gold
+// the shop id of a choice in the dressing rows (null = not a shop thing): row 'cape' + a wing, row 'hc' + a wacky colour,
+// row '<slot>C' + a colourway
+function dollShopId(row, id) {
+  if (!id || typeof id !== 'string') return null;
+  if (row === 'cape') return dollWing(id) ? 'wing:' + id.slice(4) : null;
+  if (row === 'hc') return HAIR_COLORS.some(c => c[0] === id && c[3] === 'shop') ? 'hc:' + id : null;
+  const sl = row.slice(0, -1);
+  return row.slice(-1) === 'C' && DOLL_DYE_SLOTS.includes(sl) && DOLL_DYES.some(d => d[0] === id) ? 'dye:' + sl + ':' + id : null;
+}
+const dollOwns = sid => { try { return !!(MP.econ && MP.econ.owns(sid)); } catch (e) { return false; } };   // (MP: declared further down; nothing is owned while mp/econ.js is missing)
+// the wings' art is loaded apart from the rest (see dollOptLoad in THE HERO): it may not be there yet, and a missing wing must
+// not keep the hero from being drawn
+const DOLL_OPT_FILES = ['m', 'f'].flatMap(sex => DOLL_WINGS.map(w => dollFile('cape', w[0], sex)));
+const DOLL_FILES = ['m', 'f'].flatMap(sex => ['base_' + sex, 'base_' + sex + '_skin'].concat(DOLL_SLOTS.flatMap(sl => DOLL[sex][sl].filter(p => !dollWing(p[0])).map(p => dollFile(sl, p[0], sex))), DOLL_WEP[sex].map(w => dollFile('wep', w, sex))));
 const ART_FILES = {
   vfx: VFX_SPR,
   items: ['dish_minnow', 'dish_bluegill', 'dish_crawdad', 'dish_perch', 'dish_sunfish', 'dish_carp', 'dish_pike', 'dish_catfish', 'dish_pufferfish', 'dish_eel', 'dish_sturgeon', 'dish_goldkoi', 'fish_minnow', 'fish_bluegill', 'fish_crawdad', 'fish_perch', 'fish_sunfish', 'fish_carp', 'fish_pike', 'fish_catfish', 'fish_pufferfish', 'fish_eel', 'fish_sturgeon', 'fish_goldkoi', 'pet_fox', 'pet_owl', 'pet_ferret', 'pet_boar', 'pet_toad', 'shortbow', 'greatsword', 'warhammer', 'towershield', 'torc', 'banner', 'breastplate', 'bgauntlet', 'giantbelt', 'lionheart', 'dragonslayer', 'longbow', 'bodkin', 'twinquiver', 'frostarrows', 'blastarrows', 'hawkeye', 'bracer', 'rangercloak', 'fletching', 'starfall', 'venom', 'kris', 'shadowcloak', 'knives', 'lockpicks', 'duelist', 'shadowstep', 'bloodring', 'rmask', 'nightfang', 'barbwhip', 'alphahorn', 'collar', 'totem', 'poultice', 'falconglove', 'whistle', 'wolfcloak', 'bearclaw', 'crown', 'pet_dog', 'pet_catgray', 'pet_catcalico', 'pet_cockatiel', 'pet_dragon', 'wings', 'phoenix', 'treats', 'hourglass', 'lantern', 'dagger', 'arrows', 'sword', 'axe', 'spear', 'bow', 'gloves', 'shield', 'helm', 'chain', 'spiked', 'boots', 'potion', 'bomb', 'bread', 'heart', 'whetstone', 'charm', 'fang', 'clover', 'spikes', 'chewbone', 'clawfile', 'vest', 'blanket', 'incubator', 'harness', 'bell', 'huntmark', 'squeaky', 'catnip', 'cuttlebone', 'heatrock', 'bogmoss', 'truffle', 'nightshade', 'hexcharm', 'healbell', 'dragonheart', 'alphafang', 'salve', 'herb', 'salts', 'brew', 'smoke', 'net', 'egg_cockatiel', 'egg_owl', 'egg_toad', 'egg_dragon', 'egg_elder', 'horseshoe', 'glownectar', 'embertotem', 'boneflute', 'serpenttorc', 'antlercrown', 'saddlebag', 'buckler', 'windchimes', 'huntinghorn', 'emberring', 'wishbone', 'egg_phoenix', 'egg_salamander', 'egg_tortoise', 'egg_moth', 'egg_fairydragon', 'egg_viper', 'egg_sunday'],
@@ -1992,13 +2029,30 @@ function saveData() {
 //  out exactly like the body's (tools/paperdoll.py cut it out of an edit of the body sheet, frame by frame),
 //  so a look is just the sheets drawn on top of each other, then baked once into its own animation sheet.
 //  Skin and hair are grey and get tinted to the chosen tone and colour.
-//  (Only drawing, never reading pixels, so it works when the game is opened straight from a folder too.)
+//  A look: { v: 2, sex, s, hc, hair, head, top, cape, bottom, shoe } plus, only when set, a colourway per dyeable slot:
+//  headC / topC / capeC / bottomC / shoeC (an id of DOLL_DYES). Wings are cape ids. Wings, the wacky hair colours and
+//  the colourways are bought at the Cosmetics Shop (mp/shop.js): heroLook() only wears what MP.econ says you own;
+//  a look sent by another player is drawn as sent.
+//  (Tinting only draws; an outfit colour reads the piece's pixels ONCE, when the look is baked: opened straight from a
+//  folder the browser refuses that, and the colour is then made with a canvas filter instead, also once.)
 // =====================================================================
 // a look, tidied: a real body, tone and colour, and only pieces that exist for that body ('' = nothing in that slot)
 function dollClean(l) {
   l = l && typeof l === 'object' ? l : {};
   const sex = l.sex === 'f' ? 'f' : 'm', ok = (list, v, d) => (list.some(x => x[0] === v) ? v : d), out = { v: 2, sex, s: ok(SKIN_TONES, l.s, 'fair'), hc: ok(HAIR_COLORS, l.hc, 'brown') };
   for (const sl of DOLL_SLOTS) out[sl] = typeof l[sl] === 'string' && DOLL[sex][sl].some(p => p[0] === l[sl]) ? l[sl] : '';
+  // a colourway only on a piece that is worn and can be dyed (not on wings), and only one that exists
+  for (const sl of DOLL_DYE_SLOTS) { const d = l[sl + 'C']; if (out[sl] && !dollWing(out[sl]) && typeof d === 'string' && DOLL_DYES.some(x => x[0] === d)) out[sl + 'C'] = d; }
+  return out;
+}
+// my own look without the shop's things I don't own (a save edited by hand, or mp/econ.js missing): no wings, brown hair,
+// the piece's own colours. Never used on another player's look.
+function dollOwned(L) {
+  let out = L;
+  const put = (k, v) => { if (out === L) out = Object.assign({}, L); if (v === undefined) delete out[k]; else out[k] = v; };
+  if (dollShopId('cape', L.cape) && !dollOwns(dollShopId('cape', L.cape))) put('cape', '');
+  if (dollShopId('hc', L.hc) && !dollOwns(dollShopId('hc', L.hc))) put('hc', 'brown');
+  for (const sl of DOLL_DYE_SLOTS) if (L[sl + 'C'] && !dollOwns(dollShopId(sl + 'C', L[sl + 'C']))) put(sl + 'C');
   return out;
 }
 const dollStart = (cls, sex) => (DOLL_START[cls] || DOLL_START.warrior)[sex === 'f' ? 'f' : 'm'];
@@ -2006,26 +2060,120 @@ const dollStart = (cls, sex) => (DOLL_START[cls] || DOLL_START.warrior)[sex === 
 const dollFromOld = (l, cls) => { const sex = l.sex === 'f' ? 'f' : 'm'; return dollClean(Object.assign({}, dollStart(cls, sex), { sex, s: l.s, hc: l.hc }, l.h ? { hair: OLD_HAIR[sex][l.h] ?? '' } : {})); };
 function heroLook(cls) {
   const L = SAVE.skin[cls + 'Look'] || {}, sex = SAVE.skin[cls] === 'f' ? 'f' : 'm';
-  return L.v === 2 ? dollClean(Object.assign({}, L, { sex })) : dollFromOld(Object.assign({}, L, { sex }), cls);
+  return dollOwned(L.v === 2 ? dollClean(Object.assign({}, L, { sex })) : dollFromOld(Object.assign({}, L, { sex }), cls));
 }
 function cleanLook(l, cls) {   // a look described by a friend's game (an older game sends the old kind)
   l = l && typeof l === 'object' ? l : {};
   return l.v === 2 ? dollClean(l) : dollFromOld(l, cls);
 }
 const dollArt = n => art('doll/' + n);
-// the look baked into one animation sheet for a class (its attack row is its weapon's); null until all of its art has loaded
+// ---- the wings' art: 0 = on its way, 1 = here, -1 = no such file (yet). A missing wing is simply not drawn. ----
+const DOLL_OPT = {};
+function dollOptLoad(n, tries = 0) {
+  DOLL_OPT[n] = DOLL_OPT[n] || 0;
+  const img = new Image();
+  img.onload = () => { ART['doll/' + n] = img; DOLL_OPT[n] = 1; };
+  img.onerror = () => { DOLL_OPT[n] = -1; if (tries < 3) setTimeout(() => dollOptLoad(n, tries + 1), 400 * (tries + 1)); };
+  img.src = `assets/doll/${n}.png?v=${BUILD}` + (tries ? `&r=${tries}` : '');
+}
+for (const n of DOLL_OPT_FILES) dollOptLoad(n);
+const dollHas = (slot, id, sex) => !dollWing(id) || (DOLL_OPT[dollFile(slot, id, sex)] === 1 && !!dollArt(dollFile(slot, id, sex)));   // is this piece's art there? (only wings can be missing)
+// ---- outfit colours: the colour maths, on plain RGBA numbers (no canvas here, so the tests can run it) ----
+function rgbHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn;
+  if (d < 1e-9) return [0, 0, l];
+  const s = d / (l > 0.5 ? 2 - mx - mn : mx + mn), h = mx === r ? ((g - b) / d + 6) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function hslRgb(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2, i = Math.floor(h / 60) % 6;
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][i];
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+}
+const DYE_GREY = 0.16, DYE_SPAN = 40;   // less saturated than this = a grey; how far (degrees) a hue may be from the main one and still be the fabric
+const hueGap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+// pixels a dye leaves alone: the dark outlines, and anything skin-coloured
+const dyeKeeps = (h, s, l) => l < 0.13 || (h >= 10 && h <= 34 && s >= 0.28 && s <= 0.8 && l >= 0.5 && l <= 0.9);
+// what a piece is made of, read over its WHOLE sheet (every frame together, so every frame gets the same answer): its main
+// fabric is either its greys (steel, white fur) or the most common family of hues; plus that fabric's usual lightness and
+// saturation. Trims in other colours (a gold clasp on a red cape) are not part of it.
+function dyePlan(data) {
+  const BINS = 24, bins = new Array(BINS).fill(0), seen = new Map(); let grey = 0;
+  for (let i = 0; i < data.length; i += 4) { if (data[i + 3] < 8) continue; const k = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2]; seen.set(k, (seen.get(k) || 0) + 1); }
+  const cols = [...seen].map(([k, n]) => { const [h, s, l] = rgbHsl(k >> 16, (k >> 8) & 255, k & 255); return { h, s, l, n }; }).filter(c => !dyeKeeps(c.h, c.s, c.l));
+  for (const c of cols) { if (c.s < DYE_GREY) grey += c.n; else bins[Math.floor(c.h / (360 / BINS)) % BINS] += c.n; }
+  let best = 0, bestN = -1;
+  for (let i = 0; i < BINS; i++) { const n = bins[(i + BINS - 1) % BINS] + bins[i] + bins[(i + 1) % BINS]; if (n > bestN) { bestN = n; best = i; } }
+  const plan = { grey: grey >= bestN, hue: (best + 0.5) * (360 / BINS), l: 0.5, s: 0.5 };
+  let n = 0, sl = 0, ss = 0;
+  for (const c of cols) if (plan.grey ? c.s < DYE_GREY : c.s >= DYE_GREY && hueGap(c.h, plan.hue) <= DYE_SPAN) { n += c.n; sl += c.l * c.n; ss += c.s * c.n; }
+  if (n) { plan.l = clamp(sl / n, 0.08, 0.92); plan.s = Math.max(0.05, ss / n); }
+  return plan;
+}
+// one colour of a piece, dyed: the fabric takes the dye's hue, keeps its own light-and-dark steps (moved towards the dye's
+// lightness without ever clipping, so the shading ramp stays a ramp); everything else comes back unchanged.
+// A pure function of (colour, plan, dye): the same colour gives the same answer in every frame of the sheet.
+function dyeColor(r, g, b, plan, dye) {
+  const [h, s, l] = rgbHsl(r, g, b);
+  if (dyeKeeps(h, s, l)) return [r, g, b];
+  if (plan.grey ? s >= DYE_GREY : s < DYE_GREY || hueGap(h, plan.hue) > DYE_SPAN) return [r, g, b];
+  const to = plan.l + (dye.l - plan.l) * 0.72;   /* where the fabric's usual lightness ends up */
+  const nl = to <= plan.l ? l * (to / plan.l) : 1 - (1 - l) * ((1 - to) / (1 - plan.l));
+  const ns = plan.grey ? dye.s * 0.8 : clamp(dye.s * clamp(s / plan.s, 0.6, 1.35), 0, 1);
+  return hslRgb(dye.h, ns, clamp(nl, 0.02, 0.98));
+}
+// a whole sheet's RGBA, dyed in place (alpha untouched); returns how many different colours it changed
+function dyePixels(data, dye, plan) {
+  plan = plan || dyePlan(data);
+  const memo = new Map(); let changed = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 8) continue;
+    const k = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2]; let o = memo.get(k);
+    if (!o) { o = dyeColor(data[i], data[i + 1], data[i + 2], plan, dye); memo.set(k, o); if (o[0] !== data[i] || o[1] !== data[i + 1] || o[2] !== data[i + 2]) changed++; }
+    data[i] = o[0]; data[i + 1] = o[1]; data[i + 2] = o[2];
+  }
+  return changed;
+}
+// a piece's sheet in a colourway: made once and kept. (how: 'pixels' or, when the pixels can't be read, 'filter' / 'plain')
+const DYE_CACHE = new Map(), DOLL_STATS = { baked: 0, dyed: 0, how: '' };   // (DOLL_STATS: how many sheets were baked / pieces dyed: the tests count them)
+let DYE_BLOCKED = false;   // the browser won't let us read pixels (opened from a folder)
+function dyedArt(name, img, dyeId) {
+  const dye = DOLL_DYES.find(d => d[0] === dyeId); if (!dye) return img;
+  const k = name + '|' + dyeId; let c = DYE_CACHE.get(k); if (c) return c;
+  c = document.createElement('canvas'); c.width = img.width; c.height = img.height; let g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+  DOLL_STATS.dyed++; DOLL_STATS.how = 'pixels';
+  if (!DYE_BLOCKED) try { g.drawImage(img, 0, 0); const id = g.getImageData(0, 0, c.width, c.height); dyePixels(id.data, dye[2]); g.putImageData(id, 0, 0); } catch (e) { DYE_BLOCKED = true; }
+  if (DYE_BLOCKED) {   // the whole piece through one filter (cruder: trims change colour too), still only once
+    c = document.createElement('canvas'); c.width = img.width; c.height = img.height; g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    const can = typeof g.filter === 'string'; DOLL_STATS.how = can ? 'filter' : 'plain';
+    if (can) g.filter = dye[4];
+    g.drawImage(img, 0, 0); if (can) g.filter = 'none';
+  }
+  DYE_CACHE.set(k, c); return c;
+}
+// the look baked into one animation sheet for a class (its attack row is its weapon's); null until all of its art has loaded.
+// Everything that changes the picture is in the sheet's name (pieces, colourways, tints, weapon), so a look is baked ONCE and
+// every frame of every animation is then cut from that one canvas: nothing is recoloured or layered while the game runs.
 function heroSheet(cls, L) {
   L = L && L.v === 2 ? L : L ? cleanLook(L, cls) : heroLook(cls);
   const sex = L.sex, wep = WEAPON_OF[cls] || 'sword';
-  const key = ['doll', sex, L.s, L.hc, ...DOLL_SLOTS.map(sl => L[sl] || '-'), wep].join(':');
+  if (dollWing(L.cape)) {   // wings whose art isn't there are left off (on their way: wait, like any piece)
+    const st = DOLL_OPT[dollFile('cape', L.cape, sex)];
+    if (st !== 1 || !dollArt(dollFile('cape', L.cape, sex))) { if (st === 0) return null; L = Object.assign({}, L, { cape: '' }); }
+  }
+  const dyeOf = sl => (DOLL_DYE_SLOTS.includes(sl) && L[sl] && !dollWing(L[sl]) && L[sl + 'C'] && DOLL_DYES.some(d => d[0] === L[sl + 'C']) ? L[sl + 'C'] : '');
+  const key = ['doll', sex, L.s, L.hc, ...DOLL_SLOTS.map(sl => (L[sl] || '-') + (dyeOf(sl) ? '~' + dyeOf(sl) : '')), wep].join(':');
   if (window.ANIMS[key] && ART['anim/' + key]) return key;
   const base = dollArt('base_' + sex), skin = dollArt('base_' + sex + '_skin');
-  const lay = sl => (L[sl] ? dollArt(dollFile(sl, L[sl], sex)) : null), need = DOLL_SLOTS.filter(sl => L[sl]);
+  const raw = sl => (L[sl] ? dollArt(dollFile(sl, L[sl], sex)) : null), need = DOLL_SLOTS.filter(sl => L[sl]);
   const hasWep = DOLL_WEP[sex].includes(wep), weapon = hasWep ? dollArt(dollFile('wep', wep, sex)) : null;
-  if (!base || !skin || need.some(sl => !lay(sl)) || (hasWep && !weapon)) return null;   // still loading
+  if (!base || !skin || need.some(sl => !raw(sl)) || (hasWep && !weapon)) return null;   // still loading
+  const lay = sl => (raw(sl) && dyeOf(sl) ? dyedArt(dollFile(sl, L[sl], sex), raw(sl), dyeOf(sl)) : raw(sl));   /* the piece, in its colourway */
   const tone = (SKIN_TONES.find(t => t[0] === L.s) || SKIN_TONES[1])[2], hcol = (HAIR_COLORS.find(t => t[0] === L.hc) || HAIR_COLORS[1])[2];
   const c = document.createElement('canvas'); c.width = base.width; c.height = base.height; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  // back to front: the cape (it hangs behind), the body, then the clothes, the hair, the headwear and the weapon in hand
+  // back to front: the cape or wings (behind the body), the body, then the clothes, the hair, the headwear and the weapon in hand
   if (lay('cape')) g.drawImage(lay('cape'), 0, 0);
   g.drawImage(tintedArt('doll:' + sex + '_skin', skin, tone), 0, 0); g.drawImage(base, 0, 0);
   for (const sl of ['bottom', 'shoe', 'top']) if (lay(sl)) g.drawImage(lay(sl), 0, 0);
@@ -2035,7 +2183,7 @@ function heroSheet(cls, L) {
   const C = DOLL_CELL, rows = {}; let i = 0;
   for (const [an, n] of DOLL_ROWS) { rows[an] = []; for (let j = 0; j < n; j++, i++) rows[an].push([(i % C.cols) * C.w, Math.floor(i / C.cols) * C.h, C.w, C.h, C.ax, C.ay]); }
   const anims = { idle: rows.idle, run: rows.run, jump: rows.jump, death: rows.death, attack: rows[wep] };
-  ART['anim/' + key] = c; window.ANIMS[key] = { fly: false, anims };
+  ART['anim/' + key] = c; window.ANIMS[key] = { fly: false, anims }; DOLL_STATS.baked++;
   return key;
 }
 const TINT_CACHE = new Map();
@@ -2046,7 +2194,10 @@ function tintedArt(key, img, color) {   // a grey piece (skin, hair), coloured i
   g.globalCompositeOperation = 'destination-in'; g.drawImage(img, 0, 0);
   TINT_CACHE.set(k, c); return c;
 }
-function lookLock(row, id, sex) {   // null when you have it, otherwise how to earn it
+// null when you have it, otherwise how to get it. row: a slot, 'hc', or '<slot>C' (a colourway)
+function lookLock(row, id, sex) {
+  const sid = dollShopId(row, id);
+  if (sid) return dollOwns(sid) ? null : `Sold at the Cosmetics Shop (${DOLL_PRICE[sid.split(':')[0]]} Gold)`;
   if (!DOLL_SLOTS.includes(row) || !id) return null;
   const i = DOLL[sex][row].findIndex(p => p[0] === id), e = (DOLL_EARN_OF[row] || [])[i];
   return e && !DOLL_EARN[e][0]() ? DOLL_EARN[e][1] : null;
@@ -2059,6 +2210,9 @@ const DRESS_RH = () => (PORTRAIT() ? 54 : 39);   // a row's height
 const DRESS_PV = () => PORTRAIT() ? { x: DRESS.x + DRESS.w / 2 - 150, y: DRESS.y + 58, w: 300, h: Math.max(200, Math.min(440, DRESS.h - 58 - DRESS_ROWS.length * DRESS_RH() - 116)) } : { x: DRESS.x + 24, y: DRESS.y + 58, w: 300, h: 340 };
 const DRESS_ROW = i => PORTRAIT() ? { x: DRESS.x + 22, y: DRESS_PV().y + DRESS_PV().h + 12 + i * DRESS_RH(), w: DRESS.w - 44, h: DRESS_RH() - 4 } : { x: DRESS.x + 346, y: DRESS.y + 62 + i * DRESS_RH(), w: 430, h: DRESS_RH() - 3 };
 const DRESS_ARROW = (i, d) => { const r = DRESS_ROW(i), s = Math.min(34, r.h); return { x: d < 0 ? r.x + 118 : r.x + r.w - s - 2, y: r.y + (r.h - s) / 2, w: s, h: s }; };
+// a dyeable row's colourway button (left of its right arrow): press to step through the piece's colours
+const DRESS_DYE = i => { const a = DRESS_ARROW(i, 1); return { x: a.x - a.w - 6, y: a.y, w: a.w, h: a.h }; };
+const dressDyeable = (L, row) => DOLL_DYE_SLOTS.includes(row) && !!L[row] && !dollWing(L[row]);   // does this row show a colourway button now?
 const DRESS_DONE = { x: DRESS.x + DRESS.w - 176, y: DRESS.y + DRESS.h - 54, w: 156, h: 40 };
 const DRESS_ALL = { x: 0, y: 0, w: 0, h: 0 };   // "wear this as every class"
 function dressLayout() {
@@ -2072,7 +2226,14 @@ function dressOptions(row) {
   if (row === 'sex') return [['m', 'Male'], ['f', 'Female']];
   if (row === 'hc') return HAIR_COLORS;
   if (row === 's') return SKIN_TONES;
-  return [['', DOLL_NONE[row]]].concat(DOLL[sex][row]);
+  return [['', DOLL_NONE[row]]].concat(DOLL[sex][row].filter(p => dollHas(row, p[0], sex)));   /* (wings whose art hasn't arrived aren't offered) */
+}
+// the next colourway of the piece in that row ('' = as painted, then each of DOLL_DYES)
+function dressDye(row, d = 1) {
+  const L = G.dress.look; if (!dressDyeable(L, row)) return;
+  const ids = [''].concat(DOLL_DYES.map(x => x[0])), i = Math.max(0, ids.indexOf(L[row + 'C'] || '')), nx = ids[(i + d + ids.length) % ids.length];
+  if (nx) L[row + 'C'] = nx; else delete L[row + 'C'];
+  SFX.play('rotate');
 }
 function openDress() { G.panel = 'dress'; G.dress = { look: Object.assign({}, heroLook(G.cls)), sel: 1 }; SFX.play('pick'); }
 function dressStep(row, d) {
@@ -2080,16 +2241,19 @@ function dressStep(row, d) {
   const i = Math.max(0, opts.findIndex(o => o[0] === L[row])), nx = opts[(i + d + opts.length) % opts.length][0];
   if (row === 'sex') {   // the other body: its own pieces, in the same places of each list as far as they go
     const was = L.sex, st = dollStart(G.cls, nx), next = { sex: nx, s: L.s, hc: L.hc };
-    for (const sl of DOLL_SLOTS) { const j = DOLL[was][sl].findIndex(p => p[0] === L[sl]), list = DOLL[nx][sl]; next[sl] = j < 0 ? '' : list[j] ? list[j][0] : st[sl]; }
+    for (const sl of DOLL_SLOTS) { const j = DOLL[was][sl].findIndex(p => p[0] === L[sl]), list = DOLL[nx][sl]; next[sl] = j < 0 ? '' : list[j] ? list[j][0] : st[sl]; if (!dollHas(sl, next[sl], nx)) next[sl] = ''; }
+    for (const sl of DOLL_DYE_SLOTS) if (L[sl + 'C']) next[sl + 'C'] = L[sl + 'C'];   /* the colourways come along */
     D.look = dollClean(next);
-  } else L[row] = nx;
+  } else { L[row] = nx; if (DOLL_DYE_SLOTS.includes(row) && !dressDyeable(L, row)) delete L[row + 'C']; }
   SFX.play('rotate');
 }
-// keep what you've earned; a locked piece you were only trying on goes back to what you wore
+// keep what you've earned or bought; a locked piece, hair colour or colourway you were only trying on goes back to what you wore
 function dressKeep(L, was) {
   const keep = Object.assign({}, L); let locked = 0;
   for (const sl of DOLL_SLOTS) if (lookLock(sl, L[sl], L.sex)) { keep[sl] = was.sex === L.sex ? was[sl] : ''; locked++; }
-  return { look: dollClean(keep), locked };
+  if (lookLock('hc', L.hc, L.sex)) { keep.hc = was.hc; locked++; }
+  for (const sl of DOLL_DYE_SLOTS) if (L[sl + 'C'] && lookLock(sl + 'C', L[sl + 'C'], L.sex)) { if (was[sl + 'C'] && was[sl] === keep[sl]) keep[sl + 'C'] = was[sl + 'C']; else delete keep[sl + 'C']; locked++; }
+  return { look: dollOwned(dollClean(keep)), locked };
 }
 function dressDone(all) {
   const { look, locked } = dressKeep(G.dress.look, heroLook(G.cls));
@@ -2097,7 +2261,7 @@ function dressDone(all) {
   saveData();
   G.panel = null; G.dress = null; const P = G.player;
   burst(P.x + P.w / 2, P.y + P.h / 2, '#e1bee7', 22, 180); SFX.play('merge');
-  showMsg((all ? 'Every class now wears this look! ' : 'Looking good! ') + (locked ? "(Locked pieces weren't kept: earn them first.)" : ''), 2.6);
+  showMsg((all ? 'Every class now wears this look! ' : 'Looking good! ') + (locked ? "(Locked things weren't kept: earn or buy them first.)" : ''), 2.6);
 }
 function dressKeys() {
   const D = G.dress; if (!D) { G.panel = null; return; }
@@ -2107,13 +2271,18 @@ function dressKeys() {
   if (hit('ArrowDown', 's')) { D.sel = (D.sel + 1) % DRESS_ROWS.length; SFX.play('rotate'); }
   if (hit('ArrowLeft', 'a')) dressStep(DRESS_ROWS[D.sel][0], -1);
   if (hit('ArrowRight', 'd')) dressStep(DRESS_ROWS[D.sel][0], 1);
+  if (hit('c')) dressDye(DRESS_ROWS[D.sel][0], 1);
 }
 function dressClick(btn) {
   dressLayout();
   if (btn !== 0 || !G.dress) return;
   if (inRect(mouse, DRESS_DONE)) { dressDone(); return; }
   if (inRect(mouse, DRESS_ALL)) { dressDone(true); return; }
-  DRESS_ROWS.forEach(([row], i) => { for (const d of [-1, 1]) if (inRect(mouse, DRESS_ARROW(i, d))) { G.dress.sel = i; dressStep(row, d); } if (inRect(mouse, DRESS_ROW(i))) G.dress.sel = i; });
+  DRESS_ROWS.forEach(([row], i) => {
+    for (const d of [-1, 1]) if (inRect(mouse, DRESS_ARROW(i, d))) { G.dress.sel = i; dressStep(row, d); }
+    if (inRect(mouse, DRESS_ROW(i))) G.dress.sel = i;
+    if (dressDyeable(G.dress.look, row) && inRect(mouse, DRESS_DYE(i))) { G.dress.sel = i; dressDye(row, 1); }
+  });
 }
 function drawDress() {
   const D = G.dress; if (!D) return;
@@ -2135,7 +2304,7 @@ function drawDress() {
   ctx.restore();
   label(`${CLASSES[cls].name}  ·  ${WEAPON_NAME[WEAPON_OF[cls]]}`, pv.x + pv.w / 2, fy + 22, { align: 'center', size: 14, bold: true, color: PAL.gold });
   // how to earn the piece you're looking at, if it's locked
-  const selRow = DRESS_ROWS[D.sel][0], why = lookLock(selRow, L[selRow], L.sex);
+  const selRow = DRESS_ROWS[D.sel][0], why = lookLock(selRow, L[selRow], L.sex) || (L[selRow + 'C'] ? lookLock(selRow + 'C', L[selRow + 'C'], L.sex) : null);
   label(why ? '🔒 ' + fitText(why, pv.w - 30) : `${myName()}`, pv.x + pv.w / 2, fy + 40, { align: 'center', size: 12, color: why ? '#ffab91' : PAL.dim });
   // the choices
   DRESS_ROWS.forEach(([row, nm], i) => {
@@ -2143,12 +2312,19 @@ function drawDress() {
     if (sel) { ctx.fillStyle = 'rgba(255,211,107,0.12)'; rr(r.x - 8, r.y, r.w + 16, r.h, 6); ctx.fill(); }
     label(nm, r.x, r.y + r.h / 2, { size: 15, bold: true, color: sel ? PAL.gold : PAL.cream });
     for (const d of [-1, 1]) { const a = DRESS_ARROW(i, d); button(a, d < 0 ? '◀' : '▶', { hover: inRect(mouse, a), size: 13 }); }
-    const lock = lookLock(row, cur[0], L.sex), mx = (DRESS_ARROW(i, -1).x + DRESS_ARROW(i, -1).w + DRESS_ARROW(i, 1).x) / 2, sw = row === 'hc' || row === 's';
+    const dy = dressDyeable(L, row), dr = dy ? DRESS_DYE(i) : null, dye = dy && DOLL_DYES.find(x => x[0] === L[row + 'C']);
+    if (dy) {   // the colourway button: the colour's swatch (a hollow one = as painted), a small padlock while it isn't yours
+      button(dr, '', { hover: inRect(mouse, dr) });
+      if (dye) { ctx.fillStyle = dye[3]; rr(dr.x + 8, dr.y + 8, dr.w - 16, dr.h - 16, 3); ctx.fill(); }
+      ctx.strokeStyle = dye ? 'rgba(0,0,0,0.6)' : PAL.dim; ctx.lineWidth = 1; rr(dr.x + 8, dr.y + 8, dr.w - 16, dr.h - 16, 3); ctx.stroke();
+      if (dye && lookLock(row + 'C', dye[0], L.sex)) label('🔒', dr.x + dr.w - 7, dr.y + dr.h - 8, { align: 'center', size: 10 });
+    }
+    const lock = lookLock(row, cur[0], L.sex), mx = (DRESS_ARROW(i, -1).x + DRESS_ARROW(i, -1).w + (dy ? dr.x - 4 : DRESS_ARROW(i, 1).x)) / 2, sw = row === 'hc' || row === 's';
     if (sw) { ctx.fillStyle = cur[2]; rr(mx - 70, r.y + r.h / 2 - 9, 18, 18, 4); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1; ctx.stroke(); }
     const n = opts.length, at = Math.max(0, opts.findIndex(o => o[0] === cur[0])) + 1, tag = DOLL_SLOTS.includes(row) && n > 1 ? `  ${at}/${n}` : '';
-    label((lock ? '🔒 ' : '') + fitText(cur[1], r.w - 230) + tag, mx + (sw ? 12 : 0), r.y + r.h / 2, { align: 'center', size: 14, bold: true, color: lock ? '#c9a27a' : PAL.cream });
+    label((lock ? '🔒 ' : '') + fitText(cur[1], r.w - (dy ? 270 : 230)) + tag, mx + (sw ? 12 : 0), r.y + r.h / 2, { align: 'center', size: 14, bold: true, color: lock ? '#c9a27a' : PAL.cream });
   });
-  label(TOUCH.on ? 'Tap ◀ ▶ to change  ·  Back: leave unchanged' : PORTRAIT() ? 'A/D change  ·  Enter done  ·  Esc: unchanged' : 'W/S choose  ·  A/D change  ·  Enter done  ·  Esc leave without changing', DRESS.x + 24, PORTRAIT() ? DRESS_DONE.y - 16 : DRESS.y + DRESS.h - 22, { size: 12, color: PAL.dim });
+  label(TOUCH.on ? 'Tap ◀ ▶ to change, the square for a colour  ·  Back: unchanged' : PORTRAIT() ? 'A/D change  ·  C colour  ·  Enter done  ·  Esc: unchanged' : 'W/S choose  ·  A/D change  ·  C colour  ·  Enter done  ·  Esc: unchanged', DRESS.x + 24, PORTRAIT() ? DRESS_DONE.y - 16 : DRESS.y + DRESS.h - 22, { size: 12, color: PAL.dim });
   button(DRESS_ALL, 'Wear as every class', { hover: inRect(mouse, DRESS_ALL), size: 14 });
   button(DRESS_DONE, 'Done', { hover: inRect(mouse, DRESS_DONE), size: 17, color: PAL.gold });
 }
