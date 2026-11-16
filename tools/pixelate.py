@@ -723,3 +723,22 @@ def do_seaterrain():
 
 if __name__ == '__main__' and sys.argv[1] == 'seaterrain':
     do_seaterrain()
+
+
+# ---------- Kingdom Street props (multiplayer hub): one sheet on magenta, 3 + 2: mission board, auction house, cosmetics shop, dungeon entrance, raid gate ----------
+STREET_PROPS = [('mp_missions', 44, 50), ('mp_auction', 120, 100), ('mp_shop', 104, 92), ('mp_dungeon', 96, 96), ('mp_raid', 104, 112)]   # name, max art px (drawn at 2x, bottom edge = the ground)
+
+
+def do_streetprops():
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from bglayers import keyed, edge_clean, despeckle
+    im = keyed(Image.open(os.path.join(RAW, 'streetprops_sheet.png')))
+    sprites = cutouts(im, ds=4, grow=5, min_frac=0.08)
+    assert len(sprites) == len(STREET_PROPS), f'found {len(sprites)} sprites, expected {len(STREET_PROPS)}'
+    for (name, mw, mh), src in zip(STREET_PROPS, sprites):
+        spr = despeckle(edge_clean(pixelate(src, mw, mh, colors=48)))
+        spr = spr.crop(spr.getbbox()); spr.save(os.path.join(OUT, 'props', name + '.png')); print(name, spr.size)
+
+
+if __name__ == '__main__' and sys.argv[1] == 'streetprops':
+    do_streetprops()
