@@ -40,7 +40,7 @@
 //  MESSAGES (all validated; * = only accepted from the room's host)
 //   c.floor* { i, seed, sum, b: [beaten ids] }   start floor i (generate it from seed; sum = its checksum)
 //   c.need   { i }                               guest -> host: my floor i came out different, send it whole
-//   c.full*  { i, p, of, d }                     the packed floor as JSON text, in pieces of 12000 characters
+//   c.full*  { i, p, of, d }                     the packed floor as JSON text, in pieces of 6000 characters
 //   c.wild*  { i, w: [id, x, y, face, vx, ...] } the living wild groups, 5x/s
 //   c.touch  { i, w }                            guest -> host: my hero touched group w
 //   c.enc*   { i, w, by }                        the encounter begins (group w, touched by `by`)
@@ -62,7 +62,7 @@
   const TIERS0 = [null, { name: 'The Dungeon', themes: ['hall', 'cave', 'crypt'], boss: 'shadow' }, { name: 'The Burning Depths', themes: ['forge', 'hollow', 'sanctum'], boss: 'elder' },
     { name: 'The Fey Wilds', themes: ['thornwood', 'glade', 'lake'], boss: 'wyrm' }, { name: 'The Drowned Deep', themes: ['temple', 'coral', 'trench'], boss: 'rune' }];
   const tierOf = t => { const T = MP.battle && MP.battle.TIERS && MP.battle.TIERS[t]; return T && Array.isArray(T.themes) && T.themes.length === 3 && T.themes.every(k => THEMES[k]) ? T : TIERS0[t]; };
-  const FLOOR_N = [2, 4, 7], GATHER_MAX = 20, GATHER_GO = 12, DOOR_WAIT = 10, PIECE = 12000, MAX_WILD = 12;
+  const FLOOR_N = [2, 4, 7], GATHER_MAX = 20, GATHER_GO = 12, DOOR_WAIT = 10, PIECE = 6000, MAX_WILD = 12;
   const COMPS_OK = ['pack', 'mixed', 'wall', 'hex', 'healer', 'venom'], DECOR_OK = ['mush', 'fairy', 'candle'], BAKED_OK = ['tombstone', 'bones'];
   let S = null;
 

@@ -196,13 +196,14 @@ const TESTS = {
     ok([B, C, D].some(g => g.run('!!MP.coop.state().room && MP.coop.state().room.isHost')) || [B, C, D].some(g => g.run('MP.coop.state().retryT > 0')), 'a guest claimed the party room before the leader arrived');
     startAll(gs, inf, [A]);
     // ...and the leader's first answer to 'c.need' gets lost on the way: the guest asks again
-    A.run("(() => { const r = MP.coop.state().room, s = r.send; window.__lostFull = 0; r.send = (m, to) => (m && m.t === 'c.full' && !window.__lostFull++ ? true : s(m, to)); })()");
+    A.run("(() => { const r = MP.coop.state().room, s = r.send; window.__lostFull = 0; window.__pieces = 0; r.send = (m, to) => { if (m && m.t === 'c.full') window.__pieces = Math.max(window.__pieces, m.of); return m && m.t === 'c.full' && !window.__lostFull++ ? true : s(m, to); }; })()");
     const f0 = FRAME; await until(gs, () => gs.every(g => fl(g) === 0 && g.run('G.mode') === 'play'), 3000, 'everyone on floor 1');
     MEM.lag = 0; console.log('  (guests first, id lag 1.5 s: everyone on floor 1 ' + ((FRAME - f0) / 60).toFixed(1) + ' s after the leader started)');
     ok(host(gs) === A, 'the leader ends up hosting even when the guests started first');
     ok(gs.every(g => gridSig(g) === gridSig(A)), 'floor 1 identical on all four (one through the full-floor fallback)');
     ok(C.run('MP.coop.state().fulls') === 1 && B.run('MP.coop.state().fulls') === 0, 'only the client whose checksum differed fetched the full floor');
     ok(A.run('window.__lostFull') >= 2, 'a lost full-floor answer is asked for again');
+    ok(A.run('window.__pieces') >= 2, 'the full floor travelled in ' + A.run('window.__pieces') + ' pieces');
     ok(C.run('G.wild.length') === A.run('G.wild.length') && C.run('G.wild.map(e => e.k + Math.round(e.homeX)).join()') === A.run('G.wild.map(e => e.k + Math.round(e.homeX)).join()'), 'the fetched floor has the same wild groups');
     ok(C.run('(G.room.plants || []).length') === A.run('G.room.plants.length') && C.run('(G.room.movers || []).length') === A.run('(G.room.movers || []).length') && C.run('G.room.vents.length') === A.run('G.room.vents.length'), 'and the same plants, platforms and vents');
     ok(A.run('MP.coop.ids().length') === 4, 'four players in the session');
@@ -337,6 +338,24 @@ const TESTS = {
     ok(A.run('(() => { const s = MP.coop.state(), F = MP.coop.unpackFloor(JSON.parse(s.cur.full), 0); return MP.coop.checksum(F) === s.cur.F.sum; })()'), 'pack -> unpack keeps the checksum');
     A.run("openPause(); pauseDo('leave'); pauseDo('leave')"); await frames(gs, 30);
     ok(gs.every(g => g.run('!MP.coop.active && !!G.hub')), 'home');
+  },
+
+  // every tier, several seeds: generation is the same on two clients, repeatable, and survives pack -> unpack
+  async floors() {
+    const [A, B] = games; let n = 0, bad = 0, sizes = [];
+    for (let tier = 1; tier <= 4; tier++) for (const seed of [1, 77, 4096, 123456789]) {
+      for (const g of [A, B]) { g.win.__info = info([g], 'dungeon', tier, 'GEN' + tier, seed); g.run('MP.coop.start(__info)'); }
+      const code = `JSON.stringify([0, 1, 2, 3].map(i => { const s = MP.coop.state(), sd = (${seed} * 31 + i * 7919) >>> 0, F = MP.coop.genFloor(i, sd), F2 = MP.coop.genFloor(i, sd), full = JSON.stringify(MP.coop.packFloor(F)), U = MP.coop.unpackFloor(JSON.parse(full), i);
+        return [F.sum, F2.sum === F.sum, MP.coop.checksum(U) === F.sum, full.length, F.R.type, F.R.n, F.wild.length, F.R.chests.length, U.wild.length === F.wild.length && U.R.plants.length === F.R.plants.length && (U.R.movers || []).length === (F.R.movers || []).length]; }))`;
+      const a = JSON.parse(A.run(code)), b = JSON.parse(B.run(code));
+      for (let i = 0; i < 4; i++) { n++; sizes.push(a[i][3]); if (a[i][0] !== b[i][0] || !a[i][1] || !a[i][2] || a[i][7] !== 0 || !a[i][8] || !(a[i][6] >= 1) || (i === 3) !== (a[i][4] === 'boss') || Math.ceil(a[i][5] / 10) !== tier) { bad++; console.log('  bad floor: tier ' + tier + ' seed ' + seed + ' i ' + i + ' ' + JSON.stringify(a[i]) + ' / ' + JSON.stringify(b[i])); } }
+      const order = A.run('MP.coop.state().order.join()'); ok(order === B.run('MP.coop.state().order.join()') && new Set(order.split(',')).size === 3, 'tier ' + tier + ' seed ' + seed + ': the same order of the three areas on both (' + order + ')');
+      for (const g of [A, B]) g.run('MP.coop.end()');
+      await frames([A, B], 5);
+    }
+    ok(bad === 0, n + ' floors: identical on two clients, repeatable, no chests, pack -> unpack keeps the checksum');
+    ok(Math.max(...sizes) < 60000, 'a packed floor is ' + Math.min(...sizes) + ' to ' + Math.max(...sizes) + ' characters (sent in pieces of 6000)');
+    console.log('  (packed floors: ' + Math.min(...sizes) + ' to ' + Math.max(...sizes) + ' characters)');
   },
 
   async soloAfter() {
