@@ -167,7 +167,7 @@ const DOLL_DYES = [
   ['gold', 'Gold', { h: 44, s: 0.78, l: 0.52 }, '#e4ad25', 'grayscale(1) sepia(1) saturate(2.8) hue-rotate(6deg) brightness(1.15)'],
   ['amethyst', 'Amethyst', { h: 276, s: 0.50, l: 0.44 }, '#7c38a8', 'grayscale(1) sepia(1) saturate(2.2) hue-rotate(238deg)'],
 ];
-const DOLL_PRICE = { wing: 1000, hc: 150, dye: 120 };   // Gold
+const DOLL_PRICE = { wing: 1000, hc: 150, dye: 120 };   /* Gold */
 // the shop id of a choice in the dressing rows (null = not a shop thing): row 'cape' + a wing, row 'hc' + a wacky colour,
 // row '<slot>C' + a colourway
 function dollShopId(row, id) {
@@ -177,7 +177,7 @@ function dollShopId(row, id) {
   const sl = row.slice(0, -1);
   return row.slice(-1) === 'C' && DOLL_DYE_SLOTS.includes(sl) && DOLL_DYES.some(d => d[0] === id) ? 'dye:' + sl + ':' + id : null;
 }
-const dollOwns = sid => { try { return !!(MP.econ && MP.econ.owns(sid)); } catch (e) { return false; } };   // (MP: declared further down; nothing is owned while mp/econ.js is missing)
+const dollOwns = sid => { try { return !!(MP.econ && MP.econ.owns(sid)); } catch (e) { return false; } };   /* (MP: declared further down; nothing is owned while mp/econ.js is missing) */
 // the wings' art is loaded apart from the rest (see dollOptLoad in THE HERO): it may not be there yet, and a missing wing must
 // not keep the hero from being drawn
 const DOLL_OPT_FILES = ['m', 'f'].flatMap(sex => DOLL_WINGS.map(w => dollFile('cape', w[0], sex)));
@@ -2077,7 +2077,7 @@ function dollOptLoad(n, tries = 0) {
   img.src = `assets/doll/${n}.png?v=${BUILD}` + (tries ? `&r=${tries}` : '');
 }
 for (const n of DOLL_OPT_FILES) dollOptLoad(n);
-const dollHas = (slot, id, sex) => !dollWing(id) || (DOLL_OPT[dollFile(slot, id, sex)] === 1 && !!dollArt(dollFile(slot, id, sex)));   // is this piece's art there? (only wings can be missing)
+const dollHas = (slot, id, sex) => !dollWing(id) || (DOLL_OPT[dollFile(slot, id, sex)] === 1 && !!dollArt(dollFile(slot, id, sex)));   /* is this piece's art there? (only wings can be missing) */
 // ---- outfit colours: the colour maths, on plain RGBA numbers (no canvas here, so the tests can run it) ----
 function rgbHsl(r, g, b) {
   r /= 255; g /= 255; b /= 255;
@@ -2092,7 +2092,7 @@ function hslRgb(h, s, l) {
   const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][i];
   return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
-const DYE_GREY = 0.16, DYE_SPAN = 40;   // less saturated than this = a grey; how far (degrees) a hue may be from the main one and still be the fabric
+const DYE_GREY = 0.16, DYE_SPAN = 38;   /* less saturated than this = a grey; how far (degrees) a hue may be from the main one and still be the fabric */
 const hueGap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 // pixels a dye leaves alone: the dark outlines, and anything skin-coloured
 const dyeKeeps = (h, s, l) => l < 0.13 || (h >= 10 && h <= 34 && s >= 0.28 && s <= 0.8 && l >= 0.5 && l <= 0.9);
@@ -2107,6 +2107,11 @@ function dyePlan(data) {
   let best = 0, bestN = -1;
   for (let i = 0; i < BINS; i++) { const n = bins[(i + BINS - 1) % BINS] + bins[i] + bins[(i + 1) % BINS]; if (n > bestN) { bestN = n; best = i; } }
   const plan = { grey: grey >= bestN, hue: (best + 0.5) * (360 / BINS), l: 0.5, s: 0.5 };
+  if (!plan.grey) {   /* the middle of that family: the average hue of what lies around the fullest bin (hues go round a circle) */
+    let x = 0, y = 0;
+    for (const c of cols) if (c.s >= DYE_GREY && hueGap(c.h, plan.hue) <= 360 / BINS * 1.5) { x += Math.cos(c.h * Math.PI / 180) * c.n; y += Math.sin(c.h * Math.PI / 180) * c.n; }
+    if (x || y) plan.hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
   let n = 0, sl = 0, ss = 0;
   for (const c of cols) if (plan.grey ? c.s < DYE_GREY : c.s >= DYE_GREY && hueGap(c.h, plan.hue) <= DYE_SPAN) { n += c.n; sl += c.l * c.n; ss += c.s * c.n; }
   if (n) { plan.l = clamp(sl / n, 0.08, 0.92); plan.s = Math.max(0.05, ss / n); }
@@ -2137,15 +2142,15 @@ function dyePixels(data, dye, plan) {
   return changed;
 }
 // a piece's sheet in a colourway: made once and kept. (how: 'pixels' or, when the pixels can't be read, 'filter' / 'plain')
-const DYE_CACHE = new Map(), DOLL_STATS = { baked: 0, dyed: 0, how: '' };   // (DOLL_STATS: how many sheets were baked / pieces dyed: the tests count them)
-let DYE_BLOCKED = false;   // the browser won't let us read pixels (opened from a folder)
+const DYE_CACHE = new Map(), DOLL_STATS = { baked: 0, dyed: 0, how: '' };   /* (DOLL_STATS: how many sheets were baked / pieces dyed: the tests count them) */
+let DYE_BLOCKED = false;   /* the browser won't let us read pixels (opened from a folder) */
 function dyedArt(name, img, dyeId) {
   const dye = DOLL_DYES.find(d => d[0] === dyeId); if (!dye) return img;
   const k = name + '|' + dyeId; let c = DYE_CACHE.get(k); if (c) return c;
   c = document.createElement('canvas'); c.width = img.width; c.height = img.height; let g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   DOLL_STATS.dyed++; DOLL_STATS.how = 'pixels';
   if (!DYE_BLOCKED) try { g.drawImage(img, 0, 0); const id = g.getImageData(0, 0, c.width, c.height); dyePixels(id.data, dye[2]); g.putImageData(id, 0, 0); } catch (e) { DYE_BLOCKED = true; }
-  if (DYE_BLOCKED) {   // the whole piece through one filter (cruder: trims change colour too), still only once
+  if (DYE_BLOCKED) {   /* the whole piece through one filter (cruder: trims change colour too), still only once */
     c = document.createElement('canvas'); c.width = img.width; c.height = img.height; g = c.getContext('2d'); g.imageSmoothingEnabled = false;
     const can = typeof g.filter === 'string'; DOLL_STATS.how = can ? 'filter' : 'plain';
     if (can) g.filter = dye[4];
@@ -2159,7 +2164,7 @@ function dyedArt(name, img, dyeId) {
 function heroSheet(cls, L) {
   L = L && L.v === 2 ? L : L ? cleanLook(L, cls) : heroLook(cls);
   const sex = L.sex, wep = WEAPON_OF[cls] || 'sword';
-  if (dollWing(L.cape)) {   // wings whose art isn't there are left off (on their way: wait, like any piece)
+  if (dollWing(L.cape)) {   /* wings whose art isn't there are left off (on their way: wait, like any piece) */
     const st = DOLL_OPT[dollFile('cape', L.cape, sex)];
     if (st !== 1 || !dollArt(dollFile('cape', L.cape, sex))) { if (st === 0) return null; L = Object.assign({}, L, { cape: '' }); }
   }
@@ -2169,7 +2174,7 @@ function heroSheet(cls, L) {
   const base = dollArt('base_' + sex), skin = dollArt('base_' + sex + '_skin');
   const raw = sl => (L[sl] ? dollArt(dollFile(sl, L[sl], sex)) : null), need = DOLL_SLOTS.filter(sl => L[sl]);
   const hasWep = DOLL_WEP[sex].includes(wep), weapon = hasWep ? dollArt(dollFile('wep', wep, sex)) : null;
-  if (!base || !skin || need.some(sl => !raw(sl)) || (hasWep && !weapon)) return null;   // still loading
+  if (!base || !skin || need.some(sl => !raw(sl)) || (hasWep && !weapon)) return null;   /* still loading */
   const lay = sl => (raw(sl) && dyeOf(sl) ? dyedArt(dollFile(sl, L[sl], sex), raw(sl), dyeOf(sl)) : raw(sl));   /* the piece, in its colourway */
   const tone = (SKIN_TONES.find(t => t[0] === L.s) || SKIN_TONES[1])[2], hcol = (HAIR_COLORS.find(t => t[0] === L.hc) || HAIR_COLORS[1])[2];
   const c = document.createElement('canvas'); c.width = base.width; c.height = base.height; const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
@@ -2212,7 +2217,7 @@ const DRESS_ROW = i => PORTRAIT() ? { x: DRESS.x + 22, y: DRESS_PV().y + DRESS_P
 const DRESS_ARROW = (i, d) => { const r = DRESS_ROW(i), s = Math.min(34, r.h); return { x: d < 0 ? r.x + 118 : r.x + r.w - s - 2, y: r.y + (r.h - s) / 2, w: s, h: s }; };
 // a dyeable row's colourway button (left of its right arrow): press to step through the piece's colours
 const DRESS_DYE = i => { const a = DRESS_ARROW(i, 1); return { x: a.x - a.w - 6, y: a.y, w: a.w, h: a.h }; };
-const dressDyeable = (L, row) => DOLL_DYE_SLOTS.includes(row) && !!L[row] && !dollWing(L[row]);   // does this row show a colourway button now?
+const dressDyeable = (L, row) => DOLL_DYE_SLOTS.includes(row) && !!L[row] && !dollWing(L[row]);   /* does this row show a colourway button now? */
 const DRESS_DONE = { x: DRESS.x + DRESS.w - 176, y: DRESS.y + DRESS.h - 54, w: 156, h: 40 };
 const DRESS_ALL = { x: 0, y: 0, w: 0, h: 0 };   // "wear this as every class"
 function dressLayout() {
@@ -2313,7 +2318,7 @@ function drawDress() {
     label(nm, r.x, r.y + r.h / 2, { size: 15, bold: true, color: sel ? PAL.gold : PAL.cream });
     for (const d of [-1, 1]) { const a = DRESS_ARROW(i, d); button(a, d < 0 ? '◀' : '▶', { hover: inRect(mouse, a), size: 13 }); }
     const dy = dressDyeable(L, row), dr = dy ? DRESS_DYE(i) : null, dye = dy && DOLL_DYES.find(x => x[0] === L[row + 'C']);
-    if (dy) {   // the colourway button: the colour's swatch (a hollow one = as painted), a small padlock while it isn't yours
+    if (dy) {   /* the colourway button: the colour's swatch (a hollow one = as painted), a small padlock while it isn't yours */
       button(dr, '', { hover: inRect(mouse, dr) });
       if (dye) { ctx.fillStyle = dye[3]; rr(dr.x + 8, dr.y + 8, dr.w - 16, dr.h - 16, 3); ctx.fill(); }
       ctx.strokeStyle = dye ? 'rgba(0,0,0,0.6)' : PAL.dim; ctx.lineWidth = 1; rr(dr.x + 8, dr.y + 8, dr.w - 16, dr.h - 16, 3); ctx.stroke();
