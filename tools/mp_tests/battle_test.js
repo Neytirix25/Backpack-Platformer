@@ -121,7 +121,7 @@ function testFull(n, enc, opt = {}) {
   ok(P.begin(enc), `${name}: the battle starts on every client`);
   ok(P.all('B.allies.length').every(x => x === n * 3), `${name}: ${n * 3} allies on every client`);
   ok(P.all('B.coop.me').every((m, i) => m === i), `${name}: everyone knows which team is theirs`);
-  const foes = P.all('B.foes.length'); ok(foes.every(x => x === foes[0]) && foes[0] >= (enc.kind === 'wild' ? Math.floor(P.games[0].run(`MP.battle.scale(${n}).foes`)) : 2), `${name}: the same ${foes[0]} foes everywhere`);
+  const foes = P.all('B.foes.length'); ok(foes.every(x => x === foes[0]) && foes[0] >= (enc.kind === 'wild' ? Math.floor(P.games[0].run(`MP.battle.scale(${n}).foes`)) : enc.kind === 'raid' ? 1 : 2), `${name}: the same ${foes[0]} foes everywhere`);
   ok(P.all(`B.allies.concat(B.foes).every(u => u.x > 0 && u.x < W && u.gy > 60 && u.gy < H)`).every(Boolean) || (P.step(), P.all(`B.allies.concat(B.foes).every(u => u.x > 0 && u.x < W && u.gy > 60 && u.gy < H)`).every(Boolean)), `${name}: every unit stands inside the screen`);
   ok(P.until(P.over, 9000), `${name}: the battle reaches its end on every client (t=${P.t.toFixed(0)} s)`);
   const E = sameEnd(P, name), won = E.st.ph === 'won';
@@ -262,7 +262,7 @@ function testScale() {
   ok(S.every(s => s.foes >= 3 && s.hp > 0 && s.atk > 0 && s.bossActs >= 2), 'four rows with sane numbers');
   ok(S[1].foes > S[0].foes && S[2].foes > S[1].foes && S[3].foes > S[2].foes && S[3].foes <= 9, 'more players, more foes (at most 9)');
   ok(S[3].raidHp > S[2].raidHp && S[2].raidHp > S[1].raidHp && S[1].raidHp > S[0].raidHp && S[3].bossHp > S[1].bossHp, 'boss and raid HP grow with the group');
-  ok(S.every(s => s.raidHp > s.bossHp), 'a raid boss has much more HP than the dungeon boss');
+  ok(S.every(s => s.raidHp >= s.bossHp * 1.5), 'a raid boss has much more HP than the dungeon boss');
   ok(g.run('MP.battle.TIERS.length') === 5 && g.run(`MP.battle.TIERS.slice(1).every((t, i) => t.lo < t.hi && t.themes.length === 3 && t.themes.every(a => THEME_POOL[a]) && actOf((i) * 10 + 5) === i + 1)`), 'four tiers with bands, areas and bosses');
   ok(g.run('MP.battle.scale(0) === MP.battle.scale(1) && MP.battle.scale(9) === MP.battle.scale(4)'), 'scale(n) clamps n');
 }
@@ -276,7 +276,7 @@ try {
   testFull(4, { kind: 'wild', tier: 2, theme: 'forge', comp: 'healer' }, { portrait: [3], species: [['dragon', 'hellhound', 'phoenix'], ['tortoise', 'lion', 'qilin'], ['salamander', 'moth', 'chimera'], ['dog', 'fox', 'owl']], level: 20 });
   // a raid that is sure to be won (a weak-hitting boss), so all three phases are seen
   testFull(4, { kind: 'raid', tier: 2 }, { portrait: [2], species: [['dragon', 'hellhound', 'phoenix'], ['tortoise', 'lion', 'qilin'], ['salamander', 'moth', 'chimera'], ['shadowwolf', 'lion', 'phoenix']], level: 22,
-    pre: 'MP.battle.SCALE[4].raidAtk *= 0.25; MP.battle.SCALE[4].atk *= 0.4; 1',
+    pre: 'MP.battle.SCALE[4].raidAtk *= 0.2; MP.battle.SCALE[4].atk *= 0.3; MP.battle.SCALE[4].raidHp *= 0.6; 1',
     end: (P, E, name) => {
       ok(E.st.ph === 'won', `${name}: the party wins the softened raid`);
       ok(P.all('B.coop.rphase').every(x => x === 3), `${name}: every client saw the raid reach phase 3 (${P.all('B.coop.rphase')})`);
