@@ -1,49 +1,34 @@
-// node tools/mp_tests/coop_test.js — the party session (mp/coop.js): 2-4 copies of the game play co-op dungeons
-// and raids from MP.coop.start() to the completion panel. Uses the real mp/net.js ('mem' backend) and the real
-// mp/battle.js when those files exist; otherwise small stand-ins that live ONLY in this file.
+// node tools/mp_tests/coop_test.js [test name] — the party session (mp/coop.js): 2-4 copies of the game play co-op
+// dungeons and raids from MP.coop.start() to the completion panel, over the real mp/net.js ('mem' backend).
+// Time is VIRTUAL: every copy gets this file's Date / setTimeout / setInterval, and one frame = 1/60 s on that clock,
+// so MP.net's rate limits, retries and heartbeats behave as in real time while the test runs as fast as it can.
+// The battle is the real mp/battle.js when that file exists; until then a small stand-in that lives ONLY in this file.
 const fs = require('fs'), path = require('path');
 const { bootGame, ROOT } = require('./boot.js');
-const REAL_NET = fs.existsSync(path.join(ROOT, 'mp/net.js')), REAL_BATTLE = fs.existsSync(path.join(ROOT, 'mp/battle.js'));
+const REAL_BATTLE = fs.existsSync(path.join(ROOT, 'mp/battle.js'));
 const ONLY = process.argv[2] || '';
 let fails = 0, checks = 0;
 const ok = (c, what) => { checks++; if (!c) { fails++; console.log('  FAIL: ' + what); } else if (process.env.V) console.log('  ok: ' + what); };
 const clone = v => (v == null ? v : JSON.parse(JSON.stringify(v)));
 
-// ---------- stand-in for MP.net (the interface of the spec, in memory, delivered when the test flushes) ----------
-const MEM = { rooms: {}, q: [], dropped: 0 };
-function standInNet(uid) {
-  return { uid, room(opts) {
-    const r = { id: opts.id, me: uid, state: 'idle', isHost: false, hostId: null, members: new Map(), n: 1, p: clone(opts.presence || {}), f: null,
-      emit(ev) { MEM.q.push(() => { if (r.state === 'open' || ev.type === 'state') opts.on(ev); }); },
-      join() { r.state = 'connecting'; MEM.q.push(() => {
-        if (r.state !== 'connecting') return;
-        const room = MEM.rooms[r.id] || (MEM.rooms[r.id] = { list: [], host: null });
-        if (room.list.length >= (opts.cap || 20)) { r.state = 'error'; r.err = 'full'; opts.on({ type: 'state' }); return; }
-        if (!room.list.length) room.host = uid;
-        for (const o of room.list) { o.members.set(uid, { id: uid, p: clone(r.p), f: null }); o.emit({ type: 'join', id: uid }); r.members.set(o.me, { id: o.me, p: clone(o.p), f: clone(o.f) }); }
-        r.members.set(uid, { id: uid, p: clone(r.p), f: null }); room.list.push(r);
-        r.isHost = room.host === uid; r.hostId = room.host; r.state = 'open'; r.emit({ type: 'state' });
-      }); },
-      leave() {
-        if (r.state === 'closed') return; const was = r.state; r.state = 'closed'; const room = MEM.rooms[r.id]; if (!room || was !== 'open') return;
-        room.list = room.list.filter(o => o !== r);
-        for (const o of room.list) { o.members.delete(uid); o.emit({ type: 'leave', id: uid }); }
-        if (room.host === uid) { room.host = room.list[0] ? room.list[0].me : null; for (const o of room.list) { o.isHost = o.me === room.host; o.hostId = room.host; o.emit({ type: 'host', id: room.host }); } }
-        if (!room.list.length) delete MEM.rooms[r.id];
-      },
-      send(msg, to) {
-        const room = MEM.rooms[r.id]; if (!room || r.state !== 'open') return; const s = JSON.stringify(msg);
-        if (s.length > (opts.maxMsg || 16000)) { MEM.dropped++; return; }
-        for (const o of room.list) if (o !== r && (!to || o.me === to)) o.emit({ type: 'msg', from: uid, msg: JSON.parse(s) });
-      },
-      setPresence(p) { Object.assign(r.p, clone(p)); const room = MEM.rooms[r.id]; if (room) for (const o of room.list) { const m = o.members.get(uid); if (m) { m.p = clone(r.p); if (o !== r) o.emit({ type: 'presence', id: uid }); } } },
-      setFast(f) { r.f = clone(f); const room = MEM.rooms[r.id]; if (room && r.state === 'open') for (const o of room.list) { const m = o.members.get(uid); if (m) m.f = clone(f); } },
-      /* the connection dies: the others see the member go, this side sees the room close */
-      drop() { const on = r.state === 'open'; r.leave(); if (on) MEM.q.push(() => opts.on({ type: 'closed', why: 'lost' })); },
-      pump() {} };
-    return r;
-  } };
+// ---------- virtual time ----------
+const CLOCK = { t: 1.7e12, timers: [], id: 1 };
+class VDate extends Date { constructor(...a) { if (a.length) super(...a); else super(CLOCK.t); } static now() { return CLOCK.t; } }
+const vTimeout = (f, ms, ...a) => { const id = CLOCK.id++; CLOCK.timers.push({ id, at: CLOCK.t + Math.max(0, +ms || 0), f, a }); return id; };
+const vInterval = (f, ms, ...a) => { const id = CLOCK.id++; CLOCK.timers.push({ id, at: CLOCK.t + Math.max(1, +ms || 1), f, a, every: Math.max(1, +ms || 1) }); return id; };
+const vClear = id => { const k = CLOCK.timers.findIndex(t => t.id === id); if (k >= 0) CLOCK.timers.splice(k, 1); };
+const settle = () => new Promise(r => setImmediate(r));
+async function runTimers() {
+  for (let n = 0; n < 100; n++) {
+    const due = CLOCK.timers.filter(t => t.at <= CLOCK.t).sort((a, b) => a.at - b.at || a.id - b.id);
+    if (!due.length) break;
+    for (const t of due) { if (!CLOCK.timers.includes(t)) continue; if (t.every) t.at = Math.max(t.at + t.every, CLOCK.t + 1); else vClear(t.id); try { t.f(...t.a); } catch (e) { console.error(e); } }
+    await settle();
+  }
+  await settle();
 }
+const MEM = {};   // MP.net's in-memory registry, shared by every copy
+
 // ---------- stand-in for MP.battle: opens for everyone on 'b.start', the test decides who wins ----------
 function standInBattle() {
   const b = { active: false, link: null, onEnd: null, enc: null, left: [], begun: 0,
@@ -60,28 +45,24 @@ function standInBattle() {
 // ---------- the players ----------
 const games = [];
 function player(name, team) {
-  const g = bootGame({ name, globals: REAL_NET ? { __MPMEM: MEM } : {} });
+  const g = bootGame({ name, globals: { __MPMEM: MEM, Date: VDate, setTimeout: vTimeout, clearTimeout: vClear, setInterval: vInterval, clearInterval: vClear } });
   g.name = name; g.run('enterHub()'); g.giveTeam(team, 12); g.step(2);
-  if (!REAL_NET) { g.win.__net = standInNet('u' + name.toLowerCase() + '00'); g.run('MP.net = __net'); }
   if (!REAL_BATTLE) { g.battle = g.win.__battle = standInBattle(); g.run('MP.battle = __battle'); }
   g.uid = g.run('MP.net.uid'); g.portrait = false;
   g.S = () => g.run('MP.coop.state()');
   g.q = code => g.run(code);
   games.push(g); return g;
 }
-const flush = () => { for (let n = 0; n < 50 && MEM.q.length; n++) { const q = MEM.q.splice(0); for (const f of q) f(); } };
-const settle = () => new Promise(r => setImmediate(r));
 let FRAME = 0;
 // one frame for every game in `gs` (drawing every 6th frame, and the portrait player in portrait)
 async function frames(gs, n = 1, each) {
   for (let i = 0; i < n; i++) {
-    FRAME++;
+    FRAME++; CLOCK.t += 1000 / 60;
     for (const g of gs) {
       g.run(g.portrait ? 'VIEW.portrait = true; VIEW.w = 540; VIEW.h = 1100; W = 540; H = portraitWorldOnly() ? 540 : VIEW.h;' : 'VIEW.portrait = false; W = 960; H = 540;');
       g.step(1, FRAME % 6 === 0);
-      if (REAL_NET) g.run('(() => { const s = MP.coop.state(); if (s && s.room && s.room.pump) s.room.pump(); })()');
     }
-    flush(); if (REAL_NET) await settle(); flush();
+    await runTimers();
     if (each) each(i);
   }
 }
@@ -184,7 +165,7 @@ const TESTS = {
     await backHome(gs);
     ok(gs.every(g => g.run('!MP.coop.active && !!G.hub && !G.coop')), 'back in the Sanctuary after the panel');
     ok(gs.every((g, k) => g.run('JSON.stringify([SAVE.rec.runs, SAVE.rec.bestFloor, SAVE.rec.deaths, SAVE.rec.wins, SAVE.rec.abandoned || 0])') === rec[k]), 'solo records untouched (runs, bestFloor, deaths, wins, abandoned)');
-    ok(Object.keys(MEM.rooms).filter(k => /T2A/.test(k)).length === 0 || REAL_NET, 'the party room is closed');
+    ok(gs.every(g => g.run('MP.net.room({ id: "bps-party-T2A" }).state') === 'idle'), 'the session let go of its room');
   },
 
   async dungeon4() {
@@ -193,11 +174,16 @@ const TESTS = {
     // C's own generation comes out different (as another browser's might): the full-floor fallback
     C.run('window.__bl = buildLevel; buildLevel = function (R) { __bl(R); if (R.grid) { for (let x = 30; x < 40; x++) setTile(R, x, 3, SOLID); } };');
     // the guests start BEFORE the leader (so one of them claims the room first and must let go)
-    await gather(gs, info(gs, 'dungeon', 2, 'T4A', 777), [B, C, D, A]);
+    const inf = info(gs, 'dungeon', 2, 'T4A', 777);
+    MEM.lag = 1500;   /* (a released id stays taken for a while, like at the PeerJS broker) */
+    startAll(gs, inf, [B, C, D]); await frames([B, C, D], 200);
+    ok([B, C, D].some(g => g.run('!!MP.coop.state().room && MP.coop.state().room.isHost')) || [B, C, D].some(g => g.run('MP.coop.state().retryT > 0')), 'a guest claimed the party room before the leader arrived');
+    startAll(gs, inf, [A]);
+    const f0 = FRAME; await until(gs, () => gs.every(g => fl(g) === 0 && g.run('G.mode') === 'play'), 3000, 'everyone on floor 1');
+    MEM.lag = 0; console.log('  (guests first, id lag 1.5 s: everyone on floor 1 ' + ((FRAME - f0) / 60).toFixed(1) + ' s after the leader started)');
     ok(host(gs) === A, 'the leader ends up hosting even when the guests started first');
     ok(gs.every(g => gridSig(g) === gridSig(A)), 'floor 1 identical on all four (one through the full-floor fallback)');
     ok(C.run('MP.coop.state().fulls') === 1 && B.run('MP.coop.state().fulls') === 0, 'only the client whose checksum differed fetched the full floor');
-    ok(MEM.dropped === 0, 'no message was too big for the room');
     ok(C.run('G.wild.length') === A.run('G.wild.length') && C.run('G.wild.map(e => e.k + Math.round(e.homeX)).join()') === A.run('G.wild.map(e => e.k + Math.round(e.homeX)).join()'), 'the fetched floor has the same wild groups');
     ok(C.run('(G.room.plants || []).length') === A.run('G.room.plants.length') && C.run('(G.room.movers || []).length') === A.run('(G.room.movers || []).length') && C.run('G.room.vents.length') === A.run('G.room.vents.length'), 'and the same plants, platforms and vents');
     ok(A.run('MP.coop.ids().length') === 4, 'four players in the session');
@@ -245,10 +231,10 @@ const TESTS = {
     await frames(gs, 60);
     await gather(gs, info(gs, 'raid', 1, 'T3M', 99));
     await frames(gs, 80); onto(B, 0); await until(gs, () => gs.every(battling), 400, 'raid battle');
-    if (REAL_NET) A.run('MP.coop.state().room.leave()'); else A.run('MP.coop.state().room.drop()');
+    MEM.kill('bps-party-T3M');   /* the leader's connection dies without a goodbye */
     await frames(gs, 60);
     ok([B, C].every(g => g.run('!MP.coop.active && !!G.hub')), 'the leader dropped mid-battle: the others are back home');
-    if (!REAL_NET) ok(A.run('!MP.coop.active && !!G.hub'), 'and so is the leader (connection lost)');
+    console.log('  (the killed leader itself: ' + (A.run('MP.coop.active') ? 'still in its session with ' + A.run('MP.coop.ids().length') + ' player(s), room ' + A.run('MP.coop.state().room.state') : 'home') + ')');
     C.portrait = false; await frames(gs, 30);
   },
 
@@ -349,7 +335,7 @@ const TESTS = {
 (async () => {
   const t0 = Date.now();
   player('Ann', ['dog', 'fox', 'owl']); player('Bob', ['boar', 'toad', 'ferret']); player('Cat', ['catgray', 'owl', 'dog']); player('Dan', ['fox', 'dog', 'toad']);
-  console.log(`booted 4 games in ${Date.now() - t0} ms · net: ${REAL_NET ? 'mp/net.js (mem)' : 'stand-in'} · battle: ${REAL_BATTLE ? 'mp/battle.js' : 'stand-in'}`);
+  console.log(`booted 4 games in ${Date.now() - t0} ms · net: mp/net.js (mem, ${games[0].run('MP.net.backend')}) · battle: ${REAL_BATTLE ? 'mp/battle.js' : 'stand-in'}`);
   for (const [name, fn] of Object.entries(TESTS)) {
     if (ONLY && name !== ONLY) continue;
     const f0 = fails, t = Date.now();

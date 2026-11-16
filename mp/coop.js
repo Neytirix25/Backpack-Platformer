@@ -7,8 +7,9 @@
 //
 //  HOW A SESSION GOES
 //  1. Gathering. start() leaves the hub, builds a little antechamber (the co-op world: G.coop is set, NOT G.hub; no
-//     backpack, no chests, no solo records) and opens the party room 'bps-party-<code>'. The LEADER claims it; a
-//     guest who got there first (and so became the room's host) lets go and tries again, until the leader hosts.
+//     backpack, no chests, no solo records) and opens the party room 'bps-party-<code>'. The LEADER claims it (the
+//     guests wait 2 s before their first try); if a guest got there first and became the room's host, everyone
+//     lets go of that room and tries again a little later, until the leader hosts.
 //     When every listed member is in, or 12 s after the first guest arrived, the leader starts with who is there.
 //     Nobody after 20 s: back to the street. (A listed member who arrives late is sent the current floor.)
 //  2. The world. A DUNGEON is 3 platforming floors (the tier's three areas, in an order picked by the seed; the
@@ -101,7 +102,7 @@
           door: {}, cd: 0, wildT: 0, touchT: 0, pend: null, cur: null, result: null, myDoor: false, order: null, sums: {}, fulls: 0 };
     MP.coop.active = true;
     makeWorld();
-    S.retryT = info.leader === MP.net.uid ? 0 : 0.6;   /* (the leader gets a head start at claiming the room) */
+    S.retryT = info.leader === MP.net.uid ? 0 : 2;   /* (the leader gets a head start at claiming the room) */
     if (!S.retryT) openRoom();
     return true;
   }
@@ -475,7 +476,7 @@
     if (!G || G.coop !== S) { quit(); return; }   /* the world was replaced under us */
     S.t += dt; S.grace -= dt; if (S.result) S.result.t = (S.result.t || 0) + dt;
     const room = S.room;
-    if (S.retryT > 0 && (S.retryT -= dt) <= 0) { S.retryT = 0; try { if (room && room.state !== 'closed') room.leave(); } catch (e) {} openRoom(); return; }
+    if (S.retryT > 0 && (S.retryT -= dt) <= 0) { S.retryT = 0; S.room = null; try { if (room && room.state !== 'closed') room.leave(); } catch (e) {} openRoom(); return; }
     if (S.phase === 'gather') gatherTick();
     if (!S) return;
     const open = room && room.state === 'open', P = G.player;
@@ -525,7 +526,14 @@
     const leader = S.leader === me(), here = open ? ids() : [me()];
     if (S.t > GATHER_MAX && here.length < 2 && !S.pend) { end('Nobody else made it to the party: back to the street.'); return; }
     if (S.t > GATHER_MAX + 16 && !S.pend) { end('The party never set out: back to the street.'); return; }
-    if (open && room.isHost && !leader) { if (!S.retryT) S.retryT = 1.5; return; }   /* I claimed the room before the leader could: let go, try again */
+    // the room is hosted by somebody who is not the leader (a guest got there first): everyone lets go of it and
+    // comes back a little later, each guest at its own moment, so the id is free for the leader to claim
+    if (open && room.hostId !== S.leader) {
+      S.tries = (S.tries || 0) + 1; S.retryT = leader ? 0.6 : 2 + 0.7 * S.listed.indexOf(me()) + 0.5 * Math.min(4, S.tries);
+      S.room = null; S.others.clear(); S.firstGuest = null;
+      try { room.leave(); } catch (e) {}
+      return;
+    }
     if (here.length > 1 && S.firstGuest == null) S.firstGuest = S.t;
     if (leader && open && room.isHost && !S.pend) {
       if (here.length >= 2 && (here.length >= S.listed.length || S.t - S.firstGuest > GATHER_GO)) { hostFloor(0); S.pend.go = true; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door'); return; }
