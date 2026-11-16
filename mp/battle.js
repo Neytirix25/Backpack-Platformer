@@ -51,10 +51,10 @@
   // burns everybody; these make every tier land on the same win rates). wildMul = its animals, in every fight;
   // bossMul[n] / raidMul[n] = every foe of its boss fight / its raid, for n players.
   const TIERS = [null,
-    { name: 'The Dungeon', lo: 4, hi: 13, themes: ['hall', 'cave', 'crypt'], boss: 'shadow', wildMul: [0.865, 1.5], bossMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]], raidMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]] },
-    { name: 'The Burning Depths', lo: 14, hi: 26, themes: ['forge', 'hollow', 'sanctum'], boss: 'elder', wildMul: [0.975, 0.9], bossMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]], raidMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]] },
-    { name: 'The Fey Wilds', lo: 25, hi: 34, themes: ['thornwood', 'glade', 'lake'], boss: 'wyrm', wildMul: [1.09, 0.62], bossMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]], raidMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]] },
-    { name: 'The Drowned Deep', lo: 32, hi: 37, themes: ['temple', 'coral', 'trench'], boss: 'rune', wildMul: [1.11, 1.21], bossMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]], raidMul: [null, [1, 1], [1, 1], [1, 1], [1, 1]] }];
+    { name: 'The Dungeon', lo: 4, hi: 13, themes: ['hall', 'cave', 'crypt'], boss: 'shadow', wildMul: [0.865, 1.5], bossMul: [null, [1.03, 0.55], [1.11, 0.75], [1.22, 1.02], [1.18, 1.13]], raidMul: [null, [0.78, 0.52], [0.86, 0.71], [1.04, 1.05], [0.98, 1.13]] },
+    { name: 'The Burning Depths', lo: 14, hi: 26, themes: ['forge', 'hollow', 'sanctum'], boss: 'elder', wildMul: [0.975, 0.9], bossMul: [null, [1.03, 1.01], [0.98, 0.89], [0.94, 0.86], [0.96, 0.91]], raidMul: [null, [0.81, 0.79], [0.72, 0.86], [0.69, 1.12], [0.64, 1.17]] },
+    { name: 'The Fey Wilds', lo: 25, hi: 34, themes: ['thornwood', 'glade', 'lake'], boss: 'wyrm', wildMul: [1.09, 0.62], bossMul: [null, [0.78, 1.9], [0.88, 2.15], [0.91, 2.5], [0.93, 2.62]], raidMul: [null, [0.55, 1.7], [0.59, 2.16], [0.7, 3.14], [0.69, 3.14]] },
+    { name: 'The Drowned Deep', lo: 32, hi: 37, themes: ['temple', 'coral', 'trench'], boss: 'rune', wildMul: [1.11, 1.21], bossMul: [null, [0.76, 1.16], [0.85, 2.02], [0.9, 2.25], [0.97, 2.34]], raidMul: [null, [0.52, 1.83], [0.61, 2.14], [0.68, 3.06], [0.73, 3.02]] }];
   // ---------- the scale table: everything that changes with the number of players ----------
   // foes: wild animals in a group (x.5 = one more half the time) · hp / atk: each wild foe's multipliers (a boss's
   // helpers and raid adds use them too) · aoe: how hard a FOE's hit-everyone move lands on each of the party's pets
@@ -310,7 +310,7 @@
       side: { ally: { syn, first: 0, amp, dur: 0 }, foe: { syn: fsyn, first: numIn(fs.first, 0, 1, 0), amp: { stunAmp: numIn(fa.stunAmp, 0, 2, 0), blindAmp: numIn(fa.blindAmp, 0, 2, 0), poisonAmp: numIn(fa.poisonAmp, 0, 2, 0) }, dur: 0 } },
       saved: { stats, team: G.team, syn: G.syn }, xp0: xpBaseOf(foes, enc), rounds: 0 };
     if (myP >= 0) allies.filter(u => u.p === myP).forEach(u => { u.own = (items || [])[u.oslot] || null; });
-    stats = computeStats([], G.cls); G.panel = null; PK = null;
+    stats = computeStats([], G.cls); G.panel = null; PK = null; G.coll = null;
     const boss = foes.find(f => f.boss);
     B = { ent: { coop: true, boss: boss ? boss.boss : undefined, comp: enc.comp }, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: C.fast ? 0 : 1, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
           boss: boss ? boss.boss : null, rewards: null, reviveUsed: true, t: 0, coop: C };
@@ -601,7 +601,7 @@
       return;
     }
     if (m.t === 'b.abort') { if (coopOn() && B.coop.hostId === from) MB.abort(typeof m.why === 'string' ? m.why.slice(0, 80) : 'The battle was called off.'); return; }
-    if (coopOn() && !B.coop.host && B.coop.hostId === from && B.coop.q.length < 400) B.coop.q.push(m);
+    if (coopOn() && !B.coop.host && B.coop.hostId === from && B.coop.q.length < 4000) B.coop.q.push(m);
   };
 
   // ---------- the end: XP, bond, HP back into the run ----------
