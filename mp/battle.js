@@ -52,7 +52,8 @@
 //  XP: winBattle's formula over the foes the battle STARTED with, counted as a solo-sized group (three wild animals,
 //  or the boss and two minions), full for every player, x2 for a raid; bond +1 wild / +3 boss / +5 raid (+1 on a loss).
 //  OFFSPRING (offspring()): after a won wild fight every player rolls the solo game's baby chances for themselves;
-//  a won boss fight / raid gives one baby of a helper species. Babies join the Sanctuary directly (no eggs, no backpack).
+//  a won boss fight / raid gives one baby of a helper species, and a won raid a 60% chance (each player) of the raid
+//  boss's own baby (MB.RAID_OFFSPRING). Babies join the Sanctuary directly (no eggs, no backpack).
 //
 //  LAYOUT (MB.place): non-overlapping cells, one block per team with a coloured marker; see the comment there.
 //  tools/mp_tests/battle_layout_dump.js draws it as text for every group size, kind of fight and screen shape.
@@ -718,10 +719,13 @@
   // OFFSPRING (each player rolls for themselves, on their own game, after a win). A wild fight follows the solo rule
   // (winBattle): a sure baby from every species beaten that you do not own yet, a 25% chance (Rogue 50%) from each
   // you do. A boss fight or a raid: one sure baby of ONE random species among the boss's helpers / adds, if it had
-  // any (never the boss itself, a shade or the Elder Dragon; no achievements). There is no backpack in co-op, so an
+  // any (never the boss itself, a shade or the Elder Dragon; no achievements). A won RAID also gives each player a 60%
+  // chance (MB.RAID_OFFSPRING, their own roll) of a baby of the raid boss itself, owned already or not. There is no backpack in co-op, so an
   // egg-laying species gives no egg item: its baby joins the Sanctuary at once, as a hatched egg would (unlockPet
   // keeps SAVE.coll and SAVE.rec.rescues / shinies right; born.how = 'hatched' or 'rescued').
   MB._roll = null;   /* (tests put their own dice here) */
+  MB._offspring = C => offspring(C);   /* (for the tests) */
+  MB.RAID_OFFSPRING = 0.6;   /* a won raid: each player's chance of a baby of the raid boss (Shadow Pup, Elder Drake hatchling, Wyrmling, Runeshell Hatchling) */
   function offspring(C) {
     const okK = k => k !== 'shade' && k !== 'elder' && BS[k] && BS[k].off && ITEMS['pet_' + k], out = [];
     const give = k => {
@@ -730,6 +734,10 @@
     };
     if (C.enc.kind === 'wild') { for (const k of [...new Set(B.foes.filter(f => !f.boss && !f.summoned).map(f => f.k))].filter(okK)) if (!owned(k) || (MB._roll || Math.random)() < (G.cls === 'rogue' ? 0.5 : 0.25) + ((stats && stats.offspring) || 0)) give(k); }
     else { const ks = [...C.seen].filter(okK); if (ks.length) give(ks[Math.floor(Math.random() * ks.length)]); }
+    if (C.enc.kind === 'raid') {   /* a won raid: each player also has a RAID_OFFSPRING chance of a baby of the raid boss itself */
+      const bk = (B.foes.find(f => f.boss) || {}).k;
+      if (bk && BS[bk] && ITEMS['pet_' + bk] && (MB._roll || Math.random)() < MB.RAID_OFFSPRING) give(bk);
+    }
     return out;
   }
   function restore(C) { stats = C.saved.stats; G.team = C.saved.team; G.syn = C.saved.syn; try { stats = computeStats(); G.team = teamMods(); } catch (e) {} }
