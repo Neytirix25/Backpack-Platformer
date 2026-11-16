@@ -1,40 +1,8 @@
 // Tests of the Kingdom Street (mp/hub.js): node tools/mp_tests/hub_test.js   (exits non-zero on a failure)
-// Several copies of the game share one in-memory network registry (window.__MPMEM). With mp/net.js present its own
-// 'mem' backend is used; without it, the small stand-in below plays MP.net (same interface, no host relay).
+// Several copies of the game share one in-memory network registry (window.__MPMEM: the 'mem' backend of mp/net.js),
+// with the network's timings shrunk so the whole thing runs in well under a minute.
 const { bootGame } = require('./boot.js');
-
-const STANDIN = `(() => {
-  if (MP.net) return;
-  const REG = window.__MPMEM; REG.rooms = REG.rooms || {};
-  const uid = Array.from({ length: 10 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
-  const copy = o => JSON.parse(JSON.stringify(o === undefined ? null : o));
-  MP.net = { uid, standin: true, room(opts) {
-    const room = { state: 'idle', me: uid, members: new Map(), n: 0, id: '', isHost: false, hostId: null, err: '' };
-    const fire = ev => { try { opts.on && opts.on(ev); } catch (e) { console.error(e); } };
-    let shared = null; const pres = copy(opts.presence || {}), peer = { uid, room, fire, p: pres, f: null };
-    room.join = () => {
-      if (REG.down) { room.state = 'error'; room.err = 'down'; fire({ type: 'state' }); return; }
-      let n = 1;
-      for (;; n++) { const id = opts.prefix ? opts.prefix + n : opts.id, r = REG.rooms[id] || (REG.rooms[id] = { id, peers: [], seq: 0 }); if (r.peers.length < (opts.cap || 20)) { shared = r; break; } if (!opts.prefix) { room.state = 'error'; room.err = 'full'; return; } }
-      room.n = n; room.id = shared.id; peer.seq = ++shared.seq;
-      for (const q of shared.peers) room.members.set(q.uid, { id: q.uid, p: copy(q.p), f: copy(q.f), seq: q.seq });
-      room.members.set(uid, { id: uid, p: copy(pres), f: null, seq: peer.seq });
-      shared.peers.push(peer); room.hostId = shared.peers[0].uid; room.isHost = room.hostId === uid;
-      room.state = 'open'; fire({ type: 'state' });
-      for (const q of shared.peers) if (q !== peer) { q.room.members.set(uid, { id: uid, p: copy(pres), f: null, seq: peer.seq }); q.fire({ type: 'join', id: uid }); }
-    };
-    room.leave = () => {
-      if (!shared) { room.state = 'closed'; return; }
-      const r = shared, wasHost = room.isHost; shared = null; r.peers = r.peers.filter(q => q !== peer); room.state = 'closed';
-      for (const q of r.peers) { q.room.members.delete(uid); q.fire({ type: 'leave', id: uid }); if (wasHost) { q.room.hostId = r.peers[0].uid; q.room.isHost = q.room.hostId === q.uid; q.fire({ type: 'host', id: q.room.hostId }); } }
-    };
-    room.send = (msg, to) => { if (!shared || !msg || typeof msg.t !== 'string') return; const js = JSON.stringify(msg); if (js.length > (opts.maxMsg || 16000)) return; for (const q of shared.peers.slice()) if (q !== peer && (!to || q.uid === to)) q.fire({ type: 'msg', from: uid, msg: JSON.parse(js) }); };
-    room.setPresence = patch => { Object.assign(pres, copy(patch)); if (!shared) return; room.members.get(uid).p = copy(pres); for (const q of shared.peers) if (q !== peer) { const m = q.room.members.get(uid); if (m) { m.p = copy(pres); q.fire({ type: 'presence', id: uid }); } } };
-    room.setFast = f => { peer.f = copy(f); if (!shared) return; for (const q of shared.peers) if (q !== peer) { const m = q.room.members.get(uid); if (m) m.f = copy(f); } };
-    room.pump = () => {};
-    return room;
-  } };
-})();`;
+const FAST_T = { pump: 25, pres: 40, fast: 25, ping: 100, hostDead: 500, guestDead: 700, hello: 500, stagger: 100, jitter: 30, retry: 50, give: 1500, grace: 600, bye: 40, linger: 30 };
 
 let fails = 0, checks = 0; const errors = [];
 function ok(cond, what) { checks++; if (!cond) { fails++; console.log('  FAIL: ' + what); } }
@@ -44,7 +12,7 @@ const quietConsole = Object.assign(Object.create(console), { error: (...a) => { 
 
 function player(REG, name, opt = {}) {
   const g = bootGame({ name, globals: { __MPMEM: REG, console: quietConsole }, search: opt.search || '', storage: opt.storage });
-  if (!g.run('!!MP.net')) g.run(STANDIN);
+  Object.assign(g.run('MP.net').T, FAST_T);
   g.name = name; g.portrait = false;
   g.giveTeam(opt.team || ['dog', 'fox', 'owl'], opt.lv || 10);
   g.run(`MP.coop = { active: false, calls: [], start(info) { this.calls.push(JSON.stringify(info)); this.active = true; MP.hub.leave(); } };`);
@@ -66,8 +34,9 @@ function player(REG, name, opt = {}) {
   return g;
 }
 let ALL = [];
-async function settle(frames = 20) { for (let i = 0; i < frames; i++) { for (const g of ALL) g.frame(); if (i % 5 === 4) await sleep(1); } await sleep(2); }
-async function until(fn, max = 600) { for (let i = 0; i < max; i++) { if (fn()) return true; for (const g of ALL) g.frame(); if (i % 4 === 3) await sleep(2); } return fn(); }
+// settle: that many frames on every copy AND enough real time for the network (messages hop through timers, presence and positions go out in batches)
+async function settle(frames = 20, ms = 170) { const t0 = Date.now(); for (let i = 0; i < frames; i++) { for (const g of ALL) g.frame(); if (i % 6 === 5) await sleep(1); } while (Date.now() - t0 < ms) { await sleep(8); for (const g of ALL) g.frame(); } }
+async function until(fn, ms = 8000) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (fn()) return true; for (const g of ALL) g.frame(); await sleep(4); } return fn(); }
 const inStreet = g => g.run(`!!(G && G.hub && G.hubRoom === 'street' && G.mode === 'play')`);
 const open = g => g.run(`!!(MP.hub.room && MP.hub.room.state === 'open')`);
 async function toStreet(...gs) { for (const g of gs) g.run(`MP.coop.active = false; enterHub('street')`); await until(() => gs.every(g => inStreet(g) && open(g))); }
@@ -76,7 +45,7 @@ async function main() {
   const REG = {};
   const A = player(REG, 'Mira', { lv: 14 }), B = player(REG, 'Tom', { lv: 9 }), C = player(REG, 'Ana', { lv: 22 }), D = player(REG, 'Kofi', { lv: 5 }), E = player(REG, 'Zed', { lv: 30 });
   ALL = [A, B, C, D, E];
-  console.log('network:', A.run('!!MP.net.standin') ? 'stand-in (mp/net.js is not in this branch yet)' : 'mp/net.js');
+  console.log('network: mp/net.js, backend', A.run('MP.net.backend'));
 
   console.log('1. the Yard has a signpost; the street is reached through it and directly');
   ok(A.run(`hubStations().some(s => s.kind === 'door' && s.to === 'street')`), 'the Yard has the street door');
@@ -108,13 +77,13 @@ async function main() {
   ok(/Kingdom Street \d+ · 3 players/.test(A.run('MP.hub._.status()[0]')), 'the HUD shows the street and the player count: ' + A.run('MP.hub._.status()[0]'));
   // hostile presence and position
   B.run(`MP.hub.room.setPresence({ name: 'x'.repeat(200) + '\\u0007', cls: 'wizard<script>', look: { v: 2, sex: 'q', hair: '<img>', top: 9 }, lv: 1e9, pt: { kind: 'dungeon', tier: 77, m: 'zzz', r: [1, 2] }, pj: {} })`);
-  B.run(`MP.hub.room.setFast({ x: 1e12, y: -1e12, vx: 'a', vy: NaN, f: 'left', g: {} })`);
   await settle(20);
+  A.run(`MP.hub.room.members.get(${JSON.stringify(C.uid())}).f = { x: 1e12, y: 1e12, vx: 'a', vy: NaN, f: 'left', g: {} }`); A.frame();
   const evil = A.others().find(o => o.id === B.uid());
   ok(evil && evil.name.length <= 14 && evil.cls === 'warrior' && evil.lv <= 999 && ['m', 'f'].includes(evil.look.sex), 'a hostile presence is cleaned');
   ok(evil && evil.pt && evil.pt.tier === 4 && evil.pt.m.length === 1 && evil.pt.m[0] === B.uid() && evil.pt.r.length === 0, 'a hostile group advert is cleaned');
-  // (the real room only sends a changed fast state on its next batch; the game's own next frame overwrites this one)
-  ok(A.others().every(o => o.x >= 0 && o.x <= 72 * 30 && o.y <= 16 * 30), 'positions are clamped to the room');
+  ok(A.others().every(o => o.x >= 0 && o.x <= 72 * 30 && o.y <= 16 * 30 && Number.isFinite(o.x + o.y)), 'positions are clamped to the room');
+  ok(A.run(`(() => { const o = MP.hub._.S.others.get(${JSON.stringify(C.uid())}); return o.tx === G.room.wpx - 24 && o.vx === 0 && o.vy === 0 && o.f === 1; })()`), 'a hostile position is cleaned');
   B.run(`MP.hub._.S.presSent = ''`); await settle(90);
   eq(A.others().find(o => o.id === B.uid()).name, 'Tom', "B's real presence is back");
   eq(A.others().find(o => o.id === B.uid()).pt, null, 'and no group advert');
@@ -217,7 +186,8 @@ async function main() {
   ok(infos.every(i => i && i === infos[0]), 'MP.coop.start was called on all four with identical info');
   const info = JSON.parse(infos[0] || '{}');
   ok(/^[A-HJ-NP-Z2-9]{5}$/.test(info.code || '') && info.kind === 'dungeon' && info.tier === 2 && Number.isInteger(info.seed) && info.seed >= 0 && info.leader === A.uid() && (info.members || []).length === 4 && info.members[0].id === A.uid() && info.members[1].name === 'Tom', 'the info is complete: ' + infos[0]);
-  eq(E.run('MP.coop.calls.length'), 0, 'the fifth player stays'); await settle(20);
+  eq(E.run('MP.coop.calls.length'), 0, 'the fifth player stays'); await until(() => open(E) && E.others().length === 0); await settle(20);
+  ok(E.chat().some(e => e.sys && /You are now the host/.test(e.s)), 'the one who stayed became the host and is told so');
   eq(E.others().length, 0, 'and sees the others gone'); eq(A.run('MP.hub.room'), null, 'the four left the hub room'); eq(A.party(), null, 'the group is over');
   for (const g of ALL) g.setPortrait(false);
 
@@ -255,17 +225,37 @@ async function main() {
   A.run(`MP.hub.leaveGroup(); MP.hub.debugSolo = false; MP.coop = { active: false, calls: [], start(info) { this.calls.push(JSON.stringify(info)); this.active = true; MP.hub.leave(); } };`);
 
   console.log('7. offline, visits, the other rooms');
-  REG.down = true; const O = player(REG, 'Offy'); ALL.push(O);
-  if (O.run('!!MP.net.standin')) {
-    O.run(`enterHub('street')`); await until(() => inStreet(O)); await settle(20);
-    ok(/Offline/.test(O.run('MP.hub._.status()[0]')), 'offline is shown: ' + O.run('MP.hub._.status()[0]'));
-    const ox = O.run('G.player.x'); O.press('d'); for (let i = 0; i < 30; i++) O.frame(); O.release('d'); ok(O.run('G.player.x') > ox + 20, 'the street is walkable offline');
-    O.at(tDun); O.frame(); O.tap('e'); eq(O.run('G.panel'), 'mpboard', 'the board opens'); O.frame(); O.clickBtn('new'); eq(O.run('MP.hub.party'), null, 'but needs a connection'); ok(/connected/.test(O.run('G.msg')), 'and says so'); O.tap('Escape');
-    REG.down = false; O.at(O.run(`MP.hub._.PLACES[0].t`)); O.frame(); O.tap('e'); await until(() => open(O)); ok(open(O), 'E at the notice post connects again');
-    REG.down = true; O.run(`MP.hub.room.state = 'closed'`); await settle(5); ok(/Offline/.test(O.run('MP.hub._.status()[0]')), 'a lost connection is shown'); REG.down = false;
-    await until(() => open(O), 900); ok(open(O), 'and it reconnects by itself after a few seconds');
-  } else console.log('  (offline checks need the stand-in network: skipped)');
-  REG.down = false;
+  // the host vanishes without a goodbye: everyone else stays, one of them hosts, groups survive
+  await toStreet(B, D); await settle(30);
+  const host0 = ALL.find(g => g.run('!!(MP.hub.room && MP.hub.room.isHost)')), rest = ALL.filter(g => g !== host0), [P1, P2] = rest;
+  ok(!!host0 && rest.length === 4, 'one host among five');
+  for (const g of ALL) { g.run(`G.panel = null; if (MP.hub.party) MP.hub.leaveGroup()`); g.at(tDun); } await settle(20);
+  P1.run(`MP.hub.openGroup('dungeon', 1)`); await settle(15); P2.run(`MP.hub.joinGroup(${JSON.stringify(P1.uid())})`); await settle(20);
+  eq(P1.party() && P1.party().m.length, 2, 'a group of two before the host vanishes');
+  const rid = host0.run('MP.hub.room.id'); ALL = rest; ok(REG.kill(rid), 'the host is killed');
+  await until(() => rest.every(g => open(g) && g.others().length === 3 && !g.others().some(o => o.id === host0.uid())), 15000);
+  ok(rest.every(g => open(g) && g.others().length === 3), 'after the migration the four still see each other: ' + rest.map(g => g.run('MP.hub.room && MP.hub.room.state') + g.others().length).join(' '));
+  eq(rest.filter(g => g.run('MP.hub.room.isHost')).length, 1, 'exactly one new host');
+  ok(rest.find(g => g.run('MP.hub.room.isHost')).chat().some(e => e.sys && /You are now the host/.test(e.s)), 'who is told so');
+  await settle(240);
+  ok(P1.party() && P1.party().m.length === 2 && P2.party() && P2.party().leader === P1.uid(), 'the group survived the migration');
+  P2.sayLine('still here'); await settle(15); ok(P1.chat().some(e => e.s === 'still here'), 'chat works after the migration');
+  P1.run('MP.hub.leaveGroup()'); await settle(15);
+  host0.run(`G = null; SCREEN = 'title'`); host0.frame(); ALL = [A, B, C, D, E]; await toStreet(host0); await settle(20);
+  eq(host0.others().length, 4, 'the old host can come back in as a guest');
+  // offline: the street is walkable, the boards say you need a connection, the notice post retries
+  const DEAD = `MP.net.useBackend({ claim: () => Promise.reject({ type: 'fatal', code: 'offline' }), connect: () => Promise.reject({ type: 'fatal', code: 'offline' }) })`;
+  const O = player(REG, 'Offy'); ALL.push(O); O.run(DEAD);
+  O.run(`enterHub('street')`); await until(() => inStreet(O) && /Offline/.test(O.run('MP.hub._.status()[0]')));
+  ok(/Offline: couldn't reach the multiplayer service/.test(O.run('MP.hub._.status()[0]')), 'offline is shown: ' + O.run('MP.hub._.status()[0]'));
+  const ox = O.run('G.player.x'); O.press('d'); for (let i = 0; i < 30; i++) O.frame(); O.release('d'); ok(O.run('G.player.x') > ox + 20, 'the street is walkable offline');
+  O.at(tDun); O.frame(); O.tap('e'); eq(O.run('G.panel'), 'mpboard', 'the board opens'); O.frame(); O.frame(); O.clickBtn('new'); eq(O.run('MP.hub.party'), null, 'but needs a connection'); ok(/connected/.test(O.run('G.msg')), 'and says so'); O.tap('Escape');
+  O.run(`MP.net.useBackend('mem'); if (MP.hub.room) MP.hub.leave()`); O.at(O.run(`MP.hub._.PLACES[0].t`)); O.frame(); O.tap('e'); await until(() => open(O)); ok(open(O), 'E at the notice post connects again');
+  await settle(20); eq(O.others().length, 5, 'and sees everyone');
+  O.run(DEAD); const rid2 = O.run('MP.hub.room.id'); ok(REG.kill(rid2), 'the host is killed again, and this player cannot reach the service');
+  await until(() => /Offline/.test(O.run('MP.hub._.status()[0]')), 15000); ok(/Offline/.test(O.run('MP.hub._.status()[0]')), 'a lost connection is shown: ' + O.run('MP.hub._.status()[0]'));
+  ok(O.chat().some(e => e.sys && /connection to the street was lost/.test(e.s)), 'with a line in the chat'); ok(inStreet(O), 'still in the street');
+  O.run(`MP.net.useBackend('mem')`); await until(() => open(O), 20000); ok(open(O), 'and it reconnects by itself after a few seconds');
   O.run(`enterHub('yard'); G.mode = 'play'; G.panel = null; NET.visitor = { name: 'Friend' }`); O.at(O.run('HUB_SPOTS.doors.street')); O.frame(); O.tap('e'); await settle(40);
   eq(O.run('G.hubRoom'), 'yard', 'no Kingdom Street during a Yard visit'); ok(/visit/.test(O.run('G.msg')), 'and it says why'); O.run('NET.visitor = null');
   ok(/Kingdom Street/.test(E.run(`netCantDo('visit', true) || ''`)), 'no friend visit / battle / trade from the street');

@@ -139,9 +139,9 @@
   function infoOf(id) { if (id === me()) return { name: myName(), cls: G.cls, lv: myLv() }; const o = S.others.get(id); return o ? { name: o.name, cls: o.cls, lv: o.lv } : { name: 'Player', cls: 'warrior', lv: 0 }; }
 
   // ---------- joining and leaving the street's room ----------
-  function enter() {
+  function enter(retry) {
     if (HUB.room) return;
-    S.joinedFor = G && G.room; S.retryT = 0; S.err = ''; S.wasOpen = false; S.connT = 0; S.presT = 1;
+    S.joinedFor = G && G.room; S.retryT = 0; S.wasOpen = false; if (!retry) S.err = ''; S.connT = 0; S.presT = 1;
     if (!MP.net) { S.err = 'nonet'; return; }
     try {
       const pres = myPresence(); S.presSent = JSON.stringify(pres);
@@ -405,7 +405,7 @@
     if (!HUB.room) {
       if (coopBusy()) return;
       if (S.joinedFor !== G.room) enter();
-      else if (S.retryT > 0 && (S.retryT -= dt) <= 0) enter();
+      else if (S.retryT > 0 && (S.retryT -= dt) <= 0) enter(true);
       return;
     }
     const room = HUB.room, st = room.state;
@@ -413,7 +413,7 @@
     if (st === 'connecting' || st === 'idle') { S.connT += dt; if (S.connT > 25) drop('timeout'); return; }
     S.connT = 0; if (S.graceT > 0) S.graceT -= dt;
     if (st === 'open') {
-      if (!S.wasOpen) { S.wasOpen = true; S.openAt = now(); sys(`Welcome to Kingdom Street ${room.n || 1}. Press Enter to chat.`); }
+      if (!S.wasOpen) { S.wasOpen = true; S.err = ''; S.openAt = now(); sys(`Welcome to Kingdom Street ${room.n || 1}. Press Enter to chat.`); }
       S.presT -= dt; if (S.presT <= 0) { S.presT = 1; pushPresence(); }
       const P = G.player;
       try { room.setFast({ x: Math.round(P.x), y: Math.round(P.y), vx: Math.round(P.vx), vy: Math.round(P.vy), f: P.face < 0 ? -1 : 1, g: P.onGround ? 1 : 0 }); } catch (e) { console.error(e); }
@@ -493,7 +493,7 @@
     if (!r) return coopBusy() ? ['Joining your group...', PAL.gold] : S.err ? ["Offline: couldn't reach the multiplayer service (E at the signpost to retry)", PAL.bad] : ['Not connected (E at the signpost to connect)', PAL.dim];
     if (r.state === 'open') { const n = S.others.size + 1; return [`Kingdom Street ${r.n || 1} · ${n} player${n === 1 ? '' : 's'}`, PAL.good]; }
     if (r.state === 'migrating') return ['The host left: finding a new one...', PAL.gold];
-    return ['Connecting...', PAL.cream];
+    return S.err ? ["Offline: couldn't reach the multiplayer service (trying again...)", PAL.bad] : ['Connecting...', PAL.cream];
   }
   const boardRows = () => 4;
   function boardBox() { const port = PORTRAIT(), bw = port ? W - 12 : 660, bh = port ? 540 : 452; return { bx: W / 2 - bw / 2, by: Math.max(6, H / 2 - bh / 2 - (port ? 0 : 6)), bw, bh, port }; }
@@ -533,13 +533,13 @@
   }
   function soonBox() { const bw = PORTRAIT() ? W - 20 : 540, bh = 270; return { bx: W / 2 - bw / 2, by: H / 2 - bh / 2 - 10, bw, bh }; }
   function playersLayout() {
-    const port = PORTRAIT(), cols = port ? 1 : 2, per = port ? 20 : 20, RH = port ? 29 : 34, bw = port ? W - 12 : 800, nrow = port ? 20 : 10, bh = 62 + nrow * RH + 64;
+    const port = PORTRAIT(), cols = port ? 1 : 2, per = port ? 20 : 20, RH = port ? 29 : 34, bw = port ? W - 12 : 880, nrow = port ? 20 : 10, bh = 62 + nrow * RH + 64;
     const bx = W / 2 - bw / 2, by = Math.max(4, H / 2 - bh / 2), cw = (bw - 32) / cols;
     const all = [{ me: true, o: { id: me(), name: myName(), cls: G.cls, lv: myLv() } }].concat([...S.others.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map(o => ({ o })));
     const pages = Math.max(1, Math.ceil(all.length / per)); S.plPage = clamp(S.plPage, 0, pages - 1);
     const rows = all.slice(S.plPage * per, S.plPage * per + per).map((row, i) => {
       const col = cols === 1 ? 0 : Math.floor(i / nrow), x = bx + 16 + col * cw, y = by + 58 + (i % nrow) * RH;
-      return Object.assign(row, { x, y, w: cw - 8, h: RH - 4, mute: { x: x + cw - 8 - 140, y: y + 1, w: 72, h: RH - 6 }, hide: { x: x + cw - 8 - 64, y: y + 1, w: 62, h: RH - 6 } });
+      return Object.assign(row, { x, y, w: cw - 8, h: RH - 4, mute: { x: x + cw - 8 - 128, y: y + 1, w: 66, h: RH - 6 }, hide: { x: x + cw - 8 - 58, y: y + 1, w: 56, h: RH - 6 } });
     });
     return { bx, by, bw, bh, rows, pages, total: all.length };
   }
@@ -768,9 +768,9 @@
     banner(`Players in the street (${L.total})`, W / 2, L.by + 4, { size: 24, h: 40, pad: 80 });
     for (const row of L.rows) {
       const o = row.o, y = row.y + row.h / 2; panel(row.x, row.y, row.w, row.h, 'dark');
-      ctx.font = `bold 13px ${UI}`; label(fitText(o.name, 118), row.x + 10, y, { size: 13, bold: true, color: row.me ? PAL.gold : isHidden(o) ? PAL.dim : PAL.cream });
-      const grp = row.me ? (HUB.party ? ' · in a group' : '') : o.pt || o.pj ? ' · in a group' : '';
-      ctx.font = `12px ${UI}`; label(fitText(row.me ? `you · ${CLASSES[o.cls].name} · Lv ${o.lv}${grp}` : `${CLASSES[o.cls].name} · Lv ${o.lv}${grp}`, row.w - 136 - (row.me ? 0 : 150)), row.x + 136, y, { size: 12, color: PAL.dim });
+      ctx.font = `bold 13px ${UI}`; label(fitText(o.name, 108), row.x + 10, y, { size: 13, bold: true, color: row.me ? PAL.gold : isHidden(o) ? PAL.dim : PAL.cream });
+      const grp = row.me ? (HUB.party ? ' · group' : '') : o.pt || o.pj ? ' · group' : '';
+      ctx.font = `12px ${UI}`; label(fitText(row.me ? `you · ${CLASSES[o.cls].name} · Lv ${o.lv}${grp}` : `${CLASSES[o.cls].name} · Lv ${o.lv}${grp}`, row.w - 122 - (row.me ? 8 : 136)), row.x + 122, y, { size: 12, color: PAL.dim });
     }
     label(fitText(TOUCH.on ? 'Mute: no chat from them · Hide: not even their hero' : 'Mute: no chat from them  ·  Hide: not even their hero  ·  remembered by name', L.bw - 320), L.bx + (L.pages > 1 ? 164 : 22), L.by + L.bh - 35, { size: 12, color: PAL.dim });
     drawButtons();
