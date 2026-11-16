@@ -11741,6 +11741,42 @@ function frame(t) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+// MP: a hidden tab gets no animation frames, so a host in the background would freeze the co-op battle and the wild
+// animals for everyone. While the page is hidden AND a multiplayer session needs this copy, bgTick() keeps update()
+// (never draw()) going on real time, in steps of 1/30 s and at most 0.25 s per tick. It is driven by a tiny Web Worker
+// (worker timers are not slowed down in hidden tabs like the page's own, which drop to about one a second), or by
+// setInterval where a Blob worker cannot be made (then a hidden host runs at about a quarter of the speed: better than
+// not at all). The two sources never both run a frame: animation frames only come while the page is visible, bgTick
+// does nothing unless it is hidden, and both move the same clock (the loop's `last`). Without a session nothing runs.
+const bgWanted = () => !!document.hidden && !!((MP.coop && MP.coop.active) || NET.state === 'linked');
+function bgTick(now) {
+  if (!bgWanted()) return 0;
+  const n = Math.floor(Math.min(0.25, (now - last) / 1000) * 30 + 1e-6);
+  if (!(n >= 1)) return 0;
+  last = now - last > 250 ? now : last + n * 1000 / 30;
+  for (let i = 0; i < n; i++) { try { update(1 / 30); } catch (e) { console.error(e); } pressed = {}; }
+  return n;
+}
+// the ticking source exists only while it is needed (bgSrc = the function that stops it)
+let bgSrc = null;
+function bgWatch() {
+  const on = bgWanted();
+  if (on === !!bgSrc) return;
+  if (!on) { try { bgSrc(); } catch (e) {} bgSrc = null; return; }
+  last = Math.max(last, performance.now() - 50);
+  const tick = () => bgTick(performance.now());
+  const slow = () => { const iv = setInterval(tick, 33); return () => clearInterval(iv); };
+  try {
+    const url = URL.createObjectURL(new Blob(['setInterval(function () { postMessage(0); }, 33);'], { type: 'text/javascript' })), w = new Worker(url);
+    const stop = () => { try { w.terminate(); URL.revokeObjectURL(url); } catch (e) {} };
+    w.onmessage = tick;
+    w.onerror = () => { stop(); if (bgSrc === stop) bgSrc = slow(); };
+    bgSrc = stop;
+  } catch (e) { bgSrc = slow(); }
+}
+// (asked on every visibility change, and once a second for a session that starts or ends while the page is hidden)
+document.addEventListener('visibilitychange', bgWatch);
+{ const t = setInterval(bgWatch, 1000); if (t && t.unref) t.unref(); }
 </script>
 <!-- the multiplayer modules (Kingdom Street hub, co-op dungeons and raids): same ?v= as BUILD -->
 <script src="mp/net.js?v=20261115a"></script>

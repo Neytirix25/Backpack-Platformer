@@ -438,6 +438,48 @@ const TESTS = {
     console.log('  (packed floors: ' + Math.min(...sizes) + ' to ' + Math.max(...sizes) + ' characters)');
   },
 
+  // the host's tab is hidden: no animation frames. index.html's bgTick() keeps update() going (here through its
+  // setInterval fallback: the harness has no Worker), so the wild animals and a battle go on for the others
+  async hiddenHost() {
+    const gs = games.slice(0, 2), [A, B] = gs;
+    ok(A.run('typeof bgTick') === 'function' && A.run('bgTick(performance.now() + 5000)') === 0 && A.run('bgSrc') === null, 'visible, no session: bgTick does nothing and no source runs');
+    A.win.document.hidden = true; await frames([B], 90, () => { A.win.__now += 1000 / 60; });
+    ok(A.run('bgTick(performance.now() + 5000)') === 0 && A.run('bgSrc') === null, 'hidden but no multiplayer session: still nothing');
+    A.win.document.hidden = false;
+    await gather(gs, info(gs, 'dungeon', 1, 'HID', 606));
+    ok(host(gs) === A, 'the leader hosts'); await frames(gs, 60); for (const g of gs) g.run('MP.coop.state().grace = 99');
+    // from here on the host gets NO frames: only its clock moves (and its timers, like in a hidden tab)
+    A.run('window.__draws = 0; window.__ups = 0; window.__maxDt = 0; window.__d0 = draw; window.__u0 = update; draw = function () { __draws++; return __d0(); }; update = function (dt) { __ups++; __maxDt = Math.max(__maxDt, dt); return __u0(dt); };');
+    const hidden = (n, cond) => (async () => { for (let i = 0; i < n; i++) { if (cond && cond()) return true; await frames([B], 1, () => { A.win.__now += 1000 / 60; }); } return !cond; })();
+    A.win.document.hidden = true;
+    const t0 = A.run('TIME'), wx = B.run('G.wild.map(e => Math.round(e.x)).join()');
+    await hidden(360);
+    const dT = A.run('TIME') - t0;
+    ok(A.run('typeof bgSrc') === 'function', 'a background source is running on the hidden host');
+    ok(dT > 4.2 && dT < 6.1, "the hidden host's game went on in real time: " + dT.toFixed(2) + ' s of game time in 6 s (it takes up to a second to notice)');
+    ok(A.run('__draws') === 0 && A.run('__ups') > 100, 'by update() alone, never draw() (' + A.run('__ups') + ' updates, ' + A.run('__draws') + ' draws)');
+    ok(A.run('__maxDt') <= 1 / 30 + 1e-9, 'in small steps (largest ' + A.run('__maxDt').toFixed(4) + ' s)');
+    ok(B.run('G.wild.map(e => Math.round(e.x)).join()') !== wx, "the wild animals keep roaming on the guest's screen");
+    ok(Math.max(...A.run('G.wild.map(e => e.x)').map((x, k) => Math.abs(x - B.run(`G.wild[${k}].x`)))) < 40, 'and follow the hidden host');
+    // a long stall (the device slept): the catch-up is capped, never one giant step
+    const u0 = A.run('__ups'); A.win.__now += 60000; await hidden(2);
+    ok(A.run('__ups') - u0 <= 3 * 8 && A.run('__maxDt') <= 1 / 30 + 1e-9, 'a minute of sleep is not replayed: ' + (A.run('__ups') - u0) + ' updates in the next ticks');
+    // a battle starts and runs while the host stays hidden
+    for (const g of gs) g.run('MP.coop.state().grace = 0');
+    onto(B, 0);
+    ok(await hidden(900, () => battling(A) && battling(B) && B.run('!!(B && B.coop) && G.mode === "battle"') && A.run('!!(B && B.coop) && G.mode === "battle"')), 'the guest touches a group: the battle opens on both, the hidden host running it');
+    A.run('if (B && B.coop) { B.coop.auto = true; B.coop.fast = true; for (const f of B.foes) { f.hp = Math.min(f.hp, 1); f.shield = 0; f.atk = 0; } }');
+    ok(await hidden(3000, () => { A.run('if (B && B.coop) for (const f of B.foes) { f.hp = Math.min(f.hp, 1); f.shield = 0; f.atk = 0; }'); return gs.every(g => g.run('!B || !B.coop || B.phase === "won"')); }), 'and is fought to the end with the host hidden');
+    ok(A.run('__draws') === 0, 'still without a single draw on the host');
+    // visible again: the background source stops, the normal loop takes over (and bgTick refuses to run)
+    A.win.document.hidden = false; A.run('update = __u0; draw = __d0;');
+    await frames(gs, 70);
+    ok(A.run('bgSrc') === null && A.run('bgTick(performance.now() + 5000)') === 0, 'visible again: the source is stopped and bgTick does nothing');
+    for (let k = 0; k < 60 && gs.some(g => g.run('!!(B && B.coop)')); k++) { const still = gs.filter(g => g.run('!!(B && B.coop)')); for (const g of still) g.press('Enter'); await frames(gs, 2); for (const g of still) g.release('Enter'); await frames(gs, 20); }
+    await until(gs, () => gs.every(g => g.run('G.wild[0].beaten') && !battling(g)), 600, 'the group is beaten for both');
+    A.run('MP.coop.end()'); B.run('MP.coop.end()'); await frames(gs, 20);
+  },
+
   async soloAfter() {
     const A = games[0], runs = A.run('SAVE.rec.runs');
     A.run('G.panel = null; newGame(selClass)'); A.step(30);
