@@ -28,6 +28,14 @@
 //  normal UI, asks a remote player with 'b.yourmove' and waits for 'b.pick' (checked: owner, ability ready, target
 //  valid; a bad pick becomes the AI's choice). TURN_T seconds per pet, then the AI (aiChoose) picks and that player
 //  goes on autoplay until they click again; MP.battle.playerLeft(id) makes it permanent. Foe phase: the normal AI.
+//  PLAN AHEAD: during the player phase everybody may already choose for their pets that have not acted yet
+//  ('b.pick' { i: unit id, ab, tg, turn } for a pet that is not being asked = a plan, kept by the host per pet and only
+//  for the turn it names; 'b.unpick' { turn } throws a player's plans away). When that pet's turn comes the host
+//  checks the plan again (hostPlan / usePlan) and plays it at once, or asks after all. The ORDER of the moves is
+//  untouched, so nothing about the outcome changes; the turn clock only runs for the pet that is really being asked.
+//  PACING: PACE[n] shortens every pause between moves for 3 and 4 players (the same on host and guests).
+//  WHO IS THE HOST for a guest: link.host() if the link offers it, else the first member who sends 'b.call' (HOSTID),
+//  until that player leaves the room or the next attach(); 'b.start' and everything after must come from the caller.
 //
 //  SCALING: MP.battle.scale(n), ONE table (SCALE below: how many foes, their HP / attack, boss HP / attack / actions,
 //  helpers, raid adds, how hard foe area attacks land on a bigger party), plus each tier's own corrections (TIERS[t]
@@ -43,6 +51,11 @@
 //
 //  XP: winBattle's formula over the foes the battle STARTED with, counted as a solo-sized group (three wild animals,
 //  or the boss and two minions), full for every player, x2 for a raid; bond +1 wild / +3 boss / +5 raid (+1 on a loss).
+//  OFFSPRING (offspring()): after a won wild fight every player rolls the solo game's baby chances for themselves;
+//  a won boss fight / raid gives one baby of a helper species. Babies join the Sanctuary directly (no eggs, no backpack).
+//
+//  LAYOUT (MB.place): non-overlapping cells, one block per team with a coloured marker; see the comment there.
+//  tools/mp_tests/battle_layout_dump.js draws it as text for every group size, kind of fight and screen shape.
 // =====================================================================
 (() => {
   // the four acts as dungeon tiers. lo..hi: the level band of its foes (the party's average level, clamped into it).
@@ -708,13 +721,14 @@
   // any (never the boss itself, a shade or the Elder Dragon; no achievements). There is no backpack in co-op, so an
   // egg-laying species gives no egg item: its baby joins the Sanctuary at once, as a hatched egg would (unlockPet
   // keeps SAVE.coll and SAVE.rec.rescues / shinies right; born.how = 'hatched' or 'rescued').
+  MB._roll = null;   /* (tests put their own dice here) */
   function offspring(C) {
     const okK = k => k !== 'shade' && k !== 'elder' && BS[k] && BS[k].off && ITEMS['pet_' + k], out = [];
     const give = k => {
       const g = rollGenes(), par = B.foes.find(f => f.k === k && f.coat); if (par) Object.assign(g, inheritCoat(par.coat, rollCoat()));
       const it = unlockPet(k, newcomerLevel(), g); it.born.how = BS[k].off === 'egg' ? 'hatched' : 'rescued'; out.push(it);
     };
-    if (C.enc.kind === 'wild') { for (const k of [...new Set(B.foes.filter(f => !f.boss && !f.summoned).map(f => f.k))].filter(okK)) if (!owned(k) || Math.random() < (G.cls === 'rogue' ? 0.5 : 0.25) + ((stats && stats.offspring) || 0)) give(k); }
+    if (C.enc.kind === 'wild') { for (const k of [...new Set(B.foes.filter(f => !f.boss && !f.summoned).map(f => f.k))].filter(okK)) if (!owned(k) || (MB._roll || Math.random)() < (G.cls === 'rogue' ? 0.5 : 0.25) + ((stats && stats.offspring) || 0)) give(k); }
     else { const ks = [...C.seen].filter(okK); if (ks.length) give(ks[Math.floor(Math.random() * ks.length)]); }
     return out;
   }
@@ -778,8 +792,8 @@
     const C = B.coop, port = PORTRAIT(), n = C.pl.length, ground = BX.ground, boss = B.foes.find(f => f.boss), rest = B.foes.filter(f => !f.boss), m = rest.length;
     const mL = C.mMax = Math.max(m, C.mMax || 0, C.enc.kind === 'raid' ? Math.ceil(C.S.adds) : 0);   /* cells to keep ready */
     const top = boss ? 86 : 54, avail = ground - top, stepMax = n <= 2 ? 150 : 122;
-    // rows: ra of allies, fr of foes (a boss is at least two rows tall)
-    const fr = mL <= (boss ? 2 : port ? 4 : 3) ? 1 : mL <= 8 ? 2 : 3, frB = boss ? Math.max(2, fr) : fr;
+    // rows: ra of allies, fr of foes (a boss is as tall as two rows; on a phone, where height is short, one and a half)
+    const fr = mL <= (port ? 4 : boss ? 2 : 3) ? 1 : mL <= 8 ? 2 : 3, frB = boss ? Math.max(port ? 1.5 : 2, fr) : fr;
     const ra = n === 1 ? 1 : port && n === 2 && avail / (2 + frB) < 100 ? 1 : 2, perRow = n >= 3 || (n === 2 && ra === 1) ? 2 : 1;
     let stepA, stepF, baseF;
     if (port) { stepA = stepF = Math.min(stepMax, avail / (ra + frB)); baseF = ground - ra * stepA - Math.min(26, avail - (ra + frB) * stepA); }
@@ -790,7 +804,7 @@
     const csA = n === 1 ? 1 : perRow === 1 ? 0.85 : 0.68, csF = n === 1 ? 1 : mL <= 3 ? 0.85 : mL <= 6 ? 0.74 : 0.64;
     let aRight, fx0 = 6; const fx1 = W - 6;
     if (!port) {
-      const need = (boss ? 176 : 0) + (mL ? cols * 92 + (fr - 1) * shF : 0) + 22, want = perRow * (heroW + 3 * cellMax) + (perRow - 1) * gapB + (ra - 1) * shA + 12;
+      const need = (boss ? 150 : 0) + (mL ? cols * (boss ? 76 : 92) + (fr - 1) * shF : 0) + 22, want = perRow * (heroW + 3 * cellMax) + (perRow - 1) * gapB + (ra - 1) * shA + 12;
       aRight = Math.round(Math.min(want, clamp(W - need, W * (n >= 3 ? 0.58 : 0.46), W * (n === 1 ? 0.5 : 0.64))));
       fx0 = aRight + 16;
     }
