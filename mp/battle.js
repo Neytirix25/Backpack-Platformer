@@ -69,10 +69,15 @@
   // by it (1 = the fitted targets: wild ~88% wins from full HP, boss ~70%, raid ~55%; lower = easier; the sim's --diff tries values)
   const DIFF = { wild: 1, boss: 0.85, raid: 0.8 };   /* shipped a little under the fitted numbers for bosses and raids: real players are not the simulation's tireless AI */
   const TURN_T = 25, AI_T = 0.7, CALL_T = 5, BOSS_ENRAGE = { elder: 'meteorrain', wyrm: 'moontide', rune: 'abyssalrune', shadow: 'callshades' };
-  const MB = MP.battle = { TIERS, SCALE, DIFF, TURN_T, active: false, onEnd: null, link: null, desync: 0 };
-  let P = null, BID = 1, CUR = null;   /* P: a battle being set up (host: collecting teams · guest: waiting for the start) */
+  // PACING: how long the battle waits between moves, per group size (1 = the solo game's rhythm). ONE number per size:
+  // every lock after a move, a stun note or a change of phase is multiplied by it (never under PACE_MIN seconds), on
+  // the host and on the guests alike. It changes nothing about WHAT happens, only how long the pauses are.
+  const PACE = [1, 1, 1, 0.6, 0.5], PACE_MIN = 0.3;
+  const MB = MP.battle = { TIERS, SCALE, DIFF, TURN_T, PACE, active: false, onEnd: null, link: null, desync: 0 };
+  let P = null, BID = 1, CUR = null, HOSTID = null;   /* HOSTID: who called the last battle (see 'b.call') */
+  const lockT = t => { const k = B.coop.pace; return k < 1 ? Math.max(PACE_MIN, t * k) : t; };   /* P: a battle being set up (host: collecting teams · guest: waiting for the start) */
   MB.scale = n => SCALE[clamp(n | 0, 1, 4)];
-  MB.attach = link => { MB.link = link; };
+  MB.attach = link => { MB.link = link; HOSTID = null; };
   const send = (m, to) => { try { if (MB.link) MB.link.send(m, to); } catch (e) { console.warn('mp battle send', e); } };
   const coopOn = () => !!(B && B.coop);
   const cast = mk => { if (!B.coop.quiet) send(mk()); };   /* the host tells everyone (the simulation runs quiet: nobody listens) */
@@ -309,7 +314,7 @@
     for (const o of pl) for (const k in amp) amp[k] = Math.max(amp[k], o.amp[k]);
     const fs = m.fside && typeof m.fside === 'object' ? m.fside : {}, fsyn = {}, fa = fs.amp || {};
     for (const s of SYNERGIES) fsyn[s.id] = !!(fs.syn && fs.syn[s.id]);
-    const C = { host, link: MB.link, pl, players: pl, me: myP, n, enc, bid: m.bid | 0, S: MB.scale(n), L: clamp(m.L | 0, 1, 99), first: m.first === 'foe' ? 'foe' : 'ally', stage: null, ai: -1, ask: null, q: [],
+    const C = { host, link: MB.link, pl, players: pl, me: myP, n, enc, bid: m.bid | 0, S: MB.scale(n), L: clamp(m.L | 0, 1, 99), first: m.first === 'foe' ? 'foe' : 'ally', stage: null, ai: -1, ask: null, q: [], pace: PACE[clamp(n, 1, 4)] || 1, plan: {}, mine: {}, acted: new Set(), planning: false, seen: new Set(foes.filter(f => !f.boss).map(f => f.k)),
       rphase: enc.kind === 'raid' ? 1 : 0, desync: 0, sent: new Set(), nid: 100 + foes.length, hostId: null, auto: !!(opt && opt.auto), fast: !!(opt && opt.fast), quiet: !!(opt && opt.quiet), archers: pl.filter(o => o.cls === 'archer').length,
       side: { ally: { syn, first: 0, amp, dur: 0 }, foe: { syn: fsyn, first: numIn(fs.first, 0, 1, 0), amp: { stunAmp: numIn(fa.stunAmp, 0, 2, 0), blindAmp: numIn(fa.blindAmp, 0, 2, 0), poisonAmp: numIn(fa.poisonAmp, 0, 2, 0) }, dur: 0 } },
       saved: { stats, team: G.team, syn: G.syn }, xp0: xpBaseOf(foes, enc), rounds: 0 };
@@ -353,7 +358,7 @@
       for (const v of s.f.slice(0, 16)) {
         if (!v) continue;
         let u = B.foes.find(x => x.id === (v.i | 0));
-        if (!u && defs.has(v.i | 0)) { u = unpackFoe(defs.get(v.i | 0)); setU(u, v, true); if (!quiet && !u.fainted) u.born = B.t; }
+        if (!u && defs.has(v.i | 0)) { u = unpackFoe(defs.get(v.i | 0)); setU(u, v, true); if (!quiet && !u.fainted) u.born = B.t; if (!u.boss) C.seen.add(u.k); }
         else if (u) setU(u, v, quiet);
         if (u && !next.includes(u)) next.push(u);
       }
@@ -380,7 +385,7 @@
         const ab = BOSS_ENRAGE[boss.boss]; if (ab && ABIL[ab] && !boss.abil.includes(ab)) boss.abil.push(ab);
         B.foes = B.foes.filter(f => f.boss || !f.fainted);   /* the fallen make room */
         const adds = buildAdds(C, Math.max(0, Math.min(fcount(C.S.adds), 9 - B.foes.length)));
-        for (const a of adds) { a.id = C.nid++; a.born = B.t; B.foes.push(a); }
+        for (const a of adds) { a.id = C.nid++; a.born = B.t; B.foes.push(a); C.seen.add(a.k); }
       } else {
         cleanse(boss); delete boss.st.stun; addShield(boss, boss.maxHp * C.S.shield);
         for (const a in boss.cd) boss.cd[a] = 0;
@@ -393,9 +398,11 @@
 
   // ---------- the host's turn machine ----------
   const gone = o => o.gone || !MB.link || !MB.link.ids().includes(o.id);
-  function setAfk(o, on) { if (!!o.afk === !!on) return; o.afk = !!on; if (B.coop.host) send({ t: 'b.afk', p: o.p, on: on ? 1 : 0 }); }
+  function setAfk(o, on) { if (!!o.afk === !!on) return; o.afk = !!on; if (on) dropPlans(o.p); if (B.coop.host) send({ t: 'b.afk', p: o.p, on: on ? 1 : 0 }); }
+  function dropPlans(p) { const C = B.coop; for (const u of B.allies) if (u.p === p) { delete C.plan[u.id]; if (p === C.me) delete C.mine[u.id]; } }
+  const newPhase = C => { C.plan = {}; C.mine = {}; C.acted.clear(); };
   function note(u, k) {
-    if (k === 'stun') { bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); }
+    if (k === 'stun') { bText(u, 'STUNNED', '#ffeb3b', 16); bLog(`${u.name} is stunned!`); B.coop.acted.add(u.id); }
     else if (k === 'rage') { bText(u, 'ENRAGED', '#ff5252', 20); }
     if (B.coop.host) cast(() => ({ t: 'b.note', i: u.id, k }));
   }
@@ -418,7 +425,7 @@
   function beginAlly() {
     const C = B.coop;
     if (C.first !== 'foe') B.turn++;
-    C.stage = 'ally'; B.phase = 'wait'; C.ai = -1; C.ask = null; B.pick = null; C.rounds = B.turn;
+    C.stage = 'ally'; B.phase = 'wait'; C.ai = -1; C.ask = null; B.pick = null; C.rounds = B.turn; newPhase(C);
     tickSide('ally');
     const vol = B.turn === 1 && volley();
     cast(() => ({ t: 'b.phase', s: 'a', turn: B.turn, vol: vol ? 1 : 0, snap: snap() }));
@@ -427,13 +434,13 @@
   function beginFoe() {
     const C = B.coop;
     if (C.first === 'foe') B.turn++;
-    C.stage = 'foe'; B.phase = 'foe'; B.queue = []; C.ask = null; B.pick = null; C.rounds = B.turn;
+    C.stage = 'foe'; B.phase = 'foe'; B.queue = []; C.ask = null; B.pick = null; C.rounds = B.turn; newPhase(C);
     tickSide('foe');
     cast(() => ({ t: 'b.phase', s: 'f', turn: B.turn, snap: snap() }));
     raidCheck();
     if (hostCheckEnd()) return;
     for (const u of B.foes) if (!u.fainted) for (let i = 0; i < (u.acts || 1); i++) B.queue.push(u);
-    B.lock = 0.5;
+    B.lock = lockT(0.5);
   }
   function doMove(u, ab, tgt) {
     const seed = Math.floor(NATIVE_RANDOM() * 2147483646) + 1;
@@ -442,8 +449,33 @@
     tagNew();
     cast(() => ({ t: 'b.act', i: u.id, ab, tg: tgt ? tgt.id : -1, seed, snap: snap() }));
     raidCheck();
-    B.lock = Math.max(0.55, (B.fxEnd || 0) + 0.1);
+    B.coop.acted.add(u.id); delete B.coop.plan[u.id]; delete B.coop.mine[u.id];
+    B.lock = lockT(Math.max(0.55, (B.fxEnd || 0) + 0.1));
     return hostCheckEnd();
+  }
+  // PLAN AHEAD: a player may choose for every pet of theirs that has not acted yet in this player phase. The host keeps
+  // one checked plan per pet (C.plan[unit id]) and plays it the moment that pet's turn comes, checking it AGAIN then:
+  // a move on cooldown = ask the player after all; an attack whose target is gone = the weakest foe it may hit; a
+  // heal / buff whose target is gone = ask. The order of the moves never changes: only the waiting disappears.
+  function hostPlan(o, id, p) {
+    const C = B.coop, u = B.allies.find(x => x.id === id), i = B.allies.indexOf(u);
+    if (C.stage !== 'ally' || !o || o.gone || o.afk || !u || u.p !== o.p || u.fainted || i <= C.ai) return false;
+    if (!p || typeof p.ab !== 'string' || !ABIL[p.ab] || !u.abil.includes(p.ab)) return false;
+    C.plan[id] = { ab: p.ab, tg: p.tg | 0 }; return true;
+  }
+  function usePlan(u) {
+    const C = B.coop, p = C.plan[u.id]; delete C.plan[u.id];
+    if (!p || !ABIL[p.ab] || !u.abil.includes(p.ab) || u.cd[p.ab] > 0) return null;
+    if (!needsTarget(p.ab)) return [p.ab, null];
+    const v = validTargets(u, p.ab), t = byId(p.tg);
+    if (t && v.includes(t)) return [p.ab, t];
+    if (ABIL[p.ab].t !== 'foe' || !v.length) return null;
+    return [p.ab, v.slice().sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0]];
+  }
+  function play(u, mv) {
+    const C = B.coop;
+    if (doMove(u, mv[0], mv[1])) return;
+    if (u.again && !u.fainted) { u.again = false; C.ai--; }   /* Feral Maul and friends: the same pet goes again */
   }
   const aiMove = u => { const mv = aiChoose(u); return ABIL[mv[0]] ? mv : [u.abil[0], null]; };
   function validPick(u, p) {   /* a player's pick, checked; null = let the AI choose instead */
@@ -464,20 +496,19 @@
         if (A.t <= 0 || (A.ai && C.fast)) { if (!A.ai && !gone(o)) setAfk(o, true); mv = aiMove(u); }
       }
       if (!mv) return;
-      C.ask = null;
-      if (doMove(u, mv[0], mv[1])) return;
-      if (u.again && !u.fainted) { u.again = false; C.ai--; }   /* Feral Maul and friends: the same pet goes again */
+      C.ask = null; play(u, mv);
       return;
     }
     for (let i = C.ai + 1; i < B.allies.length; i++) {
       const u = B.allies[i]; if (u.fainted) continue;
       C.ai = i;
-      if (u.st.stun) { note(u, 'stun'); breakCharge(u); B.lock = 0.35; return; }
+      if (u.st.stun) { note(u, 'stun'); breakCharge(u); B.lock = lockT(0.35); return; }
       const w = windingAb(u);
       if (w) { doMove(u, w, null); return; }   /* a charge goes off by itself */
-      const o = C.pl[u.p], ai = C.auto || gone(o) || o.afk;
+      const o = C.pl[u.p], ai = C.auto || gone(o) || o.afk, planned = ai ? null : usePlan(u);
+      if (planned) { play(u, planned); return; }   /* planned ahead: no waiting */
+      C.acted.delete(u.id); delete C.mine[u.id];
       C.ask = { u, t: ai ? AI_T : TURN_T + (u.p === C.me ? 0 : 2), ai, pick: null }; B.cur = i; B.pick = null;   /* (2 s of grace for the wire) */
-      B.phase = !ai && u.p === C.me ? 'player' : 'wait';
       cast(() => ({ t: 'b.yourmove', i: u.id, tl: ai ? AI_T : TURN_T, ai: ai ? 1 : 0 }));
       return;
     }
@@ -487,10 +518,10 @@
     while (B.queue.length && (B.queue[0].fainted || !B.foes.includes(B.queue[0]))) B.queue.shift();
     const u = B.queue.shift();
     if (!u) { expireSide('foe'); if (!hostCheckEnd()) beginAlly(); return; }
-    if (u.st.stun) { note(u, 'stun'); breakCharge(u); if (u.boss) delete u.st.stun; B.lock = 0.5; return; }
+    if (u.st.stun) { note(u, 'stun'); breakCharge(u); if (u.boss) delete u.st.stun; B.lock = lockT(0.5); return; }
     const en0 = !!u.enraged, w = windingAb(u), mv = w ? [w, null] : aiMove(u);
     if (u.enraged && !en0) note(u, 'rage');
-    doMove(u, mv[0], mv[1]); B.lock = Math.max(B.lock, 0.7);
+    doMove(u, mv[0], mv[1]); B.lock = Math.max(B.lock, lockT(0.7));
   }
 
   // ---------- the guests: replay what the host says ----------
@@ -506,24 +537,23 @@
     if (m.t === 'b.phase') {
       const side = m.s === 'f' ? 'foe' : 'ally';
       if (C.stage) expireSide(C.stage);
-      C.stage = side; C.ask = null; B.pick = null; B.turn = clamp(m.turn | 0, 0, 999); C.rounds = B.turn;
+      C.stage = side; C.ask = null; B.pick = null; B.turn = clamp(m.turn | 0, 0, 999); C.rounds = B.turn; newPhase(C);
       tickSide(side);
       if (m.vol) { bLog('Arrows rain on the foes!'); SFX.play('bow'); }
       apply(m.snap, !!m.vol);
-      B.phase = side === 'foe' ? 'foe' : 'wait'; B.lock = 0.3;
+      B.phase = side === 'foe' ? 'foe' : 'wait'; B.lock = lockT(0.3);
     } else if (m.t === 'b.yourmove') {
       const u = byId(m.i | 0); if (!u || u.side !== 'ally' || u.fainted) return;
-      C.ask = { u, t: numIn(m.tl, 0, 120, TURN_T), ai: !!m.ai }; B.cur = B.allies.indexOf(u); B.pick = null;
-      B.phase = !m.ai && u.p === C.me ? 'player' : 'wait';
-      if (B.phase === 'player') SFX.play('pick');
+      C.ask = { u, t: numIn(m.tl, 0, 120, TURN_T), ai: !!m.ai }; C.acted.delete(u.id); delete C.mine[u.id];   /* (asked after all: my plan for it was used up or thrown out) */
+      if (!m.ai && u.p === C.me) SFX.play('pick');
     } else if (m.t === 'b.note') {
       const u = byId(m.i | 0); if (u) note(u, m.k === 'rage' ? 'rage' : 'stun');
     } else if (m.t === 'b.act') {
       const u = byId(m.i | 0), t = byId(m.tg | 0);
-      C.ask = null; B.pick = null; if (B.phase === 'player') B.phase = 'wait';
+      C.ask = null; if (u) { C.acted.add(u.id); delete C.mine[u.id]; }
       if (u && !u.fainted && typeof m.ab === 'string' && ABIL[m.ab]) pvpSeeded(m.seed | 0, () => act(u, m.ab, t));
       B.foes = B.foes.filter(f => f.id != null);   /* (a shade summoned in the replay: the host's own comes with the snapshot) */
-      apply(m.snap); B.lock = Math.max(0.55, (B.fxEnd || 0) + 0.1);
+      apply(m.snap); B.lock = lockT(Math.max(0.55, (B.fxEnd || 0) + 0.1));
     } else if (m.t === 'b.raid') {
       apply(m.snap, true);
       const boss = B.foes.find(f => f.boss); if (boss) raidAnnounce(boss, clamp(m.ph | 0, 2, 3));
@@ -548,23 +578,57 @@
       return;
     }
     if (C.fast) { B.lock = 0; B.fx.length = 0; B.vfx.length = 0; }
-    if (B.lock > 0) { B.lock -= dt; return; }
+    uiTurn();
+    if (B.phase === 'player' && !C.paused && (C.planning || B.lock <= 0)) battleInput();   /* (planning does not wait for the animations) */
+    if (!coopOn()) return;
+    if (B.lock > 0) { B.lock -= dt; uiTurn(); return; }
     if (!C.host) {
       guestStep();
       if (coopOn() && C.ask && !ended()) C.ask.t = Math.max(0, C.ask.t - dt);
     } else if (B.phase === 'start') { if (C.first === 'foe') beginFoe(); else beginAlly(); }
     else if (C.stage === 'foe') hostFoe();
     else hostAlly(dt);
-    if (coopOn() && B.phase === 'player' && !C.paused) battleInput();
+    if (coopOn()) uiTurn();
+  };
+  // what MY screen shows right now (every client, every frame): my pet's real turn (B.phase 'player', the clock runs),
+  // PLANNING for my next pet that has no move yet (B.phase 'player' too, C.planning, no clock), or waiting.
+  function nextPlan() {
+    const C = B.coop, A = C.ask;
+    return B.allies.find((u, i) => u.p === C.me && !u.fainted && !C.acted.has(u.id) && !u.st.stun && !windingAb(u) && !C.mine[u.id] && !(A && A.u === u) && !(C.host && i <= C.ai)) || null;
+  }
+  function uiTurn() {
+    if (!coopOn() || ended() || B.phase === 'start') return;
+    const C = B.coop, A = C.ask, o = C.pl[C.me]; let ph = C.stage === 'foe' ? 'foe' : 'wait', plan = false, cur = B.cur;
+    if (A && C.stage === 'ally' && A.u.p === C.me && !A.ai && !A.sent && !A.pick && !A.u.fainted) { ph = 'player'; cur = B.allies.indexOf(A.u); }
+    else if (o && C.stage === 'ally' && !o.afk && !o.gone && !C.auto) { const u = nextPlan(); if (u) { ph = 'player'; plan = true; cur = B.allies.indexOf(u); } }
+    if (ph !== B.phase || plan !== C.planning || (ph === 'player' && cur !== B.cur)) B.pick = null;
+    B.phase = ph; B.cur = cur; C.planning = plan;
+  }
+  const myPlans = () => (coopOn() ? Object.keys(B.coop.mine).length : 0);
+  MB.plans = myPlans;
+  // throw my plans away (the pets not yet played ask again, in order)
+  MB.unplan = () => {
+    if (!coopOn() || !myPlans()) return;
+    const C = B.coop; C.mine = {};
+    if (C.host) dropPlans(C.me); else send({ t: 'b.unpick', turn: B.turn }, C.hostId || undefined);
+    uiTurn();
   };
   // the local player's pick (playerAct hands over): the host notes it, a guest sends it
   MB.pick = (ab, tgt) => {
     if (!coopOn() || B.phase !== 'player') return;
     const C = B.coop, u = B.allies[B.cur];
-    if (!u || u.p !== C.me || !C.ask || C.ask.u !== u) return;
+    if (!u || u.p !== C.me) return;
     const p = { ab, tg: tgt ? tgt.id : -1 };
-    B.pick = null; B.phase = 'wait';
-    if (C.host) C.ask.pick = p; else send({ t: 'b.pick', i: u.id, ab: p.ab, tg: p.tg }, C.hostId || undefined);
+    B.pick = null;
+    if (C.planning) {   /* a plan for a pet whose turn has not come: the host keeps it (b.pick with the turn it was made in) */
+      if (C.ask && C.ask.u === u) return;
+      C.mine[u.id] = p;
+      if (C.host) { if (!hostPlan(C.pl[C.me], u.id, p)) delete C.mine[u.id]; } else send({ t: 'b.pick', i: u.id, ab: p.ab, tg: p.tg, turn: B.turn }, C.hostId || undefined);
+      uiTurn(); return;
+    }
+    if (!C.ask || C.ask.u !== u) return;
+    if (C.host) C.ask.pick = p; else { C.ask.sent = true; send({ t: 'b.pick', i: u.id, ab: p.ab, tg: p.tg }, C.hostId || undefined); }
+    uiTurn();
   };
   // "I'm back": autoplay off for my pets
   MB.back = () => {
@@ -586,12 +650,23 @@
       if (m.t === 'b.team') { if (P && P.host && (m.bid | 0) === P.bid && P.ids.includes(from) && !P.teams[from]) P.teams[from] = cleanTeam(m.team); return; }
       if (!coopOn() || !B.coop.host) return;
       const C = B.coop, o = C.pl.find(x => x.id === from); if (!o) return;
-      if (m.t === 'b.pick') { const A = C.ask; if (A && !A.ai && !A.pick && A.u.id === (m.i | 0) && A.u.p === o.p) A.pick = { ab: m.ab, tg: m.tg | 0 }; return; }
+      if (m.t === 'b.pick') {   /* for the pet being asked: its move · for a later pet of the same player, in the same turn: a plan */
+        const A = C.ask, id = m.i | 0;
+        if (A && A.u.id === id) { if (!A.ai && !A.pick && A.u.p === o.p) A.pick = { ab: m.ab, tg: m.tg | 0 }; }
+        else if (Number.isInteger(m.turn) && m.turn === B.turn && !ended()) hostPlan(o, id, { ab: m.ab, tg: m.tg | 0 });
+        return;
+      }
+      if (m.t === 'b.unpick') { if (m.turn === B.turn) dropPlans(o.p); return; }
       if (m.t === 'b.back') { if (!o.gone) setAfk(o, false); return; }
       return;
     }
     if (m.t === 'b.call') {
-      if (coopOn() || !G || (typeof MB.link.host === 'function' && MB.link.host() !== from)) return;   /* (a link that knows its host: only the host may call a battle) */
+      // WHO MAY CALL A BATTLE: the room's host. A link that can name it (link.host()) is asked; one that cannot: the
+      // first member who calls is remembered (HOSTID, forgotten with the next attach = the next party session) and
+      // nobody else may call while that player is still in the room.
+      const known = typeof MB.link.host === 'function' ? MB.link.host() : null, ids = MB.link.ids();
+      if (coopOn() || !G || !ids.includes(from) || (known ? known !== from : HOSTID && HOSTID !== from && ids.includes(HOSTID))) return;
+      HOSTID = from;
       P = { host: false, from, bid: m.bid | 0, t: 15, items: petSlots.filter(Boolean) }; MB.active = true;
       send({ t: 'b.team', bid: P.bid, team: MB.myTeam() }, from);
       return;
@@ -623,8 +698,25 @@
       R.bond += addBond(it, won ? (enc.kind === 'raid' ? 5 : enc.kind === 'boss' ? 3 : 1) : 1);
       R.xp.push({ name: petName(it), gain, ups, fainted: u.fainted });
     }
+    if (won && C.me >= 0) { try { R.off = offspring(C).map(it => ({ k: it.def.pet, shiny: !!(it.g && it.g.shiny), line: `${petBlurb(it)} joins your Sanctuary!` })); } catch (e) { console.warn('mp battle offspring', e); } }
     if (C.me >= 0) { const S = SAVE.rec; if (won) S.coopW = (S.coopW || 0) + 1; else S.coopL = (S.coopL || 0) + 1; try { savePets(); saveData(); } catch (e) { console.warn('mp battle save', e); } }
     B.rewards = R; C.result = { won, enc, rounds: B.turn, desync: C.desync };
+  }
+  // OFFSPRING (each player rolls for themselves, on their own game, after a win). A wild fight follows the solo rule
+  // (winBattle): a sure baby from every species beaten that you do not own yet, a 25% chance (Rogue 50%) from each
+  // you do. A boss fight or a raid: one sure baby of ONE random species among the boss's helpers / adds, if it had
+  // any (never the boss itself, a shade or the Elder Dragon; no achievements). There is no backpack in co-op, so an
+  // egg-laying species gives no egg item: its baby joins the Sanctuary at once, as a hatched egg would (unlockPet
+  // keeps SAVE.coll and SAVE.rec.rescues / shinies right; born.how = 'hatched' or 'rescued').
+  function offspring(C) {
+    const okK = k => k !== 'shade' && k !== 'elder' && BS[k] && BS[k].off && ITEMS['pet_' + k], out = [];
+    const give = k => {
+      const g = rollGenes(), par = B.foes.find(f => f.k === k && f.coat); if (par) Object.assign(g, inheritCoat(par.coat, rollCoat()));
+      const it = unlockPet(k, newcomerLevel(), g); it.born.how = BS[k].off === 'egg' ? 'hatched' : 'rescued'; out.push(it);
+    };
+    if (C.enc.kind === 'wild') { for (const k of [...new Set(B.foes.filter(f => !f.boss && !f.summoned).map(f => f.k))].filter(okK)) if (!owned(k) || Math.random() < (G.cls === 'rogue' ? 0.5 : 0.25) + ((stats && stats.offspring) || 0)) give(k); }
+    else { const ks = [...C.seen].filter(okK); if (ks.length) give(ks[Math.floor(Math.random() * ks.length)]); }
+    return out;
   }
   function restore(C) { stats = C.saved.stats; G.team = C.saved.team; G.syn = C.saved.syn; try { stats = computeStats(); G.team = teamMods(); } catch (e) {} }
   // the result screen is closed: back to the world, and tell the party session
@@ -660,71 +752,148 @@
     if (coopOn() && G && G.mode === 'pause' && G.pauseFrom === 'battle') { B.coop.paused = true; try { updateBattle(dt); } finally { if (coopOn()) B.coop.paused = false; } }
   });
 
-  // ---------- where everyone stands: up to 12 pets and 9 foes, landscape and portrait ----------
-  // each player's team is a row of three; two teams share a depth row once there are three or more players. Rows
-  // further back stand higher and a little to the side; everything shrinks as the field fills (u.cs).
+  // ---------- where everyone stands: up to 12 pets and a dozen foes, landscape and portrait ----------
+  // The field is a set of CELLS that never overlap; every unit is shrunk (u.cs) until its sprite fits its cell (u.cw).
+  //  - allies: each player's team is a BLOCK (a small hero, then three cells, the front pet nearest the foes) on a
+  //    ground marker in the player's colour with the owner's name under it; your own block is the bright one.
+  //    1 player: one block · 2: two blocks one behind the other (portrait on a short screen: side by side) · 3-4: two
+  //    rows of two. Landscape: the blocks take the left 46-64% of the width (the more the fewer foes there are:
+  //    bosses, raids); portrait: the whole width, under the foes.
+  //  - foes: a grid of up to 3 rows right of the allies (portrait: above them); a boss gets a tall cell of its own.
+  //    The grid is sized for the most foes seen so far (a raid: its adds too), so nobody jumps when one is summoned.
+  //  - rows further back stand higher and are drawn first; every row leaves room for the labels over its sprites
+  //    (status icons, name, HP bar) and under its feet (UNDER: the team's name).
+  //  - a flying animal hovers just over its own cell's ground (u.hov) instead of 100 px up; a fainted unit shrinks
+  //    (and is drawn grey and faint) so the living stand out.
+  // MB.labels(u) is the one place that says where a unit's bar / name / icons go: drawing and the tests both use it.
+  const TEAM_COL = ['#7ed87a', '#6fb7f2', '#f2b05e', '#d58cf0'], UNDER = 16, ST_MAX = 3;
+  const overOf = cs => (cs >= 0.75 ? 48 : 40);   /* the height of the labels over a sprite: bar, name, one row of icons */
+  const natural = u => { const c = u.cs, h = u.hov; u.cs = 1; u.hov = 0; const r = unitRect(u); u.cs = c; u.hov = h; return r; };
+  function seat(u, cx, base, cw, capH, csMax) {
+    const r = natural(u), fly = unitFly(u), down = u.fainted && !(u.faintWait > 0) ? 1 - 0.3 * clamp((u.faintT || 0) * 2, 0, 1) : 1;
+    u.cw = cw; u.x = cx; u.gy = base; u.cs = Math.max(0.15, Math.min(csMax, (cw - 6) / r.w, (capH - (fly ? 6 : 0)) / r.h)) * down;
+    if (fly) { const f = unitFrame(u), s = unitScale(u) * (ANIM_SCALE[unitSheet(u)] || 1); u.hov = (f[3] - f[5]) * s + 6; } else u.hov = 0;
+  }
   MB.place = () => {
-    const C = B.coop, port = PORTRAIT(), n = C.pl.length, g0 = BX.ground;
-    for (const u of B.allies) {
-      if (n === 1) { u.x = BX.ally[u.oslot] ?? BX.ally[2]; u.gy = g0; u.cs = 1; continue; }
-      if (n === 2) { u.cs = 0.8; u.gy = g0 - u.p * 74; u.x = port ? 404 - u.oslot * 132 - u.p * 36 : 482 - u.oslot * 118 - u.p * 44; continue; }
-      const row = u.p >> 1, col = (u.p & 1) * 3 + u.oslot;
-      u.cs = port ? 0.58 : 0.6; u.gy = g0 - row * 64; u.x = port ? 498 - col * 87 - row * 22 : 494 - col * 83 - row * 32;
+    const C = B.coop, port = PORTRAIT(), n = C.pl.length, ground = BX.ground, boss = B.foes.find(f => f.boss), rest = B.foes.filter(f => !f.boss), m = rest.length;
+    const mL = C.mMax = Math.max(m, C.mMax || 0, C.enc.kind === 'raid' ? Math.ceil(C.S.adds) : 0);   /* cells to keep ready */
+    const top = boss ? 86 : 54, avail = ground - top, stepMax = n <= 2 ? 150 : 122;
+    // rows: ra of allies, fr of foes (a boss is at least two rows tall)
+    const fr = mL <= (boss ? 2 : port ? 4 : 3) ? 1 : mL <= 8 ? 2 : 3, frB = boss ? Math.max(2, fr) : fr;
+    const ra = n === 1 ? 1 : port && n === 2 && avail / (2 + frB) < 100 ? 1 : 2, perRow = n >= 3 || (n === 2 && ra === 1) ? 2 : 1;
+    let stepA, stepF, baseF;
+    if (port) { stepA = stepF = Math.min(stepMax, avail / (ra + frB)); baseF = ground - ra * stepA - Math.min(26, avail - (ra + frB) * stepA); }
+    else { stepA = Math.min(stepMax, avail / ra); stepF = Math.min(stepMax, avail / frB); baseF = ground; }
+    // widths
+    const cols = Math.max(1, Math.ceil(mL / fr)), shA = port ? 0 : 18, shF = port ? 0 : 14, gapB = 8;
+    const heroW = n === 1 ? 84 : perRow === 1 ? 46 : port ? 28 : 34, cellMax = n === 1 ? 130 : perRow === 1 ? 122 : 96;
+    const csA = n === 1 ? 1 : perRow === 1 ? 0.85 : 0.68, csF = n === 1 ? 1 : mL <= 3 ? 0.85 : mL <= 6 ? 0.74 : 0.64;
+    let aRight, fx0 = 6; const fx1 = W - 6;
+    if (!port) {
+      const need = (boss ? 176 : 0) + (mL ? cols * 92 + (fr - 1) * shF : 0) + 22, want = perRow * (heroW + 3 * cellMax) + (perRow - 1) * gapB + (ra - 1) * shA + 12;
+      aRight = Math.round(Math.min(want, clamp(W - need, W * (n >= 3 ? 0.58 : 0.46), W * (n === 1 ? 0.5 : 0.64))));
+      fx0 = aRight + 16;
     }
-    const gF = port ? BX.groundF - (n > 1 ? 30 : 0) : BX.groundF, boss = B.foes.find(f => f.boss), rest = B.foes.filter(f => !f.boss), m = rest.length;
+    const regionW = port ? W - 8 : aRight - 6, cell = Math.min(cellMax, ((regionW - (ra - 1) * shA - (perRow - 1) * gapB) / perRow - heroW) / 3), bw = heroW + 3 * cell;
+    if (port) aRight = Math.round((W + perRow * bw + (perRow - 1) * gapB) / 2);
+    const capA = stepA - overOf(csA) - UNDER;
+    ctx.font = `bold 10px ${UI}`;
+    C.blocks = C.pl.map((o, p) => {
+      const row = perRow === 2 ? (ra === 1 ? 0 : p >> 1) : p, col = perRow === 2 ? p & 1 : 0, x1 = aRight - row * shA - col * (bw + gapB), base = ground - row * stepA;
+      const txt = fitText(o.name + (p === C.me ? ' (you)' : '') + (o.gone ? ' (left)' : o.afk ? ' (auto)' : ''), bw - 8), tw = Math.min(bw - 8, ctx.measureText(txt).width);
+      return { p, x0: x1 - bw, x1, base, row, hx: x1 - bw + heroW / 2, hs: 2.6 * Math.min(1, heroW / 62, (capA + 24) / 84), txt, lr: { x: x1 - bw / 2 - tw / 2, y: base + 5, w: tw, h: 11 } };
+    });
+    for (const u of B.allies) { const b = C.blocks[u.p]; seat(u, b.x1 - (u.oslot + 0.5) * cell, b.base, cell, capA, csA); }
+    let gx1 = fx1;
     if (boss) {
-      boss.cs = n > 2 || m > 3 ? 0.8 : 0.9; boss.gy = gF; boss.x = port ? 436 : 866;
-      const per = m > 6 ? 4 : 3, cs = m > 6 ? 0.5 : m > 3 ? 0.6 : 0.72, dx = port ? (m > 6 ? 76 : 96) : (m > 6 ? 58 : 72);
-      rest.forEach((u, i) => { const r = Math.floor(i / per), c = i % per; u.cs = cs; u.gy = gF - r * 62; u.x = (port ? 52 : 578) + c * dx + r * (port ? 24 : 18); });
-    } else if (m <= 4) {
-      const cs = n === 1 ? 1 : m <= 3 ? 0.85 : 0.8, dx = port ? (m <= 3 ? 150 : 126) : (m <= 3 ? 130 : 108), x0 = n === 1 ? null : port ? 80 : 592;
-      rest.forEach((u, i) => { u.cs = cs; u.gy = gF; u.x = x0 === null ? BX.foe[i] ?? BX.foe[2] : x0 + i * dx; });
-    } else {
-      const rows = m > 8 ? 3 : 2, per = Math.ceil(m / rows), cs = m > 8 ? 0.5 : 0.62, dx = port ? Math.min(124, 420 / per) : Math.min(100, 330 / per);
-      rest.forEach((u, i) => { const r = Math.floor(i / per), c = i % per; u.cs = cs; u.gy = gF - r * 66; u.x = (port ? 62 : 584) + c * dx + r * (port ? 30 : 34); });
+      const bwB = Math.min(mL ? 190 : 240, (fx1 - fx0) * (mL ? 0.46 : 1));
+      seat(boss, mL ? fx1 - bwB / 2 : (fx0 + fx1) / 2, baseF, bwB, frB * stepF - 56, 0.9); gx1 = fx1 - bwB - 4;
     }
+    const gw = gx1 - fx0 - (fr - 1) * shF, cellF = Math.min(n === 1 ? 130 : 124, gw / cols), gx0 = fx0 + (gw - cellF * cols) / 2, capF = stepF - overOf(csF) - 4;
+    rest.forEach((u, i) => { const r = Math.floor(i / cols), c = i % cols; seat(u, gx0 + (c + 0.5) * cellF + r * shF, baseF - r * stepF, cellF, capF, csF); });
   };
-  // back rows first when drawing, front rows first when clicking
-  MB.order = front => { const l = [...B.allies, ...B.foes].map((u, i) => [u, i]).sort((a, b) => ((a[0].gy || 0) - (b[0].gy || 0)) || a[1] - b[1]).map(x => x[0]); return front ? l.reverse() : l; };
-  const iconS = u => ((u.cs || 1) < 0.75 ? 13 : 17), barH = u => (u.boss ? 11 : (u.cs || 1) < 0.75 ? 6 : 9);
-  MB.stIcons = u => {
-    if (u.fainted) return [];
-    const sts = Object.keys(u.st).filter(k => STATUS[k]), S = iconS(u), top = unitTop(u) - 5 - barH(u) - 3, per = 5, gap = 1;
-    return sts.map((k, i) => { const row = Math.floor(i / per), cnt = Math.min(per, sts.length - row * per), col = i % per; return { u, k, x: u.x - (cnt * S + (cnt - 1) * gap) / 2 + col * (S + gap), y: top - S - row * (S + gap), w: S, h: S }; });
+  // back rows first when drawing; front rows (and the living) first when clicking
+  MB.order = front => { const l = [...B.allies, ...B.foes].map((u, i) => [u, i]).sort((a, b) => ((a[0].gy || 0) - (b[0].gy || 0)) || a[1] - b[1]).map(x => x[0]); return front ? l.reverse().sort((a, b) => (a.fainted ? 1 : 0) - (b.fainted ? 1 : 0)) : l; };
+  const iconS = u => (u.boss ? 16 : (u.cs || 1) < 0.75 ? 13 : 16), barH = u => (u.boss ? 11 : (u.cs || 1) < 0.75 ? 6 : 9);
+  // a unit's HP bar and name. full: the unit under the mouse (or pinned), drawn over its neighbours with everything
+  // spelled out. Small foes show no name unless they are elites or bosses; a small bar has no numbers on it.
+  MB.labels = (u, full) => {
+    const R = unitRect(u), small = !u.boss && (u.cs || 1) < 0.75, cw = u.cw || 90, bh = barH(u);
+    const bw = u.boss ? Math.min(130, cw - 8) : clamp(Math.round(R.w * 0.86), 34, Math.max(34, Math.min(84, cw - 8)));
+    const bar = { x: u.x - bw / 2, y: R.y - 5 - bh, w: bw, h: bh }; let name = null;
+    if (full || u.side === 'ally' || u.boss || u.elite || !small) {
+      const size = u.boss ? 13 : small ? 10 : 11, maxW = full ? 230 : cw - 4; ctx.font = `bold ${size}px ${UI}`;
+      const long = `${u.name}  Lv${u.lvl}` + (full && bh < 9 ? `  ·  ${Math.max(0, Math.ceil(u.showHp ?? u.hp))}/${u.maxHp}` : '');
+      const txt = ctx.measureText(long).width <= maxW ? long : fitText(u.name, maxW), w = Math.min(maxW, ctx.measureText(txt).width);
+      name = { x: clamp(u.x - w / 2, 2, Math.max(2, W - 2 - w)), y: bar.y - 3 - (size + 1), w, h: size + 1, txt, size };
+    }
+    return { R, bar, name, small, iy: (name ? name.y : bar.y) - 2 };   /* iy: where the status icons end */
   };
-  // a unit's ring, name, HP bar and statuses, sized for a crowded field
-  MB.drawBars = u => {
-    const C = B.coop, s = unitScale(u), small = (u.cs || 1) < 0.75, R = unitRect(u), over = inRect(mouse, R), own = u.side === 'ally' && u.p === C.me;
-    const acting = !!(C.ask && C.ask.u === u && !ended()), tgtOk = B.pick && B.phase === 'player' && pickValid(u);
+  // status icons: the ST_MAX most important and a "+n" marker; the unit under the mouse (or pinned: C.exp) shows them all
+  const ST_PRI = ['stun', 'charging', 'taunt', 'shield', 'undying', 'burn', 'poison', 'bleed', 'mark', 'weak', 'blind', 'evade', 'guard', 'str', 'regen', 'lucky'];
+  const stPri = k => { const i = ST_PRI.indexOf(k); return i < 0 ? 99 : i; };
+  function stRow(u) {
+    if (u.fainted) return { icons: [], more: null };
+    const full = B.coop.exp === u, ks = Object.keys(u.st).filter(k => STATUS[k]).sort((a, b) => stPri(a) - stPri(b)), L = MB.labels(u, full), S = iconS(u), gap = 1;
+    const per = full ? 5 : ST_MAX, show = full ? ks : ks.slice(0, ST_MAX), extra = ks.length - show.length, icons = [];
+    show.forEach((k, i) => {
+      const row = Math.floor(i / per), cnt = Math.min(per, show.length - row * per) + (extra ? 1 : 0), wRow = cnt * S + (cnt - 1) * gap, x0 = clamp(u.x - wRow / 2, 2, Math.max(2, W - 2 - wRow));
+      icons.push({ u, k, x: x0 + (i % per) * (S + gap), y: L.iy - S - row * (S + gap), w: S, h: S });
+    });
+    const last = icons[icons.length - 1];
+    return { icons, more: extra && last ? { u, n: extra, x: last.x + S + gap, y: last.y, w: S, h: S } : null };
+  }
+  MB.stIcons = u => stRow(u).icons;
+  MB.stMore = u => stRow(u).more;
+  const boxOf = rs => { const x = Math.min(...rs.map(r => r.x)), y = Math.min(...rs.map(r => r.y)); return { x, y, w: Math.max(...rs.map(r => r.x + r.w)) - x, h: Math.max(...rs.map(r => r.y + r.h)) - y }; };
+  const hotOf = u => { const L = MB.labels(u, B.coop.exp === u), S = stRow(u); return boxOf([L.R, L.bar].concat(L.name || [], S.icons, S.more || [])); };
+  // a unit's ring, name, HP bar and statuses
+  MB.drawBars = (u, topmost) => {
+    const C = B.coop, s = unitScale(u), exp = C.exp === u;
+    if (exp && !topmost) return;   /* (drawn last, over its neighbours: MB.drawTop) */
+    const L = MB.labels(u, exp), R = L.R, bar = L.bar, name = L.name, over = inRect(mouse, R), own = u.side === 'ally' && u.p === C.me, col = u.side === 'ally' ? TEAM_COL[u.p % 4] : null;
+    const acting = !!(C.ask && C.ask.u === u && !ended()), planU = C.planning && B.allies[B.cur] === u && !ended(), tgtOk = B.pick && B.phase === 'player' && pickValid(u), S = stRow(u);
     if (acting) { ctx.strokeStyle = PAL.gold; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 18 * s, 6 * s, 0, 0, 7); ctx.stroke(); }
-    else if (own) { ctx.strokeStyle = 'rgba(140,220,130,0.75)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 15 * s, 5 * s, 0, 0, 7); ctx.stroke(); }
-    if (tgtOk) { ctx.strokeStyle = over ? PAL.cream : `rgba(255,213,79,${0.5 + 0.4 * Math.sin(B.t * 8)})`; ctx.lineWidth = over ? 3 : 2; rr(R.x - 3, R.y - 3, R.w + 6, R.h + 6, 8); ctx.stroke(); }
-    const bh = barH(u), bw = u.boss ? 130 : clamp(Math.round(R.w * 0.86), 36, 84), top = R.y - 5, icons = MB.stIcons(u);
+    else if (planU) { ctx.strokeStyle = `rgba(255,244,214,${0.55 + 0.35 * Math.sin(B.t * 6)})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(u.x, groundOf(u) + 2, 18 * s, 6 * s, 0, 0, 7); ctx.stroke(); }
+    if (tgtOk) { ctx.strokeStyle = over ? PAL.cream : `rgba(255,213,79,${0.5 + 0.4 * Math.sin(B.t * 8)})`; ctx.lineWidth = over ? 3 : 2; rr(R.x - 2, R.y - 2, R.w + 4, R.h + 4, 8); ctx.stroke(); }
+    if (exp) { const b = boxOf([bar].concat(name || [], S.icons, S.more || [])); ctx.fillStyle = 'rgba(22,15,10,0.82)'; rr(b.x - 4, b.y - 4, b.w + 8, b.h + 7, 5); ctx.fill(); }
     const shown = u.showHp ?? u.hp, pct = Math.max(0, shown / u.maxHp);
-    meter(u.x - bw / 2, top - bh, bw, bh, pct, hpColor(pct));
-    if (u.st.shield) { ctx.fillStyle = 'rgba(129,212,250,0.9)'; ctx.fillRect(u.x - bw / 2, top + 1, bw * Math.min(1, u.st.shield.v / u.maxHp), 2); }
+    meter(bar.x, bar.y, bar.w, bar.h, pct, hpColor(pct));
+    if (u.st.shield) { ctx.fillStyle = 'rgba(129,212,250,0.9)'; ctx.fillRect(bar.x, bar.y + bar.h + 1, bar.w * Math.min(1, u.st.shield.v / u.maxHp), 2); }
+    else if (col) { ctx.globalAlpha = own ? 1 : 0.75; ctx.fillStyle = col; ctx.fillRect(bar.x, bar.y + bar.h + 1, bar.w, 2); ctx.globalAlpha = 1; }   /* whose pet: the team's colour under the bar */
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    if (!small || u.boss || over) { ctx.font = `${small ? 9 : 10}px ${UI}`; ctx.fillStyle = PAL.cream; if (bh >= 9 || over) ctx.fillText(`${Math.max(0, Math.ceil(shown))}/${u.maxHp}`, u.x, top - bh / 2 + (bh < 9 ? -bh - 4 : 0)); }
-    if (own && !acting) { const ay = top - bh - 5 - (icons.length ? Math.ceil(icons.length / 5) * (iconS(u) + 1) + 2 : 0); ctx.fillStyle = PAL.good; ctx.beginPath(); ctx.moveTo(u.x - 5, ay - 6); ctx.lineTo(u.x + 5, ay - 6); ctx.lineTo(u.x, ay); ctx.fill(); }
-    if (!small || u.boss || acting || over) {
-      const ny = top - bh - 8 - (icons.length ? Math.ceil(icons.length / 5) * (iconS(u) + 1) + 2 : 0) - (bh < 9 && over ? 10 : 0);
-      ctx.font = `bold ${u.boss ? 13 : small ? 10 : 11}px ${UI}`; ctx.fillStyle = u.boss ? '#ff8a80' : u.elite ? PAL.gold : u.side === 'ally' ? PAL.good : PAL.gold;
-      ctx.fillText(`${u.name}  Lv${u.lvl}`, u.x, ny);
-    }
-    for (const r of icons) drawStIcon(u, r);
+    if (bar.h >= 9) { ctx.font = `${u.boss ? 10 : 9}px ${UI}`; ctx.fillStyle = PAL.cream; ctx.fillText(`${Math.max(0, Math.ceil(shown))}/${u.maxHp}`, u.x, bar.y + bar.h / 2 + 0.5); }
+    if (name) { ctx.font = `bold ${name.size}px ${UI}`; ctx.fillStyle = u.boss ? '#ff8a80' : u.side === 'ally' ? (own ? '#f4ffe8' : col) : PAL.gold; ctx.fillText(name.txt, name.x + name.w / 2, name.y + name.h / 2); }
+    if (own && C.mine[u.id] && !ended()) { ctx.font = `bold 11px ${UI}`; ctx.fillStyle = PAL.gold; ctx.fillText('✓', bar.x + bar.w + 6, bar.y + bar.h / 2); }   /* a move is planned for it */
+    for (const r of S.icons) drawStIcon(u, r);
+    if (S.more) { const r = S.more; ctx.fillStyle = 'rgba(22,15,10,0.85)'; rr(r.x, r.y, r.w, r.h, 3); ctx.fill(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `bold 9px ${UI}`; ctx.fillStyle = PAL.cream; ctx.fillText('+' + r.n, r.x + r.w / 2, r.y + r.h / 2 + 0.5); }
   };
-  // every player's hero behind their own row, and the team's name under it
+  // after every unit is drawn: the one under the mouse (or pinned by a tap on its "+n" / an icon) again, on top and in full
+  MB.drawTop = () => {
+    const C = B.coop; let e = null;
+    if (!ended()) {
+      const all = [...B.allies, ...B.foes], okU = u => u && !u.fainted && all.includes(u), cur = C.exp;
+      if (B.stPin && okU(B.stPin.u)) e = B.stPin.u;
+      else if (okU(C.expPin)) e = C.expPin;
+      else if (okU(cur) && inRect(mouse, hotOf(cur))) e = cur;
+      else { const u = unitAt(mouse); if (okU(u)) e = u; }
+    }
+    C.exp = e; if (e) MB.drawBars(e, true);
+  };
+  // every team's ground marker and name, and its hero behind the back pet
   MB.drawHeroes = () => {
     const C = B.coop, t = B.t * 5;
-    C.pl.forEach((o, p) => {
-      const us = B.allies.filter(u => u.p === p); if (!us.length) return;
-      const back = us[us.length - 1], cs = back.cs || 1, xs = us.map(u => u.x), hx = n1(C) ? BX.hero : Math.min(...xs) - 30 * cs - 14, gy = back.gy ?? BX.ground;
-      if (hx > 12) {
-        let nm = p === C.me ? heroSheet(G.cls) : heroSheet(o.cls, o.look || cleanLook(null, o.cls)); if (!nm || !animFrames(nm, 'idle')) nm = animFrames(o.cls, 'idle') ? o.cls : null;
-        if (nm) drawAnim(nm, 'idle', t + p * 1.7, hx, gy, 1, { scale: 2.6 * Math.max(0.62, cs) });
+    for (const b of C.blocks || []) {
+      const o = C.pl[b.p], own = b.p === C.me, col = TEAM_COL[b.p % 4];
+      if (C.pl.length > 1) {
+        ctx.globalAlpha = own ? 0.36 : 0.16; ctx.fillStyle = col; rr(b.x0, b.base - 7, b.x1 - b.x0, 13, 6); ctx.fill();
+        if (own) { ctx.globalAlpha = 0.9; ctx.strokeStyle = col; ctx.lineWidth = 1.5; rr(b.x0, b.base - 7, b.x1 - b.x0, 13, 6); ctx.stroke(); }
+        ctx.globalAlpha = 1;
+        label(b.txt, b.lr.x + b.lr.w / 2, b.lr.y + b.lr.h / 2, { align: 'center', size: 10, bold: true, color: o.gone ? PAL.dim : own ? '#f4ffe8' : col });
       }
-      if (C.pl.length > 1) { const cx = (Math.min(...xs) + Math.max(...xs)) / 2; ctx.font = `bold 10px ${UI}`; label(fitText(o.name + (o.gone ? ' (left)' : o.afk ? ' (auto)' : ''), 150), cx, gy + 11, { align: 'center', size: 10, bold: true, color: p === C.me ? PAL.good : o.gone ? PAL.dim : PAL.cream }); }
-    });
+      let nm = own ? heroSheet(G.cls) : heroSheet(o.cls, o.look || cleanLook(null, o.cls)); if (!nm || !animFrames(nm, 'idle')) nm = animFrames(o.cls, 'idle') ? o.cls : null;
+      if (nm && B.allies.some(u => u.p === b.p)) drawAnim(nm, 'idle', t + b.p * 1.7, b.hx, b.base, 1, { scale: b.hs });
+    }
   };
   const n1 = C => C.pl.length === 1;
   const ownerName = u => { const C = B.coop, o = C.pl[u.p]; return !o ? '' : u.p === C.me ? 'Your' : o.name + '\'s'; };
@@ -766,9 +935,12 @@
       ctx.font = `13px ${UI}`; label(fitText(t, port ? W - 48 : 430), x, y, { size: 13, color: r.ups.length ? PAL.good : PAL.cream }); y += 17;
     }
     if (!R.xp.length) { label(C.me < 0 ? 'You watched this one.' : 'Your animals sat this one out.', x, y, { size: 13, color: PAL.dim }); y += 17; }
-    const rx = port ? x : 480, ry = port ? y + 8 : y0 + 24;
-    if (R.bond) label(`Your team's bond grows (+${Math.round(R.bond * 10) / 10})`, rx, ry, { size: 13, color: '#f8bbd0' });
-    label(`Co-op battles: ${SAVE.rec.coopW || 0} won, ${SAVE.rec.coopL || 0} lost  ·  ${B.turn} turn${B.turn === 1 ? '' : 's'}`, rx, ry + 18, { size: 12, color: PAL.dim });
+    const rx = port ? x : 480; let ry = port ? y + 8 : y0 + 24;
+    const off = R.off || [], maxOff = port ? 5 : 2;   /* new animals first: they are the prize */
+    off.slice(0, off.length > maxOff ? maxOff - 1 : maxOff).forEach(o => { ctx.font = `bold 13px ${UI}`; label(fitText(o.line, port ? W - 48 : 460), rx, ry, { size: 13, bold: true, color: o.shiny ? '#fff59d' : PAL.gold }); ry += 16; });
+    if (off.length > maxOff) { label(`...and ${off.length - maxOff + 1} more new animals join your Sanctuary!`, rx, ry, { size: 13, bold: true, color: PAL.gold }); ry += 16; }
+    if (R.bond) { label(`Your team's bond grows (+${Math.round(R.bond * 10) / 10})`, rx, ry, { size: 13, color: '#f8bbd0' }); ry += 16; }
+    label(`Co-op battles: ${SAVE.rec.coopW || 0} won, ${SAVE.rec.coopL || 0} lost  ·  ${B.turn} turn${B.turn === 1 ? '' : 's'}`, rx, ry, { size: 12, color: PAL.dim });
     label(TOUCH.on ? 'Tap to continue' : 'Enter or click to continue', W - 14, H - 10, { align: 'right', size: 12, color: 'rgba(255,255,255,0.6)' });
   }
   // the bottom panel when it is not my pick: who is choosing (with the clock), or the result
@@ -780,14 +952,24 @@
     ctx.font = `bold 14px ${UI}`; line = fitText(line, port ? W - 30 : 470);
     label(line, port ? W / 2 : 16, BX.panelY + (port ? 30 : 24), { size: 14, bold: true, color: PAL.cream, align: port ? 'center' : 'left' });
     if (o && o.afk && !o.gone) { const r = MB.backRect(); button(r, '', { hover: inRect(mouse, r), accent: '#66bb6a' }); label('Autoplay is on: take control again', r.x + r.w / 2, r.y + r.h / 2, { size: 13, bold: true, align: 'center' }); }
+    else drawPlanBtn();
     if (port) drawParty(24, BX.panelY + 110, W - 48); else drawParty(512, BX.panelY + 26, 432);
   };
   MB.backRect = () => (PORTRAIT() ? { x: W / 2 - 150, y: BX.panelY + 50, w: 300, h: 36 } : { x: 16, y: BX.panelY + 48, w: 300, h: 36 });
+  // "clear my plans": a small button in the header while I choose, the big one while I wait
+  MB.planRect = () => (B.phase !== 'player' ? MB.backRect() : PORTRAIT() ? { x: W - 150, y: BX.panelY - 5, w: 138, h: 22 } : { x: 332, y: BX.panelY - 5, w: 138, h: 22 });
+  function drawPlanBtn() {
+    const n = myPlans(); if (!n || ended()) return;
+    const r = MB.planRect(), big = r.h > 30;
+    button(r, '', { hover: inRect(mouse, r), accent: '#c9a24a' });
+    label(big ? `${n} move${n > 1 ? 's' : ''} planned ahead · clear` : `Clear plan (${n})`, r.x + r.w / 2, r.y + r.h / 2, { size: big ? 13 : 11, bold: true, align: 'center' });
+  }
   // over the normal move buttons on my own turn: whose pet it is, the clock, the party
   MB.drawOver = () => {
     const C = B.coop; if (B.phase !== 'player' || ended()) return;
     const A = C.ask, port = PORTRAIT();
-    if (A) { ctx.font = `bold 12px ${UI}`; label(`${Math.max(0, Math.ceil(A.t))} s`, port ? W - 16 : 470, BX.panelY + 4, { size: 12, bold: true, align: 'right', color: A.t < 6 ? '#f08a6a' : PAL.gold }); }
+    if (A && !C.planning) { ctx.font = `bold 12px ${UI}`; label(`${Math.max(0, Math.ceil(A.t))} s`, (port ? W - 16 : 470) - (myPlans() ? 146 : 0), BX.panelY + 4, { size: 12, bold: true, align: 'right', color: A.t < 6 ? '#f08a6a' : PAL.gold }); }   /* the clock runs only on a real turn */
+    drawPlanBtn();
     if (port) drawParty(24, BPORT().itemsY + 4, W - 48); else drawParty(512, BX.panelY + 26, 432);
   };
   // clicks the normal battle code doesn't know: taking control back from autoplay
@@ -795,6 +977,9 @@
     if (!coopOn() || ended()) return false;
     const C = B.coop, o = C.pl[C.me];
     if (o && o.afk && !o.gone && B.phase !== 'player' && inRect(mouse, MB.backRect())) { MB.back(); SFX.play('pick'); return true; }
+    if (myPlans() && inRect(mouse, MB.planRect())) { MB.unplan(); SFX.play('pick'); return true; }
+    for (const u of [...B.allies, ...B.foes]) { const r = MB.stMore(u); if (r && inRect(mouse, r)) { C.expPin = C.expPin === u ? null : u; return true; } }   /* "+n": show every status of that unit */
+    if (C.expPin && !inRect(mouse, hotOf(C.expPin))) C.expPin = null;
     return false;
   };
 })();
