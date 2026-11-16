@@ -2,7 +2,8 @@
 // turn machine, no drawing, no waiting) to tune and check MP.battle.scale(n).
 //   node tools/coop_sim.js                      every tier x group size x kind at level, then 3 levels under / over
 //   node tools/coop_sim.js --n 500 --tiers 2 --kinds raid --sizes 2,3,4 --off 0
-//   node tools/coop_sim.js --set '{"3":{"hp":1.6}}' --tier '{"2":{"wild":[1,0.9]}}'     try other numbers
+//   node tools/coop_sim.js --set '{"3":{"hp":1.6}}' --tier '{"2":{"wildMul":[1,0.9]}}'     try other numbers
+//   node tools/coop_sim.js --diff '{"wild":0.8}'      the designer's dial: every foe's attack in that kind of fight
 //   node tools/coop_sim.js --out tools/mp_tests/coop_sim_results.txt
 // Parties: random species a player of that tier would own (the tier's own animals, some from earlier tiers), levels
 // around a point inside the tier's band, full talent builds (foeTalents), random natures / grades / classes; every
@@ -16,6 +17,7 @@ const g = bootGame({ name: 'Sim' });
 g.win.console = Object.assign({}, console, { warn: () => {} });
 g.run('enterHub(); G.panel = null;');
 if (arg('set')) g.run(`(() => { const o = ${arg('set')}; for (const n in o) Object.assign(MP.battle.SCALE[n], o[n]); })()`);
+if (arg('diff')) g.run(`Object.assign(MP.battle.DIFF, ${arg('diff')})`);
 if (arg('tier')) g.run(`(() => { const o = ${arg('tier')}; for (const t in o) Object.assign(MP.battle.TIERS[t], o[t]); })()`);
 g.run(`
   const SIM = {};
@@ -57,7 +59,8 @@ const out = [], say = s => { out.push(s); console.log(s); };
 const pct = x => (x * 100).toFixed(0).padStart(3) + '%', f1 = x => x.toFixed(1).padStart(5);
 say(`Co-op battle simulation: ${N} battles per cell (win rate / average rounds / share of the party's pets down at the end)`);
 say('scale table:'); for (let n = 1; n <= 4; n++) say(`  ${n}p ` + JSON.stringify(g.run(`MP.battle.SCALE[${n}]`)));
-say('tiers:'); for (let t = 1; t <= 4; t++) say('  T' + t + ' ' + JSON.stringify(g.run(`(t => ({ name: t.name, lo: t.lo, hi: t.hi, wild: t.wild, boss: t.boss_, raid: t.raid }))(MP.battle.TIERS[${t}])`)));
+say('diff: ' + JSON.stringify(g.run('MP.battle.DIFF')));
+say('tiers:'); for (let t = 1; t <= 4; t++) say('  T' + t + ' ' + JSON.stringify(g.run(`(t => ({ name: t.name, lo: t.lo, hi: t.hi, wild: t.wildMul, boss: t.bossMul, raid: t.raidMul }))(MP.battle.TIERS[${t}])`)));
 const t0 = Date.now();
 for (const off of offs) {
   say(''); say(off === 0 ? '== party AT LEVEL (inside the tier band, full HP) ==' : off < 0 ? `== party ${-off} levels UNDER the band ==` : `== party ${off} levels OVER the band ==`);

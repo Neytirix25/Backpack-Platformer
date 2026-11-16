@@ -29,38 +29,48 @@
 //  valid; a bad pick becomes the AI's choice). TURN_T seconds per pet, then the AI (aiChoose) picks and that player
 //  goes on autoplay until they click again; MP.battle.playerLeft(id) makes it permanent. Foe phase: the normal AI.
 //
-//  SCALING: MP.battle.scale(n), ONE table (SCALE below), tuned with tools/coop_sim.js (results in
-//  tools/mp_tests/coop_sim_results.txt). Foe level = the party's average pet level clamped into the tier's band.
+//  SCALING: MP.battle.scale(n), ONE table (SCALE below: how many foes, their HP / attack, boss HP / attack / actions,
+//  helpers, raid adds, how hard foe area attacks land on a bigger party), plus each tier's own corrections (TIERS[t]
+//  .wildMul / .bossMul[n] / .raidMul[n]); all fitted with tools/coop_sim.js until 2, 3 and 4 players of the same
+//  level win about equally often in about as many rounds (results: tools/mp_tests/coop_sim_results.txt).
+//  Foe level = the party's average pet level clamped into the tier's band. Without backpack items a party is much
+//  weaker than a solo runner, so the foes are well under their solo strength at every size (the 1-player row too).
 //  ENCOUNTERS: 'wild' (the solo game's buildFoes with more, tougher animals), 'boss' (the tier's boss kit with
-//  scaled minions), 'raid' (the same boss as a 3-PHASE raid boss: phase 2 at 66% = enrage + its enrage move + adds,
-//  phase 3 at 33% = shield + cleanse + every move ready + one more action a round).
+//  scaled minions), 'raid' (the same boss as a 3-PHASE raid boss with more HP: phase 2 at 66% = enrage (Strength) +
+//  its enrage move + adds for the group size, phase 3 at 33% = shield + cleanse + every move ready + one more action
+//  a round). Bosses keep the solo rules (stun: 1 turn then immune for 3, and a stun only costs ONE of their actions;
+//  half damage from burn / poison / bleed): with 12 attackers the sim showed no need to change them.
 //
 //  XP: winBattle's formula over the foes the battle STARTED with, counted as a solo-sized group (three wild animals,
 //  or the boss and two minions), full for every player, x2 for a raid; bond +1 wild / +3 boss / +5 raid (+1 on a loss).
 // =====================================================================
 (() => {
   // the four acts as dungeon tiers. lo..hi: the level band of its foes (the party's average level, clamped into it).
-  // wild / boss / raid: this tier's own [HP, attack] corrections on top of the scale table (the tiers' animals and
-  // boss kits differ a lot; these make every tier land on the same win rates): wild = its animals (minions and raid
-  // adds too), boss / raid = its boss in a dungeon / as a raid boss.
+  // wildMul / bossMul / raidMul: this tier's own [HP, attack] corrections on top of the scale table, fitted by the
+  // simulation (the tiers' animals and boss kits differ a lot: the Shadow Wolf mostly bites one pet, the Elder Dragon
+  // burns everybody; these make every tier land on the same win rates). wildMul = its animals, in every fight;
+  // bossMul[n] / raidMul[n] = every foe of its boss fight / its raid, for n players.
   const TIERS = [null,
-    { name: 'The Dungeon', lo: 4, hi: 13, themes: ['hall', 'cave', 'crypt'], boss: 'shadow', wild: [1, 1], boss_: [1, 1], raid: [1, 1] },
-    { name: 'The Burning Depths', lo: 14, hi: 26, themes: ['forge', 'hollow', 'sanctum'], boss: 'elder', wild: [1, 1], boss_: [1, 1], raid: [1, 1] },
-    { name: 'The Fey Wilds', lo: 25, hi: 34, themes: ['thornwood', 'glade', 'lake'], boss: 'wyrm', wild: [1, 1], boss_: [1, 1], raid: [1, 1] },
-    { name: 'The Drowned Deep', lo: 32, hi: 37, themes: ['temple', 'coral', 'trench'], boss: 'rune', wild: [1, 1], boss_: [1, 1], raid: [1, 1] }];
+    { name: 'The Dungeon', lo: 4, hi: 13, themes: ['hall', 'cave', 'crypt'], boss: 'shadow', wildMul: [0.865, 1.5], bossMul: [null, [1.03, 0.55], [1.11, 0.75], [1.22, 1.02], [1.18, 1.13]], raidMul: [null, [0.78, 0.52], [0.86, 0.71], [1.04, 1.05], [0.98, 1.13]] },
+    { name: 'The Burning Depths', lo: 14, hi: 26, themes: ['forge', 'hollow', 'sanctum'], boss: 'elder', wildMul: [0.975, 0.9], bossMul: [null, [1.03, 1.01], [0.98, 0.89], [0.94, 0.86], [0.96, 0.91]], raidMul: [null, [0.81, 0.79], [0.72, 0.86], [0.69, 1.12], [0.64, 1.17]] },
+    { name: 'The Fey Wilds', lo: 25, hi: 34, themes: ['thornwood', 'glade', 'lake'], boss: 'wyrm', wildMul: [1.09, 0.62], bossMul: [null, [0.78, 1.9], [0.88, 2.15], [0.91, 2.5], [0.93, 2.62]], raidMul: [null, [0.55, 1.7], [0.59, 2.16], [0.7, 3.14], [0.69, 3.14]] },
+    { name: 'The Drowned Deep', lo: 32, hi: 37, themes: ['temple', 'coral', 'trench'], boss: 'rune', wildMul: [1.11, 1.21], bossMul: [null, [0.76, 1.16], [0.85, 2.02], [0.9, 2.25], [0.97, 2.34]], raidMul: [null, [0.52, 1.83], [0.61, 2.14], [0.68, 3.06], [0.73, 3.02]] }];
   // ---------- the scale table: everything that changes with the number of players ----------
   // foes: wild animals in a group (x.5 = one more half the time) · hp / atk: each wild foe's multipliers (a boss's
   // helpers and raid adds use them too) · aoe: how hard a FOE's hit-everyone move lands on each of the party's pets
   // (there are 3n of them to hit) · minions / bossHp / bossAtk / bossActs: the dungeon boss
   // raidHp / raidAtk / raidActs / raidMin (helpers at the start) / adds (called in phase 2) / shield (phase 3, of max HP)
   const SCALE = [null,
-    { foes: 3, hp: 0.8, atk: 0.8, aoe: 1, minions: 2, bossHp: 0.6, bossAtk: 0.7, bossActs: 2, raidHp: 0.9, raidAtk: 0.7, raidActs: 2, raidMin: 1, adds: 1, shield: 0.06 },
-    { foes: 5, hp: 0.8, atk: 0.8, aoe: 0.8, minions: 3, bossHp: 1.2, bossAtk: 0.7, bossActs: 3, raidHp: 1.8, raidAtk: 0.7, raidActs: 3, raidMin: 2, adds: 2, shield: 0.06 },
-    { foes: 6, hp: 1, atk: 0.9, aoe: 0.7, minions: 4, bossHp: 1.8, bossAtk: 0.8, bossActs: 3, raidHp: 2.7, raidAtk: 0.8, raidActs: 3, raidMin: 3, adds: 3, shield: 0.06 },
-    { foes: 8, hp: 1, atk: 0.9, aoe: 0.65, minions: 5, bossHp: 2.4, bossAtk: 0.8, bossActs: 4, raidHp: 3.6, raidAtk: 0.8, raidActs: 4, raidMin: 4, adds: 4, shield: 0.06 }];
+    { foes: 3, hp: 0.447, atk: 0.782, aoe: 1, minions: 2, bossHp: 0.15, bossAtk: 0.4, bossActs: 2, raidHp: 0.3, raidAtk: 0.4, raidActs: 2, raidMin: 0, adds: 1, shield: 0.06 },
+    { foes: 5, hp: 0.545, atk: 0.97, aoe: 0.8, minions: 3, bossHp: 0.32, bossAtk: 0.6, bossActs: 3, raidHp: 0.62, raidAtk: 0.6, raidActs: 3, raidMin: 0, adds: 2, shield: 0.06 },
+    { foes: 6, hp: 0.78, atk: 1.18, aoe: 0.7, minions: 4, bossHp: 0.55, bossAtk: 0.8, bossActs: 3, raidHp: 1.05, raidAtk: 0.8, raidActs: 3, raidMin: 0, adds: 2, shield: 0.06 },
+    { foes: 8, hp: 0.84, atk: 1.05, aoe: 0.65, minions: 5, bossHp: 0.8, bossAtk: 0.9, bossActs: 4, raidHp: 1.5, raidAtk: 0.9, raidActs: 4, raidMin: 0, adds: 3, shield: 0.06 }];
+  // one dial per kind of fight over all of the above, for whoever designs the dungeons: every foe's attack is multiplied
+  // by it (1 = the fitted targets: wild ~88% wins from full HP, boss ~70%, raid ~55%; lower = easier; the sim's --diff tries values)
+  const DIFF = { wild: 1, boss: 1, raid: 1 };
   const TURN_T = 25, AI_T = 0.7, CALL_T = 5, BOSS_ENRAGE = { elder: 'meteorrain', wyrm: 'moontide', rune: 'abyssalrune', shadow: 'callshades' };
-  const MB = MP.battle = { TIERS, SCALE, TURN_T, active: false, onEnd: null, link: null, desync: 0 };
-  let P = null, BID = 1;   /* P: a battle being set up (host: collecting teams · guest: waiting for the start) */
+  const MB = MP.battle = { TIERS, SCALE, DIFF, TURN_T, active: false, onEnd: null, link: null, desync: 0 };
+  let P = null, BID = 1, CUR = null;   /* P: a battle being set up (host: collecting teams · guest: waiting for the start) */
   MB.scale = n => SCALE[clamp(n | 0, 1, 4)];
   MB.attach = link => { MB.link = link; };
   const send = (m, to) => { try { if (MB.link) MB.link.send(m, to); } catch (e) { console.warn('mp battle send', e); } };
@@ -142,7 +152,7 @@
   const fcount = x => Math.floor(x) + (Math.random() < x - Math.floor(x) ? 1 : 0);
   MB.partyLevel = (teams, tier) => { const ls = teams.flatMap(t => t.units.map(u => u.lvl)); return clamp(Math.round(ls.reduce((a, b) => a + b, 0) / Math.max(1, ls.length)), TIERS[tier].lo, TIERS[tier].hi); };
   function buildCoopFoes(enc, n, L) {
-    const S = MB.scale(n), T = TIERS[enc.tier], raid = enc.kind === 'raid', TW = T.wild, TB = raid ? T.raid : T.boss_; let foes;
+    const S = MB.scale(n), T = TIERS[enc.tier], raid = enc.kind === 'raid', TW = T.wildMul, TB = (raid ? T.raidMul : T.bossMul)[clamp(n, 1, 4)]; let foes;
     if (enc.kind === 'wild') {
       const floor = tierFloor(enc.tier, enc.floor), k = enc.k || pick(THEME_POOL[enc.theme]), L0 = wildLevel(floor);
       foes = withRoom(floor, enc.theme, () => buildFoes({ k, comp: enc.comp }, fcount(S.foes)));
@@ -158,8 +168,10 @@
     if (enc.coat) { const lead = foes.find(f => f.k === enc.k && !f.boss); if (lead) lead.coat = enc.coat; }
     const side = kitFoes(foes);
     for (const f of foes) {   /* the group-size knobs go on last, over talents and genes */
-      if (f.boss) { f.maxHp = Math.round(f.maxHp * (raid ? S.raidHp : S.bossHp) * TB[0]); f.atk *= (raid ? S.raidAtk : S.bossAtk) * TB[1]; f.acts = raid ? S.raidActs : S.bossActs; }
+      if (f.boss) { f.maxHp = Math.round(f.maxHp * (raid ? S.raidHp : S.bossHp)); f.atk *= raid ? S.raidAtk : S.bossAtk; f.acts = raid ? S.raidActs : S.bossActs; }
       else { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * TW[0])); f.atk *= S.atk * TW[1]; }
+      if (enc.kind !== 'wild') { f.maxHp = Math.max(1, Math.round(f.maxHp * TB[0])); f.atk *= TB[1]; }
+      f.atk *= DIFF[enc.kind] || 1;   /* the tier's correction for this fight: on the boss and its helpers alike */
       f.hp = f.maxHp;
     }
     return { foes, side };
@@ -171,7 +183,8 @@
     const Lm = adds[0] ? adds[0].lvl : 1;
     for (const f of adds) { relevel(f, Math.max(1, C.L - 1 + (f.lvl - Lm))); if (COATS[f.k] && f.k !== 'shade') f.coat = rollCoat(); }
     kitFoes(adds);
-    for (const f of adds) { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * T.wild[0])); f.atk *= S.atk * T.wild[1]; f.hp = f.maxHp; f.summoned = true; f.face = -1; }
+    const TB = T.raidMul[clamp(C.n, 1, 4)];
+    for (const f of adds) { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * T.wildMul[0] * TB[0])); f.atk *= S.atk * T.wildMul[1] * TB[1] * (DIFF.raid || 1); f.hp = f.maxHp; f.summoned = true; f.face = -1; }
     return adds;
   }
   const FOE_KEYS = ['id', 'k', 'name', 'lvl', 'maxHp', 'atk', 'def', 'crit', 'critMul', 'heal', 'dot', 'regenPct', 'thorns', 'dr', 'abil', 'acts', 'scale', 'sheet', 'boss', 'elite', 'coat', 'M', 'dodge', 'hitB', 'shiny', 'summoned'];
@@ -301,11 +314,11 @@
       side: { ally: { syn, first: 0, amp, dur: 0 }, foe: { syn: fsyn, first: numIn(fs.first, 0, 1, 0), amp: { stunAmp: numIn(fa.stunAmp, 0, 2, 0), blindAmp: numIn(fa.blindAmp, 0, 2, 0), poisonAmp: numIn(fa.poisonAmp, 0, 2, 0) }, dur: 0 } },
       saved: { stats, team: G.team, syn: G.syn }, xp0: xpBaseOf(foes, enc), rounds: 0 };
     if (myP >= 0) allies.filter(u => u.p === myP).forEach(u => { u.own = (items || [])[u.oslot] || null; });
-    stats = computeStats([], G.cls); G.panel = null; PK = null;
+    stats = computeStats([], G.cls); G.panel = null; PK = null; G.coll = null;
     const boss = foes.find(f => f.boss);
     B = { ent: { coop: true, boss: boss ? boss.boss : undefined, comp: enc.comp }, allies, foes, turn: 0, phase: 'start', cur: -1, pick: null, lock: C.fast ? 0 : 1, fx: [], vfx: [], wait: 0, log: [], heroUses: 0, queue: [], faints: 0,
           boss: boss ? boss.boss : null, rewards: null, reviveUsed: true, t: 0, coop: C };
-    G.mode = 'battle'; G.battleT = 0; MB.active = true; MB.desync = 0;
+    G.mode = 'battle'; G.battleT = 0; MB.active = true; MB.desync = 0; CUR = C;
     bLog(enc.kind === 'raid' ? `RAID: ${boss ? boss.name : 'a great beast'} awaits!` : boss ? `${boss.name} blocks your way!` : `Wild ${[...new Set(foes.map(u => u.name))].slice(0, 4).join(', ')} appear!`);
     return true;
   }
@@ -463,9 +476,9 @@
       const w = windingAb(u);
       if (w) { doMove(u, w, null); return; }   /* a charge goes off by itself */
       const o = C.pl[u.p], ai = C.auto || gone(o) || o.afk;
-      C.ask = { u, t: ai ? AI_T : TURN_T, ai, pick: null }; B.cur = i; B.pick = null;
+      C.ask = { u, t: ai ? AI_T : TURN_T + (u.p === C.me ? 0 : 2), ai, pick: null }; B.cur = i; B.pick = null;   /* (2 s of grace for the wire) */
       B.phase = !ai && u.p === C.me ? 'player' : 'wait';
-      cast(() => ({ t: 'b.yourmove', i: u.id, tl: C.ask.t, ai: ai ? 1 : 0 }));
+      cast(() => ({ t: 'b.yourmove', i: u.id, tl: ai ? AI_T : TURN_T, ai: ai ? 1 : 0 }));
       return;
     }
     expireSide('ally'); beginFoe();
@@ -578,7 +591,7 @@
       return;
     }
     if (m.t === 'b.call') {
-      if (coopOn() || !G) return;
+      if (coopOn() || !G || (typeof MB.link.host === 'function' && MB.link.host() !== from)) return;   /* (a link that knows its host: only the host may call a battle) */
       P = { host: false, from, bid: m.bid | 0, t: 15, items: petSlots.filter(Boolean) }; MB.active = true;
       send({ t: 'b.team', bid: P.bid, team: MB.myTeam() }, from);
       return;
@@ -592,7 +605,7 @@
       return;
     }
     if (m.t === 'b.abort') { if (coopOn() && B.coop.hostId === from) MB.abort(typeof m.why === 'string' ? m.why.slice(0, 80) : 'The battle was called off.'); return; }
-    if (coopOn() && !B.coop.host && B.coop.hostId === from && B.coop.q.length < 400) B.coop.q.push(m);
+    if (coopOn() && !B.coop.host && B.coop.hostId === from && B.coop.q.length < 4000) B.coop.q.push(m);
   };
 
   // ---------- the end: XP, bond, HP back into the run ----------
@@ -618,16 +631,16 @@
   MB.close = () => {
     if (!coopOn()) return;
     const C = B.coop, res = C.result || { won: false, enc: C.enc };
-    restore(C); B = null; G.mode = 'play'; MB.active = false; P = null;
+    restore(C); B = null; G.mode = 'play'; MB.active = false; P = null; CUR = null;
     try { syncPets(); } catch (e) {}
     if (MB.onEnd) try { MB.onEnd({ won: !!res.won, enc: res.enc }); } catch (e) { console.warn('mp battle onEnd', e); }
   };
   // close whatever is going on, at once (the session ended, the host left...): nothing is recorded
   MB.abort = why => {
     P = null; PARTS = null; MB.active = false;
-    if (!coopOn()) return;
+    if (!coopOn()) { CUR = null; return; }
     const C = B.coop; if (C.host && !ended()) send({ t: 'b.abort', why: String(why || '').slice(0, 80) });
-    restore(C); B = null; if (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle')) G.mode = 'play';
+    restore(C); B = null; CUR = null; if (G.mode === 'battle' || (G.mode === 'pause' && G.pauseFrom === 'battle')) G.mode = 'play';
     if (why) showMsg(String(why), 2.6);
   };
   MB.aoe = u => (u.side === 'foe' ? B.coop.S.aoe : 1);
@@ -639,6 +652,10 @@
       P.t -= dt;
       if (P.host) { const ids = MB.link ? MB.link.ids() : []; P.ids = P.ids.filter(id => ids.includes(id)); if (P.t <= 0 || P.ids.every(id => P.teams[id])) hostBuild(); }
       else if (P.t <= 0) { P = null; MB.active = coopOn(); }
+    }
+    if (CUR && (!B || B.coop !== CUR)) {   /* the battle was thrown away from outside (a run abandoned from the pause menu...) */
+      const C = CUR; CUR = null; MB.active = !!P;
+      if (C.host && !C.result) send({ t: 'b.abort', why: 'The host left the battle.' });
     }
     if (coopOn() && G && G.mode === 'pause' && G.pauseFrom === 'battle') { B.coop.paused = true; try { updateBattle(dt); } finally { if (coopOn()) B.coop.paused = false; } }
   });

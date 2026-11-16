@@ -8971,7 +8971,7 @@ function onMouseDown(btn) {
   if (G.coll) { collClick(btn); return; }
   if (G.evo) { if (btn === 0) G.evo.clicked = true; return; }
   if (btn === 0 && NAME_BTN_R && inRect(mouse, NAME_BTN_R)) {   // naming new animals
-    if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp) { NAME_BTN_R = null; nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
+    if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp && !B.coop) { NAME_BTN_R = null; nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
     if (G.panel === 'newborn' && G.newborn) { NAME_BTN_R = null; G.panel = null; nameNewbies([G.newborn]); return; }
   }
   if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
@@ -11647,7 +11647,7 @@ function update(dt) {
   if (G.evo) { evoTick(dt); return; }
   if (G.hub && G.mode === 'play') noteTalentRefund();
   if (EVO_Q.length && G.mode === 'play' && !G.panel && !PK && !B) { G.evo = { it: EVO_Q.shift(), t: 0 }; if (!mine(G.evo.it)) G.evo = null; }
-  if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp && hit('n')) { nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
+  if (G.mode === 'battle' && B && B.phase === 'won' && B.rewards && !B.pvp && !B.coop && hit('n')) { nameNewbies(B.vic ? vicNameList() : newbies(B.rewards)); return; }
   if (G.mode === 'play' && G.hub && G.panel === 'newborn' && G.newborn && hit('n')) { G.panel = null; nameNewbies([G.newborn]); return; }
   switch (G.mode) {
     case 'play':
