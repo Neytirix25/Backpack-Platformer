@@ -4,6 +4,7 @@
     python -P tools/paperdoll.py piece m hat_cap   # assets_raw/doll/hat_cap_m.png -> assets/doll/hat_cap_m.png
     python -P tools/paperdoll.py seg m             # assets_raw/doll/seg_m.png (ChatGPT's body-part colour map) -> zones per frame
     python -P tools/paperdoll.py check m hat_cap top_tunic ...   # assets_raw/doll/check_m.png: the base with those pieces on, every frame
+    python -P tools/paperdoll.py wingbase m        # assets_raw/doll/base_wings_m.png: the roomier body sheet ChatGPT draws WINGS on (see WINGS below; check them with tools/wingcheck.py)
 
 Every sheet (base and piece) has the same 8 rows: idle 4, run 6, jump 4, death 4, sword 4, bow 4, dagger 4, whip 4.
 A piece sheet is ChatGPT's edit of the base sheet with the piece drawn on. For every frame the edited figure is lined up
@@ -616,7 +617,7 @@ def do_piece(sex, name, grey=False, allow_skin=True, thresh=30):
         pieces = []
         for ewin, new in pairs: pc = ewin.copy(); pc.putalpha(new); pieces.append(pc)
     cells = [shrink(pc, (CW, CH), cut=56) for pc in pieces]   # (a lower cut than the body's: thin hair and straps survive the shrink)
-    if wings: wing_specks(cells, [shrink(r[2], (CW, CH)) for r in raws])
+    if wings: bodies = [shrink(r[2], (CW, CH)) for r in raws]; wing_specks(cells, bodies); wing_gaps(cells, bodies, sex)
     if slot in ('wep', 'cape'): fill_gaps(cells, sex)
     if not grey: snap_palette(cells)
     steady_idle(cells[:4])
@@ -763,6 +764,31 @@ def wing_specks(cells, bodies, floor=8):
                 gone += len(c)
                 for q in c: cp[q] = (0, 0, 0, 0)
     if gone: print('  wings: dropped', gone, 'px of loose specks at the edge of the body')
+
+
+def wing_gaps(cells, bodies, sex, low=0.6, good=0.8):
+    """A frame where ChatGPT drew much less wing than in the rest of its animation (half the wings left out behind a
+    raised arm, say) would make the wings shrink and pop back as it plays: under `low` of the row's median showing area,
+    the frame borrows the wings of the nearest frame that has at least `good` of it, moved along with the torso. (Not
+    in the death row: there the wings fold away on purpose.)"""
+    def show(i): return sum(1 for p, b in zip(cells[i].getdata(), bodies[i].getdata()) if p[3] and not b[3])
+    def torso(i):
+        Z = zones_of(sex, i)
+        if not Z: return None
+        t = Z['torso'].resize((CW, CH), Image.BOX); px = t.load(); pts = [(x, y) for y in range(CH) for x in range(CW) if px[x, y] > 60]
+        return (sum(q[0] for q in pts) / len(pts), sum(q[1] for q in pts) / len(pts)) if pts else None
+    i0, done = 0, []
+    for row, n in ROWS:
+        ar = [show(i) for i in range(i0, i0 + n)]; med = sorted(ar)[n // 2]
+        for j in range(n):
+            if row == 'death' or ar[j] >= low * med: continue
+            src = sorted((k for k in range(n) if ar[k] >= good * med), key=lambda k: abs(k - j))
+            if not src: continue
+            ti, tk = torso(i0 + j), torso(i0 + src[0])
+            dx, dy = (round(ti[0] - tk[0]), round(ti[1] - tk[1])) if ti and tk else (0, 0)
+            moved = Image.new('RGBA', (CW, CH)); moved.paste(cells[i0 + src[0]], (dx, dy)); cells[i0 + j] = moved; done.append((i0 + j, i0 + src[0]))
+        i0 += n
+    if done: print('  wings: frames with too little wing borrowed a neighbour (frame, from):', done)
 
 
 def do_wingbase(sex):
