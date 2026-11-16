@@ -2143,7 +2143,8 @@ function drawDress() {
 }
 // a run ended (death or victory): fold it into the records
 function logRun(won) {
-  if (!G || G.hub) return;
+  // MP: a co-op session is not a solo run (no records)
+  if (!G || G.hub || G.coop) return;
   const R = SAVE.rec, k = G.kills - (G.loggedKills || 0);
   R.kills += k; G.loggedKills = G.kills;
   if (won) R.wins++; else R.deaths++;
@@ -4550,6 +4551,8 @@ function updatePlayer(dt) {
 
   // exit
   if (G.hub) { if (G.mode === 'play' && G.hubRoom === 'yard' && !G.visit && overlap(P, exitRect(R))) { startRunFromHub(); if (G.hub) { P.x -= 40; } return; } if (G.panel === 'records' && Math.abs(P.vx) > 40) G.panel = null; }
+  // MP: in co-op the party leaves a floor together (mp/coop.js watches the door)
+  else if (G.coop) {}
   else if (G.mode === 'play' && overlap(P, exitRect(R)) && exitOpen()) {
     if (R.n >= FINAL_FLOOR && !G.endless) {
       G.mode = 'won'; G.wonT = 0; SFX.play('kill_boss'); logRun(true);
@@ -6027,6 +6030,8 @@ function roamFlyer(e, dt, P) {
   if (Math.abs(e.vx) > 18) e.face = Math.sign(e.vx);
 }
 function updateWild(dt) {
+  // MP: in co-op the party leader's game moves the wild animals (mp/coop.js)
+  if (G.coop) return;
   const P = G.player, R = G.room;
   G.graceT = (G.graceT || 0) - dt;
   for (const e of G.wild || []) {
@@ -6452,9 +6457,12 @@ function battleLayout() {
   const panelY = Math.max(470, H - 360), ground = panelY - 18;
   Object.assign(BX, { ally: [338, 226, 116], foe: [250, 362, 474], hero: 40, ground, groundF: ground - 150, boss: 400, minion: [250, 474], panelY, sceneH: panelY - 70 });
 }
-const groundOf = u => (u.side === 'foe' ? BX.groundF : BX.ground);   // (portrait: the foes stand further back)
+// MP: a co-op battle gives every unit its own ground line (u.gy) and size (u.cs): see MP.battle.place
+const groundOf = u => (u.gy != null ? u.gy : u.side === 'foe' ? BX.groundF : BX.ground);   // (portrait: the foes stand further back)
 function placeUnits() {   // every frame, so turning the phone mid-battle just works
   if (!B) return;
+  // MP: a co-op battle lays out its own (bigger) field
+  if (B.coop) { MP.battle.place(); return; }
   if (B.pvp) {   // a friend battle: its own landscape spots, and the same portrait rows
     const port = PORTRAIT(), map = new Map([...PVP_X.ally.map((x, i) => [x, port ? BX.ally[i] : x]), ...PVP_X.foe.map((x, i) => [x, port ? BX.foe[i] : x])]);
     for (const u of [...B.allies, ...B.foes]) { if (u.lx == null) u.lx = u.x; u.x = map.get(u.lx) ?? u.lx; }
@@ -6699,7 +6707,7 @@ function act(u, ab, tgt) {
     }
   } else if (A.t === 'foes') {
     for (let r = 0; r < (A.repeat || 1); r++) for (const t of foes.filter(o => !o.fainted)) {
-      if (pow) strike(t, pow * (A.ult ? ULT_AOE : AOE_MUL)); else { B.hits.push(t); curse(t, sts); }   // (each foe takes 60% of a single hit; 80% from an ultimate)
+      if (pow) strike(t, pow * (A.ult ? ULT_AOE : AOE_MUL) * (B.coop ? MP.battle.aoe(u) : 1)); else { B.hits.push(t); curse(t, sts); }   // (each foe takes 60% of a single hit; 80% from an ultimate)
       if (A.chaos && !t.fainted) curse(t, [pick([['stun', 1], ['blind', 2], ['burn', 2], ['poison', 2], ['weak', 2], ['mark', 2]])]);
     }
   } else if (A.t === 'rand') {
@@ -6743,7 +6751,8 @@ function summonShade(u) {
 const AOE_MUL = 0.6;   // an attack that hits every foe hits each one for 60% (three of them can't wipe a team on turn 1)
 const ULT_WAIT = 3;    // ultimates are ready from turn 3
 const ULT_BOOST = 1.35, ULT_AOE = 0.8;   // ...and when they come, they hit hard
-const sideOf = s => (B.pvp ? B.pvp.side[s] : (B.side && B.side[s]) || { syn: {}, first: 0, amp: null, dur: 0 });
+// MP: a co-op battle has one merged bonus object for the whole party
+const sideOf = s => (B.coop ? MP.battle.sideOf(s) : B.pvp ? B.pvp.side[s] : (B.side && B.side[s]) || { syn: {}, first: 0, amp: null, dur: 0 });
 function waitUlts(units) { for (const u of units) for (const a of u.abil || []) if (ABIL[a] && ABIL[a].ult) u.cd[a] = Math.max(u.cd[a] || 0, ULT_WAIT); }
 // a wild animal's talents: deep into one tree (opening its ultimate as soon as its level allows), then the next, like a good player
 function foeTalents(k, L) {
@@ -6896,6 +6905,8 @@ function beginFoeTurn() {
   B.lock = 0.5;
 }
 function checkEnd() {
+  // MP: only a co-op battle's host decides when it is over
+  if (B.coop) return MP.battle.checkEnd();
   if (B.pvp) return pvpCheckEnd();
   if (!bAlive('foe').length) { winBattle(); return true; }
   if (!bAlive('ally').length) { loseBattle(); return true; }
@@ -6903,6 +6914,8 @@ function checkEnd() {
 }
 // the player picks an ability for the current pet (and a target if it needs one)
 function playerAct(ab, tgt) {
+  // MP: in a co-op battle the pick goes to the host's turn machine
+  if (B.coop) { MP.battle.pick(ab, tgt); return; }
   if (B.pvp && !B.pvp.host) { pvpSendPick(ab, tgt); return; }   // a friend battle's guest: the host plays every move
   const u = B.allies[B.cur];
   if (B.pvp) pvpDo(u, ab, tgt); else act(u, ab, tgt); B.pick = null; B.lock = Math.max(0.55, B.fxEnd || 0);
@@ -6924,6 +6937,8 @@ function updateBattle(dt) {
   if (B.intro) { updateIntro(dt); return; }
   if (B.coin) B.coin.t += dt;
   if (B.ultFlash > 0) B.ultFlash -= dt;   // (the coin keeps fading out while the first turn begins)
+  // MP: a co-op battle runs its own turn machine (mp/battle.js)
+  if (B.coop) { MP.battle.step(dt); return; }
   if (B.lock > 0) { B.lock -= dt; return; }
   if (B.pvp && !B.pvp.host && B.phase !== 'won' && B.phase !== 'lost') { pvpGuestStep(); if (B && B.phase === 'player') battleInput(); return; }
   if (B.phase === 'start') {
@@ -7298,6 +7313,8 @@ function giveOffspring(k, R) {
 }
 function loseBattle() { tallyBattle(false); B.phase = 'lost'; B.t = 0; SFX.play('death'); }
 function endBattle() {
+  // MP: a co-op battle closes itself
+  if (B && B.coop) { MP.battle.close(); return; }
   if (B && B.pvp) { pvpEndBattle(); return; }
   const R = B.rewards, ent = B.ent, lost = B.phase === 'lost';
   B = null;
@@ -7375,11 +7392,12 @@ function abilityRects(u) {
   return u.abil.map((ab, i) => ({ ab, x: 14 + (i % 3) * 156, y: 446 + Math.floor(i / 3) * 46, w: 150, h: 40 }));
 }
 function itemRects() {
-  if (B && B.pvp) return [];
+  if (B && (B.pvp || B.coop)) return [];
   if (portBattle()) { const L = BPORT(), w = (W - 24 - 18) / 4; return heroItems().map((g, i) => ({ g, x: 12 + (i % 4) * (w + 6), y: L.itemsY + Math.floor(i / 4) * (L.ih + 6), w, h: L.ih })); }
   return heroItems().map((g, i) => ({ g, x: 512 + (i % 4) * 108, y: 446 + Math.floor(i / 4) * 46, w: 102, h: 40 }));
 }
-function unitAt(p) { for (const u of [...B.allies, ...B.foes]) { const r = unitRect(u); if (inRect(p, r)) return u; } return null; }
+// MP: (co-op: front rows are hit first)
+function unitAt(p) { for (const u of (B.coop ? MP.battle.order(true) : [...B.allies, ...B.foes])) { const r = unitRect(u); if (inRect(p, r)) return u; } return null; }
 function pickValid(u) {
   const P = B.pick; if (!P) return false;
   if (P.item) { const k = USE_T[P.item.def.use]; if (k === 'ally') return u.side === 'ally' && !u.fainted; if (k === 'dead') return u.side === 'ally' && u.fainted; if (k === 'foe') return u.side === 'foe' && !u.fainted; return false; }
@@ -7773,6 +7791,8 @@ function chooseAbility(u, ab) {
 function battleClick(btn) {
   if (!B) return;
   if (B.intro) { B.introSkip = true; return; }
+  // MP: a co-op battle's own buttons
+  if (B.coop && MP.battle.click(btn)) return;
   if (B.phase !== 'won' && B.phase !== 'lost') {
     const si = stIconAt(mouse);
     if (si) { B.stPin = B.stPin && B.stPin.u === si.u && B.stPin.k === si.k ? null : { u: si.u, k: si.k }; return; }
@@ -7810,9 +7830,9 @@ function standInTint(k, sheet) {
 }
 const unitSheet = u => u.sheet && animFrames(u.sheet, 'idle') ? u.sheet : speciesSheet(u.k);
 function speciesSheet(k) { const d = PETS[k] || PETS.dog; return animFrames(d.anim, 'idle') || animFrames(d.anim, 'fly') ? d.anim : (d.fallback || 'pet_dog'); }
-const unitScale = u => 4.1 * (u.boss ? 0.78 : 1) * (u.scale || 1) * (PETS[u.k] && PETS[u.k].bscale || 1);
+const unitScale = u => 4.1 * (u.boss ? 0.78 : 1) * (u.scale || 1) * (PETS[u.k] && PETS[u.k].bscale || 1) * (u.cs || 1);
 const unitFly = u => !!(PETS[u.k] && PETS[u.k].fly);
-const unitAnchorY = u => (unitFly(u) ? groundOf(u) - 100 : groundOf(u));
+const unitAnchorY = u => (unitFly(u) ? groundOf(u) - 100 * (u.cs || 1) : groundOf(u));
 function unitFrame(u) { const sh = unitSheet(u), fr = animFrames(sh, unitFly(u) ? 'fly' : 'idle') || animFrames(sh, 'idle') || animFrames(sh, 'fly'); return fr ? fr[0] : [0, 0, 26, 22, 13, unitFly(u) ? 11 : 22]; }
 function unitRect(u) { const s = unitScale(u) * (ANIM_SCALE[unitSheet(u)] || 1), f = unitFrame(u), y = unitAnchorY(u); return { x: u.x - f[2] * s / 2, y: y - f[5] * s, w: f[2] * s, h: f[3] * s }; }
 function unitTop(u) { return unitRect(u).y; }
@@ -8244,6 +8264,8 @@ function drawBattleUnit(u) {
   if (u.shiny && !down) { const r = unitRect(u); ctx.filter = 'none'; shinySparkle(r.x, r.y, r.w, r.h, u.slot || 0, 1.3, u.k); }
   ctx.filter = 'none';
   if (down) return;
+  // MP: a co-op battle draws smaller bars for its crowded field
+  if (B.coop) { MP.battle.drawBars(u); return; }
   // name, HP bar and statuses
   const top = unitTop(u) - 8, bw = Math.max(70, 26 * s);
   const cur = B.phase === 'player' && B.allies[B.cur] === u, tgtOk = B.pick && pickValid(u), over = inRect(mouse, unitRect(u));
@@ -8261,6 +8283,8 @@ function drawBattleUnit(u) {
 const ST_ICON = 20;
 function stIcons(u) {
   if (u.fainted) return [];
+  // MP: smaller icons in a co-op battle
+  if (B && B.coop) return MP.battle.stIcons(u);
   const sts = Object.keys(u.st).filter(k => STATUS[k]), top = unitTop(u) - 8, gap = 2, per = 4;   // rows of 4, stacking upward
   return sts.map((k, i) => {
     const row = Math.floor(i / per), n = Math.min(per, sts.length - row * per), col = i % per;
@@ -8364,18 +8388,22 @@ function drawBattle() {
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, 0, W, H);
   { const fy = port ? BX.sceneH : BX.ground; ctx.fillStyle = R.theme.tile[0]; ctx.fillRect(0, fy, W, H - fy); ctx.fillStyle = R.theme.tile[3]; ctx.fillRect(0, fy, W, 4); }   // the floor your team stands on
   // the hero, behind the pets
+  // MP: a co-op battle draws every player's hero
+  if (B.coop) MP.battle.drawHeroes();
   const hs = heroSheet(G.cls);
-  ctx.filter = heroDye(); drawAnim(hs, 'idle', B.t * 5, (B.pvp && !port ? PVP_X.hero[0] : BX.hero) + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
+  ctx.filter = heroDye(); if (!B.coop) drawAnim(hs, 'idle', B.t * 5, (B.pvp && !port ? PVP_X.hero[0] : BX.hero) + (B.heroAnim > 0 ? 10 : 0), BX.ground, 1, { scale: 2.6 }); ctx.filter = 'none';
   if (B.pvp) { const o = B.pvp.side.foe, os = heroSheet(o.cls, o.look || cleanLook(null, o.cls)); drawAnim(animFrames(os, 'idle') ? os : o.cls, 'idle', B.t * 5 + 2, port ? W - 40 : PVP_X.hero[1], port ? BX.groundF : BX.ground, -1, { scale: 2.6 }); }   // your friend's hero
   B.heroAnim = Math.max(0, (B.heroAnim || 0) - 1 / 60);
   ctx.save(); if (B.shakeT > 0) ctx.translate(rand(-1, 1) * (B.shakeA || 4), rand(-1, 1) * (B.shakeA || 4) * 0.6);
-  for (const u of [...B.allies, ...B.foes]) drawBattleUnit(u);
+  for (const u of (B.coop ? MP.battle.order() : [...B.allies, ...B.foes])) drawBattleUnit(u);   // MP: (co-op: back rows first)
   drawVfx(); ctx.restore(); drawVfxFlash();
   for (const f of B.fx) { if (f.wait > 0) continue; ctx.globalAlpha = Math.min(1, f.t * 2); ctx.font = `bold ${f.size}px ${UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(f.txt, f.x + 1, f.y + 1); ctx.fillStyle = f.color; ctx.fillText(f.txt, f.x, f.y); ctx.globalAlpha = 1; }
   // top bar: turn, boss bar, log
-  banner(B.pvp && (B.phase === 'foe' || B.phase === 'wait' || B.phase === 'start') ? (B.phase === 'foe' ? `Turn ${B.turn} — ${B.pvp.name}'s move...` : B.turn ? `Turn ${B.turn}` : 'Friendly battle!') : B.phase === 'foe' ? `Turn ${B.turn} — the foes act...` : B.phase === 'player' ? `Turn ${B.turn} — your move` : B.phase === 'won' ? 'Victory!' : B.phase === 'lost' ? 'Defeat...' : 'Battle!', W / 2, 24, { plain: true, size: 18, h: 38, pad: 100, minW: 300 });
+  banner(B.coop ? MP.battle.bannerText() : B.pvp && (B.phase === 'foe' || B.phase === 'wait' || B.phase === 'start') ? (B.phase === 'foe' ? `Turn ${B.turn} — ${B.pvp.name}'s move...` : B.turn ? `Turn ${B.turn}` : 'Friendly battle!') : B.phase === 'foe' ? `Turn ${B.turn} — the foes act...` : B.phase === 'player' ? `Turn ${B.turn} — your move` : B.phase === 'won' ? 'Victory!' : B.phase === 'lost' ? 'Defeat...' : 'Battle!', W / 2, 24, { plain: true, size: 18, h: 38, pad: 100, minW: 300 });
   const boss = B.foes.find(u => u.boss);
-  if (boss) {
+  // MP: a co-op boss bar shows the raid phase instead of the solo achievements
+  if (boss && B.coop) MP.battle.drawBossBar(boss);
+  else if (boss) {
     panel(W / 2 - 228, 44, 456, 34, 'dark');
     meter(W / 2 - 212, 63, 424, 8, boss.hp / boss.maxHp, boss.enraged ? '#e0503a' : '#9d6fd6', { ticks: 10 });
     ctx.font = `bold 13px ${UI}`; ctx.fillStyle = '#f2c3a8'; ctx.fillText(boss.name.toUpperCase() + (boss.boss === 'shadow' ? `   ·   Achievement: win by the end of turn 3 (${B.turn <= 3 ? 'still possible' : 'missed'})` : boss.boss === 'wyrm' ? '   ·   Beat it and its Wyrmling joins you' : boss.boss === 'rune' ? '   ·   Beat it and its hatchling joins you' : `   ·   Achievement: no pet faints (${B.faints ? 'missed' : 'still possible'})`), W / 2, 53);
@@ -8410,10 +8438,11 @@ function drawBattle() {
     }
     ctx.textAlign = 'left'; ctx.font = `bold 12px ${UI}`; ctx.fillStyle = PAL.gold;
     ctx.fillText(u ? `${u.name}'s move` : '', 14, BX.panelY + 4);
-    const itemsLabel = `Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`;
-    if (port) { ctx.textAlign = 'left'; if (!B.pvp) ctx.fillText(itemsLabel, 14, BPORT().itemsY - 10); }
-    else { ctx.textAlign = 'right'; if (!B.pvp) ctx.fillText(itemsLabel, W - 14, BX.panelY + 4); }
-    if (!B.pvp && !itemRects().length) { ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('No consumables in your backpack.', port ? 14 : 512, port ? BPORT().itemsY + 14 : 466); }
+    const soloItems = !B.pvp && !B.coop, itemsLabel = `Hero items (${heroUsesMax() - B.heroUses} use${heroUsesMax() - B.heroUses === 1 ? '' : 's'} left this turn)`;
+    if (port) { ctx.textAlign = 'left'; if (soloItems) ctx.fillText(itemsLabel, 14, BPORT().itemsY - 10); }
+    else { ctx.textAlign = 'right'; if (soloItems) ctx.fillText(itemsLabel, W - 14, BX.panelY + 4); }
+    if (B.coop) MP.battle.drawOver();   // MP: the turn clock and the party list
+    if (soloItems && !itemRects().length) { ctx.textAlign = 'left'; ctx.font = `13px ${UI}`; ctx.fillStyle = '#8a7458'; ctx.fillText('No consumables in your backpack.', port ? 14 : 512, port ? BPORT().itemsY + 14 : 466); }
     if (hov[0]) { const lines = hov[0].lines; ctx.font = `13px ${UI}`; const h = 26 + lines.length * 17; drawTipBox(hov[0].title, lines, W / 2, boss ? 74 : 44); }
     else if (B.pick) {
       const tip = B.pick.item ? `Click ${({ ally: 'a pet to heal', dead: 'a fainted pet', foe: 'a foe' })[USE_T[B.pick.item.def.use]]}  ·  right-click to cancel` : `Choose a target for ${ABIL[B.pick.ab].n}  ·  right-click to cancel`;
@@ -8427,7 +8456,8 @@ function drawBattle() {
       panel(tx - 4, ty - 4, tw + 8, th + 8, 'dark'); ctx.textAlign = 'left';
       lines.forEach((l, i) => { ctx.fillStyle = i ? PAL.cream : PAL.gold; ctx.fillText(l, tx + 9, ty + 12 + i * 15); });
     }
-  } else if (B.pvp && (B.phase === 'won' || B.phase === 'lost') && B.rewards) drawPvpResult(B.rewards);
+  } else if (B.coop) MP.battle.drawPanel();   // MP: who is choosing, or the co-op result
+  else if (B.pvp && (B.phase === 'won' || B.phase === 'lost') && B.rewards) drawPvpResult(B.rewards);
   else if (B.phase === 'won' && B.rewards) { if (!B.vic) drawRewards(B.rewards); }   // (the victory screens draw last, over everything: see draw())
   else if (B.phase === 'lost') {
     ctx.textAlign = 'center'; ctx.font = `bold 18px ${UI}`; ctx.fillStyle = '#f08a6a'; ctx.fillText('Your whole team fainted. The run is over.', W / 2, BX.panelY + 44);
@@ -8880,9 +8910,10 @@ function openPack(newItems) {
   stats = computeStats();
   if (newItems.length) showMsg(`Found: ${newItems.map(i => i.def.name).join(', ')}!`, 2.5);
 }
-function tryOpenPack() { openPack([]); }
+// MP: no backpack and no pets menu in a co-op session
+function tryOpenPack() { if (G && G.coop) return; openPack([]); }
 const PETS_BTN = { x: 486, y: 8, w: 84, h: 38 };
-function openPetsMenu() { openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
+function openPetsMenu() { if (G && G.coop) return; openPack([]); PK.roster = true; PK.rosterOnly = true; rosterSel = 0; rosterScroll = 0; SFX.play('pick'); }
 function closeRoster() { PK.roster = false; SFX.play('pick'); if (PK.rosterOnly) closePack(); }
 function closePack() {
   if (PK.drag) return;
@@ -8927,6 +8958,8 @@ function onMouseDown(btn) {
   }
   if (G.mode === 'dead') { if (btn === 0 && G.deadT > 0.8) enterHub(); return; }
   if (G.mode === 'pause') { if (btn === 0) pauseClick(); return; }
+  // MP: clicks in the co-op world (its panels' buttons; no pets menu there)
+  if (G.coop && G.mode !== 'battle') { if (MP.coop) MP.coop.click(btn); return; }
   if (G.mode === 'battle') { battleClick(btn); return; }
   if (G.mode === 'play' && !G.hub && btn === 0 && (inRect(mouse, PETS_BTN) || inRect(mouse, { x: 12, y: 8, w: 470, h: 38 }))) { openPetsMenu(); return; }
   // MP: the Kingdom Street's HUD buttons (chat, players, group badge)
@@ -9409,6 +9442,8 @@ function drawFx() {
 }
 
 function drawHUD() {
+  // MP: the co-op HUD (party list, dungeon floor, door countdown)
+  if (G.coop) { if (MP.coop) MP.coop.drawHUD(); return; }
   const P = G.player, R = G.room;
   // your team: a leather plaque per pet
   petSlots.forEach((it, i) => {
@@ -10235,12 +10270,14 @@ const PAUSE_DY = () => (PORTRAIT() ? Math.round((H - 540) / 2) : 0);   // (portr
 const PAUSE_BTN = i => ({ x: W / 2 - 150, y: 204 + PAUSE_DY() + i * 56, w: 300, h: 44 });
 const CONFIRM_BTN = i => ({ x: W / 2 - 150 + i * 160, y: 302 + PAUSE_DY(), w: 140, h: 42 });
 const CONFIRM_TXT = { restart: 'Restart this run from the beginning?', hub: 'Leave this run and return to the Sanctuary?', title: 'Leave this run and go to the title screen?', forfeit: 'Give up this friendly battle?' };
-function pauseItems() { if (B && B.pvp && G.pauseFrom === 'battle') return [['resume', 'Resume'], ['forfeit', 'Give up the battle']]; return G.hub ? [['resume', 'Resume'], ['animals', 'My Animals'], ['title', 'Title screen']] : [['resume', 'Resume'], ['animals', 'My Animals'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
+// MP: in a co-op session the run-ending choices are one "Leave the party" (pauseItems, pauseDo, the confirm text)
+function pauseItems() { if (G.coop && MP.coop && !(B && B.pvp)) return MP.coop.pauseItems(); if (B && B.pvp && G.pauseFrom === 'battle') return [['resume', 'Resume'], ['forfeit', 'Give up the battle']]; return G.hub ? [['resume', 'Resume'], ['animals', 'My Animals'], ['title', 'Title screen']] : [['resume', 'Resume'], ['animals', 'My Animals'], ['restart', 'Restart run'], ['hub', 'Return to the Sanctuary'], ['title', 'Title screen']]; }
 function openPause() { G.pauseFrom = G.mode; G.mode = 'pause'; G.pauseSel = 0; G.confirm = null; SFX.play('pause'); }
 function closePause() { G.mode = G.pauseFrom === 'battle' && B ? 'battle' : 'play'; G.confirm = null; SFX.play('pause'); }
 // leaving a run early: it counts as abandoned (not a defeat); pets keep every level, the run's items are lost
 function abandonRun() {
-  if (!G || G.hub) return;
+  // MP: a co-op session is not a solo run (no records)
+  if (!G || G.hub || G.coop) return;
   B = null; PK = null;
   const R = SAVE.rec; R.kills += G.kills - (G.loggedKills || 0); G.loggedKills = G.kills;
   R.abandoned = (R.abandoned || 0) + 1; R.bestFloor = Math.max(R.bestFloor || 0, G.roomNum); denRunEnded();
@@ -10251,6 +10288,8 @@ function pauseDo(k) {
   if (k === 'animals') { G.confirm = null; openColl(); return; }
   if (!G.confirm && (!G.hub || k === 'forfeit')) { G.confirm = k; G.confirmSel = 1; SFX.play('pick'); return; }   // run-ending choices ask first ("No" picked)
   G.confirm = null; SFX.play('pick');
+  // MP: leaving the party
+  if (k === 'leave') { if (MP.coop) MP.coop.leaveParty(); return; }
   if (k === 'forfeit') { closePause(); if (B && B.pvp && B.phase !== 'won' && B.phase !== 'lost') { netSend({ t: 'forfeit' }); pvpFinish(false, 'You gave up this one.'); } return; }
   if (k === 'title') { abandonRun(); G = null; B = null; PK = null; SCREEN = 'title'; return; }
   if (k === 'hub') { abandonRun(); enterHub(); return; }
@@ -10285,13 +10324,15 @@ function drawPauseMenu() {
     banner('Are you sure?', W / 2, 188 + dy, { size: 38, h: 56, pad: PORTRAIT() ? 80 : 120 });
     panel(W / 2 - Math.min(240, W / 2 - 10), 226 + dy, Math.min(480, W - 20), 136, 'parch');
     label(fitText(CONFIRM_TXT[G.confirm], W - 50), W / 2, 254 + dy, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
-    label((ctx.font = `13px ${UI}`, fitText(G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W - 50)), W / 2, 278 + dy, { align: 'center', size: 12, color: '#6b4a2a' });
+    label((ctx.font = `13px ${UI}`, fitText(G.confirm === 'leave' ? 'The party goes on without you. Your pets keep every level they earned.' : G.confirm === 'forfeit' ? 'Your friend wins this one. Nothing else is lost.' : G.confirm === 'restart' ? "Your pets keep every level they earned; this run's items are lost." : 'The run counts as abandoned. Your pets keep every level they earned.', W - 50)), W / 2, 278 + dy, { align: 'center', size: 12, color: '#6b4a2a' });
     ['Yes', 'No'].forEach((t, i) => button(CONFIRM_BTN(i), t, { hover: inRect(mouse, CONFIRM_BTN(i)) || (G.confirmSel === i && !inRect(mouse, CONFIRM_BTN(1 - i))), size: 17, color: i ? PAL.cream : '#ffb199' }));
     if (!TOUCH.on) label('Y / N  ·  or arrows + Enter', W / 2, 392 + dy, { align: 'center', size: 12, color: PAL.dim });
     return;
   }
   const items = pauseItems();
   banner('Paused', W / 2, 134 + dy, { size: 46, h: 66, pad: PORTRAIT() ? 90 : 130 });
+  // MP: the co-op session's line
+  if (G.coop) label(MP.coop ? MP.coop.where() : '', W / 2, 180 + dy, { align: 'center', size: 14, color: PAL.dim }); else
   if (!G.hub) label(`${CLASSES[G.cls].name}  ·  Floor ${G.roomNum}${G.roomNum <= FINAL_FLOOR ? '/' + FINAL_FLOOR : ''}  ·  ${G.battlesWon || 0} battles won`, W / 2, 180 + dy, { align: 'center', size: 14, color: PAL.dim });
   let hov = -1; items.forEach((_, i) => { if (inRect(mouse, PAUSE_BTN(i))) hov = i; });
   items.forEach(([k, t], i) => button(PAUSE_BTN(i), t, { hover: hov === i || (hov < 0 && G.pauseSel === i), size: 17, color: k === 'resume' ? PAL.gold : PAL.cream }));
@@ -10376,6 +10417,8 @@ function drawPortraitHUD() {
     ctx.fillStyle = '#140d08'; ctx.fillRect(0, y0, Wv, Hv - y0);
     ctx.fillStyle = PAL.brassDk || '#6b4a1e'; ctx.fillRect(0, y0, Wv, 3);
     let y = y0 + 8;
+    // MP: the co-op HUD's portrait layout
+    if (G.coop) { if (MP.coop) MP.coop.drawPortraitHUD(y); W = keepW; H = keepH; return; }
     if (G.hub) {   // the Sanctuary: where you are, who you are, and what you can do here
       const have = ownedIds().length;
       panel(6, y, Wv - 12, 58, 'leather');
@@ -11618,6 +11661,8 @@ function update(dt) {
         }
         updateWorld(dt); break;
       }
+      // MP: the co-op world (no backpack; it stands still while the party fights)
+      if (G.coop) { if (MP.coop) MP.coop.play(dt); break; }
       if (hit('p', 'Escape')) { openPause(); break; }
       if (hit('b', 'i', 'Tab')) { tryOpenPack(); if (G.mode === 'pack') break; }
       if (hit('t')) { openPetsMenu(); break; }
@@ -11646,6 +11691,9 @@ function update(dt) {
       break;
     case 'trans':
       G.fade += dt * 3.5 * G.fadeDir;
+      // MP: co-op floors come from the party leader (mp/coop.js builds them at the dark moment of the fade)
+      if (G.coop && G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; G.fadeDir = -1; if (MP.coop) MP.coop.mid(); }
+      else
       if (G.fadeDir > 0 && G.fade >= 1) { G.fade = 1; if (!G.hub) nextRoom(); else if (G.hubTo) { buildHubRoom(G.hubTo.room, G.hubTo.from); G.hubTo = null; } G.fadeDir = -1; }
       else if (G.fadeDir < 0 && G.fade <= 0) { G.fade = 0; G.fadeDir = 0; G.mode = 'play'; }
       updateFx(dt);
