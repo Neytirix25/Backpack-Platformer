@@ -37,7 +37,7 @@
   const BOSS_ORDER = [null, 'shadow', 'elder', 'wyrm', 'rune'];
   function tierOf(t) {
     const L = TIERS_LOCAL[t] || TIERS_LOCAL[1], B = MP.battle && Array.isArray(MP.battle.TIERS) && MP.battle.TIERS[t];
-    const name = B && typeof B.name === 'string' ? B.name : L.name, lo = B && B.lo > 0 ? B.lo | 0 : L.lo, hi = B && B.hi > 0 ? B.hi | 0 : L.hi;
+    const bn = B && typeof B.name === 'string' && B.name ? B.name.slice(0, 40) : '', name = !bn ? L.name : /^Act /.test(bn) ? bn : L.name.split(' · ')[0] + ' · ' + bn, lo = B && B.lo > 0 ? B.lo | 0 : L.lo, hi = B && B.hi > 0 ? B.hi | 0 : L.hi;
     const boss = BOSS_NAMES[B && B.boss] || BOSS_NAMES[BOSS_ORDER[t]] || BOSS_NAMES.shadow;
     return { name, lo, hi, boss, lv: t >= 4 || !hi || hi <= lo ? `${lo}+` : `${lo}-${hi}` };
   }
@@ -236,7 +236,7 @@
         if (!P || P.mine || P.pend || P.leader !== from) return;
         const info = cleanInfo(m.info, from);
         if (!info || info.kind !== P.kind) return;
-        if (!G || !G.hub || (G.mode !== 'play' && G.mode !== 'trans')) { answer('p.leave'); HUB.party = null; pushPresence(); return; }
+        if (!inStreet() || G.mode === 'battle') { answer('p.leave'); HUB.party = null; pushPresence(); return; }
         start(info);
         return;
       }
