@@ -142,7 +142,7 @@ const TESTS = {
     ok(Math.max(...dmax) < 40, "wild positions on the guest follow the host's (max diff " + Math.round(Math.max(...dmax)) + ' px)');
     ok(A.run('G.wild.some(e => Math.abs(e.x + e.w / 2 - e.homeX) > 3)'), 'the wild animals roam on the host');
     // pausing does not freeze the session for the others
-    A.run('openPause()'); ok(A.run('JSON.stringify(pauseItems().map(i => i[0]))') === '["resume","animals","leave"]', 'pause menu in co-op: resume / animals / leave');
+    A.run('openPause()'); ok(A.run('JSON.stringify(pauseItems().map(i => i[0]))') === '["resume","animals","controls","leave"]', 'pause menu in co-op: resume / animals / controls / leave');
     const wx = B.run('G.wild.map(e => Math.round(e.x)).join()'); await frames(gs, 200);
     ok(B.run('G.wild.map(e => Math.round(e.x)).join()') !== wx, 'the host pausing does not stop the world for the guest');
     A.run('closePause()');
@@ -672,7 +672,7 @@ const TESTS = {
     ok(A.run('G.room.chests.length + (G.room.chestSpots || []).length') > 0 || A.run('G.wild.length') > 0, 'the solo floor has its chests and animals');
     const x = A.run('G.player.x'); A.press('d'); A.step(60); A.release('d');
     ok(A.run('G.player.x') > x + 30, 'the solo hero walks');
-    ok(A.run('JSON.stringify(pauseItems().map(i => i[0]))') === '["resume","animals","restart","hub","title"]', 'the solo pause menu is the old one');
+    ok(A.run('JSON.stringify(pauseItems().map(i => i[0]))') === '["resume","animals","controls","restart","hub","title"]', 'the solo pause menu is the old one (+ Controls)');
     A.run('tryOpenPack()'); ok(A.run('G.mode') === 'pack', 'the backpack opens in solo'); A.run('closePack()');
     onto(A, 0); A.step(3); ok(A.run('G.mode') === 'encounter', 'touching a wild group starts a solo encounter');
     A.step(60); ok(A.run('G.mode') === 'battle' && A.run('!!B && !B.coop'), 'and a solo battle');
