@@ -9,6 +9,10 @@
 //  Everything that arrives from the network is cleaned before use (cleanPres, cleanPt, cleanInfo, cleanText) and
 //  text is only ever drawn on the canvas.
 //
+//  Lists (players, a board's groups) scroll like the pet roster (wheel, drag, scrollbar, keys: see "scrolling lists").
+//  The chat line is typed in the page's hidden text field #ttype (IME, accents, paste: see "typing the chat line")
+//  and only ever drawn on the canvas. F in the street opens a short friend panel ('mpfriend'): friend play is for the Yard.
+//
 //  Presence in the room: { name, cls, look, lv, pt, pj }  (pt = the group I lead: { kind, tier, m: [uids], r: [ready uids], go })
 //  Fast state: { x, y, vx, vy, f, g }.   Messages: 'chat' { s } · to a group's leader: 'p.join', 'p.leave', 'p.ready' { on }
 //  · from the leader: 'p.ok', 'p.no' { why }, 'p.end', 'p.go' { info }.
@@ -450,7 +454,7 @@
   function inputKey(e) {
     if (NET.typing !== 'chat' || !e) return;
     S.chatT = 0;
-    if (e.isComposing || e.keyCode === 229 || S.comp) return;
+    if (e.isComposing || e.keyCode === 229) return;
     const k = e.key, eat = () => { if (e.preventDefault) e.preventDefault(); };
     if (!inStreet()) { eat(); closeChat(); return; }
     if (k === 'Escape') { eat(); closeChat(); }
@@ -875,7 +879,7 @@
   function propGlow(x, ft, w, h) {
     if (Math.abs(x - (G.cam.x + W / 2)) > W / 2 + 280) return;
     const cy = ft - h * 0.5, r = Math.max(70, Math.max(w, h) * 0.72);
-    const g = ctx.createRadialGradient(x, cy, r * 0.15, x, cy, r); g.addColorStop(0, 'rgba(255,238,190,0.34)'); g.addColorStop(0.6, 'rgba(255,230,170,0.12)'); g.addColorStop(1, 'rgba(255,230,170,0)');
+    const g = ctx.createRadialGradient(x, cy, r * 0.15, x, cy, r); g.addColorStop(0, 'rgba(255,238,190,0.3)'); g.addColorStop(0.6, 'rgba(255,230,170,0.12)'); g.addColorStop(1, 'rgba(255,230,170,0)');
     ctx.fillStyle = g; ctx.fillRect(x - r, cy - r, r * 2, r * 2);
     const sw = Math.max(40, w * 0.56), s = ctx.createRadialGradient(x, ft + 3, 2, x, ft + 3, sw); s.addColorStop(0, 'rgba(10,6,12,0.5)'); s.addColorStop(0.7, 'rgba(10,6,12,0.22)'); s.addColorStop(1, 'rgba(10,6,12,0)');
     ctx.save(); ctx.translate(x, ft + 3); ctx.scale(1, 0.16); ctx.translate(-x, -(ft + 3)); ctx.fillStyle = s; ctx.fillRect(x - sw, ft + 3 - sw, sw * 2, sw * 2); ctx.restore();

@@ -11,7 +11,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const quietConsole = Object.assign(Object.create(console), { error: (...a) => { errors.push(a.map(x => (x && x.stack) || String(x)).join(' ')); }, warn: () => {} });
 
 function player(REG, name, opt = {}) {
-  const g = bootGame({ name, globals: { __MPMEM: REG, console: quietConsole }, search: opt.search || '', storage: opt.storage });
+  const g = bootGame({ name, globals: Object.assign({ __MPMEM: REG, console: quietConsole }, opt.globals), search: opt.search || '', storage: opt.storage });
   Object.assign(g.run('MP.net').T, FAST_T);
   g.name = name; g.portrait = false;
   g.giveTeam(opt.team || ['dog', 'fox', 'owl'], opt.lv || 10);
@@ -288,6 +288,306 @@ async function main() {
   const cz = s => A.run(`MP.hub._.censor(${JSON.stringify(s)})`);
   eq(cz('Hello class, pass the grass to Cockburn'), 'Hello class, pass the grass to Cockburn', 'clean words stay');
   ok(cz('sh1t') === '****' && cz('FUUUUCK') === '*******' && cz('b!tch') === '*****' && cz('@ss') === '***' && cz('ass!') === '***!', 'leetspeak and repeated letters are caught');
+
+  {   // ---- scrolling lists, the chat's text field, the street's friend panel, the HUD layout, the trip line, other scripts ----
+  const J = (g, expr) => JSON.parse(g.run(`JSON.stringify(${expr})`));
+  const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const sc = (g, key) => g.run(`MP.hub._.S.sc.${key}`);
+  const downAt = (g, x, y) => g.run(`mouse.x = ${x}; mouse.y = ${y}; onMouseDown(0);`);
+  const moveTo = (g, x, y) => { g.run(`mouse.x = ${x}; mouse.y = ${y};`); g.frame(); };
+  const up = g => g.run(`onMouseUp(0)`);
+  // a recorder on the canvas: every text drawn, with the clip rectangle that was on at that moment
+  const spy = g => g.run(`(() => { const rec = [], clips = []; let pend = null; window.__rec = rec;
+    ctx.save = () => { clips.push(null); }; ctx.restore = () => { clips.pop(); }; ctx.rect = (x, y, w, h) => { pend = { x, y, w, h }; }; ctx.clip = () => { if (clips.length) clips[clips.length - 1] = pend; };
+    ctx.fillText = (t, x, y) => { rec.push({ t: String(t), x, y, clip: clips.filter(Boolean).pop() || null }); }; })()`);
+  const drawn = g => { g.run('window.__rec.length = 0'); g.frame(); return J(g, 'window.__rec'); };
+  const sameRect = (a, b) => !!a && !!b && Math.abs(a.x - b.x) < 0.01 && Math.abs(a.y - b.y) < 0.01 && Math.abs(a.w - b.w) < 0.01 && Math.abs(a.h - b.h) < 0.01;
+
+  console.log('9. scrolling lists: 20+ players and 12 groups, by wheel, keys, dragging and the scrollbar');
+  await toStreet(A, C, D, E); await settle(20);
+  for (const g of [A, C, D, E]) { g.run(`NET.typing = null; G.panel = null; G.mode = 'play'; if (MP.hub.party) MP.hub.leaveGroup();`); }
+  await settle(10);
+  // 19 more players in E's copy of the room (12 of them lead a dungeon group), as the network layer would list them
+  E.run(`for (let i = 0; i < 19; i++) { const id = 'fk' + i; MP.hub.room.members.set(id, { id, seq: 500 + i, p: { name: 'Bot' + String(i).padStart(2, '0'), cls: 'archer', lv: 3 + i, pt: i < 12 ? { kind: 'dungeon', tier: 1 + i % 4, m: [], r: [] } : null }, f: { x: 300 + i * 40, y: 434, vx: 0, vy: 0, f: 1, g: 1 } }); }`);
+  E.frame(); E.frame();
+  ok(E.others().length >= 22, 'E sees the crowd (' + E.others().length + ' others)');
+  eq(E.run(`MP.hub.groups('dungeon').length`), 12, '12 dungeon groups are open');
+  spy(E);
+  for (const port of [false, true]) {
+    const where = port ? 'portrait' : 'landscape';
+    E.setPortrait(port); E.run(`G.panel = null`); E.frame();
+    // ---- the Players panel ----
+    E.tap('Tab'); E.frame(); eq(E.run('G.panel'), 'mpplayers', `${where}: the players panel is open`);
+    let L = J(E, `(() => { const P = MP.hub._.playersLayout(); return { view: P.list.view, RH: P.list.RH, total: P.list.total, max: MP.hub._.listMax(P.list), n: P.total, rows: P.rows.length, box: { x: P.bx, y: P.by, w: P.bw, h: P.bh } }; })()`);
+    ok(L.max > 0 && L.n >= 23, `${where}: ${L.n} players do not fit: the list scrolls (${L.max} px)`);
+    ok(L.rows < L.n, `${where}: only the rows in view are laid out (${L.rows} of ${L.n})`);
+    ok(L.view.x >= L.box.x && L.view.x + L.view.w + 14 <= L.box.x + L.box.w && L.view.y >= L.box.y && L.view.y + L.view.h <= L.box.y + L.box.h, `${where}: the list box and its scrollbar are inside the panel`);
+    ok(!E.btn('plpage') && !E.btn('page'), `${where}: no paging button any more`);
+    eq(sc(E, 'players'), 0, `${where}: it opens at the top`);
+    ok(E.run(`MP.hub.wheel(70)`) === true && sc(E, 'players') === 70, `${where}: the wheel scrolls`);
+    E.run(`MP.hub.wheel(-500)`); eq(sc(E, 'players'), 0, `${where}: and stops at the top`);
+    E.tap('ArrowDown'); eq(sc(E, 'players'), L.RH, `${where}: Arrow Down = one row`);
+    E.tap('PageDown'); ok(Math.abs(sc(E, 'players') - Math.min(L.max, L.RH + L.view.h * 0.8)) < 0.01, `${where}: Page Down = most of a page`);
+    E.tap('End'); eq(sc(E, 'players'), L.max, `${where}: End = the bottom`);
+    E.tap('PageUp'); ok(sc(E, 'players') < L.max, `${where}: Page Up`); E.tap('ArrowUp'); E.tap('Home'); eq(sc(E, 'players'), 0, `${where}: Home = the top`);
+    ok(E.run(`MP.hub.scrolls()`), `${where}: a finger dragging over the panel scrolls it (touchScrolls)`);
+    // dragging the list with the mouse
+    downAt(E, L.view.x + 30, L.view.y + L.view.h - 20); moveTo(E, L.view.x + 30, L.view.y + L.view.h - 20 - 64); eq(sc(E, 'players'), 64, `${where}: dragging the list up scrolls it down`);
+    moveTo(E, L.view.x + 30, L.view.y + L.view.h - 20 - 30); eq(sc(E, 'players'), 30, `${where}: and it follows the mouse back`); up(E); E.frame();
+    moveTo(E, L.view.x + 30, L.view.y + 10); eq(sc(E, 'players'), 30, `${where}: after the button is up the list stays`);
+    // the scrollbar: drag the thumb, click the track
+    E.run(`MP.hub._.S.sc.players = 0`); E.frame();
+    let T = J(E, `(() => { const l = MP.hub._.playersLayout().list; return { bar: MP.hub._.listBar(l), thumb: MP.hub._.listThumb(l) }; })()`);
+    ok(T.thumb.h >= 28 && T.thumb.h < T.bar.h && T.thumb.y === T.bar.y, `${where}: a thumb at the top of the bar`);
+    downAt(E, T.thumb.x + 4, T.thumb.y + 10); moveTo(E, T.thumb.x + 4, T.thumb.y + 10 + (T.bar.h - T.thumb.h) / 2);
+    ok(Math.abs(sc(E, 'players') - L.max / 2) < 1, `${where}: dragging the thumb half-way scrolls half-way (${sc(E, 'players')} of ${L.max})`);
+    moveTo(E, T.thumb.x + 4, T.bar.y + T.bar.h + 200); eq(sc(E, 'players'), L.max, `${where}: and to the end`); up(E);
+    E.clickAt(T.bar.x + 4, T.bar.y + 3); ok(sc(E, 'players') < L.max, `${where}: a click on the track above the thumb pages up`); eq(E.run('G.panel'), 'mpplayers', `${where}: (the panel stays open)`);
+    // clicks land on the right row after scrolling
+    E.run(`MP.hub._.S.sc.players = ${L.RH * 2 + 17}`); E.frame();
+    let rec = drawn(E);
+    rec = rec.slice(rec.findIndex(r => /^Players in the street/.test(r.t)));   /* (only the panel: the street's own name tags are under it) */
+    const view = J(E, `MP.hub._.playersLayout().list.view`), names = rec.filter(r => /^Bot\d\d/.test(r.t));
+    ok(names.length > 3 && names.length < 19 + 1, `${where}: some of the names are drawn (${names.length})`);
+    ok(names.every(r => sameRect(r.clip, view)), `${where}: every row's text is drawn clipped to the list box`);
+    ok(names.every(r => r.y > view.y - L.RH && r.y < view.y + view.h + L.RH), `${where}: and no row is drawn far outside it`);
+    ok(rec.filter(r => r.t === 'Mute' || r.t === 'Hide').length > 3 && rec.filter(r => r.t === 'Mute' || r.t === 'Hide' || r.t === 'Unmute' || r.t === 'Show').every(r => sameRect(r.clip, view)), `${where}: the rows' buttons are clipped too`);
+    ok(rec.filter(r => r.t === 'Close').every(r => !r.clip), `${where}: the Close button is not`);
+    const mutes = J(E, `MP.hub._.panelButtons().filter(b => b.id === 'mute' && b.arg.startsWith('fk'))`);
+    const whole = mutes.filter(b => b.r.y >= view.y && b.r.y + b.r.h <= view.y + view.h), pick = whole[whole.length - 1];
+    const nameOn = names.filter(r => Math.abs(r.y - (pick.r.y + pick.r.h / 2)) < 3 && r.x < pick.r.x && r.x > pick.r.x - 420).pop();
+    E.clickAt(pick.r.x + pick.r.w / 2, pick.r.y + pick.r.h / 2);
+    ok(E.run(`MP.hub._.S.mute.has(${JSON.stringify(pick.arg)})`), `${where}: a click on a scrolled row's Mute button mutes that player`);
+    eq(nameOn && nameOn.t, E.run(`MP.hub._.S.others.get(${JSON.stringify(pick.arg)}).name`), `${where}: and it is the player whose name is drawn on that row`);
+    eq(J(E, `[...MP.hub._.S.mute]`).length, 1, `${where}: nobody else was muted`);
+    E.clickAt(pick.r.x + pick.r.w / 2, pick.r.y + pick.r.h / 2); ok(!E.run(`MP.hub._.S.mute.has(${JSON.stringify(pick.arg)})`), `${where}: a second click unmutes`);
+    // a button cut by the edge of the list only answers where it is visible; a drag that starts on a button is not a click
+    const cut = mutes.find(b => b.r.y < view.y - 4 && b.r.y + b.r.h > view.y);
+    ok(!!cut, `${where}: (a row is cut by the top edge)`);
+    if (cut) { E.clickAt(cut.r.x + cut.r.w / 2, view.y - 3); eq(J(E, `[...MP.hub._.S.mute]`).length, 0, `${where}: a click on the hidden part of a cut button does nothing`); eq(E.run('G.panel'), 'mpplayers', `${where}: (nor closes the panel)`); }
+    const s0 = sc(E, 'players'); downAt(E, pick.r.x + pick.r.w / 2, pick.r.y + pick.r.h / 2); moveTo(E, pick.r.x + pick.r.w / 2, pick.r.y + pick.r.h / 2 + 40); up(E);
+    ok(sc(E, 'players') === s0 - 40 && J(E, `[...MP.hub._.S.mute]`).length === 0, `${where}: a drag that starts on a button scrolls and does not click`);
+    ok(E.run(`MP.hub._.panelButtons().every(b => b.r.x >= 0 && b.r.x + b.r.w <= W + 0.5)`), `${where}: buttons inside the screen's width`);
+    E.tap('Escape'); eq(E.run('G.panel'), null, `${where}: Escape closes the players panel`);
+    ok(!E.run(`MP.hub.scrolls()`) && E.run(`MP.hub.wheel(50)`) === false, `${where}: with no list open the wheel is not taken`);
+
+    // ---- a board's groups ----
+    E.run(`MP.hub.interact({ kind: 'mp_dungeon' })`); E.frame(); eq(E.run('G.panel'), 'mpboard', `${where}: the dungeon board is open`);
+    L = J(E, `(() => { const l = MP.hub._.boardList(), B = MP.hub._.boardBox(); return { view: l.view, RH: l.RH, total: l.total, max: MP.hub._.listMax(l), n: l.items.length, leaders: l.items.map(g => g.leader), box: { x: B.bx, y: B.by, w: B.bw, h: B.bh } }; })()`);
+    ok(L.n === 12 && L.max > 0, `${where}: 12 groups do not fit: the list scrolls (${L.max} px)`);
+    ok(L.view.x >= L.box.x && L.view.x + L.view.w + 14 <= L.box.x + L.box.w && L.view.y >= L.box.y && L.view.y + L.view.h <= L.box.y + L.box.h, `${where}: the list box is inside the board`);
+    ok(!E.btn('page'), `${where}: no paging button on the board`);
+    E.run(`MP.hub.wheel(100)`); eq(sc(E, 'board'), 100, `${where}: the wheel scrolls the groups`);
+    E.tap('Home'); E.tap('ArrowDown'); eq(sc(E, 'board'), L.RH, `${where}: Arrow Down = one group`); E.tap('PageDown'); ok(sc(E, 'board') > L.RH, `${where}: Page Down`);
+    E.tap('End'); eq(sc(E, 'board'), L.max, `${where}: End`); E.tap('PageUp'); E.tap('ArrowUp'); ok(sc(E, 'board') < L.max, `${where}: Page Up / Arrow Up`); E.tap('Home'); eq(sc(E, 'board'), 0, `${where}: Home`);
+    downAt(E, L.view.x + 40, L.view.y + L.view.h - 30); moveTo(E, L.view.x + 40, L.view.y + L.view.h - 30 - 150); up(E); eq(sc(E, 'board'), 150, `${where}: dragging the groups scrolls them`);
+    rec = drawn(E);
+    const heads = rec.filter(r => /'s group/.test(r.t));
+    ok(heads.length >= 3 && heads.length < 12 && heads.every(r => sameRect(r.clip, L.view)), `${where}: the groups in view are drawn, clipped to the list box (${heads.length})`);
+    ok(rec.filter(r => r.t === 'Join').length >= 3 && rec.filter(r => r.t === 'Join').every(r => sameRect(r.clip, L.view)), `${where}: their Join buttons too`);
+    ok(rec.filter(r => r.t === 'Open a group' || r.t === 'Close').every(r => !r.clip), `${where}: the footer buttons are not clipped`);
+    const joins = J(E, `MP.hub._.panelButtons().filter(b => b.id === 'join')`).filter(b => b.r.y >= L.view.y && b.r.y + b.r.h <= L.view.y + L.view.h), jb = joins[joins.length - 1];
+    const idx = Math.round((jb.r.y - 13 - L.view.y + 150) / L.RH);
+    eq(jb.arg, L.leaders[idx], `${where}: the Join button on row ${idx} belongs to that row's group`);
+    const head = heads.filter(r => Math.abs(r.y - (jb.r.y - 13 + 16)) < 3).pop();
+    ok(head && head.t.startsWith(E.run(`MP.hub._.S.others.get(${JSON.stringify(jb.arg)}).name`) + "'s group"), `${where}: and that group's name is drawn on it`);
+    E.clickAt(jb.r.x + jb.r.w / 2, jb.r.y + jb.r.h / 2);
+    eq((E.party() || {}).leader, jb.arg, `${where}: a click on a scrolled row's Join asks that group`);
+    E.run(`MP.hub.leaveGroup()`); E.frame();
+    E.run(`MP.hub._.S.sc.board = ${L.RH * 3}`); E.frame(); E.tap('2');
+    eq((E.party() || {}).leader, L.leaders[4], `${where}: key 2 joins the second group in view`);
+    E.run(`MP.hub.leaveGroup()`); E.frame(); E.tap('Escape'); eq(E.run('G.panel'), null, `${where}: the board closes`);
+  }
+  E.setPortrait(false); E.run(`for (let i = 0; i < 19; i++) MP.hub.room.members.delete('fk' + i);`); E.frame(); E.frame();
+
+  console.log('10. chat through the text field: IME composition, accents, emoji, paste, the 120 character limit');
+  await settle(70);
+  const inp = g => `document.getElementById('ttype')`;
+  const setVal = (g, v, ev = '{}') => g.run(`${inp(g)}.value = ${JSON.stringify(v)}; MP.hub.input.changed(${ev});`);
+  const key = (g, e) => g.run(`(() => { const e = ${JSON.stringify(e)}; let stopped = false; e.preventDefault = () => { stopped = true; }; MP.hub.input.key(e); return stopped; })()`);
+  E.run(`${inp(E)}.focusN = 0; ${inp(E)}.blurN = 0; ${inp(E)}.focus = function () { this.focusN++; }; ${inp(E)}.blur = function () { this.blurN++; };`);
+  E.tap('Enter'); eq(E.run('NET.typing'), 'chat', 'Enter opens the chat line');
+  ok(E.run(`${inp(E)}.focusN`) >= 1, 'the text field gets the focus (on a computer too)');
+  ok(E.run(`${inp(E)}.style.left`) !== '-1000px' && parseFloat(E.run(`${inp(E)}.style.left`)) >= 0 && E.run(`${inp(E)}.style.pointerEvents`) === 'none', 'and lies over the chat line, letting clicks through');
+  eq(Math.round(parseFloat(E.run(`${inp(E)}.style.top`))), Math.round(J(E, 'MP.hub._.chatRects().row').y), 'at the height of the chat line');
+  // an IME composition: the line shows the text as it grows; Enter belongs to the IME until the composition is over
+  E.run(`MP.hub.input.comp(true)`); setVal(E, 'にほ', '{ isComposing: true }'); eq(E.run('NET.buf'), 'にほ', 'the composition shows on the canvas line as it grows');
+  setVal(E, 'にほんご', '{ isComposing: true }');
+  ok(!key(E, { key: 'Enter', isComposing: true, keyCode: 229 }) && E.run('NET.typing') === 'chat', 'Enter during a composition does not send (isComposing)');
+  ok(!key(E, { key: 'Enter', keyCode: 229 }) && E.run('NET.typing') === 'chat', 'nor a key the IME has taken (keyCode 229)');
+  ok(!key(E, { key: 'Escape', isComposing: true, keyCode: 229 }) && E.run('NET.typing') === 'chat', 'Escape during a composition only cancels the composition');
+  E.run(`${inp(E)}.value = '日本語 こんにちは'; MP.hub.input.comp(false);`); eq(E.run('NET.buf'), '日本語 こんにちは', 'the finished composition is the line');
+  const nA = A.chat().length;
+  ok(key(E, { key: 'Enter', keyCode: 13 }) === true, 'Enter after the composition is taken (preventDefault)'); await settle(10);
+  eq(E.run('NET.typing'), null, 'and sends: the line is closed');
+  ok(A.chat().slice(nA).some(e => e.name === 'Zed' && e.s === '日本語 こんにちは'), 'the others got the Japanese line unchanged');
+  ok(E.run(`${inp(E)}.value`) === '' && E.run(`${inp(E)}.style.left`) === '-1000px' && E.run(`${inp(E)}.blurN`) >= 1 && !E.run('MP.hub._.S.inMine'), 'the field is emptied, moved away and blurred: the keys are the game\'s again');
+  await settle(70);
+  // accents (dead keys), Korean, Chinese, Cyrillic, Arabic, emoji with joiners: nothing is stripped or starred
+  const world = 'café ñandú Ünïcödé 안녕하세요 你好 Привет مرحبا 👨\u200d👩\u200d👧 👍🏽 می\u200cخواهم';
+  E.tap('Enter'); setVal(E, world); key(E, { key: 'Enter' }); await settle(10);
+  ok(A.chat().some(e => e.name === 'Zed' && e.s === world), 'accents, other scripts and emoji arrive exactly as typed: ' + (A.chat().filter(e => e.name === 'Zed').pop() || {}).s);
+  await settle(70);
+  // the limit is 120 characters, counted as characters: an emoji is one, and is never cut in half
+  E.tap('Enter'); setVal(E, 'a' + '😀'.repeat(130));
+  ok(E.run('MP.hub._.charLen(NET.buf)') === 120 && E.run('NET.buf.length') === 239, 'the line stops at 120 characters (239 UTF-16 units here)');
+  ok(E.run('NET.buf').endsWith('😀') && !/[\ud800-\udbff]$/.test(E.run('NET.buf')), 'no surrogate pair is cut');
+  eq(E.run(`${inp(E)}.value`), E.run('NET.buf'), 'the field itself is cut back to the limit');
+  E.run(`MP.hub.input.comp(true)`); E.run(`${inp(E)}.value = NET.buf + 'かな'; MP.hub.input.changed({ isComposing: true });`);
+  ok(E.run('MP.hub._.charLen(NET.buf)') === 120 && E.run(`${inp(E)}.value`).endsWith('かな'), 'during a composition the field is left alone (the canvas line still shows 120)');
+  E.run(`MP.hub.input.comp(false)`); eq(E.run(`${inp(E)}.value`), E.run('NET.buf'), 'and cut when the composition ends');
+  const full = E.run('NET.buf'); key(E, { key: 'Enter' }); await settle(10);
+  ok(A.chat().some(e => e.name === 'Zed' && e.s === full), 'a full line of 120 emoji-wide characters is delivered (the receiver counts characters too)');
+  await settle(70);
+  const nA2 = A.chat().length; E.run(`MP.hub.room.send({ t: 'chat', s: '😀'.repeat(121) })`); E.run(`MP.hub.room.send({ t: 'chat', s: 'x'.repeat(121) })`); await settle(10);
+  eq(A.chat().length, nA2, 'lines of 121 characters straight on the wire are dropped');
+  await settle(70);
+  // paste: into the field when it has the focus (the browser inserts at the caret), cleaned either way
+  E.tap('Enter'); ok(!E.run('MP.hub.paste()'), 'without the focus a paste goes through the key path');
+  E.run(`for (const c of 'one\\ntwo\\ttab\\u0000\\u0007x') netType({ key: c })`); eq(E.run('NET.buf'), 'one two tab  x', 'pasted control characters become spaces (key path)');
+  eq(E.run(`${inp(E)}.value`), 'one two tab  x', 'and the field follows the line');
+  E.run(`document.activeElement = ${inp(E)}`); ok(E.run('MP.hub.paste()'), 'with the focus the field takes the paste itself');
+  setVal(E, 'so:\r\nline one\nline two\u0085\u2028end' + 'z'.repeat(200)); ok(!/[\u0000-\u001f\u007f-\u009f\u2028]/.test(E.run('NET.buf')) && E.run('MP.hub._.charLen(NET.buf)') === 120 && E.run('NET.buf').startsWith('so:  line one line two  end'), 'a pasted text is cleaned and cut: ' + E.run('NET.buf').slice(0, 30));
+  E.run(`document.activeElement = null`);
+  ok(key(E, { key: 'Tab' }) === true && E.run('NET.typing') === 'chat', 'Tab does not leave the field');
+  ok(key(E, { key: 'Escape' }) === true && E.run('NET.typing') === null && E.run(`${inp(E)}.value`) === '', 'Escape cancels and empties the field');
+  ok(!A.chat().some(e => /line one/.test(e.s)), 'nothing was sent');
+  // the key path still edits by whole characters
+  E.tap('Enter'); E.type('ab😀'); E.run(`netType({ key: 'Backspace' })`); eq(E.run('NET.buf'), 'ab', 'Backspace (key path) removes a whole emoji'); E.type('y'.repeat(200)); eq(E.run('MP.hub._.charLen(NET.buf)'), 120, 'the key path stops at 120 too');
+  E.run(`netType({ key: 'Enter', isComposing: true })`); eq(E.run('NET.typing'), 'chat', 'Enter of a composition is ignored on the key path too'); E.run(`netType({ key: 'Escape' })`);
+  // index.html's own handlers on the field step aside for the chat
+  const html = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'index.html'), 'utf8');
+  eq((html.match(/inp\.addEventListener\('(keydown|input|blur)'[^\n]*mpChat\(\)/g) || []).length, 3, "index.html's three handlers on #ttype return while the chat line is open");
+
+  console.log('11. while typing the game\'s keys are blocked, and given back afterwards');
+  const LS = {};
+  // (a sixth copy of the game whose window listeners the test can call: real keydown / keyup / blur / paste events)
+  const F = player(REG, 'Fay', { lv: 8, globals: { addEventListener: (t, f) => { (LS[t] = LS[t] || []).push(f); } } });
+  ALL.push(F);
+  const fire = (type, e) => { let stopped = false; const ev = Object.assign({ preventDefault() { stopped = true; }, stopPropagation() {} }, e); for (const f of LS[type] || []) f(ev); return stopped; };
+  ok((LS.keydown || []).length >= 1 && (LS.paste || []).length >= 1, "(the test reaches the game's real key and paste listeners)");
+  F.run(`enterHub('street')`); await until(() => inStreet(F) && open(F)); await settle(10);
+  ok(/^Kingdom Street/.test(F.run('G.msg')) && !/Choose your team/.test(F.run('G.msg')), 'arriving in the street shows the short street welcome: ' + F.run('G.msg'));
+  F.at(20); F.frame();
+  fire('keydown', { key: 'd' }); F.frame(); F.frame(); const x0 = F.run('G.player.x'); F.frame(); ok(F.run('G.player.x') > x0, 'D walks');
+  fire('keydown', { key: 'Enter' }); F.frame(); eq(F.run('NET.typing'), 'chat', 'Enter (a real key event) opens the chat');
+  ok(!F.run('keys.d'), 'the held key is let go when the line opens'); for (let i = 0; i < 70; i++) F.frame();   /* (the hero slides to a stop) */
+  const x1 = F.run('G.player.x'); for (let i = 0; i < 5; i++) F.frame(); ok(Math.abs(F.run('G.player.x') - x1) < 0.05, 'the hero stands still while typing');
+  for (const k of ['p', 'f', 'b', 't', 'Tab', 'g', 'e', 'a', ' ']) fire('keydown', { key: k });
+  F.frame(); F.frame();
+  ok(F.run(`G.mode === 'play' && !G.panel && !PK`), 'p, f, b, t, Tab, g, e open nothing while typing'); eq(F.run('NET.buf'), 'pfbtgea ', 'they are typed instead');
+  ok(Math.abs(F.run('G.player.x') - x1) < 0.05, 'and A does not walk');
+  // the field lost the focus (a click elsewhere, another tab): the line stays, the keys stay blocked, the focus is asked back
+  F.run(`document.getElementById('ttype').focusN = 0; document.getElementById('ttype').focus = function () { this.focusN++; };`);
+  F.run(`MP.hub.input.blur()`); fire('blur', {}); eq(F.run('NET.typing'), 'chat', 'losing the focus keeps the line and its text'); eq(F.run('NET.buf'), 'pfbtgea ', '(the text)');
+  fire('keydown', { key: 'p' }); F.frame(); ok(F.run(`G.mode === 'play'`) && F.run('NET.buf').endsWith('p'), 'keys still do not reach the game');
+  await sleep(90); ok(F.run(`document.getElementById('ttype').focusN`) >= 1, 'and the field takes the focus back');
+  fire('keydown', { key: 'Escape' }); eq(F.run('NET.typing'), null, 'Escape (key path) closes the line');
+  fire('keyup', { key: 'd' }); fire('keydown', { key: 'd' }); F.frame(); F.frame(); const x2 = F.run('G.player.x'); F.frame(); ok(F.run('G.player.x') > x2, 'afterwards D walks again'); fire('keyup', { key: 'd' });
+  fire('keydown', { key: 'p' }); F.frame(); eq(F.run('G.mode'), 'pause', 'and P pauses again'); F.run(`G.mode = 'play'`); F.frame();
+  // a real paste event while the line is open
+  fire('keydown', { key: 'Enter' }); F.frame(); eq(F.run('NET.typing'), 'chat', '(typing again)');
+  ok(fire('paste', { clipboardData: { getData: () => 'pasted\nwords' } }) === true && F.run('NET.buf') === 'pasted words', 'a paste event without the focus is typed in, cleaned');
+  F.run(`document.activeElement = document.getElementById('ttype')`);
+  ok(fire('paste', { clipboardData: { getData: () => 'XX' } }) === false && F.run('NET.buf') === 'pasted words', 'with the focus the paste is left to the field');
+  F.run(`document.activeElement = null`);
+  // a window opening over the street, leaving the street, a co-op start: the line closes and the keys come back
+  F.run(`G.panel = 'mpsoon'`); F.frame(); ok(F.run('NET.typing') === null && !F.run('MP.hub._.S.inMine'), 'a panel opening closes the chat line'); F.run(`G.panel = null`); F.frame();
+  fire('keydown', { key: 'Enter' }); F.frame(); F.run(`openPause()`); F.frame(); ok(F.run('NET.typing') === null, 'so does the pause menu'); F.run(`G.mode = 'play'`); F.frame();
+  fire('keydown', { key: 'Enter' }); F.frame(); eq(F.run('NET.typing'), 'chat', '(typing again)');
+  F.run(`enterHub('yard')`); F.frame(); F.frame(); ok(F.run('NET.typing') === null && !F.run('MP.hub._.S.inMine') && F.run(`document.getElementById('ttype').value`) === '', 'leaving the street closes the chat line');
+  fire('keydown', { key: 'f' }); F.run(`G.mode = 'play'`); F.frame(); eq(F.run('G.panel'), 'net', 'in the Yard F opens the friend panel as before'); F.run(`G.panel = null; NET.typing = null`);
+  ok(/^The Sanctuary/.test(F.run('G.msg')) || /egg/.test(F.run('G.msg')), 'the Yard keeps its own welcome: ' + F.run('G.msg').slice(0, 40));
+  await toStreet(A, F); await settle(20);
+  A.run(`G.panel = null; NET.typing = null; MP.hub.openGroup('dungeon', 1)`); await settle(10); F.run(`MP.hub.joinGroup(${JSON.stringify(A.uid())})`); await settle(15); F.run(`MP.hub.setReady(true)`); await settle(15);
+  F.run(`G.mode = 'play'; G.fade = 0`); F.frame(); fire('keydown', { key: 'Enter' }); F.frame(); eq(F.run('NET.typing'), 'chat', 'F is typing when the leader presses Go');
+  F.run(`SAVE.rec.coopW = 2; SAVE.rec.coopL = 5; SAVE.rec.coopDungeons = 1; SAVE.rec.coopRaids = 0;`);
+  ok(A.run(`MP.hub.go()`), 'the leader sets off'); await until(() => F.run('MP.coop.calls.length') === 1);
+  eq(F.run('MP.coop.calls.length'), 1, 'the co-op start reached F'); ok(F.run('NET.typing') === null && !F.run('MP.hub._.S.inMine'), 'and closed the chat line');
+
+  console.log('12. back from a co-op outing: one line in the chat');
+  F.run(`SAVE.rec.coopW += 3; SAVE.rec.coopL += 1; SAVE.rec.coopDungeons += 1;`);
+  await toStreet(A, F); await settle(20);
+  const back = F.chat().filter(e => e.sys && /^Back from/.test(e.s));
+  eq(back.length, 1, 'one system line about the outing'); ok(back[0] && /^Back from the dungeon: .+ cleared! \(3 battles won, 1 lost\)$/.test(back[0].s), 'it says what happened: ' + (back[0] || {}).s);
+  ok(F.chat().map(e => /^Welcome to Kingdom Street/.test(e.s)).lastIndexOf(true) === F.chat().findIndex(e => /^Back from/.test(e.s)) - 1, 'right after the welcome line');
+  ok(/^Kingdom Street/.test(F.run('G.msg')), 'and the message bar is the street welcome');
+  ok(!A.chat().some(e => e.sys && /^Back from/.test(e.s)), 'nothing changed for A: no line');
+  eq(F.run(`MP.hub._.tripLine({ kind: 'raid', tier: 2, rec: { coopW: SAVE.rec.coopW - 1, coopL: SAVE.rec.coopL, coopDungeons: SAVE.rec.coopDungeons, coopRaids: SAVE.rec.coopRaids - 1 } })`), 'Back from the raid: The Elder Dragon is defeated! (1 battle won)', 'a raid won');
+  eq(F.run(`MP.hub._.tripLine({ kind: 'raid', tier: 2, rec: { coopW: SAVE.rec.coopW, coopL: SAVE.rec.coopL - 3, coopDungeons: SAVE.rec.coopDungeons, coopRaids: SAVE.rec.coopRaids } })`), 'Back from the raid: not finished this time (0 battles won, 3 lost)', 'a raid lost');
+  eq(F.run(`MP.hub._.tripLine({ kind: 'dungeon', tier: 1, rec: Object.assign({}, SAVE.rec) })`), '', 'nothing happened: no line');
+  eq(F.run(`MP.hub._.tripLine({ kind: 'dungeon', tier: 9, rec: {} })`).slice(0, 9), 'Back from', 'odd numbers do not break it');
+
+  console.log('13. the friend panel in the street; the HUD layout in landscape and portrait');
+  F.run(`G.mode = 'play'; G.fade = 0; G.panel = null; NET.typing = null; NET.state = 'linked'; NET.friend = { name: 'Pal', cls: 'warrior', n: 3, sp: 2, look: null };`); F.frame();
+  fire('keydown', { key: 'f' }); F.frame(); fire('keyup', { key: 'f' }); eq(F.run('G.panel'), 'mpfriend', "F in the street opens the street's short friend panel");
+  const fb = J(F, `MP.hub._.panelButtons()`);
+  ok(fb.filter(b => b.id === 'foff').length === 3 && fb.filter(b => b.id === 'foff').every(b => b.off) && fb.some(b => b.id === 'close' && !b.off), 'Battle, Trade and Visit are shown switched off; Close works');
+  spy(F); const ftxt = drawn(F).map(r => r.t).join(' | ');
+  ok(/Friend battles, trades and visits work from the Yard/.test(ftxt) && /Pal/.test(ftxt), 'it says where friend play works: ' + ftxt.slice(0, 120));
+  const fo = fb.find(b => b.id === 'foff'); F.clickAt(fo.r.x + 20, fo.r.y + 10); F.frame();
+  ok(F.run('G.panel') === 'mpfriend' && F.run('NET.out') == null && F.run('NET.state') === 'linked', 'a click on a switched-off button asks nothing (and the link is kept)');
+  F.clickBtn('close'); eq(F.run('G.panel'), null, 'Close closes it');
+  F.run(`G.panel = 'net'`); F.frame(); eq(F.run('G.panel'), 'mpfriend', 'the full friend panel never stays open in the street');
+  F.tap('Escape'); eq(F.run('G.panel'), null, 'Escape closes it'); F.run(`NET.state = 'off'; NET.friend = null;`);
+  for (const g of [A, F]) g.run(`G.panel = null; NET.typing = null; G.mode = 'play'`);
+  await toStreet(A, F); await settle(15);
+  A.run(`if (!MP.hub.party) MP.hub.openGroup('raid', 2)`); await settle(10);
+  A.sayLine('one'); await settle(70); A.sayLine('two'); await settle(70); A.sayLine('three'); await settle(10);
+  const rects = g => J(g, `(() => { const _ = MP.hub._, C = _.chatRects(), L = _.statusLayout(); return { status: L.s, badge: L.badge, row: C.row, box: C.box, chat: C.chat, players: C.players, send: C.send, under: C.under, top: C.top, lines: C.lines, W, H, VH: VIEW.h }; })()`);
+  // landscape: the Sanctuary's own panel (top left), the message bar's band under it, the chat (bottom left), the status and the badge (bottom right)
+  A.setPortrait(false); A.frame();
+  let R = rects(A); const own = { x: 8, y: 6, w: 520, h: 58 }, bar = { x: 0, y: 47, w: 960, h: 78 };
+  ok(R.badge && R.status.w > 60, '(A has a status line and a group badge)');
+  for (const [n, r] of [['status line', R.status], ['group badge', R.badge], ['chat line', R.row], ['chat log', R.box]]) {
+    ok(!hits(r, own) && !hits(r, bar), `landscape: the ${n} is clear of the top-left panel and of the message bar (even a three-line one)`);
+    ok(r.x >= 0 && r.x + r.w <= 960 && r.y >= 0 && r.y + r.h <= 540, `landscape: the ${n} is on the screen`);
+  }
+  ok(!hits(R.status, R.badge) && !hits(R.status, R.row) && !hits(R.badge, R.row) && !hits(R.status, R.box) && !hits(R.badge, R.box), 'landscape: status, badge and chat do not overlap each other');
+  ok(R.status.y >= 480 && R.badge.y >= 480, 'landscape: status and badge sit on the floor strip, under the walking line');
+  A.run(`MP.hub.leaveGroup(); MP.hub.leave(); MP.hub._.S.err = 'x';`); R = rects(A);
+  ok(/^Offline: couldn't reach/.test(A.run('MP.hub._.status()[0]')) && !/…$/.test(J(A, 'MP.hub._.statusLayout().txt')), '(the long offline status, not shortened)');
+  ok(R.status.x >= R.row.x + R.row.w + 8 && R.status.x + R.status.w <= 960, 'landscape: the longest status text (offline) still fits beside the chat');
+  await toStreet(A); await settle(15); A.run(`MP.hub.openGroup('raid', 2)`); await settle(10);
+  // portrait: nothing of the street's HUD covers the hero's walking line in the 540 x 540 square
+  for (const vh of [760, 800, 900, 1170]) {
+    A.setPortrait(true); A.run(`VIEW.h = ${vh}`); A.frame(); A.frame(); R = rects(A);
+    const walk = { x: 0, y: 330, w: 540, h: 210 }, msg = { x: 0, y: 11, w: 540, h: 58 };   /* the hero, a jump's height above the floor, down to the square's edge; the message bar (two lines) */
+    for (const [n, r] of [['status line', R.status], ['group badge', R.badge], ['chat line', R.row], ['chat log', R.box], ['Chat button', R.chat], ['Players button', R.players], ['Send button', R.send]]) {
+      ok(!hits(r, walk), `portrait ${vh}: the ${n} does not cover the walking line`);
+      ok(r.x >= 0 && r.x + r.w <= 540 && r.y >= 0 && r.y + r.h <= vh - 60, `portrait ${vh}: the ${n} is on the screen, above the controls hint`);
+      ok(!hits(r, msg), `portrait ${vh}: the ${n} is clear of the message bar`);
+    }
+    ok(!hits(R.status, R.badge) && !hits(R.box, R.row) && !hits(R.status, R.box) && !hits(R.badge, R.box), `portrait ${vh}: status, badge, log and chat line do not overlap`);
+    ok(R.row.y >= 540 + 110, `portrait ${vh}: the Chat and Players buttons are in the HUD area, under the room's panel and hint`);
+    eq(R.under, vh >= 800, `portrait ${vh}: the chat log is ${vh >= 800 ? 'under the square too' : 'at the top of the square (no room under it)'}`);
+    ok(A.shown().length >= Math.min(2, R.lines) && A.shown().length <= R.lines, `portrait ${vh}: the log shows what fits (${A.shown().length} of ${R.lines} lines)`);
+    A.clickAt(R.chat.x + 20, R.chat.y + 10); eq(A.run('NET.typing'), 'chat', `portrait ${vh}: a tap on Chat (in the HUD area) opens the line`);
+    A.frame(); A.clickAt(270, 300); eq(A.run('NET.typing'), null, `portrait ${vh}: a tap on the street closes it`);
+    A.clickAt(R.badge.x + 10, R.badge.y + 10); eq(A.run('G.panel'), 'mpboard', `portrait ${vh}: a tap on the badge opens the group`); A.frame();
+    spy(A); const gt = drawn(A).map(r => r.t);
+    ok(gt.filter(t => /^empty slot/.test(t)).length === 3 && gt.includes('Leader'), `portrait ${vh}: the group panel draws its three empty slots`);
+    A.run(`G.panel = null`); A.frame();
+  }
+  A.setPortrait(false); A.run(`VIEW.h = 540; MP.hub.leaveGroup()`); A.frame();
+
+  console.log('14. the word filter and the text rules with other scripts');
+  const cz2 = s => A.run(`MP.hub._.censor(${JSON.stringify(s)})`), ct = s => A.run(`MP.hub._.cleanText(${JSON.stringify(s)})`);
+  for (const s of ['日本語のテスト、こんにちは', 'Привет, как дела?', '안녕하세요 여러분', '你好，世界', 'مرحبا بالعالم', 'שלום עולם', 'Γειά σου κόσμε', 'नमस्ते दुनिया', '😀👍🏽👨\u200d👩\u200d👧🇯🇵', 'café crème, señor Ñandú, über Straße, Åse', 'fagócito, classé, passé, Aßlar, cocktail, Dickens, assess'])
+    eq(cz2(s), s, 'left alone: ' + s);
+  eq(cz2('これはfuckです'), 'これは****です', 'a filtered word inside Japanese text is still caught');
+  eq(cz2('これは ass です'), 'これは *** です', 'a whole word between spaces too');
+  eq(cz2('ｆｕｃｋ ＦＵＣＫ'), '**** ****', 'full-width letters are caught');
+  eq(cz2('fück'), 'fück', '(an accented letter is another letter: not matched, not crashed)');
+  for (const s of ['\ud83d', 'a\udc00b', '😀'.repeat(50) + 'shit' + '😀'.repeat(50), '\u0000￿￾', 'İstanbul ǅ ß ŉ fuck', '']) { const r = cz2(s); ok(typeof r === 'string' && r.length === s.length, 'the filter keeps the length of odd input: ' + JSON.stringify(s).slice(0, 30)); }
+  eq(cz2('😀'.repeat(50) + 'shit' + '😀'.repeat(50)), '😀'.repeat(50) + '****' + '😀'.repeat(50), 'stars land on the word, not on the emoji around it');
+  eq(cz2(ct('f\u200bu\u200dc\u2060k you')), '**** you', 'invisible characters cannot split a filtered word');
+  eq(ct('👨\u200d👩\u200d👧 می\u200cخواهم क्\u200dष'), '👨\u200d👩\u200d👧 می\u200cخواهم क्\u200dष', 'the joiners that emoji, Persian and Indic text need are kept');
+  eq(ct('a\u200db \u202eevil\u202c  x\u3000y'), 'ab evil x y', 'joiners between Latin letters and direction overrides are removed; odd spaces become one space');
+  eq(ct('\ud83dabc\udc00'), 'abc', 'lone halves of a surrogate pair are dropped');
+  ok(A.run(`MP.hub._.charLen(MP.hub._.cleanText('😀'.repeat(200)))`) === 120 && A.run(`MP.hub._.cleanText('😀'.repeat(200)).length`) === 240, 'cleanText cuts at 120 whole characters');
+  eq(A.run(`MP.hub._.cleanText('x'.repeat(119) + '  yy')`), 'x'.repeat(119), 'no space left hanging at the cut');
+  }
 
   if (errors.length) { fails++; console.log('  FAIL: errors were logged:\n    ' + errors.slice(0, 8).join('\n    ').slice(0, 3000)); }
   console.log(fails ? `\nhub_test: ${fails} of ${checks} checks FAILED` : `\nhub_test: all ${checks} checks passed`);
