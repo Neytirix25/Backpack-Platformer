@@ -293,7 +293,10 @@ cv.addEventListener('mousemove', e => {
 cv.addEventListener('mousedown', e => { SFX.init(); mpos(e); onMouseDown(e.button); e.preventDefault(); });
 addEventListener('mouseup', e => { mpos(e); onMouseUp(e.button); });
 cv.addEventListener('contextmenu', e => e.preventDefault());
-cv.addEventListener('wheel', e => { if (G && G.coll) { collScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (rosterOpen()) { scrollRoster(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (G && G.panel === 'trade') { tradeScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } }, { passive: false });
+cv.addEventListener('wheel', e => {
+  // MP: the Kingdom Street's scrolling lists (players, groups)
+  if (G && !G.coll && MP.hub && MP.hub.wheel(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7))) { e.preventDefault(); return; }
+  if (G && G.coll) { collScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (rosterOpen()) { scrollRoster(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (G && G.panel === 'trade') { tradeScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } }, { passive: false });
 
 // ---------- touch: play the whole game on a phone or tablet ----------
 // In the world (walking about): drag a thumb anywhere to move (up = jump / climb, down = drop), a quick sideways flick
@@ -310,7 +313,9 @@ function vkey(k, on) {   // press or release a key as if it were typed
 }
 function vtap(k) { vkey(k, true); setTimeout(() => vkey(k, false), 90); }
 const worldControls = () => G && G.mode === 'play' && !G.panel && !PK && !NET.typing && !G.coll;   // walking about: gestures move the hero
-const touchScrolls = () => !!(G && G.coll) || (typeof rosterOpen === 'function' && rosterOpen()) || (G && G.panel === 'trade');
+const touchScrolls = () => !!(G && G.coll) || (typeof rosterOpen === 'function' && rosterOpen()) || (G && G.panel === 'trade') || mpScrolls();
+// MP: the Kingdom Street's scrolling lists (players, groups) scroll with a swipe too
+const mpScrolls = () => !!(G && !G.coll && typeof MP !== 'undefined' && MP.hub && MP.hub.scrolls());
 function tpos(t) { mpos({ clientX: t.clientX, clientY: t.clientY }); }
 function touchStart(e) {
   e.preventDefault(); SFX.init();
@@ -362,7 +367,7 @@ function touchMove(e) {
     }
     if (TOUCH.mode === 'scroll') {
       const d = (TOUCH.lastY - t.clientY) * VIEW.h / cv.getBoundingClientRect().height / (VIEW.legacy ? VIEW.s : 1);
-      if (G && G.coll) collScroll(d); else if (G && G.panel === 'trade') tradeScroll(d); else scrollRoster(d);
+      if (G && G.coll) collScroll(d); else if (G && G.panel === 'trade') tradeScroll(d); else if (mpScrolls()) MP.hub.wheel(d); else scrollRoster(d);
     }
     TOUCH.lastY = t.clientY;
   }
@@ -386,7 +391,7 @@ function touchEnd(e) {
     } else if (TOUCH.mode === 'drag') { tpos(t); onMouseUp(0); }
     else if (TOUCH.mode === 'menu' && !TOUCH.right && dur < 450) { tpos(t); onMouseDown(0); onMouseUp(0); }   // a quick tap clicks (a long hold just looked)
     TOUCH.id = null; TOUCH.mode = null;
-    if (NET.typing) { const inp = document.getElementById('ttype'); inp.value = ''; inp.focus(); }   // typing a name or code: bring up the keyboard
+    if (NET.typing) { const inp = document.getElementById('ttype'); if (NET.typing !== 'chat') inp.value = ''; inp.focus(); }   // typing a name or code: bring up the keyboard (MP: the chat line keeps its text in the field)
   }
 }
 document.addEventListener('touchstart', touchStart, { passive: false });
@@ -405,9 +410,11 @@ document.addEventListener('gesturestart', e => e.preventDefault());   // no pinc
   const toggle = e => { e.preventDefault(); e.stopPropagation(); SFX.init(); panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex'; };
   btn.addEventListener('touchend', toggle); btn.addEventListener('click', toggle);
   // typing (a name, a room code) with the phone's keyboard
-  inp.addEventListener('keydown', e => { e.stopPropagation(); if (!NET.typing) return; if (e.key.length === 1 || ['Backspace', 'Enter', 'Escape'].includes(e.key)) { netType(e); e.preventDefault(); } });
-  inp.addEventListener('input', () => { if (NET.typing) for (const ch of inp.value) netType({ key: ch }); inp.value = ''; });
-  inp.addEventListener('blur', () => { if (NET.typing && TOUCH.on) setTimeout(() => { if (NET.typing) inp.focus(); }, 50); });
+  // MP: the Kingdom Street's chat line is typed in this field itself (IME, accents, paste: mp/hub.js has its own listeners), so these three step aside for it
+  const mpChat = () => NET.typing === 'chat' && typeof MP !== 'undefined' && !!MP.hub;
+  inp.addEventListener('keydown', e => { e.stopPropagation(); if (!NET.typing || mpChat()) return; if (e.key.length === 1 || ['Backspace', 'Enter', 'Escape'].includes(e.key)) { netType(e); e.preventDefault(); } });
+  inp.addEventListener('input', () => { if (mpChat()) return; if (NET.typing) for (const ch of inp.value) netType({ key: ch }); inp.value = ''; });
+  inp.addEventListener('blur', () => { if (mpChat()) return; if (NET.typing && TOUCH.on) setTimeout(() => { if (NET.typing) inp.focus(); }, 50); });
 })();
 
 // =====================================================================
@@ -2277,6 +2284,8 @@ function enterHub(room = 'yard') {
   G.mode = 'trans';
   if (!HERD.length) G.panel = 'starter';
   else if (denPair() && SAVE.den.ready) showMsg('An egg is waiting in the Breeding Den!', 3.5);
+  // MP: arriving in the Kingdom Street (also back from a dungeon or a raid) has its own short welcome
+  else if (room === 'street' && MP.hub) showMsg(MP.hub.welcome(), 3);
   else showMsg(`The Sanctuary — ${HERD.length} animals of ${ownedIds().length} species. Choose your team at the post by the gate (E).`, 3.5);
 }
 function buildHubRoom(room, from) {
@@ -9047,6 +9056,8 @@ function mergeCheck(it) {
 }
 function onMouseUp(btn) {
   rosterDrag = null;
+  // MP: the end of a drag in one of the Kingdom Street's lists
+  if (MP.hub) MP.hub.mouseUp(btn);
   if (btn !== 0 || !G || G.mode !== 'pack' || !PK || !PK.drag) return;
   if (PK.bag === 'pantry' && PK.drag.it.def.dish) { const t = feedTargets().find(t => inRect(mouse, t.r)); if (t) { feedDish(t.it, PK.drag.it, t.p); PK.drag = null; stats = computeStats(); return; } }
 
@@ -11609,6 +11620,8 @@ function netTypeDone() {
 }
 addEventListener('paste', e => {
   if (!NET.typing) return;
+  // MP: the chat line's own text field takes a paste itself (at the caret), cleaned by mp/hub.js
+  if (NET.typing === 'chat' && MP.hub && MP.hub.paste()) return;
   const t = (e.clipboardData && e.clipboardData.getData('text')) || '';
   for (const c of t) netType({ key: c });
   e.preventDefault();

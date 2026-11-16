@@ -9,6 +9,10 @@
 //  Everything that arrives from the network is cleaned before use (cleanPres, cleanPt, cleanInfo, cleanText) and
 //  text is only ever drawn on the canvas.
 //
+//  Lists (players, a board's groups) scroll like the pet roster (wheel, drag, scrollbar, keys: see "scrolling lists").
+//  The chat line is typed in the page's hidden text field #ttype (IME, accents, paste: see "typing the chat line")
+//  and only ever drawn on the canvas. F in the street opens a short friend panel ('mpfriend'): friend play is for the Yard.
+//
 //  Presence in the room: { name, cls, look, lv, pt, pj }  (pt = the group I lead: { kind, tier, m: [uids], r: [ready uids], go })
 //  Fast state: { x, y, vx, vy, f, g }.   Messages: 'chat' { s } · to a group's leader: 'p.join', 'p.leave', 'p.ready' { on }
 //  · from the leader: 'p.ok', 'p.no' { why }, 'p.end', 'p.go' { info }.
@@ -46,7 +50,9 @@
   // ---------- chat rules ----------
   const CHAT_MAX = 120, CHAT_GAP = 1000, CHAT_BURST = 5, CHAT_WINDOW = 10000, CHAT_SHOW = 6, BUBBLE_T = 5;
   // The word filter: one list, easy to edit. A word ending in * is also caught inside longer words; the others only
-  // as whole words. Matching ignores case, repeated letters (fuuuck) and simple swaps (1 ! @ 4 3 0 $ 5 7).
+  // as whole words. Matching ignores case, repeated letters (fuuuck), simple swaps (1 ! @ 4 3 0 $ 5 7) and full-width
+  // letters. "Whole word" looks at Latin letters (accents included) and digits on both sides, so a word of another
+  // language that merely contains one (fagócito) is left alone; text in other scripts never matches at all.
   const BAD_WORDS = ['fuck*', 'motherfuck*', 'shit*', 'bitch*', 'cunt*', 'asshole*', 'arsehole*', 'bastard*', 'dickhead*', 'whore*', 'slut*', 'wanker*', 'bollocks*',
                      'nigger*', 'nigga*', 'faggot*', 'retard*', 'dick', 'cock', 'ass', 'arse', 'fag', 'piss', 'twat', 'wank', 'prick', 'pussy', 'rape', 'rapist',
                      'kike', 'spic', 'chink', 'tranny', 'dyke', 'coon'];
@@ -54,8 +60,11 @@
   const BAD_RX = BAD_WORDS.map(w => { const inside = w.endsWith('*'), core = inside ? w.slice(0, -1) : w; return { inside, rx: new RegExp(core.split('').map(c => c + '+').join(''), 'g') }; });
   function censor(s) {
     s = String(s); let norm = '';
-    for (let i = 0; i < s.length; i++) { let c = s[i].toLowerCase(); if (c.length !== 1) c = s[i]; norm += LEET[c] || c; }
-    const out = s.split(''), solid = c => /[a-z0-9@$]/i.test(c);
+    for (let i = 0; i < s.length; i++) {
+      const code = s.charCodeAt(i), raw = code >= 0xff01 && code <= 0xff5e ? String.fromCharCode(code - 0xfee0) : s[i];   /* (full-width forms: ｆ -> f) */
+      let c = raw.toLowerCase(); if (c.length !== 1) c = raw; norm += LEET[c] || c;
+    }
+    const out = s.split(''), solid = c => /[a-z0-9@$À-ɏ]/i.test(c || '');
     for (const { inside, rx } of BAD_RX) {
       rx.lastIndex = 0; let m;
       while ((m = rx.exec(norm))) {
@@ -66,10 +75,22 @@
     }
     return out.join('');
   }
-  // one chat line: no control or invisible characters, single spaces, at most CHAT_MAX characters
+  // text is counted and cut by whole characters (code points), never through the middle of a surrogate pair; a lone
+  // half of a pair is dropped
+  const chars = s => Array.from(String(s)).filter(c => !(c.length === 1 && c >= '\ud800' && c <= '\udfff'));
+  const charLen = s => chars(s).length;
+  const clipChars = (s, n) => chars(s).slice(0, n).join('');
+  // one chat line: no control characters, no invisible ones (removed, so they can't split a filtered word), single
+  // spaces, at most CHAT_MAX characters. The zero-width joiners stay where a script or an emoji needs them (between
+  // two non-Latin characters).
   function cleanText(s) {
-    return String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2028-\u202f\u2060-\u206f\ufeff]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+    s = String(s == null ? '' : s).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029\u202f]/g, ' ')
+      .replace(/[\u200c\u200d]/g, (c, i, all) => (i > 0 && all.charCodeAt(i - 1) > 0x2ff && all.charCodeAt(i + 1) > 0x2ff ? c : ''))
+      .replace(/[\u200b\u200e\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g, '').replace(/\s+/g, ' ').trim();
+    return clipChars(s, CHAT_MAX).trim();
   }
+  // the line while it is being typed: control characters (a pasted line break) become spaces, at most CHAT_MAX characters
+  const liveText = v => clipChars(String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' '), CHAT_MAX);
   const UID_RX = /^[a-z0-9]{1,16}$/;
   const isUid = v => typeof v === 'string' && UID_RX.test(v);
   const now = () => performance.now();
@@ -82,7 +103,10 @@
     bubble: null,           /* my own speech bubble */
     mute: new Set(), hide: new Set(), names: null,   /* muted / hidden for this session (uids) and remembered (names) */
     joinedFor: null, err: '', retryT: 0, wasOpen: false, openAt: 0, graceT: 0, connT: 0, presT: 0, presSent: '',
-    goInfo: null, goT: 0, missT: 0, btns: [], soon: null, board: null, plPage: 0,
+    goInfo: null, goT: 0, missT: 0, btns: [], soon: null, board: null,
+    sc: { players: 0, board: 0 }, drag: null,   /* how far each list is scrolled (px); the scrollbar or list being dragged */
+    inMine: false, inPlaced: false, comp: false,   /* the text field: the chat has it; it lies over the chat line; an IME composition is going on */
+    trip: null,             /* the co-op outing I left the street for: { kind, tier, rec } (see tripLine) */
   };
   const inStreet = () => !!(G && G.hub && G.hubRoom === 'street' && G.room && G.room.hubRoom === 'street');
   const isOpen = () => !!(HUB.room && HUB.room.state === 'open');
@@ -150,13 +174,13 @@
     } catch (e) { console.error(e); HUB.room = null; S.err = 'error'; S.retryT = 6; }
   }
   function clearSession() {
-    S.others.clear(); S.heard.clear(); S.goInfo = null; S.goT = 0; S.missT = 0; S.bubble = null; HUB.party = null;
-    if (NET.typing === 'chat') NET.typing = null;
+    S.others.clear(); S.heard.clear(); S.goInfo = null; S.goT = 0; S.missT = 0; S.bubble = null; HUB.party = null; S.drag = null;
+    closeChat();
   }
   // leaving on purpose (a door, a run, the title screen, a co-op start, the page closing)
   function leave() {
     const room = HUB.room; HUB.room = null; clearSession(); S.retryT = 0; S.err = '';
-    if (G && (G.panel === 'mpboard' || G.panel === 'mpplayers')) G.panel = null;
+    if (G && (G.panel === 'mpboard' || G.panel === 'mpplayers' || G.panel === 'mpfriend')) G.panel = null;
     if (room) try { room.leave(); } catch (e) { console.error(e); }
   }
   // the connection broke: stay in the street, try again in a few seconds
@@ -172,7 +196,9 @@
     if (G && (G.visit || NET.visit || NET.visitor)) { toast('The Kingdom Street has to wait: finish the Yard visit with your friend first.', 3, true); return false; }
     return true;
   }
-  HUB.enter = enter; HUB.leave = leave; HUB.canEnter = canEnter;
+  // the message bar's line on arriving in the street (from enterHub)
+  const welcome = () => (TOUCH.on ? 'Kingdom Street — form a group at the boards · tap Chat to talk' : 'Kingdom Street — E at the boards to form a group · Enter to chat');
+  HUB.enter = enter; HUB.leave = leave; HUB.canEnter = canEnter; HUB.welcome = welcome;
   if (window.addEventListener) window.addEventListener('pagehide', () => { if (HUB.room) { leave(); S.joinedFor = null; } });
 
   // ---------- events from the room ----------
@@ -259,10 +285,22 @@
   }
   function start(info) {
     if (!MP.coop) { toast('Co-op is not available in this copy of the game.', 3, true); if (HUB.party && !HUB.party.mine && HUB.room) { try { HUB.room.send({ t: 'p.leave' }, HUB.party.leader); } catch (e) {} } HUB.party = null; pushPresence(); return; }
-    if (G && (G.panel === 'mpboard' || G.panel === 'mpplayers' || G.panel === 'mpsoon')) G.panel = null;
-    if (NET.typing === 'chat') NET.typing = null;
+    if (myPanel()) G.panel = null;
+    closeChat();
+    S.trip = { kind: info.kind, tier: info.tier, rec: recNow() };
     try { MP.coop.start(info); } catch (e) { console.error(e); }
     if (HUB.room && HUB.party) { HUB.party = null; pushPresence(); }   /* (the co-op module normally leaves the street itself) */
+  }
+
+  // ---------- back from a co-op outing: one line in the chat about how it went ----------
+  // (read from the records the co-op modules keep: battles won and lost, dungeons and raids finished)
+  const REC_KEYS = ['coopW', 'coopL', 'coopDungeons', 'coopRaids'];
+  function recNow() { const r = (typeof SAVE === 'object' && SAVE && SAVE.rec) || {}, o = {}; for (const k of REC_KEYS) o[k] = Math.max(0, r[k] | 0); return o; }
+  function tripLine(T) {
+    const n = recNow(), d = k => Math.max(0, n[k] - (T.rec[k] | 0)), w = d('coopW'), l = d('coopL'), raid = T.kind === 'raid', done = d(raid ? 'coopRaids' : 'coopDungeons') > 0;
+    const fights = w + l ? ` (${w} battle${w === 1 ? '' : 's'} won${l ? `, ${l} lost` : ''})` : '';
+    if (done) return raid ? `Back from the raid: ${tierOf(T.tier).boss} is defeated!${fights}` : `Back from the dungeon: ${tierOf(T.tier).name} cleared!${fights}`;
+    return w + l ? `Back from the ${raid ? 'raid' : 'dungeon'}: not finished this time${fights}` : '';
   }
 
   // ---------- groups (the boards) ----------
@@ -343,7 +381,7 @@
     return { lines: lines.map(l => (l.length > 40 ? l.slice(0, 39) + '…' : l)), t: BUBBLE_T };
   }
   function heardChat(o, raw) {
-    if (typeof raw !== 'string' || raw.length > CHAT_MAX) return;   /* over-long lines are dropped, not trimmed */
+    if (typeof raw !== 'string' || raw.length > CHAT_MAX * 2 || charLen(raw) > CHAT_MAX) return;   /* over-long lines are dropped, not trimmed (counted in characters, like the sender does) */
     const s = censor(cleanText(raw)); if (!s) return;
     const t = now(), list = (S.heard.get(o.id) || []).filter(x => t - x < CHAT_WINDOW);
     if ((list.length && t - list[list.length - 1] < CHAT_GAP * 0.7) || list.length >= CHAT_BURST + 1) { S.heard.set(o.id, list); return; }   /* a little slack for network jitter */
@@ -362,24 +400,100 @@
     addLine({ id: me(), mine: true, name: myName(), s }); S.bubble = bubbleOf(s);
     return true;
   }
+  // ---------- typing the chat line ----------
+  // The line is typed into a real text field (the page's hidden #ttype, the one phones already type names with), so
+  // the system's own text input works: IME composition (Japanese, Chinese, Korean), dead keys (accents), emoji
+  // pickers, paste, the caret keys and selections. The field itself is never visible: on a computer it is laid over
+  // the chat line (so an IME's candidate window opens there) fully transparent, and NET.buf, a cleaned copy of its
+  // value, is what the canvas draws. index.html's own handlers on #ttype step aside while NET.typing === 'chat' and the
+  // listeners below take over; while the field has the focus no key reaches the game's key handler at all, and without
+  // it (the focus was lost) the keys still come here through netType -> type(), so hotkeys stay blocked either way.
+  const chatInput = () => { try { return document.getElementById('ttype') || null; } catch (e) { return null; } };
+  const inputHasFocus = inp => { try { return !!inp && document.activeElement === inp; } catch (e) { return false; } };
+  // lay the field over the chat line (computers only: on a phone it stays off-screen so the page never scrolls or zooms to it)
+  function placeInput(inp, on) {
+    try {
+      const st = inp.style; if (!st) return;
+      if (!on || TOUCH.on) { if (S.inPlaced) { st.left = '-1000px'; st.top = '0'; st.width = '10px'; st.height = '10px'; st.pointerEvents = ''; S.inPlaced = false; } return; }
+      const r = cv.getBoundingClientRect(), C = chatRects(), kx = r.width / VIEW.w, ky = r.height / VIEW.h;
+      st.left = Math.round(r.left + C.row.x * kx) + 'px'; st.top = Math.round(r.top + C.row.y * ky) + 'px';
+      st.width = Math.max(10, Math.round((C.row.w - 66) * kx)) + 'px'; st.height = Math.max(10, Math.round(C.row.h * ky)) + 'px';
+      st.pointerEvents = 'none'; st.fontSize = '16px'; S.inPlaced = true;
+    } catch (e) {}
+  }
+  function focusInput() {
+    const inp = chatInput(); if (!inp) return;
+    if (inp.value !== NET.buf) inp.value = NET.buf;
+    placeInput(inp, true); S.inMine = true;
+    try { inp.focus(); } catch (e) {}
+  }
+  // give the keyboard back to the game (a focused field would swallow every key)
+  function releaseInput() {
+    const inp = chatInput(); S.inMine = false; S.comp = false; if (!inp) return;
+    inp.value = ''; placeInput(inp, false);
+    try { if (!TOUCH.on || inputHasFocus(inp)) inp.blur(); } catch (e) {}
+  }
+  function stopKeys() { for (const k in keys) keys[k] = false; }   /* a key held when the line opens must not keep the hero walking */
   function openChat() {
     if (!inStreet() || NET.typing) return;
-    NET.typing = 'chat'; NET.buf = ''; S.chatT = 0; SFX.play('pick');
-    if (TOUCH.on) { const inp = document.getElementById('ttype'); inp.value = ''; inp.focus(); }
+    NET.typing = 'chat'; NET.buf = ''; S.chatT = 0; S.comp = false; SFX.play('pick');
+    stopKeys(); focusInput();
   }
-  function closeChat() { if (NET.typing === 'chat') NET.typing = null; NET.buf = ''; }
-  // keys while the chat line is open (from netType: the game's own keys never see them)
+  function closeChat() { if (NET.typing === 'chat') NET.typing = null; NET.buf = ''; if (S.inMine) releaseInput(); }
+  // the field's text changed (typing, an IME step, a paste, a cut): NET.buf follows it, cleaned and cut to the limit.
+  // The field itself is only corrected between compositions (writing into it would break the IME's work in progress).
+  function inputChanged(e) {
+    const inp = chatInput(); if (NET.typing !== 'chat' || !inp) return;
+    S.chatT = 0;
+    const v = liveText(inp.value), composing = S.comp || !!(e && e.isComposing);
+    NET.buf = v;
+    if (!composing && inp.value !== v) { const at = typeof inp.selectionStart === 'number' ? Math.min(inp.selectionStart, v.length) : v.length; inp.value = v; try { inp.setSelectionRange(at, at); } catch (err) {} }
+  }
+  // a key in the field: Enter sends and Escape cancels, but never in the middle of an IME composition (there Enter
+  // picks a candidate; keyCode 229 = "the IME has this key"); every other key is the field's own business
+  function inputKey(e) {
+    if (NET.typing !== 'chat' || !e) return;
+    S.chatT = 0;
+    if (e.isComposing || e.keyCode === 229) return;
+    const k = e.key, eat = () => { if (e.preventDefault) e.preventDefault(); };
+    if (!inStreet()) { eat(); closeChat(); return; }
+    if (k === 'Escape') { eat(); closeChat(); }
+    else if (k === 'Enter') { eat(); inputChanged(); if (say(NET.buf)) closeChat(); }
+    else if (k === 'Tab') eat();
+  }
+  function inputComp(on, e) { if (NET.typing !== 'chat') { S.comp = false; return; } S.comp = !!on; if (!on) inputChanged(); }
+  // the field lost the focus while the line is open (a click on the page, a tab switch): the line and its text stay,
+  // the keys stay blocked (see type), and the focus comes back as soon as the page has it again
+  function inputBlur() {
+    S.comp = false; if (NET.typing !== 'chat') return;
+    setTimeout(() => { let has = true; try { if (document.hasFocus) has = document.hasFocus(); } catch (e) {} if (NET.typing === 'chat' && inStreet() && (TOUCH.on || has)) focusInput(); }, 50);
+  }
+  // a paste while the line is open: with the field focused the browser pastes into it (at the caret) and inputChanged
+  // cleans the result; true = leave it to the field
+  function paste() { return NET.typing === 'chat' && inputHasFocus(chatInput()); }
+  // keys while the chat line is open and the field does NOT have the focus (from netType: the game's own keys never
+  // see them); the field is asked to take over again
   function type(e) {
     const k = e.key; S.chatT = 0;
     if (!inStreet()) { closeChat(); return; }
+    if (e.isComposing || e.keyCode === 229) return;
     if (k === 'Escape') { closeChat(); return; }
     if (k === 'Enter') { if (say(NET.buf)) closeChat(); return; }
-    if (k === 'Backspace') { NET.buf = [...NET.buf].slice(0, -1).join(''); return; }
-    if (typeof k !== 'string' || [...k].length !== 1 || e.ctrlKey || e.metaKey) return;
-    if (/[\u0000-\u001f\u007f-\u009f]/.test(k)) return;
-    if (NET.buf.length + k.length <= CHAT_MAX) NET.buf += k;
+    if (k === 'Backspace') setBuf(chars(NET.buf).slice(0, -1).join(''));
+    else if (typeof k === 'string' && chars(k).length === 1 && !e.ctrlKey && !e.metaKey) setBuf(NET.buf + k);
+    if (e.isTrusted && !inputHasFocus(chatInput())) focusInput();
   }
-  Object.assign(HUB, { say, type, openChat, setMute });
+  function setBuf(s) { NET.buf = liveText(s); const inp = chatInput(); if (inp && S.inMine && inp.value !== NET.buf) inp.value = NET.buf; }
+  (() => {   /* the field's listeners (index.html's own ones return at once while the chat line is open) */
+    const inp = chatInput(); if (!inp || !inp.addEventListener) return;
+    inp.addEventListener('keydown', e => { if (NET.typing === 'chat') inputKey(e); });
+    inp.addEventListener('input', e => { if (NET.typing === 'chat') inputChanged(e); });
+    inp.addEventListener('compositionstart', e => inputComp(true, e));
+    inp.addEventListener('compositionend', e => inputComp(false, e));
+    inp.addEventListener('blur', () => inputBlur());
+    if (window.addEventListener) window.addEventListener('focus', () => { if (NET.typing === 'chat' && inStreet()) focusInput(); });
+  })();
+  Object.assign(HUB, { say, type, openChat, closeChat, setMute, paste, input: { key: inputKey, changed: inputChanged, comp: inputComp, blur: inputBlur } });
 
   // ---------- every frame ----------
   function syncOthers() {
@@ -399,7 +513,16 @@
     for (const id of [...S.others.keys()]) if (!room.members.has(id)) { S.others.delete(id); S.heard.delete(id); }
   }
   function tick(dt) {
-    if (!inStreet()) { if (HUB.room || S.joinedFor) { leave(); S.joinedFor = null; S.chat = []; } return; }
+    if (S.inMine && NET.typing !== 'chat') releaseInput();   /* (the chat line was closed from outside: the keyboard goes back to the game) */
+    if (!inStreet()) {
+      if (NET.typing === 'chat') closeChat();
+      if (HUB.room || S.joinedFor) { leave(); S.joinedFor = null; S.chat = []; }
+      if (S.trip && G && G.hub && !coopBusy()) S.trip = null;   /* (came home another way) */
+      return;
+    }
+    if (NET.typing === 'chat' && (G.panel || PK || G.coll || (G.mode !== 'play' && G.mode !== 'trans'))) closeChat();   /* a window opened over the street */
+    if (G.panel === 'net') { G.panel = 'mpfriend'; if (NET.typing && NET.typing !== 'chat') NET.typing = null; }   /* the friend panel has its own short version here (see drawFriend) */
+    if (S.trip && !coopBusy()) { S.trip.t = (S.trip.t || 0) + dt; if ((HUB.room && S.wasOpen) || S.trip.t > 5) { const line = tripLine(S.trip); S.trip = null; if (line) sys(line); } }   /* (after the welcome line when there is one) */
     S.chatT += dt; if (NET.typing === 'chat') S.chatT = 0;
     if (S.bubble && (S.bubble.t -= dt) <= 0) S.bubble = null;
     if (!HUB.room) {
@@ -413,7 +536,7 @@
     if (st === 'connecting' || st === 'idle') { S.connT += dt; if (S.connT > 25) drop('timeout'); return; }
     S.connT = 0; if (S.graceT > 0) S.graceT -= dt;
     if (st === 'open') {
-      if (!S.wasOpen) { S.wasOpen = true; S.err = ''; S.openAt = now(); sys(`Welcome to Kingdom Street ${room.n || 1}. Press Enter to chat.`); }
+      if (!S.wasOpen) { S.wasOpen = true; S.err = ''; S.openAt = now(); sys(`Welcome to Kingdom Street ${room.n || 1}. ${TOUCH.on ? 'Tap Chat to talk.' : 'Press Enter to chat.'}`); }
       S.presT -= dt; if (S.presT <= 0) { S.presT = 1; pushPresence(); }
       const P = G.player;
       try { room.setFast({ x: Math.round(P.x), y: Math.round(P.y), vx: Math.round(P.vx), vy: Math.round(P.vy), f: P.face < 0 ? -1 : 1, g: P.onGround ? 1 : 0 }); } catch (e) { console.error(e); }
@@ -429,33 +552,97 @@
   function stations(out, ft) {
     for (const p of PLACES) out.push({ kind: p.kind, x: p.t * TILE, y: ft, r: p.r, label: p.kind === 'mp_sign' ? (isOpen() ? 'Notice post: who is in the street' : HUB.room ? 'Notice post' : 'Notice post: connect to the street') : p.label });
   }
-  function openBoard(kind) { S.board = { kind: kind === 'raid' ? 'raid' : 'dungeon', view: 'list', tier: clamp(tierForLv(myLv()), 1, 4), page: 0 }; G.panel = 'mpboard'; SFX.play('pick'); }
+  function openBoard(kind) { S.board = { kind: kind === 'raid' ? 'raid' : 'dungeon', view: 'list', tier: clamp(tierForLv(myLv()), 1, 4) }; S.sc.board = 0; S.drag = null; G.panel = 'mpboard'; SFX.play('pick'); }
+  function openPlayers() { G.panel = 'mpplayers'; S.sc.players = 0; S.drag = null; SFX.play('pick'); }
+  // the friend panel's short version for the street (friend battles, trades and visits wait for the Yard: see netCantDo)
+  function openFriend() { G.panel = 'mpfriend'; if (NET.typing && NET.typing !== 'chat') NET.typing = null; SFX.play('pick'); }
   function tierForLv(lv) { let t = 1; for (let i = 1; i <= 4; i++) if (lv >= tierOf(i).lo) t = i; return t; }
   function interact(s) {
     if (!s || typeof s.kind !== 'string' || !s.kind.startsWith('mp_')) return false;
     if (SOON[s.kind]) { S.soon = s.kind; G.panel = 'mpsoon'; SFX.play('pick'); }
     else if (s.kind === 'mp_dungeon' || s.kind === 'mp_raid') openBoard(s.kind === 'mp_raid' ? 'raid' : 'dungeon');
     else if (s.kind === 'mp_sign') {
-      if (isOpen()) { G.panel = 'mpplayers'; S.plPage = 0; SFX.play('pick'); }
+      if (isOpen()) openPlayers();
       else if (!HUB.room) { if (!MP.net) toast('Multiplayer is not part of this copy of the game.', 3, true); else if (coopBusy()) toast('You are in a co-op group right now.', 2); else { enter(); toast('Connecting to the Kingdom Street...', 2); } }
       else toast('Still connecting...', 1.6);
     }
     return true;
   }
-  const myPanel = () => !!G && (G.panel === 'mpboard' || G.panel === 'mpplayers' || G.panel === 'mpsoon');
+  const myPanel = () => !!G && (G.panel === 'mpboard' || G.panel === 'mpplayers' || G.panel === 'mpsoon' || G.panel === 'mpfriend');
+  const newBoard = () => ({ kind: 'dungeon', view: 'list', tier: 1 });
+
+  // ---------- scrolling lists (the Players panel, a board's groups): the feel of the pet roster ----------
+  // A list is { key, view: the box its rows are drawn (and clipped) in, total: the height of all its rows, RH: one row }.
+  // S.sc[key] = how far it is scrolled. The wheel, a finger or the mouse dragging the list, the scrollbar (drag the
+  // thumb, click the track for a page), the arrow keys, PageUp / PageDown and Home / End all move it.
+  const listMax = L => Math.max(0, L.total - L.view.h);
+  const listBar = L => ({ x: L.view.x + L.view.w + 6, y: L.view.y + 2, w: 8, h: L.view.h - 4 });
+  function listThumb(L) { const b = listBar(L), M = listMax(L), th = Math.max(28, b.h * L.view.h / (L.view.h + M)); return { x: b.x, y: b.y + (M ? (b.h - th) * S.sc[L.key] / M : 0), w: b.w, h: th }; }
+  function listScroll(L, dy) { S.sc[L.key] = clamp(S.sc[L.key] + dy, 0, listMax(L)); }
+  // the list of the street panel that is open now (null = none)
+  function curList() {
+    if (!G || PK || G.coll || !inStreet()) return null;
+    if (G.panel === 'mpplayers') return playersLayout().list;
+    if (G.panel === 'mpboard' && !HUB.party && S.board && S.board.view === 'list') return boardList();
+    return null;
+  }
+  // the wheel, or a finger dragging over the panel (true = a street list is open: the scroll was mine)
+  function wheel(d) { const L = curList(); if (!L) return false; if (Number.isFinite(d)) listScroll(L, d); return true; }
+  const scrolls = () => !!curList();
+  function listKeys(L) {
+    if (!L) return false;
+    const d = hit('ArrowDown', 's') ? L.RH : hit('ArrowUp', 'w') ? -L.RH : hit('PageDown') ? L.view.h * 0.8 : hit('PageUp') ? -L.view.h * 0.8 : hit('End') ? 1e7 : hit('Home') ? -1e7 : 0;
+    if (d) listScroll(L, d);
+    return !!d;
+  }
+  // a press on the list (true = it started a drag or moved the bar). A press on one of the list's own buttons only
+  // counts as a click when the mouse comes up again without having dragged the list (see mouseUp).
+  function listPress(L, b) {
+    if (!L) return false;
+    if (listMax(L) > 0) {
+      const bar = listBar(L), t = listThumb(L);
+      if (inRect(mouse, { x: bar.x - 6, y: bar.y, w: bar.w + 12, h: bar.h })) {
+        if (inRect(mouse, { x: t.x - 6, y: t.y, w: t.w + 12, h: t.h })) S.drag = { key: L.key, off: mouse.y - t.y }; else listScroll(L, (mouse.y < t.y ? -1 : 1) * L.view.h * 0.8);
+        return true;
+      }
+    }
+    if (!inRect(mouse, L.view)) return false;
+    S.drag = { key: L.key, y0: mouse.y, s0: S.sc[L.key], moved: false, hit: b && b.clip ? { id: b.id, arg: b.arg } : null };
+    return true;
+  }
+  // while a drag is on, the list follows the mouse (called when the list is laid out to be drawn)
+  function listDrag(L) {
+    const d = S.drag; if (!d || d.key !== L.key) return;
+    const M = listMax(L);
+    if (d.off !== undefined) { const b = listBar(L), th = listThumb(L).h; S.sc[L.key] = clamp((mouse.y - d.off - b.y) / Math.max(1, b.h - th) * M, 0, M); return; }
+    if (Math.abs(mouse.y - d.y0) > 6) d.moved = true;
+    if (d.moved) S.sc[L.key] = clamp(d.s0 - (mouse.y - d.y0), 0, M);
+  }
+  // the mouse button came up (from onMouseUp): the end of a drag, or the click on a row's button
+  function mouseUp(btn) {
+    const d = S.drag; if (!d) return; S.drag = null;
+    if (btn !== 0 || !d.hit || !myPanel()) return;
+    const L = curList(); if (!L || L.key !== d.key) return;
+    if (Math.abs(mouse.y - d.y0) > 6 || d.moved) return;
+    const b = buttonAt(); if (b && b.clip && b.id === d.hit.id && b.arg === d.hit.arg) act(b);
+  }
+
   // the street's keys, from the Sanctuary's key block: true = a street panel has the keys (the world waits)
-  function keys() {
+  function streetKeys() {
     if (!inStreet()) return false;
+    if (G.panel === 'net') openFriend();
     if (!myPanel()) {
       if (G.panel || PK) return false;
       if (hit('Enter', 't')) openChat();
-      else if (hit('Tab')) { G.panel = 'mpplayers'; S.plPage = 0; SFX.play('pick'); }
+      else if (hit('Tab')) openPlayers();
       else if (hit('g') && HUB.party) openBoard(HUB.party.kind);
+      else if (hit('f')) { openFriend(); return true; }
       return false;
     }
     if (G.panel === 'mpsoon') { if (hit('Escape', 'e', 'Enter')) { G.panel = null; SFX.play('pick'); } return true; }
-    if (G.panel === 'mpplayers') { if (hit('Escape', 'e', 'Tab')) { G.panel = null; SFX.play('pick'); } return true; }
-    const D = S.board || (S.board = { kind: 'dungeon', view: 'list', tier: 1, page: 0 }), P = HUB.party;
+    if (G.panel === 'mpfriend') { if (hit('Escape', 'e', 'Enter', 'f')) { G.panel = null; SFX.play('pick'); } return true; }
+    if (G.panel === 'mpplayers') { if (hit('Escape', 'e', 'Tab')) { G.panel = null; SFX.play('pick'); } else listKeys(curList()); return true; }
+    const D = S.board || (S.board = newBoard()), P = HUB.party;
     if (P) {   /* inside a group */
       if (hit('Escape', 'e', 'g')) { G.panel = null; SFX.play('pick'); }
       else if (hit('Enter')) { if (P.mine) go(); else if (!P.pend) setReady(!amReady()); }
@@ -471,22 +658,46 @@
     } else {
       if (hit('Escape', 'e')) { G.panel = null; SFX.play('pick'); }
       else if (hit('o', 'Enter')) { if (needRoom() && needTeam()) { D.view = 'new'; SFX.play('pick'); } }
-      else { const list = groups(D.kind).slice(D.page * boardRows()); for (let i = 1; i <= 4; i++) if (hit(String(i)) && list[i - 1]) joinGroup(list[i - 1].leader); }
+      else if (!listKeys(boardList())) { const L = boardList(), list = L.items.slice(boardFirst(L)); for (let i = 1; i <= 4; i++) if (hit(String(i)) && list[i - 1]) joinGroup(list[i - 1].leader); }   /* 1-4: the rows in view, from the top */
     }
     return true;
   }
-  Object.assign(HUB, { stations, interact, keys });
+  Object.assign(HUB, { stations, interact, keys: streetKeys, wheel, scrolls, mouseUp });
 
   // ---------- layout shared by drawing and clicking ----------
-  const hudBot = () => H_() - (PORTRAIT() ? 8 : 26);
-  function H_() { return PORTRAIT() ? 540 : H; }
+  // The chat: in landscape at the bottom left of the screen. In portrait it lives in the HUD area under the world's
+  // square, so nothing covers the street the hero walks along: the log (as many lines as the screen's height leaves
+  // room for) and under it the Chat / Players buttons. On a short portrait screen only the buttons fit there and the
+  // log goes to the top of the square, under the status line, while somebody is talking.
   function chatRects() {
-    const w = Math.min(PORTRAIT() ? 380 : 350, W - 16), bot = hudBot(), row = { x: 8, y: bot - 26, w, h: 26 };
-    return { row, chat: { x: 8, y: row.y, w: 128, h: 26 }, players: { x: 142, y: row.y, w: 128, h: 26 }, send: { x: 8 + w - 62, y: row.y, w: 62, h: 26 }, box: { x: 8, y: row.y - 4 - (CHAT_SHOW * 16 + 16), w, h: CHAT_SHOW * 16 + 16 } };
+    const port = PORTRAIT(), w = port ? W - 16 : 350; let row, box, lines = CHAT_SHOW, under = false;
+    if (port) {
+      const y0 = 658, n = clamp(Math.floor((VIEW.h - 64 - y0 - 30 - 16) / 16), 0, CHAT_SHOW);
+      under = n >= 2; lines = under ? n : 4;
+      box = under ? { x: 8, y: y0, w, h: lines * 16 + 16 } : { x: 8, y: 136, w, h: lines * 16 + 16 };
+      row = { x: 8, y: under ? box.y + box.h + 4 : y0, w, h: 26 };
+    } else {
+      row = { x: 8, y: H - 26 - 26, w, h: 26 }; box = { x: 8, y: row.y - 4 - (CHAT_SHOW * 16 + 16), w, h: CHAT_SHOW * 16 + 16 };
+    }
+    return { row, box, lines, under, top: port && !under, chat: { x: 8, y: row.y, w: 128, h: 26 }, players: { x: 142, y: row.y, w: 128, h: 26 }, send: { x: 8 + w - 62, y: row.y, w: 62, h: 26 } };
   }
-  const statusRect = () => (PORTRAIT() ? { x: 6, y: 62, w: 10, h: 26 } : { x: 8, y: 68, w: 10, h: 26 });
   function badgeText() { const P = HUB.party; if (!P) return ''; return `Your group ${P.m.length}/4 · ${P.pend ? 'asking to join...' : P.go ? 'setting off!' : P.mine ? (canGo() ? 'ready to go!' : 'waiting') : amReady() ? 'ready' : 'not ready yet'}${TOUCH.on ? '' : '  (G)'}`; }
-  function badgeRect() { const s = statusRect(); ctx.font = `bold 13px ${UI}`; return { x: s.x, y: s.y + 30, w: Math.min(W - 16, ctx.measureText(badgeText()).width + 30), h: 26 }; }
+  // The status line ("Kingdom Street 1 · 7 players") and the group badge. Landscape: the bottom right corner, on the
+  // chat buttons' row (the top left belongs to the Sanctuary's own panel and the message bar under it). Portrait: the
+  // top left of the world's square, under the message bar.
+  function statusLayout() {
+    const [full, col] = status(), bt = badgeText(); ctx.font = `bold 13px ${UI}`;
+    if (PORTRAIT()) {
+      const txt = fitText(full, W - 12 - 30), s = { x: 6, y: 74, w: ctx.measureText(txt).width + 30, h: 26 };
+      return { txt, col, s, badge: bt ? { x: 6, y: 104, w: Math.min(W - 12, ctx.measureText(bt).width + 30), h: 26 } : null };
+    }
+    const C = chatRects(), left = C.row.x + C.row.w + 12, txt = fitText(full, W - 8 - left - 30), w = ctx.measureText(txt).width + 30, s = { x: W - 8 - w, y: C.row.y, w, h: 26 };
+    if (!bt) return { txt, col, s, badge: null };
+    const bw = Math.min(W - 8 - left, ctx.measureText(bt).width + 30), beside = s.x - 6 - bw >= left;   /* next to the status line when there is room, else above it */
+    return { txt, col, s, badge: beside ? { x: s.x - 6 - bw, y: s.y, w: bw, h: 26 } : { x: W - 8 - bw, y: s.y - 30, w: bw, h: 26 } };
+  }
+  const statusRect = () => statusLayout().s;
+  const badgeRect = () => statusLayout().badge || { x: -9, y: -9, w: 0, h: 0 };
   function status() {
     const r = HUB.room;
     if (!MP.net) return ['Offline: multiplayer is not part of this copy of the game', PAL.bad];
@@ -495,20 +706,32 @@
     if (r.state === 'migrating') return ['The host left: finding a new one...', PAL.gold];
     return S.err ? ["Offline: couldn't reach the multiplayer service (trying again...)", PAL.bad] : ['Connecting...', PAL.cream];
   }
-  const boardRows = () => 4;
   function boardBox() { const port = PORTRAIT(), bw = port ? W - 12 : 660, bh = port ? 540 : 452; return { bx: W / 2 - bw / 2, by: Math.max(6, H / 2 - bh / 2 - (port ? 0 : 6)), bw, bh, port }; }
-  // the buttons of whatever street panel is open: [{ id, r, arg, txt, off, on }]
+  // a board's open groups as a scrolling list (rows of 68 px between the heading and the footer)
+  function boardList() {
+    const B = boardBox(), D = S.board || (S.board = newBoard()), items = groups(D.kind), RH = 68;
+    const L = { key: 'board', RH, items, view: { x: B.bx + 20, y: B.by + 66, w: B.bw - 40 - 16, h: B.bh - 66 - 86 }, total: items.length * RH };
+    S.sc.board = clamp(S.sc.board, 0, listMax(L));
+    return L;
+  }
+  const boardFirst = L => Math.max(0, Math.ceil((S.sc.board - 14) / L.RH));   /* the first row that is (nearly) whole in view */
+  const boardRowY = (L, i) => L.view.y + i * L.RH - S.sc.board;
+  const rowSeen = (L, y, h) => y + h > L.view.y && y < L.view.y + L.view.h;
+  // the buttons of whatever street panel is open: [{ id, r, arg, txt, off, on, clip }] (clip = the list box a row's button lives in)
   function panelButtons() {
     const out = [], add = (id, r, txt, o) => out.push(Object.assign({ id, r, txt }, o));
     if (!G) return out;
     if (G.panel === 'mpsoon') { const b = soonBox(); add('close', { x: W / 2 - 60, y: b.by + b.bh - 56, w: 120, h: 38 }, 'Close'); }
-    else if (G.panel === 'mpplayers') {
+    else if (G.panel === 'mpfriend') {
+      const b = soonBox();
+      if (NET.state === 'linked') ['Battle', 'Trade', 'Visit their Yard'].forEach((t, i) => add('foff', { x: W / 2 - 237 + i * 162, y: b.by + 150, w: 150, h: 40 }, t, { off: true, arg: i }));
+      add('close', { x: W / 2 - 60, y: b.by + b.bh - 56, w: 120, h: 38 }, 'Close');
+    } else if (G.panel === 'mpplayers') {
       const L = playersLayout();
-      L.rows.forEach(row => { if (row.me) return; const o = row.o; add('mute', row.mute, isMuted(o) && !isHidden(o) ? 'Unmute' : 'Mute', { arg: o.id, on: isMuted(o), off: isHidden(o), size: 12 }); add('hide', row.hide, isHidden(o) ? 'Show' : 'Hide', { arg: o.id, on: isHidden(o), size: 12 }); });
-      if (L.pages > 1) add('plpage', { x: L.bx + 20, y: L.by + L.bh - 54, w: 130, h: 38 }, `Page ${S.plPage + 1}/${L.pages} ▸`);
+      L.rows.forEach(row => { if (row.me) return; const o = row.o; add('mute', row.mute, isMuted(o) && !isHidden(o) ? 'Unmute' : 'Mute', { arg: o.id, on: isMuted(o), off: isHidden(o), size: 12, clip: L.list.view }); add('hide', row.hide, isHidden(o) ? 'Show' : 'Hide', { arg: o.id, on: isHidden(o), size: 12, clip: L.list.view }); });
       add('close', { x: L.bx + L.bw - 140, y: L.by + L.bh - 54, w: 120, h: 38 }, 'Close');
     } else if (G.panel === 'mpboard') {
-      const B = boardBox(), D = S.board || { kind: 'dungeon', view: 'list', tier: 1, page: 0 }, P = HUB.party, fy = B.by + B.bh - 54, x0 = B.bx + 20, x1 = B.bx + B.bw - 20;
+      const B = boardBox(), D = S.board || newBoard(), P = HUB.party, fy = B.by + B.bh - 54, x0 = B.bx + 20, x1 = B.bx + B.bw - 20;
       add('close', { x: x1 - 110, y: fy, w: 110, h: 38 }, 'Close');
       if (P) {
         if (P.mine) {
@@ -523,25 +746,29 @@
         for (let t = 1; t <= 4; t++) add('pick', { x: x0, y: B.by + 62 + (t - 1) * 60, w: B.bw - 40, h: 54 }, '', { arg: t, on: D.tier === t });
         add('open', { x: x0, y: fy, w: 170, h: 38 }, 'Open the group', { color: PAL.gold }); add('back', { x: x0 + 180, y: fy, w: 100, h: 38 }, 'Back');
       } else {
-        const list = groups(D.kind), per = boardRows(), pages = Math.max(1, Math.ceil(list.length / per)); D.page = clamp(D.page, 0, pages - 1);
-        list.slice(D.page * per, D.page * per + per).forEach((g, i) => { if (g.leader !== me()) add('join', { x: x1 - 100, y: B.by + 70 + i * 68 + 12, w: 92, h: 36 }, g.pt.go ? 'Gone' : g.pt.m.length >= 4 ? 'Full' : 'Join', { arg: g.leader, off: g.pt.go || g.pt.m.length >= 4 || !isOpen() }); });
+        const L = boardList();
+        L.items.forEach((g, i) => { const y = boardRowY(L, i); if (g.leader !== me() && rowSeen(L, y, 62)) add('join', { x: L.view.x + L.view.w - 100, y: y + 13, w: 92, h: 36 }, g.pt.go ? 'Gone' : g.pt.m.length >= 4 ? 'Full' : 'Join', { arg: g.leader, off: g.pt.go || g.pt.m.length >= 4 || !isOpen(), clip: L.view }); });
         add('new', { x: x0, y: fy, w: 170, h: 38 }, 'Open a group', { off: !isOpen(), color: PAL.gold });
-        if (pages > 1) add('page', { x: x0 + 180, y: fy, w: 130, h: 38 }, `Page ${D.page + 1}/${pages} ▸`);
       }
     }
     return out;
   }
+  // the button under the mouse (a row's button only where its list shows it)
+  const buttonAt = () => panelButtons().find(b => inRect(mouse, b.r) && (!b.clip || inRect(mouse, b.clip)));
   function soonBox() { const bw = PORTRAIT() ? W - 20 : 540, bh = 270; return { bx: W / 2 - bw / 2, by: H / 2 - bh / 2 - 10, bw, bh }; }
+  // the Players panel: everyone in the street, me first, as a scrolling list (two columns in landscape, one in portrait)
   function playersLayout() {
-    const port = PORTRAIT(), cols = port ? 1 : 2, per = port ? 20 : 20, RH = port ? 29 : 34, bw = port ? W - 12 : 880, nrow = port ? 20 : 10, bh = 62 + nrow * RH + 64;
-    const bx = W / 2 - bw / 2, by = Math.max(4, H / 2 - bh / 2), cw = (bw - 32) / cols;
+    const port = PORTRAIT(), cols = port ? 1 : 2, RH = port ? 40 : 38, bw = port ? W - 12 : 880, vis = port ? clamp(Math.floor((H - 8 - 126) / RH), 4, 14) : 9, bh = 62 + vis * RH + 64;
+    const bx = W / 2 - bw / 2, by = Math.max(4, H / 2 - bh / 2), view = { x: bx + 14, y: by + 58, w: bw - 28 - 16, h: vis * RH }, cw = view.w / cols;
     const all = [{ me: true, o: { id: me(), name: myName(), cls: G.cls, lv: myLv() } }].concat([...S.others.values()].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map(o => ({ o })));
-    const pages = Math.max(1, Math.ceil(all.length / per)); S.plPage = clamp(S.plPage, 0, pages - 1);
-    const rows = all.slice(S.plPage * per, S.plPage * per + per).map((row, i) => {
-      const col = cols === 1 ? 0 : Math.floor(i / nrow), x = bx + 16 + col * cw, y = by + 58 + (i % nrow) * RH;
-      return Object.assign(row, { x, y, w: cw - 8, h: RH - 4, mute: { x: x + cw - 8 - 128, y: y + 1, w: 66, h: RH - 6 }, hide: { x: x + cw - 8 - 58, y: y + 1, w: 56, h: RH - 6 } });
+    const list = { key: 'players', RH, view, total: Math.ceil(all.length / cols) * RH };
+    S.sc.players = clamp(S.sc.players, 0, listMax(list));
+    const rows = [];
+    all.forEach((row, i) => {
+      const x = view.x + (i % cols) * cw, y = view.y + Math.floor(i / cols) * RH - S.sc.players + 2, h = RH - 4;
+      if (rowSeen(list, y, h)) rows.push(Object.assign(row, { x, y, w: cw - 6, h, mute: { x: x + cw - 6 - 130, y: y + 3, w: 66, h: h - 6 }, hide: { x: x + cw - 6 - 60, y: y + 3, w: 56, h: h - 6 } }));
     });
-    return { bx, by, bw, bh, rows, pages, total: all.length };
+    return { bx, by, bw, bh, rows, list, total: all.length };
   }
 
   // ---------- clicks ----------
@@ -555,30 +782,34 @@
       return true;
     }
     if (NET.typing || btn !== 0) return false;
-    if (inRect(mouse, C.chat) || (S.chatT < 9 && visibleLines().length && inRect(mouse, C.box))) { openChat(); return true; }
-    if (inRect(mouse, C.players)) { G.panel = 'mpplayers'; S.plPage = 0; SFX.play('pick'); return true; }
+    if (inRect(mouse, C.chat) || ((C.under || (S.chatT < 9 && visibleLines().length)) && inRect(mouse, C.box))) { openChat(); return true; }
+    if (inRect(mouse, C.players)) { openPlayers(); return true; }
     if (HUB.party && inRect(mouse, badgeRect())) { openBoard(HUB.party.kind); return true; }
     return false;
   }
   function panelClick(btn) {
     if (!myPanel()) return false;
-    if (btn !== 0) { if (G.panel === 'mpboard' && S.board && S.board.view === 'new' && !HUB.party) S.board.view = 'list'; else G.panel = null; SFX.play('pick'); return true; }
-    const b = panelButtons().find(b => inRect(mouse, b.r));
-    if (!b) {   /* a click outside the window closes it */
-      const box = G.panel === 'mpsoon' ? soonBox() : G.panel === 'mpplayers' ? playersLayout() : boardBox();
+    if (btn !== 0) { S.drag = null; if (G.panel === 'mpboard' && S.board && S.board.view === 'new' && !HUB.party) S.board.view = 'list'; else G.panel = null; SFX.play('pick'); return true; }
+    const b = buttonAt();
+    if (listPress(curList(), b)) return true;   /* (a list's own buttons act when the mouse comes up: see mouseUp) */
+    if (!b || b.clip) {   /* a click outside the window closes it */
+      const box = G.panel === 'mpsoon' || G.panel === 'mpfriend' ? soonBox() : G.panel === 'mpplayers' ? playersLayout() : boardBox();
       if (!inRect(mouse, { x: box.bx, y: box.by, w: box.bw, h: box.bh })) { G.panel = null; SFX.play('pick'); }
       return true;
     }
-    if (b.off && b.id !== 'join' && b.id !== 'new' && b.id !== 'go') return true;
+    act(b);
+    return true;
+  }
+  // what a panel's button does
+  function act(b) {
+    if (b.off && b.id !== 'join' && b.id !== 'new' && b.id !== 'go') return;
     const D = S.board;
     switch (b.id) {
       case 'close': G.panel = null; SFX.play('pick'); break;
       case 'mute': setMute(b.arg, 'm', !b.on); SFX.play('pick'); break;
       case 'hide': setMute(b.arg, 'h', !b.on); SFX.play('pick'); break;
-      case 'plpage': S.plPage = (S.plPage + 1) % playersLayout().pages; SFX.play('pick'); break;
       case 'join': if (b.off && isOpen()) toast(b.txt === 'Full' ? 'That group is already full.' : 'That group has already set off.', 2, true); else joinGroup(b.arg); break;
       case 'new': if (needRoom() && needTeam()) { D.view = 'new'; SFX.play('pick'); } break;
-      case 'page': D.page++; if (D.page * boardRows() >= groups(D.kind).length) D.page = 0; SFX.play('pick'); break;
       case 'pick': D.tier = b.arg; SFX.play('pick'); break;
       case 'open': if (openGroup(D.kind, D.tier)) D.view = 'list'; break;
       case 'back': D.view = 'list'; SFX.play('pick'); break;
@@ -587,7 +818,6 @@
       case 'tier': setTier(b.arg); break;
       case 'go': go(); break;
     }
-    return true;
   }
   Object.assign(HUB, { click, panelClick });
 
@@ -636,12 +866,32 @@
     if (bannerCol) { for (const s of [-1, 1]) { const bx = x + s * (w / 2 - 14); box(bannerCol, bx - 8, ft - h + 20, 16, 54); tri(bannerCol, bx - 8, ft - h + 74, bx, ft - h + 64, bx + 8, ft - h + 74); box(PAL.brass, bx - 3, ft - h + 36, 6, 6); } for (let i = -2; i <= 2; i++) box('#2a2028', x + i * (iw / 5) - 2, ft - ih + 6, 4, ih - 6); }
     else { const g = ctx.createRadialGradient(x, ft - 30, 4, x, ft - 30, iw / 2); g.addColorStop(0, 'rgba(120,90,200,0.35)'); g.addColorStop(1, 'rgba(120,90,200,0)'); ctx.fillStyle = g; ctx.fillRect(x - iw / 2, ft - ih, iw, ih); }
   }
+  // a station's name: a bigger parchment sign than the name tags, with a drop shadow and brass pins, so it reads against the busy backdrop
+  function stationSign(name, x, top) {
+    ctx.font = `bold 15px ${UI}`; const tw = Math.round(ctx.measureText(name).width) + 30, l = Math.round(x - tw / 2);
+    ctx.fillStyle = 'rgba(10,6,3,0.45)'; rr(l - 1, top + 2, tw + 4, 30, 7); ctx.fill();
+    ctx.fillStyle = '#2a1a0c'; rr(l - 2, top - 2, tw + 4, 32, 7); ctx.fill();
+    panel(l, top, tw, 28, 'parch');
+    for (const px of [l + 7, l + tw - 9]) { box(PAL.brassDk || '#6b4a1e', px - 1, top + 12, 4, 4); box(PAL.brass, px, top + 13, 2, 2); }
+    label(name, x, top + 14, { align: 'center', size: 15, bold: true, color: '#2a1a0c' });
+  }
+  // what makes a station stand out from the painted street: a soft pool of light behind it and a shadow on the ground under it
+  function propGlow(x, ft, w, h) {
+    if (Math.abs(x - (G.cam.x + W / 2)) > W / 2 + 280) return;
+    const cy = ft - h * 0.5, r = Math.max(70, Math.max(w, h) * 0.72);
+    const g = ctx.createRadialGradient(x, cy, r * 0.15, x, cy, r); g.addColorStop(0, 'rgba(255,238,190,0.3)'); g.addColorStop(0.6, 'rgba(255,230,170,0.12)'); g.addColorStop(1, 'rgba(255,230,170,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r, cy - r, r * 2, r * 2);
+    const sw = Math.max(40, w * 0.56), s = ctx.createRadialGradient(x, ft + 3, 2, x, ft + 3, sw); s.addColorStop(0, 'rgba(10,6,12,0.5)'); s.addColorStop(0.7, 'rgba(10,6,12,0.22)'); s.addColorStop(1, 'rgba(10,6,12,0)');
+    ctx.save(); ctx.translate(x, ft + 3); ctx.scale(1, 0.16); ctx.translate(-x, -(ft + 3)); ctx.fillStyle = s; ctx.fillRect(x - sw, ft + 3 - sw, sw * 2, sw * 2); ctx.restore();
+  }
+  const FALLBACK_W = { mp_sign: 44, mp_missions: 84, mp_auction: 232, mp_shop: 180, mp_dungeon: 200, mp_raid: 240 };
   function drawProps(ft) {
     for (const p of PLACES) {
       const x = p.t * TILE, img = art('props/' + p.kind); let h;
-      if (img) { drawSprite(img, x, ft + 2, 1); h = img.height * PX; } else h = FALLBACK[p.kind](x, ft);
-      sign(p.name, x, ft - h - 26);
-      if (p.kind === 'mp_dungeon' || p.kind === 'mp_raid') { const n = groups(p.kind === 'mp_raid' ? 'raid' : 'dungeon').length; if (n) label(`${n} group${n === 1 ? '' : 's'} open`, x, ft - h - 40 + Math.sin(TIME * 3) * 2, { align: 'center', size: 12, bold: true, color: PAL.gold }); }
+      if (img) { h = img.height * PX; propGlow(x, ft, img.width * PX, h); drawSprite(img, x, ft + 2, 1); }
+      else { propGlow(x, ft, FALLBACK_W[p.kind] || 80, { mp_sign: 72, mp_missions: 98, mp_auction: 172, mp_shop: 128, mp_dungeon: 140, mp_raid: 170 }[p.kind] || 90); h = FALLBACK[p.kind](x, ft); }
+      stationSign(p.name, x, ft - h - 34);
+      if (p.kind === 'mp_dungeon' || p.kind === 'mp_raid') { const n = groups(p.kind === 'mp_raid' ? 'raid' : 'dungeon').length; if (n) label(`${n} group${n === 1 ? '' : 's'} open`, x, ft - h - 48 + Math.sin(TIME * 3) * 2, { align: 'center', size: 13, bold: true, color: PAL.gold }); }
     }
   }
   // the Yard's signpost that points down the road
@@ -713,34 +963,50 @@
   // the chat log as display lines (wrapped to the box), newest last
   function visibleLines() {
     const C = chatRects(), maxW = C.box.w - 20, out = [];
-    for (let i = S.chat.length - 1; i >= 0 && out.length < CHAT_SHOW; i--) {
+    for (let i = S.chat.length - 1; i >= 0 && out.length < C.lines; i--) {
       const e = S.chat[i];
       if (!e.sys && !e.mine) { const o = S.others.get(e.id); if (o ? isMuted(o) : muteNames().m.includes(e.name) || muteNames().h.includes(e.name)) continue; }
       if (!e.wl || e.wlW !== maxW) { e.wl = wrapLines(e.sys ? e.s : e.name + ': ' + e.s, maxW, 13).map(l => { ctx.font = `13px ${UI}`; return fitText(l, maxW); }); e.wlW = maxW; }
-      for (let k = e.wl.length - 1; k >= 0 && out.length < CHAT_SHOW; k--) out.unshift({ e, txt: e.wl[k], first: k === 0 });
+      for (let k = e.wl.length - 1; k >= 0 && out.length < C.lines; k--) out.unshift({ e, txt: e.wl[k], first: k === 0 });
     }
     return out;
   }
+  // the line being typed, cut to what fits around the caret: [text before the caret, text after it]
+  function typedParts(maxW) {
+    const inp = chatInput(), all = chars(NET.buf); let at = all.length;
+    if (inputHasFocus(inp) && typeof inp.selectionStart === 'number' && inp.value === NET.buf) at = chars(NET.buf.slice(0, inp.selectionStart)).length;
+    let a = all.slice(0, at), b = all.slice(at);
+    ctx.font = `13px ${UI}`;
+    while (a.length > 1 && ctx.measureText(a.join('')).width > maxW * (b.length ? 0.8 : 1)) a = a.slice(1);
+    while (b.length && ctx.measureText(a.join('') + b.join('')).width > maxW) b = b.slice(0, -1);
+    return [a.join(''), b.join('')];
+  }
   function drawChat() {
     const C = chatRects(), typing = NET.typing === 'chat', lines = visibleLines();
-    const a = typing ? 1 : clamp((10 - S.chatT) / 2, 0, 1);
-    if (a > 0 && (lines.length || typing)) {
-      const bh = Math.min(C.box.h, Math.max(1, lines.length) * 16 + 18);   /* only as tall as what is said: the street stays in view */
-      ctx.globalAlpha = a * 0.92; panel(C.box.x, C.box.y + C.box.h - bh, C.box.w, bh, 'leather');
+    const a = typing || C.under ? 1 : clamp((10 - S.chatT) / 2, 0, 1);
+    if (a > 0 && (lines.length || typing || C.under)) {
+      const bh = C.under ? C.box.h : Math.min(C.box.h, Math.max(1, lines.length) * 16 + 18);   /* over the street only as tall as what is said: the street stays in view */
+      const by = C.top ? C.box.y : C.box.y + C.box.h - bh;
+      ctx.globalAlpha = a * 0.92; panel(C.box.x, by, C.box.w, bh, 'leather');
+      if (!lines.length && C.under) label(TOUCH.on ? 'Nobody has said anything yet. Tap here to chat.' : 'Nobody has said anything yet.', C.box.x + 14, C.box.y + C.box.h / 2, { size: 12, color: PAL.dim });
       lines.forEach((l, i) => {
-        const y = C.box.y + C.box.h - 16 - (lines.length - 1 - i) * 16, e = l.e;
-        if (e.sys) { label(l.txt, C.box.x + 11, y, { size: 13, color: PAL.dim }); return; }
+        const y = C.top ? by + 17 + i * 16 : C.box.y + C.box.h - 16 - (lines.length - 1 - i) * 16, e = l.e;
+        if (e.sys) { label(l.txt, C.box.x + 11, y, { size: 13, color: '#cdbfa6' }); return; }
         label(l.txt, C.box.x + 11, y, { size: 13, color: PAL.cream });
         if (l.first) { const nm = e.name + ':'; if (l.txt.startsWith(nm)) label(nm, C.box.x + 11, y, { size: 13, color: e.mine ? PAL.gold : PAL.sky }); }
       });
       ctx.globalAlpha = 1;
     }
     if (typing) {
+      const inp = chatInput(); if (S.inPlaced && inp) placeInput(inp, true);   /* (the window may have been resized) */
       panel(C.row.x, C.row.y, C.row.w - 66, C.row.h, 'dark');
-      ctx.font = `13px ${UI}`; let t = NET.buf; const maxW = C.row.w - 66 - 62; while (t.length > 1 && ctx.measureText(t).width > maxW) t = t.slice(1);
-      label(t + (Math.floor(TIME * 2.5) % 2 ? '' : '▌'), C.row.x + 9, C.row.y + 13, { size: 13, color: PAL.cream });
-      if (!NET.buf) { ctx.globalAlpha = 0.6; label(TOUCH.on ? 'Say something...' : 'Say something  (Enter sends, Esc cancels)', C.row.x + 18, C.row.y + 13, { size: 12, color: PAL.dim }); ctx.globalAlpha = 1; }
-      label(`${NET.buf.length}/${CHAT_MAX}`, C.row.x + C.row.w - 72, C.row.y + 13, { align: 'right', size: 11, color: NET.buf.length >= CHAT_MAX ? PAL.bad : PAL.dim });
+      const n = charLen(NET.buf), [before, after] = typedParts(C.row.w - 66 - 66), caret = Math.floor(TIME * 2.5) % 2 ? '' : '▌';
+      label(before, C.row.x + 9, C.row.y + 13, { size: 13, color: PAL.cream });
+      ctx.font = `13px ${UI}`; const bw = ctx.measureText(before).width;
+      if (caret) label(caret, C.row.x + 9 + bw - (after ? 3 : 0), C.row.y + 13, { size: 13, color: PAL.gold });
+      if (after) label(after, C.row.x + 9 + bw + 4, C.row.y + 13, { size: 13, color: PAL.cream });
+      if (!n) { ctx.globalAlpha = 0.75; label(TOUCH.on ? 'Say something...' : 'Say something  (Enter sends, Esc cancels)', C.row.x + 18, C.row.y + 13, { size: 12, color: PAL.dim }); ctx.globalAlpha = 1; }
+      label(`${n}/${CHAT_MAX}`, C.row.x + C.row.w - 72, C.row.y + 13, { align: 'right', size: 11, color: n >= CHAT_MAX ? PAL.bad : PAL.dim });
       button(C.send, 'Send', { hover: inRect(mouse, C.send), size: 13 });
     } else {
       ctx.globalAlpha = 0.9;
@@ -750,12 +1016,31 @@
     }
   }
   function drawStatus() {
-    const [txt, col] = status(), s = statusRect();
-    ctx.font = `bold 13px ${UI}`; const t = fitText(txt, W - 16 - 30), w = ctx.measureText(t).width + 30;
-    panel(s.x, s.y, w, s.h, 'leather'); label(t, s.x + 15, s.y + 13, { size: 13, bold: true, color: col });
-    if (HUB.party) { const b = badgeRect(), hot = inRect(mouse, b); panel(b.x, b.y, b.w, b.h, hot ? 'parch' : 'leather'); ctx.font = `bold 13px ${UI}`; label(fitText(badgeText(), b.w - 24), b.x + 15, b.y + 13, { size: 13, bold: true, color: hot ? PAL.parchInk : canGo() || (!HUB.party.mine && amReady()) ? PAL.good : PAL.gold }); }
+    const L = statusLayout(), s = L.s;
+    panel(s.x, s.y, s.w, s.h, 'leather'); label(L.txt, s.x + 15, s.y + 13, { size: 13, bold: true, color: L.col });
+    if (L.badge) { const b = L.badge, hot = inRect(mouse, b); panel(b.x, b.y, b.w, b.h, hot ? 'parch' : 'leather'); ctx.font = `bold 13px ${UI}`; label(fitText(badgeText(), b.w - 24), b.x + 15, b.y + 13, { size: 13, bold: true, color: hot ? PAL.parchInk : canGo() || (!HUB.party.mine && amReady()) ? PAL.good : PAL.gold }); }
   }
-  function drawButtons(skip) { for (const b of panelButtons()) if (!skip || !skip.includes(b.id)) button(b.r, b.txt, { hover: !b.off && inRect(mouse, b.r), off: b.off, on: b.on, size: b.size || 15, color: b.color }); }
+  // a panel's buttons: the ones outside any list, or (clip given) the ones of the rows of that list
+  function drawButtons(skip, clip) {
+    for (const b of panelButtons()) {
+      if (!!b.clip !== !!clip || (skip && skip.includes(b.id))) continue;
+      button(b.r, b.txt, { hover: !b.off && !S.drag && inRect(mouse, b.r) && (!clip || inRect(mouse, clip)), off: b.off, on: b.on, size: b.size || 15, color: b.color });
+    }
+  }
+  // a scrolling list: its rows (drawn by `rows`) and their buttons clipped to the list's box, soft shadows where
+  // there is more above or below, and the scrollbar
+  function drawList(L, rows) {
+    const v = L.view, M = listMax(L), sc = S.sc[L.key];
+    ctx.save(); ctx.beginPath(); ctx.rect(v.x, v.y, v.w, v.h); ctx.clip();
+    try { rows(); drawButtons(null, v); } finally { ctx.restore(); }
+    if (sc > 0) { const g = ctx.createLinearGradient(0, v.y, 0, v.y + 16); g.addColorStop(0, 'rgba(0,0,0,0.5)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(v.x, v.y, v.w, 16); }
+    if (sc < M) { const g = ctx.createLinearGradient(0, v.y + v.h - 16, 0, v.y + v.h); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = g; ctx.fillRect(v.x, v.y + v.h - 16, v.w, 16); }
+    if (M > 0) {
+      const b = listBar(L), t = listThumb(L), dragging = S.drag && S.drag.key === L.key && S.drag.off !== undefined, hot = dragging || inRect(mouse, { x: b.x - 4, y: b.y, w: b.w + 8, h: b.h });
+      ctx.fillStyle = 'rgba(12,7,4,0.7)'; rr(b.x, b.y, b.w, b.h, 4); ctx.fill();
+      ctx.fillStyle = dragging ? PAL.gold : hot ? PAL.brassLt || PAL.brass : PAL.brass; rr(t.x + 1, t.y + 1, t.w - 2, t.h - 2, 3); ctx.fill();
+    }
+  }
   function shade() { ctx.fillStyle = 'rgba(8,5,3,0.55)'; ctx.fillRect(0, 0, W, H); }
   function drawSoon() {
     const b = soonBox(), [title, text] = SOON[S.soon] || SOON.mp_missions;
@@ -764,76 +1049,100 @@
     label('Coming soon', W / 2, b.by + b.bh - 86, { align: 'center', size: 22, bold: true, color: '#8a5a00' });
     drawButtons();
   }
+  // F in the street: playing with a friend waits for the Yard (the buttons are shown, switched off)
+  function drawFriend() {
+    const b = soonBox(), linked = NET.state === 'linked' && NET.friend, name = linked ? String(NET.friend.name || 'your friend').slice(0, 14) : '';
+    shade(); panel(b.bx, b.by, b.bw, b.bh, 'parch'); banner('Play with a friend', W / 2, b.by + 4, { size: 28, h: 44, pad: 100 });
+    label('Friend battles, trades and visits work from the Yard.', W / 2, b.by + 74, { align: 'center', size: 16, bold: true, color: PAL.parchInk });
+    const more = linked ? `You stay connected with ${name} while you are here: walk back to the Yard to play together.` : NET.state === 'off' ? 'Host or join a room at the friend post in your Yard.' : 'Your friend room stays open while you are here: walk back to the Yard to use it.';
+    wrapLines(more, b.bw - 70, 14).slice(0, 2).forEach((l, i) => label(l, W / 2, b.by + 104 + i * 19, { align: 'center', size: 14, color: INK_SOFT }));
+    drawButtons();
+  }
+  const INK_SOFT = '#4e3418', ROW_DIM = '#d2c2a4';   /* small print on parchment, and on the dark rows: dark and light enough to read */
   function drawPlayers() {
-    const L = playersLayout(); shade(); panel(L.bx, L.by, L.bw, L.bh, 'leather');
+    let L = playersLayout(); listDrag(L.list); L = playersLayout();
+    shade(); panel(L.bx, L.by, L.bw, L.bh, 'leather');
     banner(`Players in the street (${L.total})`, W / 2, L.by + 4, { size: 24, h: 40, pad: 80 });
-    for (const row of L.rows) {
-      const o = row.o, y = row.y + row.h / 2; panel(row.x, row.y, row.w, row.h, 'dark');
-      ctx.font = `bold 13px ${UI}`; label(fitText(o.name, 108), row.x + 10, y, { size: 13, bold: true, color: row.me ? PAL.gold : isHidden(o) ? PAL.dim : PAL.cream });
-      const grp = row.me ? (HUB.party ? ' · group' : '') : o.pt || o.pj ? ' · group' : '';
-      ctx.font = `12px ${UI}`; label(fitText(row.me ? `you · ${CLASSES[o.cls].name} · Lv ${o.lv}${grp}` : `${CLASSES[o.cls].name} · Lv ${o.lv}${grp}`, row.w - 122 - (row.me ? 8 : 136)), row.x + 122, y, { size: 12, color: PAL.dim });
-    }
-    label(fitText(TOUCH.on ? 'Mute: no chat from them · Hide: not even their hero' : 'Mute: no chat from them  ·  Hide: not even their hero  ·  remembered by name', L.bw - 320), L.bx + (L.pages > 1 ? 164 : 22), L.by + L.bh - 35, { size: 12, color: PAL.dim });
+    drawList(L.list, () => {
+      for (const row of L.rows) {
+        const o = row.o, y = row.y + row.h / 2; panel(row.x, row.y, row.w, row.h, 'dark');
+        ctx.font = `bold 14px ${UI}`; label(fitText(o.name, 112), row.x + 10, y, { size: 14, bold: true, color: row.me ? PAL.gold : isHidden(o) ? PAL.dim : PAL.cream });
+        const grp = row.me ? (HUB.party ? ' · group' : '') : o.pt || o.pj ? ' · group' : '';
+        ctx.font = `12px ${UI}`; label(fitText(row.me ? `you · ${CLASSES[o.cls].name} · Lv ${o.lv}${grp}` : `${CLASSES[o.cls].name} · Lv ${o.lv}${grp}`, row.w - 128 - (row.me ? 8 : 138)), row.x + 128, y, { size: 12, color: ROW_DIM });
+      }
+    });
+    const more = listMax(L.list) > 0;
+    ctx.font = `12px ${UI}`; label(fitText(more ? (TOUCH.on ? 'Drag the list to see everyone · Mute: no chat · Hide: not even their hero' : 'Wheel, drag or ↑ ↓ to scroll  ·  Mute: no chat from them  ·  Hide: not even their hero') : TOUCH.on ? 'Mute: no chat from them · Hide: not even their hero' : 'Mute: no chat from them  ·  Hide: not even their hero  ·  remembered by name', L.bw - 190), L.bx + 22, L.by + L.bh - 35, { size: 12, color: ROW_DIM });
     drawButtons();
   }
   function drawBoard() {
-    const B = boardBox(), D = S.board || (S.board = { kind: 'dungeon', view: 'list', tier: 1, page: 0 }), P = HUB.party, x0 = B.bx + 20, iw = B.bw - 40;
+    const B = boardBox(), D = S.board || (S.board = newBoard()), P = HUB.party, x0 = B.bx + 20, iw = B.bw - 40;
     shade(); panel(B.bx, B.by, B.bw, B.bh, 'parch');
-    const ink = PAL.parchInk, soft = '#6b4a2a';
+    const ink = PAL.parchInk, soft = INK_SOFT;
     if (P) {   /* my group */
       banner(P.kind === 'raid' ? 'Your raid group' : 'Your dungeon group', W / 2, B.by + 4, { size: 28, h: 44, pad: 90 });
       for (let i = 0; i < 4; i++) {
-        const id = P.m[i], y = B.by + 56 + i * 48; panel(x0, y, iw, 42, 'dark');
-        if (!id) { label('empty slot', x0 + 16, y + 21, { size: 13, color: PAL.dim }); continue; }
+        const id = P.m[i], y = B.by + 56 + i * 48;
+        if (!id) {   /* an empty slot: a dashed outline on the parchment, in ink */
+          ctx.fillStyle = 'rgba(58,38,20,0.14)'; rr(x0, y, iw, 42, 4); ctx.fill();
+          ctx.strokeStyle = 'rgba(58,38,20,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); rr(x0 + 1, y + 1, iw - 2, 40, 4); ctx.stroke(); ctx.setLineDash([]);
+          label(P.go ? 'empty slot' : 'empty slot · waiting for a player', x0 + 36, y + 21, { size: 14, bold: true, color: soft });
+          continue;
+        }
+        panel(x0, y, iw, 42, 'dark');
         const f = infoOf(id), lead = i === 0, rdy = lead || P.r.includes(id) || (id === me() && amReady());
-        label(lead ? '★' : rdy ? '✔' : '…', x0 + 18, y + 21, { align: 'center', size: 16, bold: true, color: lead ? PAL.gold : rdy ? PAL.good : PAL.dim });
+        label(lead ? '★' : rdy ? '✔' : '…', x0 + 18, y + 21, { align: 'center', size: 16, bold: true, color: lead ? PAL.gold : rdy ? PAL.good : ROW_DIM });
         ctx.font = `bold 15px ${UI}`; label(fitText(f.name + (id === me() ? ' (you)' : ''), iw * 0.42), x0 + 36, y + 21, { size: 15, bold: true, color: PAL.cream });
-        ctx.font = `13px ${UI}`; label(fitText(`${CLASSES[f.cls].name} · best pet Lv ${f.lv}`, iw * 0.34), x0 + 36 + iw * 0.44, y + 21, { size: 13, color: PAL.dim });
-        label(lead ? 'Leader' : rdy ? 'Ready' : 'Not ready', x0 + iw - 12, y + 21, { align: 'right', size: 13, bold: true, color: lead ? PAL.gold : rdy ? PAL.good : '#f0a070' });
+        ctx.font = `13px ${UI}`; label(fitText(`${CLASSES[f.cls].name} · best pet Lv ${f.lv}`, iw * 0.34), x0 + 36 + iw * 0.44, y + 21, { size: 13, color: ROW_DIM });
+        label(lead ? 'Leader' : rdy ? 'Ready' : 'Not ready', x0 + iw - 12, y + 21, { align: 'right', size: 13, bold: true, color: lead ? PAL.gold : rdy ? PAL.good : '#ffb080' });
       }
       const T = tierOf(P.tier), lvs = P.m.map(id => infoOf(id).lv), avg = Math.round(lvs.reduce((a, b) => a + b, 0) / Math.max(1, lvs.length));
       ctx.font = `bold 15px ${UI}`; label(fitText(P.kind === 'raid' ? `Raid: ${T.boss}` : T.name, iw - (P.mine ? 100 : 0)), x0, B.by + 270, { size: 15, bold: true, color: ink });
       ctx.font = `13px ${UI}`; label(fitText(`${P.kind === 'raid' ? T.name + ' · ' : ''}for pets about level ${T.lv} · your group's best pets average level ${avg}`, iw - (P.mine ? 100 : 0)), x0, B.by + 292, { size: 13, color: soft });
       const n = P.m.length, tip = P.pend ? 'Asking the leader...' : P.go ? 'Setting off!' : P.mine ? (n < 2 && !HUB.debugSolo ? 'Waiting for players: others join at this board (2 to 4 players).' : canGo() ? 'Everyone is ready: press Go!' : 'Waiting for everyone to be ready.') : amReady() ? 'Waiting for the leader to press Go.' : 'Press Ready when your team is set.';
       wrapLines(tip, iw, 14, true).slice(0, 2).forEach((l, i) => label(l, x0, B.by + 322 + i * 18, { size: 14, bold: true, color: '#7a2e14' }));
-      ctx.font = `12px ${UI}`; label(fitText(TOUCH.on ? 'You can walk around: your group stays (tap the group badge to come back).' : 'You can walk around: your group stays. G opens this again.', iw), x0, B.by + B.bh - 72, { size: 12, color: soft });
+      ctx.font = `13px ${UI}`; label(fitText(TOUCH.on ? 'You can walk around: your group stays (tap the group badge to come back).' : 'You can walk around: your group stays. G opens this again.', iw), x0, B.by + B.bh - 72, { size: 13, color: soft });
     } else if (D.view === 'new') {
       banner(D.kind === 'raid' ? 'Open a raid group' : 'Open a dungeon group', W / 2, B.by + 4, { size: 28, h: 44, pad: 90 });
       drawButtons(['open', 'back', 'close']);
       for (let t = 1; t <= 4; t++) {
         const T = tierOf(t), y = B.by + 62 + (t - 1) * 60;
         ctx.font = `bold 15px ${UI}`; label(fitText(D.kind === 'raid' ? T.boss : T.name, iw - 40), x0 + 20, y + 19, { size: 15, bold: true, color: D.tier === t ? PAL.gold : PAL.cream });
-        ctx.font = `12px ${UI}`; label(fitText(`${D.kind === 'raid' ? T.name + ' · ' : ''}for pets about level ${T.lv}`, iw - 40), x0 + 20, y + 38, { size: 12, color: PAL.dim });
+        ctx.font = `12px ${UI}`; label(fitText(`${D.kind === 'raid' ? T.name + ' · ' : ''}for pets about level ${T.lv}`, iw - 40), x0 + 20, y + 38, { size: 12, color: ROW_DIM });
       }
       label(fitText(`Every tier is open to everyone. Your best pet is level ${myLv()}.`, iw), x0, B.by + 62 + 4 * 60 + 14, { size: 13, color: soft });
       for (const b of panelButtons()) if (['open', 'back', 'close'].includes(b.id)) button(b.r, b.txt, { hover: inRect(mouse, b.r), size: 15, color: b.color });
     } else {
       banner(D.kind === 'raid' ? 'Raid Board' : 'Dungeon Board', W / 2, B.by + 4, { size: 30, h: 44, pad: 100 });
-      const list = groups(D.kind), per = boardRows(), page = list.slice(D.page * per, D.page * per + per);
+      listDrag(boardList()); const L = boardList(), list = L.items, v = L.view;
       ctx.font = `13px ${UI}`; label(fitText(D.kind === 'raid' ? 'Groups of 2-4 gathering to fight a raid boss together:' : 'Groups of 2-4 gathering to explore a dungeon together:', iw), x0, B.by + 54, { size: 13, color: soft });
       if (!isOpen()) wrapLines('You need to be connected to the Kingdom Street to form a group. ' + (HUB.room ? 'Connecting...' : 'Press E at the notice post to try again.'), iw - 20, 15, true).forEach((l, i) => label(l, W / 2, B.by + 130 + i * 22, { align: 'center', size: 15, bold: true, color: '#7a2e14' }));
       else if (!list.length) { label('No group is open right now.', W / 2, B.by + 140, { align: 'center', size: 16, bold: true, color: ink }); label('Open one and wait for others to join!', W / 2, B.by + 166, { align: 'center', size: 14, color: soft }); }
-      page.forEach((g, i) => {
-        const y = B.by + 70 + i * 68, T = tierOf(g.pt.tier); panel(x0, y, iw, 62, 'dark');
-        ctx.font = `bold 15px ${UI}`; label(fitText(`${nameOf(g.leader)}'s group  ·  ${g.pt.m.length}/4`, iw - 130), x0 + 14, y + 16, { size: 15, bold: true, color: PAL.gold });
-        ctx.font = `13px ${UI}`; label(fitText((D.kind === 'raid' ? T.boss : T.name) + `  ·  level ${T.lv}`, iw - 130), x0 + 14, y + 35, { size: 13, color: PAL.cream });
-        ctx.font = `12px ${UI}`; label(fitText(g.pt.m.map(nameOf).join(', '), iw - 130), x0 + 14, y + 51, { size: 12, color: PAL.dim });
-        if (g.leader === me()) label('yours', x0 + iw - 16, y + 31, { align: 'right', size: 13, bold: true, color: PAL.good });
-      });
-      if (!hasTeam()) label(fitText('Put an animal in your team first (the post by the gate in your Yard).', iw), x0, B.by + B.bh - 72, { size: 12, color: '#7a2e14' });
-      else { ctx.font = `12px ${UI}`; label(fitText(TOUCH.on ? `Your best pet is level ${myLv()}.` : `Your best pet is level ${myLv()}.  ·  O: open a group  ·  1-4: join  ·  Esc: close`, iw), x0, B.by + B.bh - 72, { size: 12, color: soft }); }
+      drawList(L, () => list.forEach((g, i) => {
+        const y = boardRowY(L, i), T = tierOf(g.pt.tier); if (!rowSeen(L, y, 62)) return;
+        panel(v.x, y, v.w, 62, 'dark');
+        ctx.font = `bold 15px ${UI}`; label(fitText(`${nameOf(g.leader)}'s group  ·  ${g.pt.m.length}/4`, v.w - 130), v.x + 14, y + 16, { size: 15, bold: true, color: PAL.gold });
+        ctx.font = `13px ${UI}`; label(fitText((D.kind === 'raid' ? T.boss : T.name) + `  ·  level ${T.lv}`, v.w - 130), v.x + 14, y + 35, { size: 13, color: PAL.cream });
+        ctx.font = `12px ${UI}`; label(fitText(g.pt.m.map(nameOf).join(', '), v.w - 130), v.x + 14, y + 51, { size: 12, color: ROW_DIM });
+        if (g.leader === me()) label('yours', v.x + v.w - 16, y + 31, { align: 'right', size: 13, bold: true, color: PAL.good });
+      }));
+      const more = listMax(L) > 0 ? (TOUCH.on ? `${list.length} groups: drag the list to see them all.` : `${list.length} groups  ·  wheel, drag or ↑ ↓ to scroll  ·  O: open a group  ·  1-4: join`) : '';
+      if (!hasTeam()) label(fitText('Put an animal in your team first (the post by the gate in your Yard).', iw), x0, B.by + B.bh - 72, { size: 13, bold: true, color: '#7a2e14' });
+      else { ctx.font = `13px ${UI}`; label(fitText(more || (TOUCH.on ? `Your best pet is level ${myLv()}.` : `Your best pet is level ${myLv()}.  ·  O: open a group  ·  1-4: join  ·  Esc: close`), iw), x0, B.by + B.bh - 72, { size: 13, color: soft }); }
     }
     if (P || D.view !== 'new') drawButtons();
   }
   // the street's HUD and windows (from drawHubPanels: landscape and portrait)
   function drawUI() {
     if (!inStreet()) return;
+    if (S.drag && !curList()) S.drag = null;
     if (!G.panel && !PK && !G.coll && (G.mode === 'play' || G.mode === 'trans')) { drawStatus(); drawChat(); }
     if (G.panel === 'mpsoon') drawSoon();
+    else if (G.panel === 'mpfriend') drawFriend();
     else if (G.panel === 'mpplayers') drawPlayers();
     else if (G.panel === 'mpboard') drawBoard();
   }
   HUB.drawUI = drawUI;
   // for the tests and the console
-  HUB._ = { S, PLACES, censor, cleanText, cleanPt, cleanInfo, panelButtons, chatRects, badgeRect, status, visibleLines, tierOf, amReady, canGo, BAD_WORDS };
+  HUB._ = { S, PLACES, censor, cleanText, liveText, charLen, cleanPt, cleanInfo, panelButtons, chatRects, badgeRect, statusRect, statusLayout, playersLayout, boardList, boardBox, curList, listMax, listBar, listThumb, status, visibleLines, tierOf, tripLine, amReady, canGo, BAD_WORDS };
 })();
