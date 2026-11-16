@@ -65,8 +65,11 @@
     { foes: 5, hp: 0.545, atk: 0.97, aoe: 0.8, minions: 3, bossHp: 0.32, bossAtk: 0.6, bossActs: 3, raidHp: 0.62, raidAtk: 0.6, raidActs: 3, raidMin: 0, adds: 2, shield: 0.06 },
     { foes: 6, hp: 0.78, atk: 1.18, aoe: 0.7, minions: 4, bossHp: 0.55, bossAtk: 0.8, bossActs: 3, raidHp: 1.05, raidAtk: 0.8, raidActs: 3, raidMin: 0, adds: 2, shield: 0.06 },
     { foes: 8, hp: 0.84, atk: 1.05, aoe: 0.65, minions: 5, bossHp: 0.8, bossAtk: 0.9, bossActs: 4, raidHp: 1.5, raidAtk: 0.9, raidActs: 4, raidMin: 0, adds: 3, shield: 0.06 }];
+  // one dial per kind of fight over all of the above, for whoever designs the dungeons: every foe's attack is multiplied
+  // by it (1 = the fitted targets: wild ~88% wins from full HP, boss ~70%, raid ~55%; lower = easier; the sim's --diff tries values)
+  const DIFF = { wild: 1, boss: 1, raid: 1 };
   const TURN_T = 25, AI_T = 0.7, CALL_T = 5, BOSS_ENRAGE = { elder: 'meteorrain', wyrm: 'moontide', rune: 'abyssalrune', shadow: 'callshades' };
-  const MB = MP.battle = { TIERS, SCALE, TURN_T, active: false, onEnd: null, link: null, desync: 0 };
+  const MB = MP.battle = { TIERS, SCALE, DIFF, TURN_T, active: false, onEnd: null, link: null, desync: 0 };
   let P = null, BID = 1, CUR = null;   /* P: a battle being set up (host: collecting teams · guest: waiting for the start) */
   MB.scale = n => SCALE[clamp(n | 0, 1, 4)];
   MB.attach = link => { MB.link = link; };
@@ -167,7 +170,8 @@
     for (const f of foes) {   /* the group-size knobs go on last, over talents and genes */
       if (f.boss) { f.maxHp = Math.round(f.maxHp * (raid ? S.raidHp : S.bossHp)); f.atk *= raid ? S.raidAtk : S.bossAtk; f.acts = raid ? S.raidActs : S.bossActs; }
       else { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * TW[0])); f.atk *= S.atk * TW[1]; }
-      if (enc.kind !== 'wild') { f.maxHp = Math.max(1, Math.round(f.maxHp * TB[0])); f.atk *= TB[1]; }   /* the tier's correction for this fight: on the boss and its helpers alike */
+      if (enc.kind !== 'wild') { f.maxHp = Math.max(1, Math.round(f.maxHp * TB[0])); f.atk *= TB[1]; }
+      f.atk *= DIFF[enc.kind] || 1;   /* the tier's correction for this fight: on the boss and its helpers alike */
       f.hp = f.maxHp;
     }
     return { foes, side };
@@ -180,7 +184,7 @@
     for (const f of adds) { relevel(f, Math.max(1, C.L - 1 + (f.lvl - Lm))); if (COATS[f.k] && f.k !== 'shade') f.coat = rollCoat(); }
     kitFoes(adds);
     const TB = T.raidMul[clamp(C.n, 1, 4)];
-    for (const f of adds) { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * T.wildMul[0] * TB[0])); f.atk *= S.atk * T.wildMul[1] * TB[1]; f.hp = f.maxHp; f.summoned = true; f.face = -1; }
+    for (const f of adds) { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * T.wildMul[0] * TB[0])); f.atk *= S.atk * T.wildMul[1] * TB[1] * (DIFF.raid || 1); f.hp = f.maxHp; f.summoned = true; f.face = -1; }
     return adds;
   }
   const FOE_KEYS = ['id', 'k', 'name', 'lvl', 'maxHp', 'atk', 'def', 'crit', 'critMul', 'heal', 'dot', 'regenPct', 'thorns', 'dr', 'abil', 'acts', 'scale', 'sheet', 'boss', 'elite', 'coat', 'M', 'dodge', 'hitB', 'shiny', 'summoned'];
@@ -472,9 +476,9 @@
       const w = windingAb(u);
       if (w) { doMove(u, w, null); return; }   /* a charge goes off by itself */
       const o = C.pl[u.p], ai = C.auto || gone(o) || o.afk;
-      C.ask = { u, t: ai ? AI_T : TURN_T, ai, pick: null }; B.cur = i; B.pick = null;
+      C.ask = { u, t: ai ? AI_T : TURN_T + (u.p === C.me ? 0 : 2), ai, pick: null }; B.cur = i; B.pick = null;   /* (2 s of grace for the wire) */
       B.phase = !ai && u.p === C.me ? 'player' : 'wait';
-      cast(() => ({ t: 'b.yourmove', i: u.id, tl: C.ask.t, ai: ai ? 1 : 0 }));
+      cast(() => ({ t: 'b.yourmove', i: u.id, tl: ai ? AI_T : TURN_T, ai: ai ? 1 : 0 }));
       return;
     }
     expireSide('ally'); beginFoe();

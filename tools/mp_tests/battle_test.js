@@ -167,7 +167,7 @@ function testTimer() {
   ok(H.run(`B.phase === 'wait'`), `${name}: the host waits (no buttons for somebody else's pet)`);
   P.until(() => !H.run(`!!(B && B.coop.ask && B.coop.ask.u.id === ${turn0} && !B.coop.ask.ai)`), 2000, 0.25);
   const waited = P.t - t0, T = H.run('MP.battle.TURN_T');
-  ok(waited >= T - 2 && waited <= T + 3, `${name}: the AI stepped in after about ${T} s (${waited.toFixed(1)} s)`);
+  ok(waited >= T - 2 && waited <= T + 5, `${name}: the AI stepped in after about ${T} s (${waited.toFixed(1)} s)`);
   ok(H.run('B.coop.pl[1].afk === true'), `${name}: the slow player is on autoplay`);
   P.step(); P.step();
   ok(Gst.run('B.coop.pl[1].afk === true'), `${name}: ...and their own game knows it`);
