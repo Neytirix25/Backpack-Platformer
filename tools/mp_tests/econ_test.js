@@ -205,7 +205,7 @@ async function main() {
   const F = player('Fisher');
   const dF = F.run(`T.findDay(${D0}, l => l[0].parts[0].t === 'fish' && l[0].parts[0].min === 1 && l[0].parts[0].n === 3)`);
   ok(dF > 0, 'found a day asking for 3 fish of at least Uncommon rarity'); F.day(dF);
-  eq(F.run('MP.econ._.partText(MP.econ.missions()[0].parts[0])'), '3 fish of at least Uncommon rarity', 'its text');
+  eq(F.run('MP.econ._.partText(MP.econ.missions()[0].parts[0])'), '3 uncooked fish of at least Uncommon rarity', 'its text says uncooked');
   const rewF = F.missions()[0].reward;
   F.run(`MP.stations.mp_missions()`); eq(F.run('G.panel'), 'mpmissions', 'the board opens'); F.frame();
   eq(F.btn('turn', 0).off, true, 'nothing to turn in yet: the button is off');

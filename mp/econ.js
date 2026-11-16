@@ -229,10 +229,11 @@
   function partText(p) {
     const n = p.n;
     if (p.t === 'fish') {
-      if (p.sp) return `${n} ${FISH[p.sp].name}`;
-      if (p.eq != null) return n === 1 ? `any ${cap(RAR[p.eq])} fish` : `${n} ${cap(RAR[p.eq])} fish`;
-      if (p.min > 0) return n === 1 ? `a fish of at least ${cap(RAR[p.min])} rarity` : `${n} fish of at least ${cap(RAR[p.min])} rarity`;
-      return n === 1 ? 'a fish of any kind' : `${n} fish of any kind`;
+      /* (always "uncooked": a cooked dish never counts as a fish) */
+      if (p.sp) return n === 1 ? `an uncooked ${FISH[p.sp].name}` : `${n} uncooked ${FISH[p.sp].name}`;
+      if (p.eq != null) return n === 1 ? `any uncooked ${cap(RAR[p.eq])} fish` : `${n} uncooked ${cap(RAR[p.eq])} fish`;
+      if (p.min > 0) return n === 1 ? `an uncooked fish of at least ${cap(RAR[p.min])} rarity` : `${n} uncooked fish of at least ${cap(RAR[p.min])} rarity`;
+      return n === 1 ? 'an uncooked fish of any kind' : `${n} uncooked fish of any kind`;
     }
     if (p.t === 'dish') return (n === 1 ? 'a cooked dish' : `${n} cooked dishes`) + (p.min > 0 ? ` of at least ${cap(RAR[p.min])} fish` : '') + ' (not charred)';
     const sex = p.sex === 'f' ? 'female ' : p.sex === 'm' ? 'male ' : ''; let s;
@@ -387,7 +388,7 @@
   function turnIn(i) {
     const q = lines(listLayout())[i]; if (!q || partDone(q.m, q.pi)) return;
     V.cur = i;
-    if (!eligible(q.p)) { showMsg(q.p.t === 'pet' ? 'You have no animal like that yet.' : q.p.t === 'dish' ? 'No dish in your Sanctuary Bag fits: cook fish at the stone oven in your Yard.' : 'No fish in your Fish Bag fits: catch some at the pond in your Yard.', 3); SFX.play('error'); return; }
+    if (!eligible(q.p)) { showMsg(q.p.t === 'pet' ? 'You have no animal like that yet.' : q.p.t === 'dish' ? 'No dish in your Sanctuary Bag fits: cook fish at the stone oven in your Yard.' : 'No uncooked fish in your Fish Bag fits: catch some at the pond in your Yard (cooked dishes do not count).', 3); SFX.play('error'); return; }
     Object.assign(V, { view: q.p.t === 'pet' ? 'pet' : 'fish', m: q.m, pi: q.pi, sel: [], sc: 0, hot: 0, drag: null, pid: null }); SFX.play('pick');
   }
   function pickCell(i) {
@@ -488,7 +489,7 @@
   function drawPicker() {
     if (V.drag) { if (Math.abs(mouse.y - V.drag.y0) > 6) V.drag.moved = true; if (V.drag.moved) V.sc = V.drag.s0 - (mouse.y - V.drag.y0); }
     const L = gridLayout(), b = L.b, v = L.view, p = L.p, n = L.items.length, over = V.drag && V.drag.moved ? -1 : L.at();
-    panel(b.x, b.y, b.w, b.h, 'parch'); banner(L.pet ? 'Choose the animal' : p.t === 'dish' ? 'Choose the dishes' : 'Choose the fish', W / 2, b.y + 4, { size: 28, h: 44, pad: b.port ? 50 : 90 }); drawPurse(b);
+    panel(b.x, b.y, b.w, b.h, 'parch'); banner(L.pet ? 'Choose the animal' : p.t === 'dish' ? 'Choose the dishes' : 'Choose the uncooked fish', W / 2, b.y + 4, { size: 28, h: 44, pad: b.port ? 50 : 90 }); drawPurse(b);
     ctx.font = `bold 14px ${UI}`; label(fitText(`${V.m.title}: bring ${partText(p)}`, b.w - 40), b.x + 20, b.y + 50, { size: 14, bold: true, color: PAL.parchInk });
     ctx.font = `13px ${UI}`; label(fitText(L.pet ? `${prog(V.m, V.pi)} of ${p.n} delivered  ·  the animal you pick leaves your Sanctuary for good` : `${prog(V.m, V.pi)} of ${p.n} delivered  ·  pick up to ${L.need}, then Give (they are gone for good)`, b.w - 40), b.x + 20, b.y + 69, { size: 13, color: INK_SOFT });
     ctx.fillStyle = 'rgba(58,38,20,0.16)'; rr(v.x - 2, v.y - 2, v.w + 4, v.h + 4, 5); ctx.fill();
