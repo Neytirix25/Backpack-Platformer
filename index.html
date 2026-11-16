@@ -237,7 +237,7 @@ function poseX(idle, img, cx, face) { return idle ? cx + face * (img.width - idl
 // SAVE SLOTS: every copy of the game keeps its own progress. Chrome gives all pages opened from disk (file://) one
 // shared storage, so progress keys are tagged with the folder this copy lives in -> a freshly downloaded copy starts
 // fresh. (Sound/music settings stay shared on purpose.)
-const SAVE_KEYS = ['packrat_best', 'packrat_coll', 'packrat_records', 'packrat_skin', 'packrat_class', 'packrat_pets', 'packrat_team', 'packrat_ach', 'packrat_herd', 'packrat_den', 'packrat_yard'];
+const SAVE_KEYS = ['packrat_best', 'packrat_coll', 'packrat_records', 'packrat_skin', 'packrat_class', 'packrat_pets', 'packrat_team', 'packrat_ach', 'packrat_herd', 'packrat_den', 'packrat_yard', 'packrat_econ'];
 const SAVE_DIR = (() => { try { return decodeURIComponent(location.pathname).replace(/\\/g, '/').replace(/[^\/]*$/, '').toLowerCase(); } catch (e) { return '/'; } })();
 const SLOT = (() => { let h = 2166136261; for (let i = 0; i < SAVE_DIR.length; i++) { h ^= SAVE_DIR.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); })();
 function sk(k) { return k + '@' + SLOT; }
@@ -295,6 +295,7 @@ addEventListener('mouseup', e => { mpos(e); onMouseUp(e.button); });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => {
   // MP: the Kingdom Street's scrolling lists (players, groups)
+  if (G && !G.coll && G.panel && MP.panels[G.panel]) { if (MP.panels[G.panel].wheel) MP.panels[G.panel].wheel(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); return; }
   if (G && !G.coll && MP.hub && MP.hub.wheel(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7))) { e.preventDefault(); return; }
   if (G && G.coll) { collScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (rosterOpen()) { scrollRoster(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } else if (G && G.panel === 'trade') { tradeScroll(e.deltaY * (e.deltaMode === 1 ? 36 : 0.7)); e.preventDefault(); } }, { passive: false });
 
@@ -3258,6 +3259,7 @@ function hubPanelClick(btn = 0) {
   else if (G.panel === 'oven') ovenClick(btn);
   else if (G.panel === 'yardpick') yardPickClick(btn);
   // MP: the Kingdom Street's panels
+  else if (G.panel && MP.panels[G.panel]) MP.panels[G.panel].click(btn);
   else if (MP.hub) MP.hub.panelClick(btn);
 }
 // stations, beds, silhouettes and the "press E" bubble (drawn in the world)
@@ -3409,6 +3411,7 @@ function drawHubPanels() {
   if (G.panel === 'yardpick') drawYardPick();
   // MP: the Kingdom Street's HUD (status, chat, group badge) and panels
   if (MP.hub) MP.hub.drawUI();
+  if (G.panel && MP.panels[G.panel]) MP.panels[G.panel].draw();
   if (PK && PK.talent != null) drawTalents();
   drawHUDMessageOnly();
 }
@@ -9057,6 +9060,7 @@ function mergeCheck(it) {
 function onMouseUp(btn) {
   rosterDrag = null;
   // MP: the end of a drag in one of the Kingdom Street's lists
+  if (G && G.panel && MP.panels[G.panel] && MP.panels[G.panel].up) MP.panels[G.panel].up(btn);
   if (MP.hub) MP.hub.mouseUp(btn);
   if (btn !== 0 || !G || G.mode !== 'pack' || !PK || !PK.drag) return;
   if (PK.bag === 'pantry' && PK.drag.it.def.dish) { const t = feedTargets().find(t => inRect(mouse, t.r)); if (t) { feedDish(t.it, PK.drag.it, t.p); PK.drag = null; stats = computeStats(); return; } }
@@ -10893,7 +10897,7 @@ function recordsClick() {
 // They hang themselves on MP (MP.net, MP.hub, MP.battle, MP.coop) and register here; with a file missing the game just runs without it.
 //   MP.ticks: fn(dt) every frame from update() · MP.worldDraw: fn() in world coordinates, after the animals and before your hero
 //   MP.hudDraw: fn() in screen coordinates, over the HUD and under the fade
-const MP = { ticks: [], worldDraw: [], hudDraw: [] };
+const MP = { ticks: [], worldDraw: [], hudDraw: [], panels: {}, stations: {} };   /* panels: G.panel name -> { draw, click(btn), keys(dt), wheel(d), up(btn) } · stations: street station kind -> fn that opens its panel */
 const mpRun = (list, a) => { for (const f of list) try { f(a); } catch (e) { console.error(e); } };
 const NET_VER = 1;
 const PEER_LIB = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
@@ -11691,6 +11695,7 @@ function update(dt) {
         if (PK && PK.talent != null) { if (hit('Escape', 'b')) PK = null; break; }
         if (G.panel === 'starter') break;
         // MP: the Kingdom Street's keys (chat, players, boards)
+        if (G.panel && MP.panels[G.panel]) { if (MP.panels[G.panel].keys) MP.panels[G.panel].keys(dt); break; }
         if (MP.hub && MP.hub.keys(dt)) break;
         if (G.panel === 'oven') { ovenKeys(dt); break; }
         if (G.panel === 'yardpick') { if (hit('Escape')) { G.panel = null; G.yardPick = null; } else if (hit('Enter')) yardPickDone(); break; }
@@ -11818,5 +11823,8 @@ document.addEventListener('visibilitychange', bgWatch);
 <script src="mp/battle.js?v=20261115b"></script>
 <script src="mp/coop.js?v=20261115b"></script>
 <script src="mp/hub.js?v=20261115b"></script>
+<script src="mp/econ.js?v=20261115b"></script>
+<script src="mp/auction.js?v=20261115b"></script>
+<script src="mp/shop.js?v=20261115b"></script>
 </body>
 </html>
