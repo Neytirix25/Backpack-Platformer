@@ -12,6 +12,9 @@
 //    an error. (Claim first because the PeerJS broker says "taken" at once but needs ~5 s to say "nobody has that id".) Lost races (someone claimed just before you, the host died just before you) are simply retried,
 //    for up to T.give ms, then the room ends in state 'error' (room.err = text, room.errCode = 'unreachable' | 'full' |
 //    'offline' | 'kicked' | 'refused').
+//    opts.claim = false: this member NEVER claims on its first join; it only connects, again and again, until a host is
+//    there or T.give ms have passed ('unreachable'). For rooms where one known player must host (the party leader).
+//    In a host migration such a member takes part like everybody else (it was in the room: it may become its host).
 //  HOST MIGRATION
 //    When the host says '~bye', closes, or is silent for T.hostDead ms, every remaining member goes to state
 //    'migrating' and re-runs the join for the SAME id, staggered by join order: the oldest member claims at once, the
@@ -21,37 +24,80 @@
 //    are kept, up to T.queue each) for T.grace ms, then they are dropped with 'leave'. When a member is settled it
 //    gets { type: 'host', id }. room.send() while migrating QUEUES up to T.queue messages (more are refused, send()
 //    returns false) and they go out as soon as the room is open again.
+//  STUCK IDS (a host that died without letting go of its id)
+//    A host whose network just stops cannot say goodbye, and the PeerJS broker keeps its id until its own heartbeat
+//    gives up on the dead socket (about a minute with the server's defaults; we do not control the public broker).
+//    Until then the id is TAKEN (nobody can claim it) and UNREACHABLE (a connection to it gets no answer). So:
+//    - every room id has GENERATIONS: 'bps-hub-3', then 'bps-hub-3-g1', '-g2', up to T.gens ('-g' and not '~':
+//      PeerJS only allows letters, digits and single '-', '_' or ' ' inside an id). room.gen is the generation the
+//      whole room agrees on (the welcome carries it); room.n never changes with it.
+//    - MEMBERS: in a migration, a member whose claim says "taken" while nobody answers there for T.stuck ms moves to
+//      the next generation and claims it at once. The oldest member's turn to claim came first, so it gets there first
+//      and hosts; from T.stuck ms on, everybody also knocks at the successor ids on every round (connecting only), so
+//      the younger ones find it without waiting for their own turn. Nobody ever claims a successor id unless it was a
+//      member of that room and saw the id below it stuck: a newcomer cannot open a second room beside a living one.
+//    - NEWCOMERS: claim says "taken" but the connection finds nobody -> knock at all the successor ids at once and
+//      join whoever answers. Nobody anywhere for T.stuck ms: a hub joiner goes on to the next instance (that street
+//      died with everyone in it); a fixed room keeps trying until T.give ('unreachable').
+//    - GOING BACK: the host of a generation > 0 tries to claim the plain id every T.reclaim ms. When the broker
+//      finally lets go, it holds BOTH ids (members stay connected where they are, newcomers come in through the plain
+//      id) and tells everyone the room is generation 0 again ('~id'), so the next migration happens on the plain id.
+//    - TWO HALVES: if the plain id turns out to be held by a LIVING room (a newcomer was quicker than the reclaim, the
+//      old host came back online with its id, or one member got the freed id while the others had just moved on), the
+//      reclaiming host is welcomed there as a guest, tells its own members '~go' and they all migrate into that room:
+//      the room on the plain id always wins, because that is where newcomers look first.
+//    LIMITS, honestly: (1) between the broker freeing the id and the merge (at most about T.reclaim + one connection
+//    attempt) there can be two rooms with one number; they merge, they do not stay apart, unless the plain-id room is
+//    full (then the moved room stays on its successor id and asks again every T.reclaim ms). (2) A merge is a re-join
+//    for the moving half: the game sees 'leave' / 'join' events for them and the host changes. (3) Only T.gens (3)
+//    hosts in a row may die this way before the plain id is free again; after that the room ends 'unreachable' like
+//    before. (4) A member cut off from the others (not from the broker) during the move could in theory host its own
+//    generation; the reclaim merge brings both to the plain id eventually. (5) A stuck move takes T.stuck ms on top of
+//    noticing the dead host (T.hostDead), and newcomers need one failed connection (T.conn) before they look further.
+//    (6) How long the public broker really keeps a dead id, and that it swallows offers to it silently instead of
+//    answering 'peer-unavailable', is read from the PeerJS server's source, not measured.
 //  THE WIRE (every frame is a JSON object with a string `t`; all of the layer's own types start with '~', and
 //  application messages may not, so the two can never collide)
 //    guest -> host   ~hello { v, id, k, p, f, seq, mig }   first frame: my uid, my secret key, presence, fast state
 //                    ~pres  { p }          my whole presence        ~fast { f }    my fast state (10x/s at most)
 //                    ~m     { m, to }      an application message (to = a uid, or absent = everyone else)
 //                    ~ping                 every T.ping ms          ~bye           polite goodbye
-//    host -> guest   ~welcome { v, n, host, you, r: [{ id, p, f, seq, h }] }      the whole roster (h = hash of that
+//    host -> guest   ~welcome { v, n, g, host, you, r: [{ id, p, f, seq, h }] }   the whole roster (h = hash of that
 //                                          member's key: only whoever knows the key may reconnect under that uid)
 //                    ~full  ~no { why }    refused (room full / bad hello or a uid that belongs to somebody else)
 //                    ~join { id, p, f, seq, h }   ~leave { id }   ~pres { id, p }   ~fast { s: { uid: f, ... } }
 //                    ~m { from, m }        ~pong   ~bye (the host is leaving: migrate now)   ~kick { why }
+//                    ~id { g }             the room's generation is g now (it got its plain id back)
+//                    ~go { g }             this room joins the one on generation g: migrate there now
 //  BACKENDS (one tiny interface: claim(id) -> Promise<{ onConn(cb), close(), onLost?(cb) }>, rejects { type: 'taken' };
 //  connect(id, ms) -> Promise<conn>, rejects { type: 'nohost' }; conn = { send(obj), close(), onData(cb), onClose(cb) })
 //    'peer'  PeerJS 1.5.4 (WebRTC data channels through the public PeerJS broker): the default. Frames longer than
-//            T.chunk characters are cut into pieces (PeerJS's JSON channel refuses 16300 bytes or more).
+//            T.chunk characters are cut into pieces (PeerJS's JSON channel refuses 16300 bytes or more; a piece of
+//            3500 characters is at most 10500 bytes as UTF-8, or 7000 when every character needs a JSON escape).
+//            Every claim and every connection attempt makes its own Peer (its own socket to the broker), so joining a
+//            populated hub opens two for a moment (the refused claim's is destroyed at once) and knocking at the
+//            successor ids opens T.gens more for one attempt. Sharing one Peer between attempts would save them, but
+//            a Peer that failed to get an id cannot be reused and PeerJS reports a failed connect on the Peer, not on
+//            the connection, so attempts could no longer be told apart safely: left as it is, on purpose.
 //    'bc'    BroadcastChannel('bps-mpnet'): several tabs of ONE browser, no internet (?mpnet=bc in the address). Keep
 //            the tabs in separate visible windows: browsers slow the timers of hidden tabs (batches drop to 1 a second).
 //    'mem'   an in-memory registry shared by several copies of the game in one node process (window.__MPMEM, given
 //            through bootGame({ globals: { __MPMEM: {} } }) to every copy). Tests can kill a host without a goodbye:
 //            __MPMEM.kill(roomId)  (its guests see the connection close),  __MPMEM.kill(roomId, true)  (silently: only
-//            the heartbeat notices), and __MPMEM.lag = ms keeps a killed id 'taken' for a while like the PeerJS broker.
+//            the heartbeat notices), and __MPMEM.lag = ms keeps a killed id 'taken' for a while like the PeerJS broker;
+//            with __MPMEM.hang = ms a connection to such a dead id gets no answer for that long (as at the real broker)
+//            instead of failing at once. delete __MPMEM.holders[id] = the broker lets go of it now.
 //  EVENTS (opts.on): { type: 'state', state } · { type: 'join', id } (also once for every member already there when
 //  you arrive: those come BEFORE the 'open' state event) · { type: 'leave', id } · { type: 'presence', id } (others
 //  only) · { type: 'fast' } · { type: 'msg', from, msg } · { type: 'host', id } · { type: 'closed', why, text }
 //  (why = 'left' after leave(), else room.errCode: the room is over, call join() to start again).
+//  SIZES (opts.maxMsg, T.maxPres, T.maxFast) are BYTES of the JSON text as UTF-8, not characters.
 //  MP.net.T holds every timing (ms) and limit; tests shrink them.
 (() => {
 'use strict';
 const T = { pump: 100, pres: 200, fast: 100, ping: 4000, hostDead: 10000, guestDead: 12000, hello: 6000, conn: 12000, connMig: 6000,
             connEarly: 2500, stagger: 1200, jitter: 300, retry: 700, give: 20000, grace: 8000, bye: 450, linger: 300, queue: 32,
-            reconn: 1000, bcClaim: 300, bcConn: 800, bcPing: 1000, bcDead: 3500, chunk: 3500,
+            reconn: 1000, stuck: 5000, gens: 3, reclaim: 5000, bcClaim: 300, bcConn: 800, bcPing: 1000, bcDead: 3500, chunk: 3500,
             rate: 40, burst: 80, kick: 120, maxPres: 4000, maxFast: 600, instances: 50 };
 const ERR_TEXT = { full: 'That room is full.', unreachable: "Couldn't reach the room. Check your internet connection.", offline: "Couldn't reach the multiplayer service. Are you online?",
                    kicked: 'You were removed from the room.', refused: 'The room refused the connection.' };
@@ -67,7 +113,9 @@ function rid(n) {
 }
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const okId = v => typeof v === 'string' && /^[a-z0-9]{4,24}$/.test(v);
-const size = o => { try { return JSON.stringify(o).length; } catch (e) { return Infinity; } };
+// sizes are counted in BYTES of the JSON text as UTF-8 (what really travels), not in characters
+const bytes = s => { let n = s.length; for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); if (c > 0x7f) n += c > 0x7ff && (c < 0xd800 || c > 0xdfff) ? 2 : 1; } return n; };
+const size = o => { try { return bytes(JSON.stringify(o)); } catch (e) { return Infinity; } };
 const int = (v, lo, hi, d) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.floor(v))) : d);
 // a small one-way hash (cyrb53 style) of a member's secret key: the roster carries it, so a new host can check returning members
 function hash(s) {
@@ -96,11 +144,11 @@ function mkConn(send, close) {
 // The registry only ever carries STRINGS between copies (each side parses in its own realm), delivered with setTimeout 0.
 function memBackend(R) {
   if (!R.holders) {
-    R.holders = {}; R.lag = R.lag || 0;
+    R.holders = {}; R.lag = R.lag || 0; R.hang = R.hang || 0;
     R.kill = (id, silent) => {
       const h = R.holders[id]; if (!h || h.dead) return false;
       h.dead = true; h.accept = null;
-      if (R.lag > 0) setTimeout(() => { if (R.holders[id] === h) delete R.holders[id]; }, R.lag); else delete R.holders[id];
+      if (R.lag > 0) { const t = setTimeout(() => { if (R.holders[id] === h) delete R.holders[id]; }, R.lag); if (t && t.unref) t.unref(); } else delete R.holders[id];
       for (const l of h.links) if (l.open) { l.open = false; if (!silent && l.a.closed) setTimeout(l.a.closed, 0); }
       return true;
     };
@@ -118,8 +166,10 @@ function memBackend(R) {
       ok({ onConn(f) { if (!h.dead) h.accept = link => f(end(link, 'b', 'a')); },
            close() { h.dead = true; h.accept = null; if (R.holders[id] === h) delete R.holders[id]; } });
     }),
-    connect: id => new Promise((ok, fail) => {
-      const h = R.holders[id]; if (!h || h.dead || !h.accept) return fail({ type: 'nohost' });
+    connect: (id, ms) => new Promise((ok, fail) => {
+      const h = R.holders[id];
+      if (h && h.dead && R.hang > 0) { setTimeout(() => fail({ type: 'timeout' }), Math.min(ms || T.conn, R.hang)); return; }
+      if (!h || h.dead || !h.accept) return fail({ type: 'nohost' });
       const link = { open: true, a: {}, b: {} }, c = end(link, 'a', 'b'); h.links.push(link);
       setTimeout(() => { if (h.dead || !h.accept) { link.open = false; c._closed(); } else h.accept(link); }, 0);
       ok(c);
@@ -267,12 +317,15 @@ function room(opts) {
   const cap = int(opts.cap, 1, 100, 20), maxMsg = int(opts.maxMsg, 100, 200000, 16000), on = typeof opts.on === 'function' ? opts.on : () => {};
   const me = UID, mine = { id: me, p: {}, f: null, seq: 0 };
   if (isObj(opts.presence)) try { Object.assign(mine.p, JSON.parse(JSON.stringify(opts.presence))); } catch (e) {}
-  const r = { state: 'idle', err: '', errCode: '', isHost: false, hostId: null, me, n: 0, id: fixed || '', cap, maxMsg, members: new Map([[me, mine]]) };
+  const r = { state: 'idle', err: '', errCode: '', isHost: false, hostId: null, me, n: 0, gen: 0, id: fixed || '', cap, maxMsg, members: new Map([[me, mine]]) };
   const members = r.members;
   // host side: conns uid -> { c, tok, at, last, strikes } · pend = connections that haven't said hello · ghosts uid -> kept messages
   const conns = new Map(), pend = new Set(), ghosts = new Map(), keys = new Map(), dirty = new Set();
-  let gen = 0, holder = null, hconn = null, ghostEnd = 0, nextSeq = 1, queue = [], iv = null, sleeper = null, shaking = null;
-  let fastSent = 'null', fastAt = 0, presDirty = false, presAt = 0, pingAt = 0, heard = 0, oldHost = null, lastId = '';
+  let gen = 0, holder = null, alias = null, hconn = null, ghostEnd = 0, nextSeq = 1, queue = [], iv = null, sleeper = null, reclaiming = false, reclaimAt = 0;
+  const shaking = new Set();
+  let fastSent = 'null', fastAt = 0, presDirty = false, presAt = 0, pingAt = 0, heard = 0, oldHost = null;
+  // the id of instance n in generation g (g = 0: the plain id; see STUCK IDS in the header)
+  const gid = (n, g) => (fixed || prefix + n) + (g ? '-g' + g : '');
 
   const emit = ev => { try { on(ev); } catch (e) { try { console.error(e); } catch (e2) {} } };
   const setState = s => {
@@ -286,9 +339,11 @@ function room(opts) {
   function teardown(linger) {
     gen++;
     if (sleeper) { clearTimeout(sleeper.t); const s = sleeper; sleeper = null; s.ok(); }
-    if (shaking) shaking();
+    for (const f of [...shaking]) f();
     if (iv) { clearInterval(iv); iv = null; }
     if (holder) { const h = holder; holder = null; try { h.close(); } catch (e) {} }
+    if (alias) { const h = alias; alias = null; try { h.close(); } catch (e) {} }
+    reclaiming = false;
     shut(hconn, linger); hconn = null;
     for (const k of conns.values()) shut(k.c, linger); conns.clear();
     for (const p of pend) { clearTimeout(p.t); shut(p.c); } pend.clear();
@@ -305,44 +360,64 @@ function room(opts) {
   // ----- finding the room: claim it or connect to whoever holds it (first join and migration share this loop) -----
   function shake(c, mig) {
     return new Promise((ok, no) => {
-      const done = w => { clearTimeout(t); shaking = null; c.onData(null); c.onClose(null); if (w) ok(w); else no(); };
-      const t = setTimeout(() => done(null), T.hello);
-      shaking = () => done(null);
+      const stop = () => done(null), done = w => { clearTimeout(t); shaking.delete(stop); c.onData(null); c.onClose(null); if (w) ok(w); else no(); };
+      const t = setTimeout(stop, T.hello);
+      shaking.add(stop);
       c.onClose(() => done(null));
       c.onData(m => { if (isObj(m) && (m.t === '~full' || m.t === '~no' || (m.t === '~welcome' && okId(m.host) && Array.isArray(m.r)))) done(m); });
       c.send({ t: '~hello', v: 1, id: me, k: KEY, p: mine.p, f: cleanF(mine.f), seq: mine.seq, mig: mig ? 1 : 0 });
     });
   }
-  async function seek(g, mig, rank, polite) {
-    const live = () => g === gen;
+  async function seek(tk, mig, rank, polite) {
+    const live = () => tk === gen;
     let be; try { be = backend(); } catch (e) { return fail('offline'); }
-    let n = mig && r.n ? r.n : 1, t0 = now(), claimFirst = opts.first !== 'connect';
+    // n = the instance, k = the generation of its id being tried; a member who migrates may always claim
+    let n = mig && r.n ? r.n : 1, k = mig ? r.gen : 0, t0 = now(), stuck0 = 0; const n0 = n, claimFirst = opts.first !== 'connect', mayClaim = mig || opts.claim !== false;
     let claimAt = mig ? t0 + (polite ? T.bye : 0) + Math.min(rank, 10) * T.stagger + (rank ? rnd() * T.jitter : 0) : 0;
     if (mig) { await sleep((polite ? T.bye : 0) + (rank ? T.stagger * 0.5 + rnd() * T.jitter : 0)); if (!live()) return; }
     for (;;) {
-      const id = fixed || prefix + n, same = mig && id === lastId; let full = false, fatal = null;
+      const id = gid(n, k), same = mig && n === n0; let full = false, fatal = null, taken = false, hit = null;
       const tryClaim = async () => {
-        let h; try { h = await be.claim(id); } catch (e) { if (e && e.type === 'fatal') fatal = e.code || 'offline'; return false; }
+        let h; try { h = await be.claim(id); } catch (e) { if (e && e.type === 'fatal') fatal = e.code || 'offline'; else if (e && e.type === 'taken') { taken = true; stuck0 = stuck0 || now(); } return false; }
         if (!live()) { try { h.close(); } catch (e) {} return true; }
-        beHost(h, id, n, same); return true;
+        beHost(h, id, n, k, same); return true;
       };
-      const tryConn = async () => {
-        let c, w; try { c = await be.connect(id, !mig ? T.conn : now() < claimAt ? Math.max(T.connEarly, claimAt - now()) : T.connMig); } catch (e) { if (e && e.type === 'fatal') fatal = e.code || 'offline'; return false; }
-        if (!live()) { c.close(); return true; }
-        try { w = await shake(c, same); } catch (e) { c.close(); return !live(); }
-        if (!live()) { c.close(); return true; }
-        if (w.t === '~welcome') { beGuest(c, id, n, w, same); return true; }
+      // connect to generation j of this instance and say hello: -> { c, w, j } when its host welcomes me, else null
+      const connTo = async (j, ms) => {
+        let c, w; try { c = await be.connect(gid(n, j), ms); } catch (e) { if (e && e.type === 'fatal') fatal = e.code || 'offline'; return null; }
+        if (!live()) { c.close(); return null; }
+        try { w = await shake(c, same); } catch (e) { c.close(); return null; }
+        if (!live()) { c.close(); return null; }
+        if (w.t === '~welcome') return { c, w, j };
         shut(c); if (w.t === '~full') full = true; else fatal = 'refused';
-        return false;
+        return null;
       };
-      if (claimFirst && now() >= claimAt && await tryClaim()) return;
+      if (mayClaim && claimFirst && now() >= claimAt && await tryClaim()) return;
       if (!live()) return;
-      if (!fatal && await tryConn()) return;
+      if (!fatal) hit = await connTo(k, !mig ? T.conn : now() < claimAt ? Math.max(T.connEarly, claimAt - now()) : T.connMig);
       if (!live()) return;
-      if (!claimFirst && !full && !fatal && await tryClaim()) return;
+      if (!hit && mayClaim && !claimFirst && !full && !fatal && await tryClaim()) return;
       if (!live()) return;
+      if (!taken) stuck0 = 0;
+      // the id is taken but nobody answers there (or, in a migration, nothing has worked for T.stuck ms): the room may
+      // have moved to a successor id; ask all of them at once (connecting only: nobody claims a successor blindly)
+      const lost = !hit && !full && !fatal && k < T.gens && (mig ? now() - t0 >= T.stuck : taken || (!mayClaim && now() - t0 >= T.stuck));
+      if (lost) {
+        const js = []; for (let j = k + 1; j <= T.gens; j++) js.push(j);
+        const got = (await Promise.all(js.map(j => connTo(j, T.connMig)))).filter(Boolean);
+        if (!live()) { for (const x of got) x.c.close(); return; }
+        hit = got[0] || null; for (const x of got.slice(1)) shut(x.c);
+      }
+      if (hit) { beGuest(hit.c, n, hit.j, hit.w, same); return; }
       if (fatal) return fail(fatal);
-      if (full) { if (fixed || n >= T.instances) return fail('full'); n++; t0 = now(); claimAt = 0; continue; }
+      if (full) { if (fixed || n >= T.instances) return fail('full'); n++; k = 0; t0 = now(); stuck0 = 0; claimAt = 0; continue; }
+      if (stuck0 && now() - stuck0 >= T.stuck) {
+        // STUCK: taken and unreachable for T.stuck ms. A member of the room moves on to the next generation of its id
+        // (and claims there at once: the oldest member's turn came first, so it gets there first); a newcomer to a hub
+        // found no successor either, so that instance is dead: on to the next one
+        if (mig && k < T.gens) { k++; t0 = now(); stuck0 = 0; claimAt = 0; continue; }
+        if (!mig && lost && !fixed && n < T.instances) { n++; k = 0; t0 = now(); stuck0 = 0; continue; }
+      }
       if (now() - t0 > T.give) return fail('unreachable');
       await sleep(T.retry + rnd() * T.jitter); if (!live()) return;
     }
@@ -353,8 +428,8 @@ function room(opts) {
     const q = queue; queue = []; for (const [m, to] of q) sendNow(m, to);
     if (presDirty) flushPres(now());
   }
-  function beHost(h, id, n, same) {
-    holder = h; r.isHost = true; r.hostId = me; r.n = fixed ? 0 : n; r.id = id; lastId = id; conns.clear(); dirty.clear(); ghosts.clear();
+  function beHost(h, id, n, k, same) {
+    holder = h; r.isHost = true; r.hostId = me; r.n = fixed ? 0 : n; r.gen = k; r.id = id; reclaimAt = now() + T.reclaim; conns.clear(); dirty.clear(); ghosts.clear();
     if (same) {
       // I was a member of this very room: keep its roster, the others have T.grace ms to come back to me
       if (oldHost && oldHost !== me) forget(oldHost);
@@ -365,8 +440,8 @@ function room(opts) {
     if (h.onLost) h.onLost(() => { if (holder === h) migrate(false); });
     settle();
   }
-  function beGuest(c, id, n, w, same) {
-    hconn = c; r.isHost = false; r.hostId = w.host; r.n = fixed ? 0 : int(w.n, 1, T.instances, n); r.id = id; lastId = id;
+  function beGuest(c, n, k, w, same) {
+    hconn = c; r.isHost = false; r.hostId = w.host; r.n = fixed ? 0 : int(w.n, 1, T.instances, n); r.gen = int(w.g, 0, T.gens, k); r.id = gid(r.n, r.gen);
     mine.seq = int(w.you, 0, 1e9, mine.seq);
     const seen = new Set([me]);
     for (const e of w.r.slice(0, 400)) {
@@ -392,6 +467,27 @@ function room(opts) {
     seek(gen, true, rank, polite);
   }
 
+  // I host a successor id (r.gen > 0): keep trying to take the plain id back, so newcomers find this room where they look
+  // first. Got it: I hold both ids from now on and tell everyone the room is generation 0 again. Still taken: ask who
+  // is there; a living room answers -> we are the half that moves (my members follow with '~go', I am its guest already).
+  async function reclaim() {
+    const tk = gen, base = gid(r.n, 0), mineStill = () => tk === gen && r.state === 'open' && r.isHost && !alias;
+    reclaiming = true; let be, h = null, c = null, w = null;
+    try { be = backend(); h = await be.claim(base); } catch (e) {}
+    if (!mineStill()) { if (h) try { h.close(); } catch (e) {} return; }
+    if (h) {
+      alias = h; reclaiming = false; r.gen = 0; r.id = base; cast({ t: '~id', g: 0 });
+      h.onConn(c2 => accept(h, c2));
+      if (h.onLost) h.onLost(() => { if (alias === h) migrate(false); });
+      return;
+    }
+    try { c = await be.connect(base, T.connMig); if (mineStill()) w = await shake(c, false); } catch (e) {}
+    if (!mineStill()) { if (c) c.close(); return; }
+    if (c && w && w.t === '~welcome' && w.host !== me) {
+      cast({ t: '~go', g: 0 }); teardown(true); r.isHost = false; oldHost = null; setState('migrating'); beGuest(c, r.n || 1, 0, w, false);
+    } else { if (c) shut(c); reclaimAt = now() + T.reclaim; reclaiming = false; }
+  }
+
   // ----- the host's side -----
   const cast = (w, except) => {
     for (const [id, k] of conns) if (id !== except) k.c.send(w);
@@ -400,7 +496,7 @@ function room(opts) {
   const sendTo = (id, w) => { const k = conns.get(id), q = ghosts.get(id); if (k) k.c.send(w); else if (q && w.t === '~m' && q.length < T.queue) q.push(w); };
   const roster = () => [...members.values()].map(e => ({ id: e.id, p: e.p, f: cleanF(e.f), seq: e.seq, h: e.id === me ? KEY_HASH : keys.get(e.id) }));
   function accept(h, c) {
-    if (holder !== h || r.state !== 'open' || pend.size >= 40) { c.close(); return; }
+    if ((holder !== h && alias !== h) || r.state !== 'open' || pend.size >= 40) { c.close(); return; }
     const pd = { c, t: setTimeout(() => { pend.delete(pd); shut(c); }, T.hello) }; pend.add(pd);
     c.onClose(() => { clearTimeout(pd.t); pend.delete(pd); });
     c.onData(m => { clearTimeout(pd.t); pend.delete(pd); c.onData(null); c.onClose(null); try { hello(c, m); } catch (e) { shut(c); } });
@@ -423,7 +519,7 @@ function room(opts) {
     conns.set(id, { c, tok: T.burst, at: now(), last: now(), strikes: 0 });
     c.onClose(() => hostDrop(id, c));
     c.onData(d => { try { hostData(id, c, d); } catch (err) { try { console.error(err); } catch (e2) {} } });
-    c.send({ t: '~welcome', v: 1, n: r.n, host: me, you: e.seq, r: roster() });
+    c.send({ t: '~welcome', v: 1, n: r.n, g: r.gen, host: me, you: e.seq, r: roster() });
     if (q) for (const w of q) c.send(w);
     cast({ t: '~join', id, p, f, seq: e.seq, h: kh }, id);
     emit({ type: had ? 'presence' : 'join', id });
@@ -482,6 +578,8 @@ function room(opts) {
       emit({ type: had ? 'presence' : 'join', id: m.id });
     } else if (m.t === '~leave') { if (typeof m.id === 'string') forget(m.id); }
     else if (m.t === '~bye') migrate(true);
+    else if (m.t === '~id') { r.gen = int(m.g, 0, T.gens, r.gen); r.id = gid(r.n, r.gen); }
+    else if (m.t === '~go') { r.gen = int(m.g, 0, T.gens, r.gen); migrate(true); }
     else if (m.t === '~kick') fail('kicked');
   }
 
@@ -501,7 +599,7 @@ function room(opts) {
   r.join = () => {
     if (r.state === 'connecting' || r.state === 'open' || r.state === 'migrating') return r;
     teardown(); queue = []; for (const id of [...members.keys()]) if (id !== me) members.delete(id);
-    keys.clear(); r.isHost = false; r.hostId = null; r.n = 0; r.id = fixed || ''; r.err = ''; r.errCode = ''; lastId = ''; oldHost = null; mine.seq = 0;
+    keys.clear(); r.isHost = false; r.hostId = null; r.n = 0; r.gen = 0; r.id = fixed || ''; r.err = ''; r.errCode = ''; oldHost = null; mine.seq = 0;
     setState('connecting'); seek(gen, false, 0, false);
     return r;
   };
@@ -520,7 +618,7 @@ function room(opts) {
     try {
       if (!isObj(msg) || typeof msg.t !== 'string' || !msg.t || msg.t[0] === '~') return false;
       if (to != null && (typeof to !== 'string' || to === me)) return false;
-      const s = JSON.stringify(msg); if (!s || s.length > maxMsg) return false;
+      const s = JSON.stringify(msg); if (!s || bytes(s) > maxMsg) return false;
       if (r.state === 'migrating') { if (queue.length >= T.queue) return false; queue.push([JSON.parse(s), to]); return true; }
       return r.state === 'open' && sendNow(msg, to);
     } catch (e) { return false; }
@@ -533,12 +631,13 @@ function room(opts) {
       const t = now(); flushPres(t);
       if (r.isHost) {
         const fs = JSON.stringify(mine.f) || 'null';
-        if (fs !== fastSent && fs.length <= T.maxFast) { fastSent = fs; dirty.add(me); }
+        if (fs !== fastSent && bytes(fs) <= T.maxFast) { fastSent = fs; dirty.add(me); }
         flushFast(t);
         if (ghosts.size && t >= ghostEnd) for (const id of [...ghosts.keys()]) { ghosts.delete(id); if (members.delete(id)) { keys.delete(id); cast({ t: '~leave', id }); emit({ type: 'leave', id }); } }
         for (const [id, k] of [...conns]) if (t - k.last > T.guestDead) hostDrop(id, k.c);
+        if (r.gen > 0 && !alias && !reclaiming && t >= reclaimAt) reclaim();
       } else if (hconn) {
-        if (t - fastAt >= T.fast - 15) { const fs = JSON.stringify(mine.f) || 'null'; if (fs !== fastSent && fs.length <= T.maxFast) { fastSent = fs; fastAt = t; hconn.send({ t: '~fast', f: mine.f }); } }
+        if (t - fastAt >= T.fast - 15) { const fs = JSON.stringify(mine.f) || 'null'; if (fs !== fastSent && bytes(fs) <= T.maxFast) { fastSent = fs; fastAt = t; hconn.send({ t: '~fast', f: mine.f }); } }
         if (t - pingAt >= T.ping) { pingAt = t; hconn.send({ t: '~ping' }); }
         if (t - heard > T.hostDead) migrate(false);
       }

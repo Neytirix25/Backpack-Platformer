@@ -2,7 +2,7 @@
 // Every test prints PASS or FAIL; the process exits 1 when anything failed. Timings are shrunk (MP.net.T) so it runs in seconds.
 const { bootGame } = require('./boot.js');
 const REG = {};
-const FAST_T = { pump: 25, pres: 40, fast: 25, ping: 100, hostDead: 500, guestDead: 700, hello: 500, stagger: 100, jitter: 30, retry: 50, give: 3000, grace: 600, bye: 40, linger: 30 };
+const FAST_T = { pump: 25, pres: 40, fast: 25, ping: 100, hostDead: 500, guestDead: 700, hello: 500, stagger: 100, jitter: 30, retry: 50, give: 3000, grace: 600, bye: 40, linger: 30, stuck: 1200, reclaim: 250 };
 const pools = { mem: [], bc: [], peer: [] }, rooms = [];
 const quiet = console.error;
 
@@ -395,6 +395,109 @@ test("peer backend: the host's id is taken by a newcomer while its socket is dow
   BROKER.dropSocket('peer0'); c.join(); ok(await open([c]), 'the newcomer opens'); ok(c.isHost, 'and holds the id now');
   ok(await until(() => [a, b, c].every(r => r.state === 'open' && r.members.size === 3 && r.hostId === c.me), 6000), 'everyone ends up in one room: ' + [a, b, c].map(r => r.state + r.members.size).join(' '));
   a.send({ t: 'chat', s: 'together' }); ok(await until(() => b.of('msg').some(e => e.msg.s === 'together') && c.of('msg').some(e => e.msg.s === 'together')), 'and can talk');
+});
+
+// ---------- claim: false · sizes in bytes · stuck ids (a host that died without letting go of its id) ----------
+test('claim: false never claims: it waits for the host, and gives up when nobody comes', async () => {
+  const id = 'fix-' + pre(), g1 = mk(1, { id, claim: false }), g2 = mk(2, { id, claim: false }), lead = mk(0, { id });
+  g1.join(); g2.join(); await sleep(500);
+  ok(g1.state === 'connecting' && g2.state === 'connecting' && !REG.holders[id], 'the guests wait and nobody holds the id');
+  lead.join(); ok(await open([lead, g1, g2]), 'everyone opens once the host is there');
+  ok(lead.isHost && !g1.isHost && !g2.isHost && g1.hostId === lead.me && lead.members.size === 3, 'the one who may claim hosts');
+  // ...but in a migration a claim: false member takes part like anybody
+  lead.leave(); ok(await until(() => g1.state === 'open' && g2.state === 'open' && g1.hostId === g2.hostId && (g1.isHost || g2.isHost)), 'a claim: false member takes over in a migration');
+  const alone = mk(3, { id: 'fix-' + pre(), claim: false }); alone.g.net.T.give = 600;
+  try { alone.join(); ok(await until(() => alone.state === 'error' && alone.errCode === 'unreachable', 3000), 'nobody came: unreachable'); } finally { alone.g.net.T.give = FAST_T.give; }
+  const hub = mk(4, { prefix: pre(), claim: false }); hub.g.net.T.give = 600;
+  try { hub.join(); ok(await until(() => hub.state === 'error', 3000), 'a hub joiner who may not claim gives up too'); eq(hub.n, 0, 'without wandering through the instances'); } finally { hub.g.net.T.give = FAST_T.give; }
+});
+test('size caps count bytes, not characters', async () => {
+  const p = pre(), a = mk(0, { prefix: p, maxMsg: 400 }), b = mk(1, { prefix: p, maxMsg: 400 }); a.join(); await open([a]); b.join(); await open([b]);
+  eq(b.send({ t: 'chat', s: 'x'.repeat(300) }), true, '300 ascii characters fit in 400');
+  eq(b.send({ t: 'chat', s: '\u00e9'.repeat(300) }), false, '300 two-byte characters do not');
+  eq(b.send({ t: 'chat', s: '\u4e16'.repeat(150) }), false, '150 three-byte characters do not');
+  eq(b.send({ t: 'chat', s: '\ud83d\ude00'.repeat(90) }), true, '90 four-byte emoji (360 bytes) fit');
+  eq(b.send({ t: 'chat', s: '\ud83d\ude00'.repeat(110) }), false, '110 emoji (440 bytes) do not');
+  b.setPresence({ note: '\u4e16'.repeat(1400) }); a.setPresence({ ok: 1 }); await sleep(250);
+  ok(!a.members.get(b.me).p.note, 'a presence over the byte cap is not spread');
+});
+// the host dies silently and its id stays taken for `lag` ms: -> { rs, rest, host, p }
+async function stuck(count, lag, kind = 'mem') {
+  const p = pre(), rs = [];
+  for (let i = 0; i < count; i++) { const r = mk(i, { prefix: p, presence: { name: 'P' + i } }, kind); r.join(); ok(await open([r]), 'did not open'); rs.push(r); }
+  ok(await until(() => rs.every(r => r.members.size === count)), 'everyone inside');
+  const host = rs[0], rest = rs.slice(1); for (const r of rs) r.ev.length = 0;
+  if (kind === 'mem') { REG.lag = lag; ok(REG.kill(p + '1', true), 'kill'); REG.lag = 0; } else BROKER.cutNetwork(host.g.tag, lag);
+  return { rs, rest, host, p };
+}
+const together = (rs, n) => rs.every(r => r.state === 'open' && r.hostId === rs[0].hostId && r.members.size === n) && rs.filter(r => r.isHost).length === 1;
+test('a stuck host id: the members move together to the successor id, newcomers find them, and the room takes its old id back', async () => {
+  const { rest, host, p } = await stuck(5, 4500);
+  ok(await until(() => together(rest, 4) && rest.every(r => r.id === p + '1-g1'), 8000), 'the four re-form on the successor id: ' + rest.map(r => r.state + ' ' + r.id + ' ' + r.members.size).join(' | '));
+  ok(rest[0].isHost, 'the oldest member hosts it'); ok(rest.every(r => r.n === 1 && r.gen === 1), 'same instance number, generation 1');
+  for (const r of rest) { eq(r.of('host').length, 1, 'one host event'); eq(r.of('join').length, 0, 'nobody re-joined as new'); ok(r.of('leave').every(e => e.id === host.me), 'only the old host left'); }
+  rest[2].send({ t: 'chat', s: 'moved' }); ok(await until(() => rest.every(r => r === rest[2] || r.of('msg').some(e => e.msg.s === 'moved'))), 'messages flow in the moved room');
+  ok(!!REG.holders[p + '1'], '(the old id is still taken)');
+  const late = mk(10, { prefix: p }); late.join(); ok(await until(() => late.state === 'open', 3000), 'a newcomer gets in'); eq(late.n, 1, 'into the same instance'); eq(late.id, p + '1-g1', 'through the successor id'); eq(late.members.size, 5, 'and sees everyone');
+  // the broker lets go of the old id: the host takes it back and everyone is told
+  const all = rest.concat(late);
+  ok(await until(() => all.every(r => r.id === p + '1' && r.gen === 0), 8000), 'the room has its plain id again: ' + all.map(r => r.id).join());
+  ok(all.every(r => r.state === 'open' && r.of('state').filter(e => e.state === 'migrating').length <= 1), 'without another migration');
+  const late2 = mk(11, { prefix: p }); late2.join(); ok(await open([late2]), 'a second newcomer'); ok(!late2.isHost && late2.id === p + '1' && late2.members.size === 6, 'joins the same room through the plain id');
+  // the next migration happens on the plain id, for those who came in through the successor id too
+  rest[0].leave(); const left = all.slice(1).concat(late2);
+  ok(await until(() => together(left, 5) && left.every(r => r.id === p + '1'), 6000), 'next migration: one room on the plain id: ' + left.map(r => r.state + ' ' + r.id + ' ' + r.members.size).join(' | '));
+});
+test('a stuck host id: a newcomer who takes the freed id before the moved room does -> the moved room joins it (no two rooms with one number)', async () => {
+  const { rest, p } = await stuck(4, 60000);
+  for (const r of rest) r.g.net.T.reclaim = 700;
+  try {
+    ok(await until(() => together(rest, 3) && rest.every(r => r.id === p + '1-g1'), 8000), 'the three re-form on the successor id');
+
+    delete REG.holders[p + '1'];   /* the broker lets go ... */
+    const x = mk(10, { prefix: p, presence: { name: 'X' } }); x.join();   /* ... and a newcomer is quicker than the moved room */
+    ok(await open([x]), 'the newcomer opens'); ok(x.isHost && x.id === p + '1', 'as the host of the plain id');
+    const all = rest.concat(x);
+    ok(await until(() => all.every(r => r.state === 'open' && r.hostId === x.me && r.members.size === 4 && r.id === p + '1' && r.gen === 0), 8000), 'one room in the end: ' + all.map(r => r.state + ' ' + r.id + ' ' + r.members.size).join(' | '));
+    rest[1].send({ t: 'chat', s: 'one street' }); ok(await until(() => all.every(r => r === rest[1] || r.of('msg').some(e => e.msg.s === 'one street'))), 'and they can talk');
+  } finally { for (const r of rest) r.g.net.T.reclaim = FAST_T.reclaim; delete REG.holders[p + '1']; }
+});
+test('a stuck host id that swallows connections (as the real broker does): members move on, a dead instance sends newcomers to the next', async () => {
+  REG.hang = 300;
+  try {
+    const { rest, p } = await stuck(3, 60000);
+    ok(await until(() => together(rest, 2) && rest.every(r => r.id === p + '1-g1'), 8000), 'the two re-form on the successor id: ' + rest.map(r => r.state + ' ' + r.id).join(' | '));
+    const late = mk(10, { prefix: p }); late.join(); ok(await until(() => late.state === 'open', 4000), 'a newcomer gets in'); eq(late.id, p + '1-g1', 'through the successor id');
+    delete REG.holders[p + '1'];
+    // an instance whose host died with nobody else inside: taken, unreachable, no successor -> the newcomer opens the next one
+    const q = pre(), solo = mk(11, { prefix: q }); solo.join(); await open([solo]); REG.lag = 60000; REG.kill(q + '1', true); REG.lag = 0;
+    const nw = mk(12, { prefix: q }); nw.join(); ok(await until(() => nw.state === 'open', 6000), 'the newcomer does not hang on the dead instance: ' + nw.state); eq(nw.n, 2, 'it opened the next instance'); ok(nw.isHost, 'as its host');
+    // a fixed room has no next instance: unreachable, as before
+    const fid = 'fix-' + pre(), fa = mk(13, { id: fid }); fa.join(); await open([fa]); REG.lag = 60000; REG.kill(fid, true); REG.lag = 0;
+    const fb = mk(14, { id: fid }); fb.g.net.T.give = 1500;
+    try { fb.join(); ok(await until(() => fb.state === 'error' && fb.errCode === 'unreachable', 6000), 'fixed room: unreachable'); } finally { fb.g.net.T.give = FAST_T.give; }
+    delete REG.holders[q + '1']; delete REG.holders[fid];
+  } finally { REG.hang = 0; }
+});
+test('two hosts in a row die on stuck ids: generation 2, and still one room', async () => {
+  const { rest, p } = await stuck(5, 60000);
+  try {
+    ok(await until(() => together(rest, 4) && rest.every(r => r.id === p + '1-g1'), 8000), 'first move');
+    REG.lag = 60000; ok(REG.kill(p + '1-g1', true), 'kill the second host'); REG.lag = 0;
+    const left = rest.slice(1);
+    ok(await until(() => together(left, 3) && left.every(r => r.id === p + '1-g2' && r.gen === 2), 9000), 'second move: ' + left.map(r => r.state + ' ' + r.id + ' ' + r.members.size).join(' | '));
+    const late = mk(10, { prefix: p }); late.join(); ok(await until(() => late.state === 'open', 4000), 'a newcomer gets in'); eq(late.id, p + '1-g2', 'through generation 2'); eq(late.members.size, 4, 'and sees everyone');
+  } finally { delete REG.holders[p + '1']; delete REG.holders[p + '1-g1']; }
+});
+test("peer backend: the host's network dies and the broker keeps its id for a long time -> the room moves to the successor id and back", async () => {
+  const { rest, host, p } = await stuck(4, 5000, 'peer'); const dead = host.g;
+  try {
+    ok(await until(() => together(rest, 3) && rest.every(r => r.id === p + '1-g1'), 9000), 'the three re-form on the successor id: ' + rest.map(r => r.state + ' ' + r.id + ' ' + r.members.size).join(' | '));
+    const late = pk(5, { prefix: p }); late.join(); ok(await until(() => late.state === 'open', 6000), 'a newcomer gets in: ' + late.state); eq(late.n, 1, 'same instance'); eq(late.members.size, 4, 'sees everyone');
+    const all = rest.concat(late);
+    ok(await until(() => all.every(r => r.id === p + '1' && r.gen === 0 && r.state === 'open'), 9000), 'the plain id is taken back once the broker lets go: ' + all.map(r => r.id).join());
+    const late2 = pk(6, { prefix: p }); late2.join(); ok(await open([late2]), 'a second newcomer'); ok(!late2.isHost && late2.members.size === 5, 'joins the same room through the plain id');
+  } finally { for (const r of rooms) if (r.g === dead) r.leave(); await sleep(100); for (const q of BROKER.peers) if (q.tag === dead.tag) { q.dead = false; q.destroy(); } }
 });
 
 (async () => {
