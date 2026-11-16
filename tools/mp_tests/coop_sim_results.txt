@@ -1,0 +1,88 @@
+Co-op battle simulation: 400 battles per cell (win rate / average rounds / share of the party's pets down at the end)
+scale table:
+  1p {"foes":3,"hp":0.447,"atk":0.782,"aoe":1,"minions":2,"bossHp":0.15,"bossAtk":0.4,"bossActs":2,"raidHp":0.3,"raidAtk":0.4,"raidActs":2,"raidMin":0,"adds":1,"shield":0.06}
+  2p {"foes":5,"hp":0.545,"atk":0.97,"aoe":0.8,"minions":3,"bossHp":0.32,"bossAtk":0.6,"bossActs":3,"raidHp":0.62,"raidAtk":0.6,"raidActs":3,"raidMin":0,"adds":2,"shield":0.06}
+  3p {"foes":6,"hp":0.78,"atk":1.18,"aoe":0.7,"minions":4,"bossHp":0.55,"bossAtk":0.8,"bossActs":3,"raidHp":1.05,"raidAtk":0.8,"raidActs":3,"raidMin":0,"adds":2,"shield":0.06}
+  4p {"foes":8,"hp":0.84,"atk":1.05,"aoe":0.65,"minions":5,"bossHp":0.8,"bossAtk":0.9,"bossActs":4,"raidHp":1.5,"raidAtk":0.9,"raidActs":4,"raidMin":0,"adds":3,"shield":0.06}
+tiers:
+  T1 {"name":"The Dungeon","lo":4,"hi":13,"wild":[0.865,1.5],"boss":[null,[1.03,0.55],[1.11,0.75],[1.22,1.02],[1.18,1.13]],"raid":[null,[0.78,0.52],[0.86,0.71],[1.04,1.05],[0.98,1.13]]}
+  T2 {"name":"The Burning Depths","lo":14,"hi":26,"wild":[0.975,0.9],"boss":[null,[1.03,1.01],[0.98,0.89],[0.94,0.86],[0.96,0.91]],"raid":[null,[0.81,0.79],[0.72,0.86],[0.69,1.12],[0.64,1.17]]}
+  T3 {"name":"The Fey Wilds","lo":25,"hi":34,"wild":[1.09,0.62],"boss":[null,[0.78,1.9],[0.88,2.15],[0.91,2.5],[0.93,2.62]],"raid":[null,[0.55,1.7],[0.59,2.16],[0.7,3.14],[0.69,3.14]]}
+  T4 {"name":"The Drowned Deep","lo":32,"hi":37,"wild":[1.11,1.21],"boss":[null,[0.76,1.16],[0.85,2.02],[0.9,2.25],[0.97,2.34]],"raid":[null,[0.52,1.83],[0.61,2.14],[0.68,3.06],[0.73,3.02]]}
+
+== party AT LEVEL (inside the tier band, full HP) ==
+tier kind  | 1 player           | 2 players          | 3 players          | 4 players          
+T1   wild  |  89%   5.2r  33% dn |  90%   5.5r  37% dn |  89%   6.0r  40% dn |  86%   6.1r  40% dn 
+T1   boss  |  71%   9.7r  43% dn |  69%   9.6r  53% dn |  72%   9.6r  52% dn |  70%   9.6r  55% dn 
+T1   raid  |  54%  12.6r  62% dn |  51%  12.5r  68% dn |  54%  12.6r  69% dn |  60%  12.6r  67% dn 
+T2   wild  |  92%   5.4r  22% dn |  88%   5.8r  32% dn |  84%   6.2r  35% dn |  86%   6.3r  32% dn 
+T2   boss  |  75%   9.4r  42% dn |  73%   9.5r  42% dn |  66%   9.7r  44% dn |  71%   9.2r  41% dn 
+T2   raid  |  53%  12.7r  59% dn |  52%  12.3r  62% dn |  51%  12.7r  62% dn |  53%  12.3r  63% dn 
+T3   wild  |  91%   6.6r  17% dn |  86%   6.6r  24% dn |  90%   6.0r  19% dn |  88%   6.4r  19% dn 
+T3   boss  |  72%   9.0r  36% dn |  68%   9.9r  42% dn |  74%   9.9r  37% dn |  66%  10.0r  45% dn 
+T3   raid  |  54%  12.8r  52% dn |  57%  12.7r  52% dn |  56%  12.9r  54% dn |  54%  12.0r  56% dn 
+T4   wild  |  79%   6.7r  33% dn |  85%   6.3r  26% dn |  87%   5.8r  24% dn |  88%   6.2r  20% dn 
+T4   boss  |  72%  10.0r  35% dn |  69%   9.5r  42% dn |  71%   9.2r  37% dn |  73%   9.4r  35% dn 
+T4   raid  |  47%  12.9r  59% dn |  58%  12.2r  51% dn |  50%  12.4r  58% dn |  56%  12.4r  51% dn 
+
+== party 3 levels UNDER the band ==
+tier kind  | 1 player           | 2 players          | 3 players          | 4 players          
+T1   wild  |  61%   5.3r  60% dn |  51%   5.7r  69% dn |  49%   6.0r  71% dn |  55%   6.3r  64% dn 
+T1   boss  |  12%   8.1r  92% dn |  30%   8.4r  84% dn |  24%   8.1r  87% dn |  32%   8.0r  83% dn 
+T1   raid  |   5%   9.9r  97% dn |   4%  10.5r  98% dn |   6%  11.0r  97% dn |   6%  10.5r  97% dn 
+T2   wild  |  70%   6.8r  49% dn |  66%   7.2r  56% dn |  63%   7.4r  58% dn |  70%   7.5r  50% dn 
+T2   boss  |  31%  10.0r  78% dn |  33%   9.8r  78% dn |  44%   9.3r  66% dn |  38%   8.8r  71% dn 
+T2   raid  |  17%  12.4r  90% dn |  16%  12.6r  91% dn |  12%  12.5r  93% dn |  15%  11.4r  91% dn 
+T3   wild  |  78%   9.1r  32% dn |  78%   8.5r  34% dn |  75%   8.5r  37% dn |  75%   8.7r  36% dn 
+T3   boss  |  31%  10.8r  74% dn |  24%  10.5r  82% dn |  25%  10.0r  82% dn |  22%  10.5r  84% dn 
+T3   raid  |  16%  14.2r  85% dn |  14%  13.9r  89% dn |   5%  13.9r  97% dn |   7%  13.5r  95% dn 
+T4   wild  |  54%   7.9r  57% dn |  66%   8.1r  52% dn |  69%   7.7r  45% dn |  67%   8.0r  46% dn 
+T4   boss  |  46%  11.1r  60% dn |  25%  10.0r  82% dn |  23%   9.5r  84% dn |  13%   8.9r  92% dn 
+T4   raid  |  26%  14.2r  79% dn |  16%  13.8r  90% dn |   3%  13.5r  98% dn |   2%  12.6r  99% dn 
+
+== party 3 levels OVER the band ==
+tier kind  | 1 player           | 2 players          | 3 players          | 4 players          
+T1   wild  |  97%   4.1r  17% dn |  97%   4.7r  25% dn |  95%   5.2r  29% dn |  94%   5.6r  30% dn 
+T1   boss  |  99%   6.7r  11% dn |  97%   7.5r  26% dn |  98%   7.8r  29% dn |  96%   7.7r  32% dn 
+T1   raid  |  98%   9.0r  14% dn |  97%   9.8r  29% dn |  94%  10.1r  34% dn |  92%  10.5r  39% dn 
+T2   wild  |  96%   4.6r  16% dn |  96%   4.3r  19% dn |  94%   4.5r  18% dn |  92%   4.9r  22% dn 
+T2   boss  |  86%   6.2r  29% dn |  85%   6.2r  31% dn |  86%   6.4r  26% dn |  86%   6.7r  26% dn 
+T2   raid  |  69%   8.8r  46% dn |  68%   8.0r  48% dn |  64%   8.6r  53% dn |  69%   8.4r  48% dn 
+T3   wild  |  93%   5.9r  10% dn |  94%   5.0r  11% dn |  96%   4.4r   8% dn |  96%   4.3r   6% dn 
+T3   boss  |  88%   7.6r  17% dn |  93%   6.9r  13% dn |  96%   6.1r   8% dn |  96%   6.3r   7% dn 
+T3   raid  |  84%   9.8r  19% dn |  95%   8.5r  11% dn |  97%   7.5r   7% dn |  99%   7.0r   3% dn 
+T4   wild  |  85%   6.1r  24% dn |  94%   5.3r  16% dn |  93%   4.9r  12% dn |  95%   4.9r  10% dn 
+T4   boss  |  80%   8.5r  27% dn |  86%   8.0r  23% dn |  87%   7.8r  21% dn |  83%   8.2r  22% dn 
+T4   raid  |  69%  11.2r  39% dn |  80%  10.7r  28% dn |  79%  10.5r  29% dn |  82%  10.9r  23% dn 
+
+(578 s)
+
+== the designer's dial (300 battles per cell, at level): node tools/coop_sim.js --sizes 2,3,4 --off 0 --diff '{"wild":0.8,"boss":0.8,"raid":0.8}' ==
+tier kind  | 2 players          | 3 players          | 4 players          
+T1   wild  |  97%   5.2r  28% dn |  94%   5.7r  30% dn |  95%   5.7r  27% dn 
+T1   boss  |  82%   9.6r  38% dn |  87%   9.3r  38% dn |  82%   9.3r  44% dn 
+T1   raid  |  76%  12.2r  49% dn |  71%  12.4r  53% dn |  74%  12.6r  55% dn 
+T2   wild  |  94%   5.7r  24% dn |  94%   6.1r  23% dn |  94%   6.1r  22% dn 
+T2   boss  |  89%   8.5r  25% dn |  87%   9.3r  24% dn |  86%   9.7r  25% dn 
+T2   raid  |  74%  11.8r  41% dn |  77%  12.1r  38% dn |  74%  12.5r  42% dn 
+T3   wild  |  93%   6.4r  14% dn |  93%   6.1r  14% dn |  91%   6.4r  13% dn 
+T3   boss  |  83%   9.8r  26% dn |  85%   9.3r  26% dn |  84%   9.6r  27% dn 
+T3   raid  |  69%  12.8r  38% dn |  67%  13.3r  44% dn |  70%  13.1r  40% dn 
+T4   wild  |  93%   6.5r  19% dn |  93%   6.4r  14% dn |  91%   6.2r  16% dn 
+T4   boss  |  79%   9.8r  30% dn |  81%   9.6r  27% dn |  78%   9.8r  28% dn 
+T4   raid  |  67%  13.2r  41% dn |  68%  12.8r  42% dn |  73%  13.1r  34% dn 
+
+== ...and with --diff '{"wild":0.6,"boss":0.6,"raid":0.6}' ==
+tier kind  | 2 players          | 3 players          | 4 players          
+T1   wild  | 100%   4.6r  17% dn | 100%   4.8r  19% dn | 100%   5.1r  16% dn 
+T1   boss  |  96%   8.5r  26% dn |  95%   9.3r  29% dn |  96%   8.8r  30% dn 
+T1   raid  |  92%  11.4r  30% dn |  95%  11.7r  33% dn |  90%  11.8r  37% dn 
+T2   wild  |  99%   5.5r  12% dn |  99%   5.7r  15% dn |  97%   5.8r  14% dn 
+T2   boss  |  98%   7.7r  11% dn |  97%   8.6r  14% dn |  96%   8.9r  12% dn 
+T2   raid  |  90%  11.2r  21% dn |  93%  11.4r  19% dn |  93%  11.4r  19% dn 
+T3   wild  |  97%   6.2r   7% dn |  97%   5.7r   8% dn |  98%   6.0r   6% dn 
+T3   boss  |  91%  10.1r  17% dn |  95%   9.4r  14% dn |  93%   9.2r  14% dn 
+T3   raid  |  81%  13.1r  26% dn |  78%  13.8r  29% dn |  85%  12.7r  23% dn 
+T4   wild  |  95%   6.4r  12% dn |  99%   5.8r   6% dn |  98%   5.7r   5% dn 
+T4   boss  |  91%   9.7r  17% dn |  87%  10.0r  20% dn |  90%  10.1r  15% dn 
+T4   raid  |  84%  13.4r  24% dn |  84%  12.9r  23% dn |  85%  13.8r  20% dn 
