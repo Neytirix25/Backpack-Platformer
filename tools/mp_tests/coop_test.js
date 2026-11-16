@@ -193,11 +193,11 @@ const TESTS = {
     D.portrait = true;
     // C's own generation comes out different (as another browser's might): the full-floor fallback
     C.run('window.__bl = buildLevel; buildLevel = function (R) { __bl(R); if (R.grid) { for (let x = 30; x < 40; x++) setTile(R, x, 3, SOLID); } };');
-    // the guests start BEFORE the leader (so one of them claims the room first and must let go)
+    // the guests start BEFORE the leader: they only knock (claim: false), nobody but the leader ever holds the room
     const inf = info(gs, 'dungeon', 2, 'T4A', 777);
     MEM.lag = 1500;   /* (a released id stays taken for a while, like at the PeerJS broker) */
     startAll(gs, inf, [B, C, D]); await frames([B, C, D], 200);
-    ok([B, C, D].some(g => g.run('!!MP.coop.state().room && MP.coop.state().room.isHost')) || [B, C, D].some(g => g.run('MP.coop.state().retryT > 0')), 'a guest claimed the party room before the leader arrived');
+    ok(!MEM.holders['bps-party-T4A'] && [B, C, D].every(g => g.run('MP.coop.state().room.state') === 'connecting' && !g.run('MP.coop.state().room.isHost')), 'no guest claims the party room before the leader arrives: they keep knocking');
     startAll(gs, inf, [A]);
     // ...and the leader's first answer to 'c.need' gets lost on the way: the guest asks again
     A.run("(() => { const r = MP.coop.state().room, s = r.send; window.__lostFull = 0; window.__pieces = 0; r.send = (m, to) => { if (m && m.t === 'c.full') window.__pieces = Math.max(window.__pieces, m.of); return m && m.t === 'c.full' && !window.__lostFull++ ? true : s(m, to); }; })()");
@@ -243,24 +243,96 @@ const TESTS = {
     D.portrait = false;
   },
 
+  // HOST MIGRATION inside a dungeon: the host vanishes mid-battle, at the door countdown and mid-floor, and the
+  // others carry on under a new host until the dungeon is finished
   async leaderLeaves() {
-    const gs = games.slice(0, 3), [A, B, C] = gs;
+    const gs = games.slice(0, 4), [A, B, C, D] = gs;
+    const sOf = g => g.run('MP.coop.state()'), hostOf = g => g.run('MP.coop.state().room.hostId'), msgOf = g => g.run('G.msg');
+    const seqOf = (g, of) => g.run(`MP.coop.state().room.members.get(${JSON.stringify(of.uid)}).seq`);
+    // one room again: everyone open, the same host, and everybody sees everybody
+    const settled = who => { const h = who.every(g => g.run('MP.coop.active && MP.coop.state().room.state === "open"')) && host(who); return !!h && who.every(g => hostOf(g) === h.uid && g.run('MP.coop.ids().length') === who.length); };
+    // (no wild animal may walk into a hero while the test looks at something else: S.grace keeps touches off)
+    const calm = (who, secs) => { for (const g of who) g.run('MP.coop.state().grace = ' + secs); };
+    // ---- while gathering there is no migration: the leader says goodbye and everyone goes home ----
+    startAll([A, B, C], info(gs, 'dungeon', 1, 'T3G', 5));   /* (the fourth never comes, so the leader waits) */
+    await until([A, B, C], () => [B, C].every(g => g.run('MP.coop.state().room.state') === 'open'), 600, 'gathering');
+    A.run("openPause(); pauseDo('leave'); pauseDo('leave')"); await frames([A, B, C], 40);
+    ok([A, B, C].every(g => g.run('!MP.coop.active && !!G.hub && !G.coop')), 'the leader left while gathering: everyone is back home');
+    ok(/before you set out/.test(msgOf(B)), 'with a friendly message: ' + msgOf(B));
+    await frames(gs, 60);
+    // ---- 1. mid-battle: the leader's connection dies ----
     C.portrait = true;
-    await gather(gs, info(gs, 'dungeon', 3, 'T3L', 4242));
-    ok(A.run('G.room.act') === 3, 'tier 3 floor');
+    const inf = info(gs, 'dungeon', 3, 'T3L', 4242), solo = gs.map(g => g.run('JSON.stringify([SAVE.rec.runs, SAVE.rec.deaths])'));
+    await gather(gs, inf);
+    ok(A.run('G.room.act') === 3 && host(gs) === A, 'tier 3 floor, the leader hosts');
     for (const g of gs) g.step(1, true);
-    A.run("openPause(); pauseDo('leave'); pauseDo('leave')");
-    await frames(gs, 40);
-    ok(gs.every(g => g.run('!MP.coop.active && !!G.hub && !G.coop')), 'the leader left: the session ends cleanly for everyone');
-    ok(/leader left/.test(B.run('G.msg')) && /leader left/.test(C.run('G.msg')), 'with a friendly message: ' + B.run('G.msg'));
-    // the leader's connection drops in the middle of a battle
-    await frames(gs, 60);
-    await gather(gs, info(gs, 'raid', 1, 'T3M', 99));
-    await frames(gs, 80); onto(B, 0); await until(gs, () => gs.every(battling), 400, 'raid battle');
-    MEM.kill('bps-party-T3M');   /* the leader's connection dies without a goodbye */
-    await frames(gs, 60);
-    ok([B, C].every(g => g.run('!MP.coop.active && !!G.hub')), 'the leader dropped mid-battle: the others are back home');
-    console.log('  (the killed leader itself: ' + (A.run('MP.coop.active') ? 'still in its session with ' + A.run('MP.coop.ids().length') + ' player(s), room ' + A.run('MP.coop.state().room.state') : 'home') + ')');
+    let rest = [B, C, D];
+    const oldest = rest.slice().sort((x, y) => seqOf(A, x) - seqOf(A, y))[0];
+    await frames(gs, 80); onto(C, 0); await until(gs, () => gs.every(battling), 400, 'a battle for the four'); await opened(gs);
+    MEM.kill('bps-party-T3L');   /* the leader's connection dies without a goodbye */
+    A.run('MP.coop.end("test: the dead leader")');
+    await until(rest, () => settled(rest) && rest.every(g => !battling(g) && g.run('G.mode') === 'play' && !g.run('!!B')), 900, 'the three re-form under a new host, out of the battle');
+    for (const g of rest) toEntry(g);   /* (off the group, or the touch would start the next battle at once) */
+    calm(rest, 99);
+    let H = host(rest);
+    ok(H === oldest, 'the oldest guest is the new host (' + (H && H.name) + ')');
+    ok(rest.every(g => /battle starts over/.test(msgOf(g))), 'everyone is told: ' + msgOf(C));
+    ok(rest.every(g => phase(g) === 'play' && fl(g) === 0 && !g.run('G.wild[0].beaten') && !g.run('MP.coop.state().enc')), 'the session goes on, the group is unbeaten');
+    ok(rest.every(g => !g.run('MP.coop.state().falls') && g.run('MP.coop.state().won') === 0), 'the called-off battle is no defeat (and no win)');
+    ok(H.run('!!MP.coop.state().cur && MP.coop.state().cur.i === 0 && MP.coop.state().cur.full.length > 500'), 'the new host rebuilt the floor data for late joiners');
+    // the wild animals roam again, simulated by the new host
+    const G1 = rest.find(g => g !== H), wx = G1.run('G.wild.map(e => Math.round(e.x)).join()'); await frames(rest, 300);
+    ok(G1.run('G.wild.map(e => Math.round(e.x)).join()') !== wx, 'the wild animals move again under the new host');
+    ok(Math.max(...H.run('G.wild.map(e => e.x)').map((x, k) => Math.abs(x - G1.run(`G.wild[${k}].x`)))) < 40, "and a guest's follow the new host's");
+    // a guest still cannot speak for the host
+    G1.run("MP.coop.state().room.send({ t: 'c.over' }); MP.coop.state().room.send({ t: 'c.beat', i: 0, w: 0 })"); await frames(rest, 10);
+    ok(rest.every(g => phase(g) === 'play') && !H.run('G.wild[0].beaten'), "a guest's forged host messages still change nothing");
+    // the same group again, under the new host: won this time
+    calm(rest, 0);
+    ok(await winGroup(rest, G1, 0), 'the same group is fought again and beaten, under the new host');
+    ok(rest.every(g => g.run('MP.coop.state().won') === 1), 'one battle won for everyone');
+    // the old leader comes back (it was only offline): a late arrival, sent the floor by the CURRENT host
+    startAll([A], inf);
+    await until(gs, () => fl(A) === 0 && A.run('G.mode') === 'play' && hostOf(A) === H.uid && H.run('MP.coop.ids().length') === 4, 900, 'the old leader re-joins as a guest of the new host');
+    ok(A.run('G.wild[0].beaten') && gridSig(A) === gridSig(H), 'on the same floor, with the beaten group beaten');
+    A.run("openPause(); pauseDo('leave'); pauseDo('leave')"); await frames(gs, 30);
+    ok(A.run('!MP.coop.active') && settled(rest) && host(rest) === H, 'a guest leaving (even the old leader) changes nothing for the others');
+    // ---- 2. at the door countdown: the host leaves politely ----
+    ok(await clearFloor(rest, G1), 'the exit opens under the new host');
+    for (const g of rest) toEntry(g); calm(rest, 99); toExit(G1); await frames(rest, 90);
+    ok(rest.every(g => sOf(g).cd > 0) && rest.every(g => fl(g) === 0), 'door countdown running (one of three at the door)');
+    const f0 = FRAME; H.run("openPause(); pauseDo('leave'); pauseDo('leave')");
+    const H1 = H; rest = rest.filter(g => g !== H1);
+    await until(rest, () => settled(rest), 600, 'the two re-form under the next host');
+    H = host(rest);
+    ok(H1.run('!MP.coop.active && !!G.hub') && fl(H) === 0 && sOf(H).cd > 0, 'the countdown is still running on the new host');
+    ok(rest.some(g => /leads? the party/.test(msgOf(g))), 'the party is told who leads now: ' + rest.map(msgOf).join(' / '));
+    await until(rest, () => rest.every(g => fl(g) === 1 && g.run('G.mode') === 'play'), 900, 'the countdown runs out under the new host: floor 2 for both');
+    ok(FRAME - f0 < 620, 'the countdown went on instead of starting over (' + ((FRAME - f0) / 60).toFixed(1) + ' s after the host left)');
+    ok(gridSig(rest[0]) === gridSig(rest[1]), 'floor 2 identical');
+    // ---- 3. mid-floor: the host's network dies silently and the broker keeps its id (a stuck id) ----
+    calm(rest, 99); await frames(rest, 120);
+    MEM.lag = 600000; MEM.kill('bps-party-T3L', true); MEM.lag = 0;
+    const H2 = H, L = rest.find(g => g !== H2); rest = [L];   /* (H2 is dead from here on: not stepped any more, tidied up at the end) */
+    await until(rest, () => settled(rest), 2400, 'the last player re-forms the room alone');
+    ok(L.run('MP.coop.state().room.id') === 'bps-party-T3L-g1', 'on the successor id (the old one is stuck): ' + L.run('MP.coop.state().room.id'));
+    ok(phase(L) === 'play' && fl(L) === 1 && /lead the party/.test(msgOf(L)), 'and the session goes on: ' + msgOf(L));
+    // ...and the last one finishes the dungeon alone (13 battles in a row level its pets up: no evolution cutscenes in this test, the game waits under them)
+    L.run('EVO_Q.length = 0; EVO_Q.push = () => 0');
+    calm(rest, 0);
+    ok(await clearFloor(rest, L), 'alone: floor 2 exit opens'); toExit(L);
+    await until(rest, () => fl(L) === 2 && L.run('G.mode') === 'play', 600, 'alone: floor 3');
+    ok(await clearFloor(rest, L), 'alone: floor 3 exit opens'); toExit(L);
+    await until(rest, () => fl(L) === 3 && L.run('G.mode') === 'play', 600, 'alone: the boss floor');
+    await frames(rest, 80); onto(L, 0); await until(rest, () => battling(L), 400, 'boss battle'); await fight(rest, true);
+    await until(rest, () => phase(L) === 'done', 600, 'the dungeon is completed after three host changes');
+    ok(/Dungeon complete/.test(L.run('(MP.coop.state().result || {}).title')), 'completion panel');
+    await frames(rest, 60);
+    await backHome(rest); L.run('delete EVO_Q.push');
+    H2.run('MP.coop.end()'); await frames(gs, 20);
+    ok(gs.every(g => g.run('!MP.coop.active && !!G.hub')), 'everyone is home: ' + gs.map(g => g.name + ' ' + g.run('MP.coop.active') + ' ' + g.run('!!G.hub') + ' ' + g.run('G.mode')).join(', '));
+    ok(gs.every((g, k) => g.run('JSON.stringify([SAVE.rec.runs, SAVE.rec.deaths])') === solo[k]), 'solo records untouched');
+    delete MEM.holders['bps-party-T3L'];
     C.portrait = false; await frames(gs, 30);
   },
 
@@ -344,7 +416,11 @@ const TESTS = {
     ok(A.run('(() => { const s = MP.coop.state(), d = JSON.parse(s.cur.full); d.w.push({ k: "nosuch" }, { k: "dog", x: 1e9, y: "q", boss: "__proto__", coat: { col: [99, -4] } }); d.v = [[1e9, -5, "x"], "no"]; d.p = [[99, 99, 1e9, -1e9]]; const F = MP.coop.unpackFloor(d, 0); const e = F.wild[F.wild.length - 1]; return e.k === "dog" && !e.boss && e.x <= F.R.wpx && e.coat.col[0] === 9 && F.R.vents.length === 1 && F.R.vents[0].tx < F.R.cols && F.R.plants[0].x <= F.R.wpx; })()'), 'a full floor with bad entries is cleaned');
     // round trip: pack -> unpack gives the same checksum
     ok(A.run('(() => { const s = MP.coop.state(), F = MP.coop.unpackFloor(JSON.parse(s.cur.full), 0); return MP.coop.checksum(F) === s.cur.F.sum; })()'), 'pack -> unpack keeps the checksum');
-    A.run("openPause(); pauseDo('leave'); pauseDo('leave')"); await frames(gs, 30);
+    // the host leaves: the guest becomes the room's host, and now ITS word counts while a forged one from nobody does
+    A.run("openPause(); pauseDo('leave'); pauseDo('leave')");
+    await until([B], () => B.run('MP.coop.active && MP.coop.state().room.state === "open" && MP.coop.state().room.isHost'), 600, 'the guest hosts after the leader left');
+    ok(A.run('!MP.coop.active && !!G.hub') && B.run('MP.coop.active') && B.run('MP.coop.ids().length') === 1, 'the leader is home, the guest keeps its session (alone)');
+    B.run("openPause(); pauseDo('leave'); pauseDo('leave')"); await frames(gs, 30);
     ok(gs.every(g => g.run('!MP.coop.active && !!G.hub')), 'home');
   },
 
@@ -545,6 +621,48 @@ const TESTS = {
     ok(A.run('MP.coop.doorText()') === '', 'the door text is gone on the new floor');
     A.portrait = false;
     ok(ERRS.n === e0, 'no error was logged (' + (ERRS.n - e0) + ')');
+  },
+
+  // the host's tab is hidden: no animation frames. index.html's bgTick() keeps update() going (here through its
+  // setInterval fallback: the harness has no Worker), so the wild animals and a battle go on for the others
+  async hiddenHost() {
+    const gs = games.slice(0, 2), [A, B] = gs;
+    ok(A.run('typeof bgTick') === 'function' && A.run('bgTick(performance.now() + 5000)') === 0 && A.run('bgSrc') === null, 'visible, no session: bgTick does nothing and no source runs');
+    A.win.document.hidden = true; await frames([B], 90, () => { A.win.__now += 1000 / 60; });
+    ok(A.run('bgTick(performance.now() + 5000)') === 0 && A.run('bgSrc') === null, 'hidden but no multiplayer session: still nothing');
+    A.win.document.hidden = false;
+    await gather(gs, info(gs, 'dungeon', 1, 'HID', 606));
+    ok(host(gs) === A, 'the leader hosts'); await frames(gs, 60); for (const g of gs) g.run('MP.coop.state().grace = 99');
+    // from here on the host gets NO frames: only its clock moves (and its timers, like in a hidden tab)
+    A.run('window.__draws = 0; window.__ups = 0; window.__maxDt = 0; window.__d0 = draw; window.__u0 = update; draw = function () { __draws++; return __d0(); }; update = function (dt) { __ups++; __maxDt = Math.max(__maxDt, dt); return __u0(dt); };');
+    const hidden = (n, cond) => (async () => { for (let i = 0; i < n; i++) { if (cond && cond()) return true; await frames([B], 1, () => { A.win.__now += 1000 / 60; }); } return !cond; })();
+    A.win.document.hidden = true;
+    const t0 = A.run('TIME'), wx = B.run('G.wild.map(e => Math.round(e.x)).join()');
+    await hidden(360);
+    const dT = A.run('TIME') - t0;
+    ok(A.run('typeof bgSrc') === 'function', 'a background source is running on the hidden host');
+    ok(dT > 4.2 && dT < 6.1, "the hidden host's game went on in real time: " + dT.toFixed(2) + ' s of game time in 6 s (it takes up to a second to notice)');
+    ok(A.run('__draws') === 0 && A.run('__ups') > 100, 'by update() alone, never draw() (' + A.run('__ups') + ' updates, ' + A.run('__draws') + ' draws)');
+    ok(A.run('__maxDt') <= 1 / 30 + 1e-9, 'in small steps (largest ' + A.run('__maxDt').toFixed(4) + ' s)');
+    ok(B.run('G.wild.map(e => Math.round(e.x)).join()') !== wx, "the wild animals keep roaming on the guest's screen");
+    ok(Math.max(...A.run('G.wild.map(e => e.x)').map((x, k) => Math.abs(x - B.run(`G.wild[${k}].x`)))) < 40, 'and follow the hidden host');
+    // a long stall (the device slept): the catch-up is capped, never one giant step
+    const u0 = A.run('__ups'); A.win.__now += 60000; await hidden(2);
+    ok(A.run('__ups') - u0 <= 3 * 8 && A.run('__maxDt') <= 1 / 30 + 1e-9, 'a minute of sleep is not replayed: ' + (A.run('__ups') - u0) + ' updates in the next ticks');
+    // a battle starts and runs while the host stays hidden
+    for (const g of gs) g.run('MP.coop.state().grace = 0');
+    onto(B, 0);
+    ok(await hidden(900, () => battling(A) && battling(B) && B.run('!!(B && B.coop) && G.mode === "battle"') && A.run('!!(B && B.coop) && G.mode === "battle"')), 'the guest touches a group: the battle opens on both, the hidden host running it');
+    A.run('if (B && B.coop) { B.coop.auto = true; B.coop.fast = true; for (const f of B.foes) { f.hp = Math.min(f.hp, 1); f.shield = 0; f.atk = 0; } }');
+    ok(await hidden(3000, () => { A.run('if (B && B.coop) for (const f of B.foes) { f.hp = Math.min(f.hp, 1); f.shield = 0; f.atk = 0; }'); return gs.every(g => g.run('!B || !B.coop || B.phase === "won"')); }), 'and is fought to the end with the host hidden');
+    ok(A.run('__draws') === 0, 'still without a single draw on the host');
+    // visible again: the background source stops, the normal loop takes over (and bgTick refuses to run)
+    A.win.document.hidden = false; A.run('update = __u0; draw = __d0;');
+    await frames(gs, 70);
+    ok(A.run('bgSrc') === null && A.run('bgTick(performance.now() + 5000)') === 0, 'visible again: the source is stopped and bgTick does nothing');
+    for (let k = 0; k < 60 && gs.some(g => g.run('!!(B && B.coop)')); k++) { const still = gs.filter(g => g.run('!!(B && B.coop)')); for (const g of still) g.press('Enter'); await frames(gs, 2); for (const g of still) g.release('Enter'); await frames(gs, 20); }
+    await until(gs, () => gs.every(g => g.run('G.wild[0].beaten') && !battling(g)), 600, 'the group is beaten for both');
+    A.run('MP.coop.end()'); B.run('MP.coop.end()'); await frames(gs, 20);
   },
 
   async soloAfter() {

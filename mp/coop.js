@@ -7,11 +7,12 @@
 //
 //  HOW A SESSION GOES
 //  1. Gathering. start() leaves the hub, builds a little antechamber (the co-op world: G.coop is set, NOT G.hub; no
-//     backpack, no chests, no solo records) and opens the party room 'bps-party-<code>'. The LEADER claims it (the
-//     guests wait 2 s before their first try); if a guest got there first and became the room's host, everyone
-//     lets go of that room and tries again a little later, until the leader hosts.
+//     backpack, no chests, no solo records) and opens the party room 'bps-party-<code>'. Only the LEADER claims it
+//     (MP.net's claim option); the guests just connect, again and again, until the leader is there. While gathering
+//     a guest never hosts: if the leader's room vanishes they let go and knock again.
 //     When every listed member is in, or 12 s after the first guest arrived, the leader starts with who is there.
-//     Nobody after 20 s: back to the street. (A listed member who arrives late is sent the current floor.)
+//     Nobody after 20 s: back to the street. (A listed member who arrives late is sent the current floor by
+//     whoever hosts the room by then.)
 //  2. The world. A DUNGEON is 3 platforming floors (the tier's three areas, in an order picked by the seed; the
 //     game's floor numbers (tier-1)*10 + 2, 4 and 7, so the act's own themes, hazards and group sizes apply) and
 //     then the tier's boss arena (floor tier*10). A RAID is that boss arena alone, fought as enc.kind 'raid'.
@@ -29,25 +30,46 @@
 //     presence carries `tm`, a light description of the team ([species, level, shiny, coat gene, coat gene, blend]
 //     per animal, cleaned on receipt), and every client moves them itself as followers on the trail of that
 //     hero's eased position (walkers in a line, hopping where the hero hopped; flyers hover behind): no network
-//     traffic per pet. They are drawn a little dimmer, without health bars. Wild animals: the leader's game runs their
+//     traffic per pet. They are drawn a little dimmer, without health bars. Wild animals: the HOST's game (the room's host: the leader, until the leader goes) runs their
 //     roaming (they are curious about the nearest hero) and broadcasts 'c.wild' 5x/s; the others ease toward it.
-//     A hero touching a living group tells the leader ('c.touch'), who announces 'c.enc' and calls
+//     A hero touching a living group tells the host ('c.touch'), who announces 'c.enc' and calls
 //     MP.battle.hostBegin(enc): the world stands still for everyone and the shared battle opens for all.
 //     Won: that group is beaten for everyone ('c.beat'); the exit opens by the solo rule (half the groups).
 //     Lost: the dungeon has failed for everyone ('c.over'). The boss / raid boss beaten: 'c.done' (completion
 //     panel, +1 SAVE.rec.coopDungeons / coopRaids, a pet XP bonus), then back to the street.
 //  4. Leaving a floor: stand in the open exit ('c.door'). When everyone still here is at the door, or 10 s after
-//     the first one got there ('c.cd'), the leader starts the next floor for all. A new floor heals your own
+//     the first one got there ('c.cd'), the host starts the next floor for all. A new floor heals your own
 //     team by 25% like solo. Hazards hurt your own team only (they never knock a pet out), and every battle ends
 //     with the team back at full health, so nobody walks the dungeon with a fainted team.
 //  5. People leaving. A member who leaves ('c.bye' or a dropped connection) just drops out: the battle plays
 //     their pets (MP.battle.playerLeft), their hero disappears; the last player left may finish alone.
-//     The LEADER leaving (a 'host' change, 'closed' or 'error') ends the session for everyone with a friendly
-//     message: there is no host migration inside a dungeon in v1.
+//  6. The HOST leaving (the leader at first): HOST MIGRATION. The room elects a new host (MP.net: the oldest
+//     member claims the id, or its successor when the id is stuck) and the session goes on with that player as the
+//     authority; every '*' message below is accepted from the room's CURRENT host only (S.host follows it).
+//     What every client already has, so the new host simply carries on: the floor (index, seed, grid, checksum),
+//     which groups are beaten, who stands at the door ('c.door' goes to everyone) and the door countdown (every
+//     client counts it down itself), battles won, defeats. What only the old host had:
+//      - the wild animals' roaming: the new host starts simulating from where it last saw them;
+//      - S.cur (the floor as data, for 'c.need' and late joiners): rebuilt from the live floor (takeOver);
+//      - a floor change it had announced or was about to: the new host announces its own pending floor again
+//        (clients that already have it ignore that), or generates it if it was still fetching it;
+//      - a pending encounter and the BATTLE in progress: a battle cannot be handed over in v1. Everyone calls
+//        MP.battle.abort(), sees "The party leader left: the battle starts over", the group stays unbeaten and
+//        it does not count as a defeat. (A client already on the battle's result screen keeps that result.)
+//     The new host then sends 'c.floor' with its beaten list to all: a client on that floor only adds the groups it
+//     did not have as beaten. If the old host comes back (it was only offline), it joins as a guest and follows.
+//     Alone in the end: the last player goes on alone, hosting. A room that fails altogether is opened again
+//     (twice at most, this time anyone may claim); after that: "The connection to your party was lost."
+//     While GATHERING there is no migration: the leader leaving ('c.bye') sends everyone back to the street.
+//     Limits: clients may disagree for a moment about a battle that was decided at the very moment the host
+//     vanished (the result screen was up on some and not on others: the new host's list decides, a client never
+//     un-beats a group); a returning old host that ends up hosting again (it took the plain room id back while
+//     the others sat on a successor id, see mp/net.js) brings ITS floor with it, which may be behind.
 //
-//  MESSAGES (all validated; * = only accepted from the room's host)
+//  MESSAGES (all validated; * = only accepted from the room's current host)
 //   c.floor* { i, seed, sum, b: [beaten ids], tl } start floor i (generate it from seed; sum = its checksum;
-//                                                tl = the tiles changed so far, see c.tiles: for a late arrival)
+//                                                tl = the tiles changed so far, see c.tiles: for a late arrival);
+//                                                already on floor i: just mark the groups in b as beaten
 //   c.need   { i }                               guest -> host: my floor i came out different, send it whole
 //   c.full*  { i, p, of, d }                     the packed floor as JSON text, in pieces of 6000 characters
 //   c.wild*  { i, w: [id, x, y, face, vx, ...], ft } the living wild groups, 5x/s; ft = the leader's platform clock
@@ -116,8 +138,7 @@
           door: {}, cd: 0, wildT: 0, touchT: 0, pend: null, cur: null, result: null, myDoor: false, order: null, sums: {}, fulls: 0 };
     MP.coop.active = true;
     makeWorld();
-    S.retryT = info.leader === MP.net.uid ? 0 : 2;   /* (the leader gets a head start at claiming the room) */
-    if (!S.retryT) openRoom();
+    openRoom();
     return true;
   }
   // the co-op world: a run's G without the run (no SAVE.rec.runs, no backpack screen), starting in the antechamber
@@ -137,7 +158,8 @@
     G.mode = 'trans';
   }
   function openRoom() {
-    const s = S, room = MP.net.room({ id: 'bps-party-' + s.code, cap: 4, maxMsg: 60000, presence: profile(), on: ev => { if (S === s && s.room === room) onEv(ev); } });
+    // while gathering only the leader may claim the room; later (the room failed and is opened again) anyone may
+    const s = S, room = MP.net.room({ id: 'bps-party-' + s.code, cap: 4, maxMsg: 60000, claim: s.phase !== 'gather' || s.leader === MP.net.uid, presence: profile(), on: ev => { if (S === s && s.room === room) onEv(ev); } });
     s.room = room;
     try { room.join(); } catch (e) { console.error(e); }
   }
@@ -146,7 +168,7 @@
     if (!MP.battle || !S) return;
     const s = S;
     try {
-      if (MP.battle.attach) MP.battle.attach({ me: me(), isHost: () => S === s && amHost(), send: (msg, to) => { if (S === s) send(msg, to); }, ids: () => (S === s ? ids() : []), name: id => (S === s ? nameOf(id) : 'Friend') });
+      if (MP.battle.attach) MP.battle.attach({ me: me(), isHost: () => S === s && amHost(), host: () => (S === s && s.room ? s.room.hostId : null), send: (msg, to) => { if (S === s) send(msg, to); }, ids: () => (S === s ? ids() : []), name: id => (S === s ? nameOf(id) : 'Friend') });
       MP.battle.onEnd = r => { if (S === s) battleEnded(r || {}); };
     } catch (e) { console.error(e); }
   }
@@ -167,28 +189,66 @@
     if (why && G) showMsg(why, 4.5);
   }
   function leaveParty() { if (!S) return; send({ t: 'c.bye' }); end('You left the party.'); }
-  const leaderGone = () => end(S && S.phase === 'gather' ? 'The party leader left before you set out.' : 'The party leader left: back to the street. Your pets keep what they earned.');
+  const leaderGone = () => end('The party leader left before you set out.');
+  // ---------- host migration: the room has a new host and the session goes on (see 6. in the header) ----------
+  function hostNow() {
+    const was = S.host; S.host = S.room.hostId;
+    if (was && was !== S.host && (S.phase !== 'gather' || S.pend)) hostChanged();
+  }
+  function hostChanged() {
+    const decided = !!(B && B.coop && B.coop.result), fight = !decided && (!!S.enc || battleOn());
+    if (!decided) {
+      // a battle (or an encounter about to become one) cannot be handed over: it is called off, unbeaten, no defeat counted
+      try { if (MP.battle && MP.battle.abort) MP.battle.abort(); } catch (e) { console.error(e); }
+      S.enc = null; if (fight) S.grace = 2.5;
+      if (G.mode === 'battle' && !(B && B.coop)) G.mode = 'play';
+    }
+    for (const e of G.wild || []) e.tx = null;
+    if (S.phase === 'play') showMsg(fight ? 'The party leader left: the battle starts over.' : amHost() ? 'The party leader left: you lead the party now.' : `The party leader left: ${nameOf(S.host)} leads the party now.`, 4);
+    if (amHost()) takeOver();
+  }
+  // I am the authority now: rebuild what only a host keeps (S.cur) and tell everyone where the party is
+  function takeOver() {
+    if (S.phase !== 'play' && !S.pend) return;
+    let N = S.pend;
+    if (N && !N.F) {
+      // I was still fetching the next floor from the old host: mine is the floor now
+      let F = null; try { F = genFloor(N.i, mix(S.seed, N.i)); } catch (e) { console.error(e); }
+      if (!F) { end('The dungeon collapsed before you could enter (the floor could not be built).'); return; }
+      N.F = F; N.parts = null;
+      if (N.dark) { F.beaten = N.b; place(F, N.i); S.pend = N = null; G.fadeDir = -1; }
+    }
+    const i = N ? N.i : S.fl, F = N ? N.F : { R: G.room, wild: G.wild, sum: S.sums[i] };
+    if (i < 0) return;
+    let full = ''; try { full = JSON.stringify(packFloor(F)); } catch (e) { console.error(e); }
+    S.cur = { i, seed: mix(S.seed, i), F, full };
+    send(floorMsg());
+  }
 
   // ---------- the party room's events ----------
   function onEv(ev) {
     const room = S.room;
     if (ev.type === 'state') {
-      if (room.state === 'open') { attachBattle(); other(null); }
+      if (room.state === 'open') { S.lostN = 0; attachBattle(); other(null); hostNow(); }
       else if (room.state === 'error' || room.state === 'closed') lost();
-      else if (room.state === 'migrating' && S.phase !== 'gather' && S.leader !== me()) leaderGone();
+      else if (room.state === 'migrating') {
+        // gathering: a guest takes no part in a migration (only the leader may host): let go and knock again
+        if (S.phase === 'gather' && !S.pend) { if (S.leader !== me()) { S.room = null; S.others.clear(); S.firstGuest = null; S.retryT = 1; try { room.leave(); } catch (e) {} } }
+        else if (S.phase === 'play') showMsg('The party leader dropped out: finding the party again...', 4);
+      }
     } else if (ev.type === 'closed') lost();
-    else if (ev.type === 'host') { if (S.phase !== 'gather' && room.hostId !== S.leader) { if (S.leader === me()) end('The connection to your party was lost.'); else leaderGone(); } }
+    else if (ev.type === 'host') hostNow();
     else if (ev.type === 'join') { other(ev.id); if (amHost() && S.phase === 'play' && S.cur && S.listed.includes(ev.id)) send(floorMsg(), ev.id); }
     else if (ev.type === 'presence') other(ev.id, true);
-    else if (ev.type === 'leave') { if (ev.id === S.leader && S.phase !== 'gather') leaderGone(); else gone(ev.id); }
+    else if (ev.type === 'leave') gone(ev.id);
     else if (ev.type === 'msg') onMsg(ev.msg, ev.from);
   }
-  // the room closed or failed: while gathering we simply try again; later the session is over
+  // the room closed or failed: we open it again (while gathering for as long as the gathering lasts; later twice at most)
   function lost() {
-    if (!S) return;
-    if (S.phase === 'gather') { if (!S.retryT) S.retryT = 1.5; return; }
+    if (!S || S.retryT) return;
     if (S.phase === 'done' || S.phase === 'over') return;   /* (the result panel stays; its button leads to the street) */
-    if (S.leader === me()) end('The connection to your party was lost.'); else leaderGone();
+    if (S.phase !== 'gather' && (S.lostN = (S.lostN || 0) + 1) > 2) { end('The connection to your party was lost.'); return; }
+    S.retryT = 1.5;
   }
   // (re)read the members' profiles: other(null) = everyone, other(id) = one
   function other(id, fresh) {
@@ -216,13 +276,14 @@
   function onMsg(msg, from) {
     if (!msg || typeof msg !== 'object' || typeof msg.t !== 'string' || !S.listed.includes(from) || from === me()) return;
     if (msg.t.startsWith('b.')) { try { if (MP.battle && MP.battle.onMsg) MP.battle.onMsg(msg, from); } catch (e) { console.error(e); } return; }
-    const host = from === S.room.hostId && from === S.leader, i = int(msg.i, 0, S.nFloors - 1, -1);
+    const host = from === S.room.hostId, i = int(msg.i, 0, S.nFloors - 1, -1);
     switch (msg.t) {
-      case 'c.bye': if (from === S.leader) leaderGone(); else gone(from); break;
+      case 'c.bye': if (from === S.leader && S.phase === 'gather' && !S.pend) leaderGone(); else gone(from); break;
       case 'c.door': S.door[from] = { i, on: !!msg.on }; break;
       case 'c.touch': if (amHost() && i === S.fl) hostTouch(int(msg.w, 0, MAX_WILD - 1, -1), from); break;
       case 'c.need': if (amHost() && S.cur && i === S.cur.i) sendFull(from); break;
-      case 'c.floor': if (host && i >= 0) gotFloor(i, (+msg.seed || 0) >>> 0, (+msg.sum || 0) >>> 0, Array.isArray(msg.b) ? msg.b.slice(0, MAX_WILD).map(v => int(v, 0, MAX_WILD - 1)) : [], msg.tl); break;
+      case 'c.floor': if (host && i >= 0 && i === S.fl && !S.pend && Array.isArray(msg.b)) for (const w of msg.b.slice(0, MAX_WILD)) beat(int(w, 0, MAX_WILD - 1, -1));   /* (a new host's list after a migration) */
+        if (host && i >= 0) gotFloor(i, (+msg.seed || 0) >>> 0, (+msg.sum || 0) >>> 0, Array.isArray(msg.b) ? msg.b.slice(0, MAX_WILD).map(v => int(v, 0, MAX_WILD - 1)) : [], msg.tl); break;
       case 'c.full': if (host) gotPiece(i, int(msg.p, 0, 15), int(msg.of, 1, 16), msg.d); break;
       case 'c.wild': if (host && i === S.fl && Array.isArray(msg.w)) { gotWild(msg.w); gotClock(msg.ft); } break;
       case 'c.tile': if (i >= 0) gotTiles(from, i, msg.e); break;
@@ -658,14 +719,8 @@
     const leader = S.leader === me(), here = open ? ids() : [me()], need = Math.min(2, S.listed.length);   /* (a party of one: only the hub's debug switch makes those) */
     if (S.t > GATHER_MAX && here.length < need && !S.pend) { end('Nobody else made it to the party: back to the street.'); return; }
     if (S.t > GATHER_MAX + 16 && !S.pend) { end('The party never set out: back to the street.'); return; }
-    // the room is hosted by somebody who is not the leader (a guest got there first): everyone lets go of it and
-    // comes back a little later, each guest at its own moment, so the id is free for the leader to claim
-    if (open && room.hostId !== S.leader) {
-      S.tries = (S.tries || 0) + 1; S.retryT = leader ? 0.6 : 2 + 0.7 * S.listed.indexOf(me()) + 0.5 * Math.min(4, S.tries);
-      S.room = null; S.others.clear(); S.firstGuest = null;
-      try { room.leave(); } catch (e) {}
-      return;
-    }
+    // (a room hosted by somebody who is not the leader is a session already under way after a host migration: its
+    // host sends this late arrival the current floor)
     if (here.length > 1 && S.firstGuest == null) S.firstGuest = S.t;
     if (leader && open && room.isHost && !S.pend) {
       if (here.length >= need && (here.length >= S.listed.length || S.t - S.firstGuest > GATHER_GO)) { hostFloor(0); S.pend.go = true; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door'); return; }
