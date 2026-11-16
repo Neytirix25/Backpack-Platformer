@@ -4134,12 +4134,21 @@ function smashWalls(P) {
     if (sp.kind !== 'barrier' || sp.broken) continue;
     const wr = { x: sp.x0 * TILE, y: (sp.y0 ?? 1) * TILE, w: (sp.x1 - sp.x0 + 1) * TILE, h: ((sp.y1 ?? R.floorTop - 1) - (sp.y0 ?? 1) + 1) * TILE };
     if (!overlap(box, wr)) continue;
-    sp.broken = true;
-    for (let y = sp.y0 ?? 1; y <= (sp.y1 ?? R.floorTop - 1); y++) for (let x = sp.x0; x <= sp.x1; x++) if (tileAt(x, y) === PHASE) R.grid[y * R.cols + x] = EMPTY;
-    const W0 = dashWallOf(R);
-    for (let i = 0; i < 26; i++) { const yy = rand(Math.max(wr.y, P.y - 60), Math.min(wr.y + wr.h, P.y + P.h + 40)); G.parts.push({ x: wr.x + rand(0, wr.w), y: yy, vx: d * rand(60, 260) + rand(-40, 40), vy: rand(-260, -40), life: rand(0.5, 1), max: 1, color: pick(W0.bits), size: rand(3, 6), grav: 900 }); }
-    G.shake = Math.max(G.shake || 0, 5); SFX.play(R.act === 2 ? 'flame' : 'thud');
+    breakDashWall(sp, d, P.y);
+    // MP: a wall smashed in co-op is smashed for the whole party
+    if (G.coop && MP.coop && MP.coop.tile) MP.coop.tile('w', R.dashSpots.indexOf(sp), d, P.y);
   }
+}
+// the wall `sp` goes down, hit at height py by something moving in direction d; `far` = somebody else broke it (co-op):
+// the same splinters and thud when it is on screen, silently otherwise
+function breakDashWall(sp, d, py, far) {
+  const R = G.room, wr = { x: sp.x0 * TILE, y: (sp.y0 ?? 1) * TILE, w: (sp.x1 - sp.x0 + 1) * TILE, h: ((sp.y1 ?? R.floorTop - 1) - (sp.y0 ?? 1) + 1) * TILE };
+  sp.broken = true;
+  for (let y = sp.y0 ?? 1; y <= (sp.y1 ?? R.floorTop - 1); y++) for (let x = sp.x0; x <= sp.x1; x++) if (tileAt(x, y) === PHASE) R.grid[y * R.cols + x] = EMPTY;
+  if (far && !inView(wr.x, clamp(py, wr.y, wr.y + wr.h), 120)) return;
+  const W0 = dashWallOf(R);
+  for (let i = 0; i < 26; i++) { const yy = rand(Math.max(wr.y, py - 60), Math.min(wr.y + wr.h, py + 86)); G.parts.push({ x: wr.x + rand(0, wr.w), y: yy, vx: d * rand(60, 260) + rand(-40, 40), vy: rand(-260, -40), life: rand(0.5, 1), max: 1, color: pick(W0.bits), size: rand(3, 6), grav: 900 }); }
+  G.shake = Math.max(G.shake || 0, far ? 2 : 5); SFX.play(R.act === 2 ? 'flame' : 'thud');
 }
 // y of the floor under a point (for dropping chests etc.)
 function groundBelow(x, y) {
@@ -4195,7 +4204,9 @@ function updateHazards(dt) {
       if (inView(tx * TILE, ty * TILE)) SFX.play('crumble');
     } else if (c.state === 'gone' && c.t <= 0) {
       const tx = k % R.cols, ty = Math.floor(k / R.cols);
-      if (!overlap(P, { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE })) { setTile(R, tx, ty, CRUMBLE); R.crumbles.delete(k); }
+      // MP: (in co-op a block does not grow back inside another player's hero either)
+      const cr = { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE };
+      if (!overlap(P, cr) && !(G.coop && MP.coop && MP.coop.heroIn && MP.coop.heroIn(cr))) { setTile(R, tx, ty, CRUMBLE); R.crumbles.delete(k); }
     }
   }
 }
@@ -4221,10 +4232,12 @@ function vineUnder(o) {
   for (let ty = Math.floor((o.y + 4) / TILE); ty <= Math.floor((o.y + o.h - 2) / TILE); ty++) if (tileAt(tx, ty) === VINE) return true;
   return false;
 }
-function startCrumble(tx, ty) {
+function startCrumble(tx, ty, far) {   // far = seconds since another player's hero set it off (co-op), undefined = mine
   const R = G.room, k = ty * R.cols + tx;
   if (tileAt(tx, ty) !== CRUMBLE || R.crumbles.has(k)) return;
-  R.crumbles.set(k, { state: 'shake', t: 0.45 });
+  R.crumbles.set(k, { state: 'shake', t: 0.45 - (far || 0) });
+  // MP: a block crumbling under my hero crumbles for the whole party
+  if (far === undefined && G.coop && MP.coop && MP.coop.tile) MP.coop.tile('c', tx, ty);
 }
 function checkPlayerHazards() {
   const P = G.player, R = G.room;
