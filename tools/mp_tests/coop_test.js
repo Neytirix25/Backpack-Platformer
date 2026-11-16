@@ -179,11 +179,14 @@ const TESTS = {
     startAll(gs, inf, [B, C, D]); await frames([B, C, D], 200);
     ok([B, C, D].some(g => g.run('!!MP.coop.state().room && MP.coop.state().room.isHost')) || [B, C, D].some(g => g.run('MP.coop.state().retryT > 0')), 'a guest claimed the party room before the leader arrived');
     startAll(gs, inf, [A]);
+    // ...and the leader's first answer to 'c.need' gets lost on the way: the guest asks again
+    A.run("(() => { const r = MP.coop.state().room, s = r.send; window.__lostFull = 0; r.send = (m, to) => (m && m.t === 'c.full' && !window.__lostFull++ ? true : s(m, to)); })()");
     const f0 = FRAME; await until(gs, () => gs.every(g => fl(g) === 0 && g.run('G.mode') === 'play'), 3000, 'everyone on floor 1');
     MEM.lag = 0; console.log('  (guests first, id lag 1.5 s: everyone on floor 1 ' + ((FRAME - f0) / 60).toFixed(1) + ' s after the leader started)');
     ok(host(gs) === A, 'the leader ends up hosting even when the guests started first');
     ok(gs.every(g => gridSig(g) === gridSig(A)), 'floor 1 identical on all four (one through the full-floor fallback)');
     ok(C.run('MP.coop.state().fulls') === 1 && B.run('MP.coop.state().fulls') === 0, 'only the client whose checksum differed fetched the full floor');
+    ok(A.run('window.__lostFull') >= 2, 'a lost full-floor answer is asked for again');
     ok(C.run('G.wild.length') === A.run('G.wild.length') && C.run('G.wild.map(e => e.k + Math.round(e.homeX)).join()') === A.run('G.wild.map(e => e.k + Math.round(e.homeX)).join()'), 'the fetched floor has the same wild groups');
     ok(C.run('(G.room.plants || []).length') === A.run('G.room.plants.length') && C.run('(G.room.movers || []).length') === A.run('(G.room.movers || []).length') && C.run('G.room.vents.length') === A.run('G.room.vents.length'), 'and the same plants, platforms and vents');
     ok(A.run('MP.coop.ids().length') === 4, 'four players in the session');

@@ -492,6 +492,13 @@
         else { o.P.x += (o.tx - o.P.x) * k; o.P.y += (o.ty - o.P.y) * k; }
       }
     }
+    // still waiting for the whole floor from the leader: ask again every 4 s, give up after the third time
+    const N = S.pend;
+    if (N && !N.F && open && (N.wait = (N.wait || 0) + dt) > 4) {
+      N.wait = 0; N.parts = null;
+      if ((N.asks = (N.asks || 0) + 1) > 3) { end('The dungeon could not be shared with your game: back to the street.'); return; }
+      send({ t: 'c.need', i: N.i }, room.hostId);
+    }
     if (S.phase !== 'play') return;
     const busy = !!S.enc || battleOn(), world = G.mode === 'play' || G.mode === 'pause';
     // the next floor is waiting: fade out as soon as this player is back in the world
