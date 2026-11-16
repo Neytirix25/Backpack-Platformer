@@ -7,11 +7,12 @@
 //
 //  HOW A SESSION GOES
 //  1. Gathering. start() leaves the hub, builds a little antechamber (the co-op world: G.coop is set, NOT G.hub; no
-//     backpack, no chests, no solo records) and opens the party room 'bps-party-<code>'. The LEADER claims it (the
-//     guests wait 2 s before their first try); if a guest got there first and became the room's host, everyone
-//     lets go of that room and tries again a little later, until the leader hosts.
+//     backpack, no chests, no solo records) and opens the party room 'bps-party-<code>'. Only the LEADER claims it
+//     (MP.net's claim option); the guests just connect, again and again, until the leader is there. While gathering
+//     a guest never hosts: if the leader's room vanishes they let go and knock again.
 //     When every listed member is in, or 12 s after the first guest arrived, the leader starts with who is there.
-//     Nobody after 20 s: back to the street. (A listed member who arrives late is sent the current floor.)
+//     Nobody after 20 s: back to the street. (A listed member who arrives late is sent the current floor by
+//     whoever hosts the room by then.)
 //  2. The world. A DUNGEON is 3 platforming floors (the tier's three areas, in an order picked by the seed; the
 //     game's floor numbers (tier-1)*10 + 2, 4 and 7, so the act's own themes, hazards and group sizes apply) and
 //     then the tier's boss arena (floor tier*10). A RAID is that boss arena alone, fought as enc.kind 'raid'.
@@ -19,29 +20,63 @@
 //     the floors are identical; the leader sends a checksum with 'c.floor', and a client whose floor came out
 //     different (another browser's sort, a different build) asks for the whole floor ('c.need' -> 'c.full').
 //     No chests, cages, loot or eggs. Buff plants stay: they are personal (each player picks their own).
-//     Crumbling blocks, smash walls and moving platforms are simulated locally by each client (v1).
-//  3. Sync. Heroes: room.setFast({ x, y, vx, vy, f, g, fl }) and the others are drawn as paper-doll heroes, eased
-//     toward their latest position. Pet followers are local only. Wild animals: the leader's game runs their
+//     The level changes for everyone: a smash wall broken or a block crumbling under ONE player's hero is told to
+//     all ('c.tile', batched 10x/s) and applied by every client (same effect when on screen, quietly otherwise; a
+//     block grows back 4 s after it fell, as in solo, and not inside anybody's hero). The leader's 'c.floor' for a
+//     late arrival, and a 'c.tiles' after every full floor it sends, carry what has changed so far. Moving
+//     platforms and fire vents run on each client's own clock, eased toward the leader's (`ft` in 'c.wild').
+//  3. Sync. Heroes: room.setFast({ x, y, vx, vy, f, g, fl, h }) (h = my team's health, 0-100, for the party list) and
+//     the others are drawn as paper-doll heroes, eased toward their latest position. Their PETS: each player's
+//     presence carries `tm`, a light description of the team ([species, level, shiny, coat gene, coat gene, blend]
+//     per animal, cleaned on receipt), and every client moves them itself as followers on the trail of that
+//     hero's eased position (walkers in a line, hopping where the hero hopped; flyers hover behind): no network
+//     traffic per pet. They are drawn a little dimmer, without health bars. Wild animals: the HOST's game (the room's host: the leader, until the leader goes) runs their
 //     roaming (they are curious about the nearest hero) and broadcasts 'c.wild' 5x/s; the others ease toward it.
-//     A hero touching a living group tells the leader ('c.touch'), who announces 'c.enc' and calls
+//     A hero touching a living group tells the host ('c.touch'), who announces 'c.enc' and calls
 //     MP.battle.hostBegin(enc): the world stands still for everyone and the shared battle opens for all.
 //     Won: that group is beaten for everyone ('c.beat'); the exit opens by the solo rule (half the groups).
 //     Lost: the dungeon has failed for everyone ('c.over'). The boss / raid boss beaten: 'c.done' (completion
 //     panel, +1 SAVE.rec.coopDungeons / coopRaids, a pet XP bonus), then back to the street.
 //  4. Leaving a floor: stand in the open exit ('c.door'). When everyone still here is at the door, or 10 s after
-//     the first one got there ('c.cd'), the leader starts the next floor for all. A new floor heals your own
-//     team by 25% like solo. Hazards hurt your own team only (they never knock a pet out); if your whole team
-//     has fainted after a battle the party won, they get back up at 30% where you stand.
+//     the first one got there ('c.cd'), the host starts the next floor for all. A new floor heals your own
+//     team by 25% like solo. Hazards hurt your own team only (they never knock a pet out), and every battle ends
+//     with the team back at full health, so nobody walks the dungeon with a fainted team.
 //  5. People leaving. A member who leaves ('c.bye' or a dropped connection) just drops out: the battle plays
 //     their pets (MP.battle.playerLeft), their hero disappears; the last player left may finish alone.
-//     The LEADER leaving (a 'host' change, 'closed' or 'error') ends the session for everyone with a friendly
-//     message: there is no host migration inside a dungeon in v1.
+//  6. The HOST leaving (the leader at first): HOST MIGRATION. The room elects a new host (MP.net: the oldest
+//     member claims the id, or its successor when the id is stuck) and the session goes on with that player as the
+//     authority; every '*' message below is accepted from the room's CURRENT host only (S.host follows it).
+//     What every client already has, so the new host simply carries on: the floor (index, seed, grid, checksum),
+//     which groups are beaten, who stands at the door ('c.door' goes to everyone) and the door countdown (every
+//     client counts it down itself), battles won, defeats. What only the old host had:
+//      - the wild animals' roaming: the new host starts simulating from where it last saw them;
+//      - S.cur (the floor as data, for 'c.need' and late joiners): rebuilt from the live floor (takeOver);
+//      - a floor change it had announced or was about to: the new host announces its own pending floor again
+//        (clients that already have it ignore that), or generates it if it was still fetching it;
+//      - a pending encounter and the BATTLE in progress: a battle cannot be handed over in v1. Everyone calls
+//        MP.battle.abort(), sees "The party leader left: the battle starts over", the group stays unbeaten and
+//        it does not count as a defeat. (A client already on the battle's result screen keeps that result.)
+//     The new host then sends 'c.floor' with its beaten list to all: a client on that floor only adds the groups it
+//     did not have as beaten. If the old host comes back (it was only offline), it joins as a guest and follows.
+//     Alone in the end: the last player goes on alone, hosting. A room that fails altogether is opened again
+//     (twice at most, this time anyone may claim); after that: "The connection to your party was lost."
+//     While GATHERING there is no migration: the leader leaving ('c.bye') sends everyone back to the street.
+//     Limits: clients may disagree for a moment about a battle that was decided at the very moment the host
+//     vanished (the result screen was up on some and not on others: the new host's list decides, a client never
+//     un-beats a group); a returning old host that ends up hosting again (it took the plain room id back while
+//     the others sat on a successor id, see mp/net.js) brings ITS floor with it, which may be behind.
 //
-//  MESSAGES (all validated; * = only accepted from the room's host)
-//   c.floor* { i, seed, sum, b: [beaten ids] }   start floor i (generate it from seed; sum = its checksum)
+//  MESSAGES (all validated; * = only accepted from the room's current host)
+//   c.floor* { i, seed, sum, b: [beaten ids], tl } start floor i (generate it from seed; sum = its checksum;
+//                                                tl = the tiles changed so far, see c.tiles: for a late arrival);
+//                                                already on floor i: just mark the groups in b as beaten
 //   c.need   { i }                               guest -> host: my floor i came out different, send it whole
 //   c.full*  { i, p, of, d }                     the packed floor as JSON text, in pieces of 6000 characters
-//   c.wild*  { i, w: [id, x, y, face, vx, ...] } the living wild groups, 5x/s
+//   c.wild*  { i, w: [id, x, y, face, vx, ...], ft } the living wild groups, 5x/s; ft = the leader's platform clock
+//   c.tile   { i, e: [[0, tx, ty, age], [1, wall, dir, y], ...] }  my hero set off the crumbling block (tx, ty) `age`
+//                                                hundredths of a second ago / smashed dash wall number `wall`
+//   c.tiles* { i, tl: { w: [walls broken], c: [[tx, ty, state, t], ...] } }  everything changed on floor i so far
+//                                                (state 0 = shaking, 1 = fallen; t = tenths of a second left)
 //   c.touch  { i, w }                            guest -> host: my hero touched group w
 //   c.enc*   { i, w, by }                        the encounter begins (group w, touched by `by`)
 //   c.encx*  { i }                               the encounter was called off (the battle never opened)
@@ -54,6 +89,7 @@
 //  Everything whose t starts with 'b.' is handed to MP.battle.onMsg(msg, from).
 //
 //  Hooks in index.html (all marked `// MP:`): logRun / abandonRun (no records), updatePlayer's exit, updateWild,
+//  smashWalls / startCrumble / updateHazards (the shared tiles),
 //  update()'s 'play' and 'trans' cases, drawHUD / drawPortraitHUD, the pause menu (pauseItems, pauseDo, its texts),
 //  onMouseDown, tryOpenPack / openPetsMenu.
 // =====================================================================
@@ -102,8 +138,7 @@
           door: {}, cd: 0, wildT: 0, touchT: 0, pend: null, cur: null, result: null, myDoor: false, order: null, sums: {}, fulls: 0 };
     MP.coop.active = true;
     makeWorld();
-    S.retryT = info.leader === MP.net.uid ? 0 : 2;   /* (the leader gets a head start at claiming the room) */
-    if (!S.retryT) openRoom();
+    openRoom();
     return true;
   }
   // the co-op world: a run's G without the run (no SAVE.rec.runs, no backpack screen), starting in the antechamber
@@ -123,7 +158,8 @@
     G.mode = 'trans';
   }
   function openRoom() {
-    const s = S, room = MP.net.room({ id: 'bps-party-' + s.code, cap: 4, maxMsg: 60000, presence: profile(), on: ev => { if (S === s && s.room === room) onEv(ev); } });
+    // while gathering only the leader may claim the room; later (the room failed and is opened again) anyone may
+    const s = S, room = MP.net.room({ id: 'bps-party-' + s.code, cap: 4, maxMsg: 60000, claim: s.phase !== 'gather' || s.leader === MP.net.uid, presence: profile(), on: ev => { if (S === s && s.room === room) onEv(ev); } });
     s.room = room;
     try { room.join(); } catch (e) { console.error(e); }
   }
@@ -132,7 +168,7 @@
     if (!MP.battle || !S) return;
     const s = S;
     try {
-      if (MP.battle.attach) MP.battle.attach({ me: me(), isHost: () => S === s && amHost(), send: (msg, to) => { if (S === s) send(msg, to); }, ids: () => (S === s ? ids() : []), name: id => (S === s ? nameOf(id) : 'Friend') });
+      if (MP.battle.attach) MP.battle.attach({ me: me(), isHost: () => S === s && amHost(), host: () => (S === s && s.room ? s.room.hostId : null), send: (msg, to) => { if (S === s) send(msg, to); }, ids: () => (S === s ? ids() : []), name: id => (S === s ? nameOf(id) : 'Friend') });
       MP.battle.onEnd = r => { if (S === s) battleEnded(r || {}); };
     } catch (e) { console.error(e); }
   }
@@ -153,28 +189,66 @@
     if (why && G) showMsg(why, 4.5);
   }
   function leaveParty() { if (!S) return; send({ t: 'c.bye' }); end('You left the party.'); }
-  const leaderGone = () => end(S && S.phase === 'gather' ? 'The party leader left before you set out.' : 'The party leader left: back to the street. Your pets keep what they earned.');
+  const leaderGone = () => end('The party leader left before you set out.');
+  // ---------- host migration: the room has a new host and the session goes on (see 6. in the header) ----------
+  function hostNow() {
+    const was = S.host; S.host = S.room.hostId;
+    if (was && was !== S.host && (S.phase !== 'gather' || S.pend)) hostChanged();
+  }
+  function hostChanged() {
+    const decided = !!(B && B.coop && B.coop.result), fight = !decided && (!!S.enc || battleOn());
+    if (!decided) {
+      // a battle (or an encounter about to become one) cannot be handed over: it is called off, unbeaten, no defeat counted
+      try { if (MP.battle && MP.battle.abort) MP.battle.abort(); } catch (e) { console.error(e); }
+      S.enc = null; if (fight) S.grace = 2.5;
+      if (G.mode === 'battle' && !(B && B.coop)) G.mode = 'play';
+    }
+    for (const e of G.wild || []) e.tx = null;
+    if (S.phase === 'play') showMsg(fight ? 'The party leader left: the battle starts over.' : amHost() ? 'The party leader left: you lead the party now.' : `The party leader left: ${nameOf(S.host)} leads the party now.`, 4);
+    if (amHost()) takeOver();
+  }
+  // I am the authority now: rebuild what only a host keeps (S.cur) and tell everyone where the party is
+  function takeOver() {
+    if (S.phase !== 'play' && !S.pend) return;
+    let N = S.pend;
+    if (N && !N.F) {
+      // I was still fetching the next floor from the old host: mine is the floor now
+      let F = null; try { F = genFloor(N.i, mix(S.seed, N.i)); } catch (e) { console.error(e); }
+      if (!F) { end('The dungeon collapsed before you could enter (the floor could not be built).'); return; }
+      N.F = F; N.parts = null;
+      if (N.dark) { F.beaten = N.b; place(F, N.i); S.pend = N = null; G.fadeDir = -1; }
+    }
+    const i = N ? N.i : S.fl, F = N ? N.F : { R: G.room, wild: G.wild, sum: S.sums[i] };
+    if (i < 0) return;
+    let full = ''; try { full = JSON.stringify(packFloor(F)); } catch (e) { console.error(e); }
+    S.cur = { i, seed: mix(S.seed, i), F, full };
+    send(floorMsg());
+  }
 
   // ---------- the party room's events ----------
   function onEv(ev) {
     const room = S.room;
     if (ev.type === 'state') {
-      if (room.state === 'open') { attachBattle(); other(null); }
+      if (room.state === 'open') { S.lostN = 0; attachBattle(); other(null); hostNow(); }
       else if (room.state === 'error' || room.state === 'closed') lost();
-      else if (room.state === 'migrating' && S.phase !== 'gather' && S.leader !== me()) leaderGone();
+      else if (room.state === 'migrating') {
+        // gathering: a guest takes no part in a migration (only the leader may host): let go and knock again
+        if (S.phase === 'gather' && !S.pend) { if (S.leader !== me()) { S.room = null; S.others.clear(); S.firstGuest = null; S.retryT = 1; try { room.leave(); } catch (e) {} } }
+        else if (S.phase === 'play') showMsg('The party leader dropped out: finding the party again...', 4);
+      }
     } else if (ev.type === 'closed') lost();
-    else if (ev.type === 'host') { if (S.phase !== 'gather' && room.hostId !== S.leader) { if (S.leader === me()) end('The connection to your party was lost.'); else leaderGone(); } }
+    else if (ev.type === 'host') hostNow();
     else if (ev.type === 'join') { other(ev.id); if (amHost() && S.phase === 'play' && S.cur && S.listed.includes(ev.id)) send(floorMsg(), ev.id); }
     else if (ev.type === 'presence') other(ev.id, true);
-    else if (ev.type === 'leave') { if (ev.id === S.leader && S.phase !== 'gather') leaderGone(); else gone(ev.id); }
+    else if (ev.type === 'leave') gone(ev.id);
     else if (ev.type === 'msg') onMsg(ev.msg, ev.from);
   }
-  // the room closed or failed: while gathering we simply try again; later the session is over
+  // the room closed or failed: we open it again (while gathering for as long as the gathering lasts; later twice at most)
   function lost() {
-    if (!S) return;
-    if (S.phase === 'gather') { if (!S.retryT) S.retryT = 1.5; return; }
+    if (!S || S.retryT) return;
     if (S.phase === 'done' || S.phase === 'over') return;   /* (the result panel stays; its button leads to the street) */
-    if (S.leader === me()) end('The connection to your party was lost.'); else leaderGone();
+    if (S.phase !== 'gather' && (S.lostN = (S.lostN || 0) + 1) > 2) { end('The connection to your party was lost.'); return; }
+    S.retryT = 1.5;
   }
   // (re)read the members' profiles: other(null) = everyone, other(id) = one
   function other(id, fresh) {
@@ -202,15 +276,18 @@
   function onMsg(msg, from) {
     if (!msg || typeof msg !== 'object' || typeof msg.t !== 'string' || !S.listed.includes(from) || from === me()) return;
     if (msg.t.startsWith('b.')) { try { if (MP.battle && MP.battle.onMsg) MP.battle.onMsg(msg, from); } catch (e) { console.error(e); } return; }
-    const host = from === S.room.hostId && from === S.leader, i = int(msg.i, 0, S.nFloors - 1, -1);
+    const host = from === S.room.hostId, i = int(msg.i, 0, S.nFloors - 1, -1);
     switch (msg.t) {
-      case 'c.bye': if (from === S.leader) leaderGone(); else gone(from); break;
+      case 'c.bye': if (from === S.leader && S.phase === 'gather' && !S.pend) leaderGone(); else gone(from); break;
       case 'c.door': S.door[from] = { i, on: !!msg.on }; break;
       case 'c.touch': if (amHost() && i === S.fl) hostTouch(int(msg.w, 0, MAX_WILD - 1, -1), from); break;
       case 'c.need': if (amHost() && S.cur && i === S.cur.i) sendFull(from); break;
-      case 'c.floor': if (host && i >= 0) gotFloor(i, (+msg.seed || 0) >>> 0, (+msg.sum || 0) >>> 0, Array.isArray(msg.b) ? msg.b.slice(0, MAX_WILD).map(v => int(v, 0, MAX_WILD - 1)) : []); break;
+      case 'c.floor': if (host && i >= 0 && i === S.fl && !S.pend && Array.isArray(msg.b)) for (const w of msg.b.slice(0, MAX_WILD)) beat(int(w, 0, MAX_WILD - 1, -1));   /* (a new host's list after a migration) */
+        if (host && i >= 0) gotFloor(i, (+msg.seed || 0) >>> 0, (+msg.sum || 0) >>> 0, Array.isArray(msg.b) ? msg.b.slice(0, MAX_WILD).map(v => int(v, 0, MAX_WILD - 1)) : [], msg.tl); break;
       case 'c.full': if (host) gotPiece(i, int(msg.p, 0, 15), int(msg.of, 1, 16), msg.d); break;
-      case 'c.wild': if (host && i === S.fl && Array.isArray(msg.w)) gotWild(msg.w); break;
+      case 'c.wild': if (host && i === S.fl && Array.isArray(msg.w)) { gotWild(msg.w); gotClock(msg.ft); } break;
+      case 'c.tile': if (i >= 0) gotTiles(from, i, msg.e); break;
+      case 'c.tiles': if (host && i >= 0) gotSnap(i, msg.tl); break;
       case 'c.enc': if (host && i === S.fl) encounter(int(msg.w, 0, MAX_WILD - 1, -1), idOk(msg.by) ? msg.by : from); break;
       case 'c.encx': if (host && S.enc && !battleOn()) { S.enc = null; S.grace = 1.5; } break;
       case 'c.beat': if (host && i >= 0) { if (i === S.fl) beat(int(msg.w, 0, MAX_WILD - 1, -1)); else if (S.pend && S.pend.i === i) S.pend.b.push(int(msg.w, 0, MAX_WILD - 1)); if (S.enc && !battleOn()) { S.enc = null; S.grace = 1.2; } } break;
@@ -331,6 +408,10 @@
     const R = F.R, P = G.player;
     G.room = R; G.wild = F.wild; G.enemies = []; G.proj = []; G.texts = []; G.corpses = []; G.roomNum = R.n; G.enc = null;
     if (i > 0) healTeam(0.25);
+    // what the party already changed on this floor (I arrive late), then what was reported while it was on its way
+    S.tq = []; S.tqT = 0; S.cdel = 0;
+    if (i >= 0) { applySnap(F.tl, S.t - (F.tlT || S.t)); for (const [at, ev] of F.tq || []) applyLate(ev, S.t - at); }
+    F.tl = F.tq = null;
     R.terrain = bakeTerrain(R); R.mini = i < 0 ? null : bakeMinimap(R);
     P.x = R.entry.x - P.w / 2; P.y = R.entry.y - P.h; P.vx = P.vy = P.kb = 0; P.trail = []; P.dashT = 0; P.onGround = true; P.safeX = P.safeY = null; P.climbing = false;
     syncPets(); petsEnterRoom(); snapCamera();
@@ -342,7 +423,7 @@
     }
   }
   // the leader starts floor i for everyone
-  const floorMsg = () => ({ t: 'c.floor', i: S.cur.i, seed: S.cur.seed, sum: S.cur.F.sum, b: S.cur.i === S.fl ? G.wild.filter(e => e.beaten).map(e => e.id) : [] });
+  const floorMsg = () => ({ t: 'c.floor', i: S.cur.i, seed: S.cur.seed, sum: S.cur.F.sum, b: S.cur.i === S.fl ? G.wild.filter(e => e.beaten).map(e => e.id) : [], tl: S.cur.i === S.fl ? tileSnap() : undefined });
   function hostFloor(i) {
     const seed = mix(S.seed, i), F = genFloor(i, seed);
     if (!F) { end('The dungeon collapsed before you could enter (the floor could not be built).'); return; }
@@ -353,11 +434,12 @@
   function sendFull(to) {
     const s = S.cur.full, of = Math.ceil(s.length / PIECE);
     for (let p = 0; p < of; p++) send({ t: 'c.full', i: S.cur.i, p, of, d: s.slice(p * PIECE, (p + 1) * PIECE) }, to);
+    if (S.cur.i === S.fl) send({ t: 'c.tiles', i: S.cur.i, tl: tileSnap() }, to);   /* (the packed floor is the untouched one) */
   }
-  function gotFloor(i, seed, sum, b) {
+  function gotFloor(i, seed, sum, b, tl) {
     if (amHost() || (i === S.fl && !S.pend) || (S.pend && S.pend.i === i)) return;
     let F = null; try { F = genFloor(i, seed); } catch (e) { console.error(e); }
-    S.pend = { i, F: F && F.sum === sum ? F : null, b, sum, parts: null };
+    S.pend = { i, F: F && F.sum === sum ? F : null, b, sum, parts: null, tl: cleanSnap(tl), tlT: S.t, tq: [] };
     if (!S.pend.F) send({ t: 'c.need', i }, S.room.hostId);
   }
   function gotPiece(i, p, of, d) {
@@ -369,13 +451,100 @@
     N.parts = null;
     if (!F) { end('The dungeon could not be shared with your game: back to the street.'); return; }
     F.sum = N.sum; N.F = F; S.fulls++;
-    if (N.dark) { N.F.beaten = N.b; place(N.F, i); S.pend = null; G.fadeDir = -1; }
+    if (N.dark) { N.F.beaten = N.b; N.F.tl = N.tl; N.F.tlT = N.tlT; N.F.tq = N.tq; place(N.F, i); S.pend = null; G.fadeDir = -1; }
   }
   // the dark moment of the fade (update()'s 'trans' case): the next floor goes in, or we wait in the dark for it
   function mid() {
     const N = S && S.pend; if (!N) return;
     if (!N.F) { N.dark = true; G.fadeDir = 0; return; }
-    N.F.beaten = N.b; place(N.F, N.i); S.pend = null;
+    N.F.beaten = N.b; N.F.tl = N.tl; N.F.tlT = N.tlT; N.F.tq = N.tq; place(N.F, N.i); S.pend = null;
+  }
+
+  // ---------- the level's changing tiles: crumbling blocks and smash walls are the same for everyone ----------
+  const TILE_RATE = 20, TILE_BURST = 40, SNAP_C = 200;
+  // index.html's hooks: my hero set off the block (a, b) / smashed dash wall number a (moving in direction b, at height c)
+  function tile(kind, a, b, c) {
+    if (!S || !G || G.coop !== S || S.fl < 0) return;
+    const q = S.tq || (S.tq = []);
+    if (q.length < 48) q.push(kind === 'w' ? [1, a, b < 0 ? -1 : 1, Math.round(c) || 0] : [0, a, b, S.t]);
+  }
+  // ...sent together 10 times a second (running over a row of blocks sets off a dozen a second)
+  function flushTiles(dt) {
+    const q = S.tq; if (!q || !q.length || (S.tqT = (S.tqT || 0) - dt) > 0) return;
+    S.tqT = 0.1;
+    send({ t: 'c.tile', i: S.fl, e: q.splice(0, 24).map(e => (e[0] ? e : [0, e[1], e[2], clamp(Math.round((S.t - e[3]) * 100), 0, 40)])) });
+  }
+  // somebody else's: checked against my own copy of the floor (inside the grid, a block that is still there, a wall
+  // that still stands) and rate-limited per player; on the floor I am about to enter they wait for it
+  function gotTiles(from, i, e) {
+    if (!Array.isArray(e) || !S.others.has(from)) return;
+    const tb = S.tb || (S.tb = {}), b = tb[from] || (tb[from] = { n: TILE_BURST, t: S.t });
+    b.n = Math.min(TILE_BURST, b.n + (S.t - b.t) * TILE_RATE); b.t = S.t;
+    for (const ev of e.slice(0, 24)) {
+      if (!Array.isArray(ev) || (b.n -= 1) < 0) { b.n = Math.max(b.n, -TILE_BURST); continue; }
+      if (S.pend && S.pend.i === i && i !== S.fl) { if (S.pend.tq && S.pend.tq.length < 96) S.pend.tq.push([S.t, ev.slice(0, 4)]); }
+      else if (i === S.fl) applyTile(ev, false);
+    }
+  }
+  function applyTile(ev, quiet) {
+    const R = G.room, a = ev[1], b = ev[2]; if (!R || !R.grid || !Number.isInteger(a)) return false;
+    if (ev[0] === 0) {
+      if (!Number.isInteger(b) || a < 0 || b < 0 || a >= R.cols || b >= R.rows || R.grid[b * R.cols + a] !== CRUMBLE || R.crumbles.has(b * R.cols + a)) return false;
+      startCrumble(a, b, numIn(ev[3], 0, 40, 0) / 100 + 0.05);
+      return true;
+    }
+    const sp = ev[0] === 1 && (R.dashSpots || [])[a];
+    if (!sp || sp.kind !== 'barrier' || sp.broken) return false;
+    if (quiet) { sp.broken = true; for (let y = sp.y0 ?? 1; y <= (sp.y1 ?? R.floorTop - 1); y++) for (let x = sp.x0; x <= sp.x1; x++) if (R.grid[y * R.cols + x] === PHASE) R.grid[y * R.cols + x] = EMPTY; }
+    else breakDashWall(sp, b < 0 ? -1 : 1, numIn(ev[3], 0, R.hpx, R.floorTop * TILE - 46), true);
+    return true;
+  }
+  // everything that has changed on the floor being played (the leader's, for somebody who arrives late)
+  function tileSnap() {
+    const R = G.room, w = [], c = [];
+    (R.dashSpots || []).forEach((sp, n) => { if (sp.broken && w.length < 12) w.push(n); });
+    for (const [k, o] of R.crumbles) if (c.length < SNAP_C) c.push([k % R.cols, Math.floor(k / R.cols), o.state === 'gone' ? 1 : 0, clamp(Math.round(o.t * 10), 0, 45)]);
+    return { w, c };
+  }
+  function cleanSnap(tl) {
+    if (!tl || typeof tl !== 'object') return null;
+    return { w: (Array.isArray(tl.w) ? tl.w.slice(0, 12) : []).filter(Number.isInteger), c: (Array.isArray(tl.c) ? tl.c.slice(0, SNAP_C) : []).filter(o => Array.isArray(o) && Number.isInteger(o[0]) && Number.isInteger(o[1])) };
+  }
+  // ...put into my copy of the floor without any show (safe to apply twice); `late` = seconds since it was true
+  function applySnap(tl, late = 0) {
+    const R = G.room; if (!tl || !R || !R.grid) return;
+    for (const n of tl.w) applyTile([1, n, 1, 0], true);
+    for (const [x, y, st, t] of tl.c) setBlock(x, y, (st ? 0.45 : 0) + (st ? 4 - numIn(t, 0, 40, 40) / 10 : 0.45 - numIn(t, 0, 4.5, 4.5) / 10) + late);
+  }
+  // the block (x, y) was set off `age` seconds ago: shaking, fallen (with the rest of its 4 s), or already back
+  function setBlock(x, y, age) {
+    const R = G.room, k = y * R.cols + x;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= R.cols || y >= R.rows || R.grid[k] !== CRUMBLE || R.crumbles.has(k) || !(age < 4.45)) return;
+    if (age < 0.45) R.crumbles.set(k, { state: 'shake', t: 0.45 - Math.max(0, age) });
+    else { setTile(R, x, y, R.crumbleBase.get(k) || EMPTY); R.crumbles.set(k, { state: 'gone', t: 4.45 - age }); }
+  }
+  // an event that waited for my floor to arrive
+  function applyLate(ev, age) { if (ev[0] === 0) setBlock(ev[1], ev[2], numIn(ev[3], 0, 40, 0) / 100 + 0.05 + age); else applyTile(ev, true); }
+  function gotSnap(i, tl) {
+    tl = cleanSnap(tl); if (!tl) return;
+    if (S.pend && S.pend.i === i && i !== S.fl) { S.pend.tl = tl; S.pend.tlT = S.t; S.pend.tq = []; }
+    else if (i === S.fl) applySnap(tl);
+  }
+  // is somebody else's hero inside this rectangle? (a fallen block waits for them too)
+  const heroIn = r => !!S && [...S.others.values()].some(o => !o.gone && o.P && o.fl === S.fl && overlap({ x: o.P.x, y: o.P.y, w: 24, h: 46 }, r));
+  // moving platforms and fire vents: every client runs its own, eased toward the leader's clock
+  const clockOf = R => (R.movers && R.movers[0] ? R.movers[0].t : R.vents && R.vents[0] ? R.vents[0].t : null);
+  function gotClock(ft) {
+    const mine = clockOf(G.room); if (mine == null || ft == null || !Number.isFinite(+ft)) return;
+    const d = clamp(+ft + 0.08 - mine, -600, 600);
+    S.cdel = Math.abs(d) < 0.05 ? 0 : d;
+  }
+  function easeClock(dt) {
+    const d = S.cdel || 0; if (!d) return;
+    const R = G.room, step = Math.abs(d) > 2 ? d : clamp(d, -0.5 * dt, 0.5 * dt);   /* (far off: jump; close: run 50% faster or slower for a while) */
+    for (const m of R.movers || []) m.t += step;
+    for (const v of R.vents || []) v.t += step;
+    S.cdel = d - step;
   }
 
   // ---------- the wild animals: the leader's game moves them ----------
@@ -392,7 +561,8 @@
       out.push(e.id, Math.round(e.x), Math.round(e.y), e.face, Math.round(e.vx));
     }
     S.wildT -= dt;
-    if (S.wildT <= 0 && out.length) { S.wildT = 0.2; send({ t: 'c.wild', i: S.fl, w: out }); }
+    const ft = clockOf(R);
+    if (S.wildT <= 0 && (out.length || ft != null)) { S.wildT = 0.2; send({ t: 'c.wild', i: S.fl, w: out, ft: ft == null ? undefined : Math.round(ft * 100) / 100 }); }
   }
   function gotWild(w) {
     const R = G.room;
@@ -404,6 +574,7 @@
   function guestWild(dt) {
     const k = Math.min(1, dt * 9);
     for (const e of G.wild) { if (e.beaten) continue; e.t += dt; if (e.tx == null) continue; e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k; e.vx = e.nvx; }
+    easeClock(dt);
   }
 
   // ---------- encounters ----------
@@ -493,7 +664,8 @@
     const open = room && room.state === 'open', P = G.player;
     // heroes: mine goes out, the others ease toward their latest position
     if (open) {
-      try { room.setFast({ x: Math.round(P.x), y: Math.round(P.y), vx: Math.round(P.vx), vy: Math.round(P.vy), f: P.face < 0 ? -1 : 1, g: P.onGround ? 1 : 0, fl: S.fl }); } catch (e) {}
+      try { room.setFast({ x: Math.round(P.x), y: Math.round(P.y), vx: Math.round(P.vx), vy: Math.round(P.vy), f: P.face < 0 ? -1 : 1, g: P.onGround ? 1 : 0, fl: S.fl, h: Math.round(teamHp() * 100) }); } catch (e) {}
+      shareTeam(room);
       const R = G.room, k = Math.min(1, dt * 12);
       for (const [id, m] of room.members) {
         const o = S.others.get(id), f = m && m.f; if (!o || o.gone || !f || typeof f !== 'object') continue;
@@ -501,6 +673,8 @@
         if (o.fl !== S.fl) o.P = null;
         else if (!o.P || Math.abs(o.tx - o.P.x) > 400 || Math.abs(o.ty - o.P.y) > 400) o.P = { x: o.tx, y: o.ty };
         else { o.P.x += (o.tx - o.P.x) * k; o.P.y += (o.ty - o.P.y) * k; }
+        o.hp = int(f.h, 0, 100, 100) / 100;
+        follow(o, m, dt);
       }
     }
     // still waiting for the whole floor from the leader: ask again every 4 s, give up after the third time
@@ -516,9 +690,10 @@
     if (S.pend && !S.pend.go && !busy && world) { S.pend.go = true; if (G.coll) G.coll = null; G.mode = 'trans'; G.fade = Math.max(0, G.fade || 0); G.fadeDir = 1; SFX.play('door'); }
     if (S.enc) encTick(dt);
     if (!S || S.phase !== 'play' || S.fl < 0 || S.pend || G.mode === 'trans') return;
-    // my team fainted (a battle the party won without them): back on their feet at 30%
-    if (!busy && petSlots.some(Boolean) && !teamAlive().length) { for (const it of petSlots) if (it) RUN.petHp[it.pid] = 0.3; syncPets(); showMsg('Your pets catch their breath: back on their feet.', 2.4); }
     if (!busy) { if (amHost()) hostWild(dt); else guestWild(dt); }
+    // my pause menu does not stop the level for me alone: platforms (they carry my hero), vents and crumbling blocks go on
+    if (!busy && G.mode === 'pause') { const R = G.room; if (R.movers && R.movers.length) { updateMovers(dt); if (P.onMover) { P.x += P.onMover.dx; P.y += P.onMover.dy; } } updateHazards(dt); }
+    if (open) flushTiles(dt);
     // touching a wild group
     S.touchT -= dt;
     if (!busy && G.mode === 'play' && S.grace <= 0 && S.touchT <= 0) for (const e of G.wild) if (!e.beaten && overlap(P, e)) {
@@ -544,14 +719,8 @@
     const leader = S.leader === me(), here = open ? ids() : [me()], need = Math.min(2, S.listed.length);   /* (a party of one: only the hub's debug switch makes those) */
     if (S.t > GATHER_MAX && here.length < need && !S.pend) { end('Nobody else made it to the party: back to the street.'); return; }
     if (S.t > GATHER_MAX + 16 && !S.pend) { end('The party never set out: back to the street.'); return; }
-    // the room is hosted by somebody who is not the leader (a guest got there first): everyone lets go of it and
-    // comes back a little later, each guest at its own moment, so the id is free for the leader to claim
-    if (open && room.hostId !== S.leader) {
-      S.tries = (S.tries || 0) + 1; S.retryT = leader ? 0.6 : 2 + 0.7 * S.listed.indexOf(me()) + 0.5 * Math.min(4, S.tries);
-      S.room = null; S.others.clear(); S.firstGuest = null;
-      try { room.leave(); } catch (e) {}
-      return;
-    }
+    // (a room hosted by somebody who is not the leader is a session already under way after a host migration: its
+    // host sends this late arrival the current floor)
     if (here.length > 1 && S.firstGuest == null) S.firstGuest = S.t;
     if (leader && open && room.isHost && !S.pend) {
       if (here.length >= need && (here.length >= S.listed.length || S.t - S.firstGuest > GATHER_GO)) { hostFloor(0); S.pend.go = true; G.mode = 'trans'; G.fade = 0; G.fadeDir = 1; SFX.play('door'); return; }
@@ -574,11 +743,87 @@
     if (S.result && S.result.t > 0.6 && inRect(mouse, resultBtn())) end();
   }
 
+  // ---------- the other players' pets: followers that every client moves by itself ----------
+  // my team for the others' screens, in my presence: [species, level, shiny, coat gene, coat gene, blend] per animal
+  const teamLite = () => petSlots.filter(Boolean).slice(0, 3).map(it => { const g = it.g || {}, c = Array.isArray(g.col) && g.col.length === 2 ? g.col : [0, 0]; return [it.def.pet, petLvl(it), g.shiny ? 1 : 0, c[0] | 0, c[1] | 0, g.blend ? 1 : 0]; });
+  const teamHp = () => { const its = petSlots.filter(Boolean); return its.length ? its.reduce((a, it) => a + clamp(runHp(it.pid) ?? 1, 0, 1), 0) / its.length : 1; };
+  function shareTeam(room) {
+    const sig = JSON.stringify(teamLite());
+    if (S.tmRoom === room && S.tmSig === sig) return;
+    S.tmRoom = room; S.tmSig = sig;
+    try { room.setPresence({ tm: JSON.parse(sig) }); } catch (e) {}
+  }
+  // ...and somebody else's, trusting nothing: known species only, numbers clamped; -> stand-ins for the game's pet items
+  function cleanTeam(tm) {
+    const out = [];
+    for (const a of Array.isArray(tm) ? tm.slice(0, 3) : []) {
+      if (!Array.isArray(a) || typeof a[0] !== 'string' || !Object.prototype.hasOwnProperty.call(PETS, a[0])) continue;
+      const col = [int(a[3], 0, COAT_MELAN, 0), int(a[4], 0, COAT_MELAN, 0)];
+      out.push({ def: { pet: a[0] }, plvl: int(a[1], 1, PET_MAX_LVL, 1), g: { shiny: !!a[2], col, blend: !!a[5] && col[0] !== col[1] } });
+    }
+    return out;
+  }
+  // where the hero was `back` pixels ago along the path it walked
+  function trailBack(T, back) {
+    const a = T.pts, sv = T.s - back; let i = a.length - 1;
+    if (sv <= a[0].s) return a[0];
+    while (i > 0 && a[i - 1].s > sv) i--;
+    if (!i) return a[0];
+    const A = a[i - 1], B = a[i], k = (sv - A.s) / ((B.s - A.s) || 1);
+    return { x: A.x + (B.x - A.x) * k, y: A.y + (B.y - A.y) * k, g: k < 0.5 ? A.g : B.g };
+  }
+  // one frame of player o's followers: walkers replay the hero's path a few steps behind, in a line (so they hop
+  // where it hopped and never cut through a wall); flyers hover behind its shoulder
+  function follow(o, m, dt) {
+    const pres = m && m.p;
+    if (o.pRef !== pres) {   /* (a presence arrived: has the team in it changed?) */
+      o.pRef = pres; let sig = ''; try { sig = JSON.stringify((pres && pres.tm) || null); } catch (e) {}
+      if (sig !== o.tmSig) { o.tmSig = sig; o.tmRaw = pres ? pres.tm : null; o.pets = null; }
+    }
+    const raw = o.tmRaw;
+    if (!o.pets) { o.pets = cleanTeam(raw).map((it, slot) => ({ it, k: it.def.pet, d: PETS[it.def.pet], slot, x: null, y: 0, vx: 0, face: 1, g: 1, mv: false, hold: 0, runF: 0, idleF: 0, phase: slot * 1.7 })); }
+    if (!o.P || !o.pets || !o.pets.length) { o.trail = null; return; }
+    const fx = o.P.x + 12, fy = o.P.y + 46;
+    let T = o.trail; const last = T && T.pts[T.pts.length - 1], d = last ? Math.hypot(fx - last.x, fy - last.y) : 0;
+    if (!T || d > 200) { T = o.trail = { pts: [{ x: fx, y: fy, s: 0, g: 1 }], s: 0 }; for (const p of o.pets) p.x = null; }   /* (a new floor, or the hero was moved: gather at it) */
+    else if (d >= 2) { T.s += d; T.pts.push({ x: fx, y: fy, s: T.s, g: o.g }); if (T.pts.length > 240) T.pts.shift(); }
+    for (const p of o.pets) {
+      let tx, ty, g = 1, k = Math.min(1, dt * 14);
+      if (p.d.fly) { tx = fx - o.f * (26 + 20 * p.slot); ty = fy - 62 - 10 * p.slot + Math.sin(TIME * 2.4 + p.phase) * 6; k = Math.min(1, dt * 4.5); }
+      else { const pt = trailBack(T, 34 + 24 * p.slot); tx = pt.x; ty = pt.y; g = pt.g; }
+      if (p.x == null) { p.x = tx; p.y = ty; p.vx = 0; p.face = o.f; }
+      const ox = p.x; p.x += (tx - p.x) * k; p.y += (ty - p.y) * k; p.g = g;
+      p.vx = dt > 0 ? clamp((p.x - ox) / dt, -900, 900) : 0;
+      const spd = Math.abs(p.vx);
+      if (spd > 30) p.face = Math.sign(p.vx); else if (spd < 8 && Math.abs(fx - p.x) > 6) p.face = Math.sign(fx - p.x);
+      if ((spd > 40) !== p.mv) { if ((p.hold += dt) > (p.mv ? 0.15 : 0.06)) { p.mv = !p.mv; p.hold = 0; } } else p.hold = 0;
+      p.runF += dt * Math.max(5, Math.min(p.d.runFps || 11, spd / 26)); p.idleF += dt * (p.d.idleFps || 5);
+    }
+  }
+  // drawn with the game's own sheets and tints (baby / shiny art, coats), a little dimmer and with no health bar:
+  // they are somebody else's
+  function drawFollowers(o) {
+    for (const p of o.pets || []) {
+      if (p.x == null || !inView(p.x, p.y, 90)) continue;
+      const sheet = speciesSheet(p.k), fly = !!p.d.fly, opt = { alpha: 0.82, scale: PX * babyScale(p.it) };
+      const anim = fly ? 'fly' : !p.g ? 'run' : p.mv ? 'run' : 'idle', i = fly ? Math.floor(TIME * 12 + p.phase) : !p.g ? 2 : p.mv ? Math.floor(p.runF) : Math.floor(p.idleF);
+      const y = fly ? p.y - p.d.h / 2 : p.y + 1;
+      if (!fly) footShadow(p.x, p.y, p.d.w * 0.5, p.g ? 0.6 : 0.3);
+      ctx.filter = petFilter(p.k, sheet, p.it);
+      try {
+        if (!drawAnim(petSheet(sheet, p.it), anim, i, p.x, y, p.face, opt) && !drawAnim(petSheet(sheet, p.it), fly ? 'fly' : 'idle', i, p.x, y, p.face, opt)) { ctx.globalAlpha = 0.7; ctx.fillStyle = p.d.color; rr(p.x - p.d.w / 2, p.y - p.d.h - (fly ? p.d.h / 2 : 0), p.d.w, p.d.h, 6); ctx.fill(); }
+      } finally { ctx.filter = 'none'; ctx.globalAlpha = 1; }
+      if (p.it.g.shiny) shinySparkle(p.x - p.d.w / 2 - 6, p.y - p.d.h - 8, p.d.w + 12, p.d.h + 4, p.slot, 1, p.k);
+    }
+  }
+
   // ---------- drawing: the other heroes (world coordinates) ----------
   function drawOthers() {
     if (!S || !G || G.coop !== S) return;
     for (const o of S.others.values()) {
-      if (o.gone || !o.P || o.fl !== S.fl || !inView(o.P.x, o.P.y, 160)) continue;
+      if (o.gone || !o.P || o.fl !== S.fl) continue;
+      drawFollowers(o);
+      if (!inView(o.P.x, o.P.y, 160)) continue;
       const cx = o.P.x + 12, foot = o.P.y + 46;
       let nm = heroSheet(o.cls, o.look || cleanLook(null, o.cls)); if (!animFrames(nm, 'idle')) nm = o.cls;
       const anim = !o.g ? 'jump' : Math.abs(o.vx) > 25 ? 'run' : 'idle';
@@ -613,7 +858,8 @@
   // the party: [name, dot colour, note] per player (me first)
   function partyRows() {
     const rows = [], fight = !!S.enc || battleOn();
-    const row = (id, name, goneNow, there) => rows.push(goneNow ? [name, '#7a6a58', 'left'] : !there ? [name, '#b0a090', 'on the way'] : fight ? [name, '#ff8a65', 'fighting'] : atDoor(id) ? [name, PAL.gold, 'at the door'] : [name, '#81c784', '']);
+    const hpOf = id => (id === me() ? teamHp() : (S.others.get(id) || {}).hp ?? 1);
+    const row = (id, name, goneNow, there) => rows.push((goneNow ? [name, '#7a6a58', 'left'] : !there ? [name, '#b0a090', 'on the way'] : fight ? [name, '#ff8a65', 'fighting'] : atDoor(id) ? [name, PAL.gold, 'at the door'] : [name, '#81c784', '']).concat(goneNow || !there || S.fl < 0 ? [null] : [hpOf(id)]));
     row(me(), myName(), false, true);
     for (const id of S.listed) { if (id === me()) continue; const o = S.others.get(id), inRoom = !!(S.room && S.room.members && S.room.members.has(id)); if (S.phase !== 'gather' && !o) continue; row(id, o ? o.name : S.names[id] || 'Friend', !!(o && o.gone) || (S.phase !== 'gather' && !inRoom), !!o && inRoom && (S.phase === 'gather' || o.fl === S.fl || S.fl < 0)); }
     return rows;
@@ -621,12 +867,14 @@
   function drawParty(x, y, w, cols) {
     const rows = partyRows(), per = Math.ceil(rows.length / cols), cw = (w - 12) / cols;
     panel(x, y, w, 12 + per * 19, 'dark');
-    rows.forEach(([name, col, note], k) => {
+    rows.forEach(([name, col, note, hp], k) => {
       const rx = x + 8 + Math.floor(k / per) * cw, ry = y + 16 + (k % per) * 19;
       ctx.fillStyle = col; ctx.beginPath(); ctx.arc(rx + 6, ry, 5, 0, Math.PI * 2); ctx.fill();
       ctx.font = `10px ${UI}`; const nw = note ? ctx.measureText(note).width + 8 : 0;
       ctx.font = `bold 12px ${UI}`; label(fitText(name, cw - 26 - nw), rx + 17, ry, { size: 12, bold: true, color: note === 'left' ? PAL.dim : PAL.cream });
       if (note) label(note, rx + cw - 8, ry, { align: 'right', size: 10, color: col });
+      // that player's team health: a tiny bar under the name
+      if (hp != null) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(rx + 17, ry + 7, 44, 3); ctx.fillStyle = hpColor(hp); ctx.fillRect(rx + 17, ry + 7, Math.round(44 * clamp(hp, 0, 1)), 3); }
     });
     return 12 + per * 19;
   }
@@ -695,6 +943,20 @@
     ctx.globalAlpha = 1;
     if (G.msgT > 0 && G.msg && portraitWorldOnly()) { W = 540; drawToast(G.msg, 40); W = Wv; }
   }
+  // the door: who is waiting and the countdown, big, over the world's view (in portrait the status line sits far
+  // below the world, under the team: this is where the eyes are)
+  function doorText() {
+    if (!S || S.phase !== 'play' || S.fl < 0 || S.pend || S.enc || battleOn() || !G.room || G.room.type === 'boss' || !exitOpen()) return '';
+    const here = ids(), n = here.filter(atDoor).length; if (!n) return '';
+    const cd = S.cd > 0 ? Math.ceil(S.cd) + 's' : '';
+    return S.myDoor ? `Waiting at the door (${n}/${here.length})${cd ? '  ·  leaving in ' + cd : ''}` : `${n}/${here.length} at the door${cd ? '  ·  leaving in ' + cd : ''}: come to the exit ▶`;
+  }
+  function drawDoor() {
+    const t = doorText(); if (!t || (G.mode !== 'play' && G.mode !== 'pause')) return;
+    ctx.font = `bold 15px ${UI}`; const w = Math.min(W - 16, ctx.measureText(t).width + 36), y = PORTRAIT() ? 70 : 128;   /* (under the toast; in landscape also clear of the minimap) */
+    panel(Math.round(W / 2 - w / 2), y, w, 30, 'dark');
+    ctx.font = `bold 15px ${UI}`; label(fitText(t, w - 20), W / 2, y + 15, { align: 'center', size: 15, bold: true, color: S.myDoor ? PAL.gold : '#ffb74d' });
+  }
   // ---------- drawing: the panels over the world (MP.hudDraw; W x H = the world's view in both layouts) ----------
   const resultBox = () => { const w = Math.min(520, W - 16); return { x: Math.round(W / 2 - w / 2), y: Math.round(H / 2 - 120), w, h: 250 }; };
   const resultBtn = () => { const b = resultBox(); return { x: W / 2 - 120, y: b.y + b.h - 56, w: 240, h: 42 }; };
@@ -712,6 +974,7 @@
       const left = Math.max(0, Math.ceil((S.firstGuest != null ? S.firstGuest + GATHER_GO : GATHER_MAX) - S.t));
       ctx.font = `12px ${UI}`; label(fitText(S.firstGuest != null ? `Setting out in ${left}s at the latest  ·  P: leave` : `Waiting ${left}s for the others  ·  P: leave`, w - 30), W / 2, y + h - 18, { align: 'center', size: 12, color: '#6b4a2a' });
     }
+    drawDoor();
     if (S.pend && S.pend.dark && !S.pend.F) { ctx.font = `14px ${UI}`; label('Fetching the floor from the party leader...', W / 2, H / 2, { align: 'center', size: 14, color: PAL.cream }); }
     const Q = S.result; if (!Q) return;
     ctx.fillStyle = 'rgba(8,5,3,0.6)'; ctx.fillRect(0, 0, W, H);
@@ -726,6 +989,6 @@
 
   CONFIRM_TXT.leave = 'Leave the party and return to the street?';
   MP.coop = { start, end, active: false, play, mid, click, pauseItems, leaveParty, drawHUD, drawPortraitHUD, where,
-              /* for tests and debugging */ state: () => S, ids, checksum, genFloor, packFloor, unpackFloor };
+              tile, heroIn, /* for tests and debugging */ state: () => S, ids, checksum, genFloor, packFloor, unpackFloor, doorText, cleanTeam, tileSnap };
   MP.ticks.push(tick); MP.worldDraw.push(drawOthers); MP.hudDraw.push(drawPanels);
 })();
