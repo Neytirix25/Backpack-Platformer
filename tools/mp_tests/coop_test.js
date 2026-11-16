@@ -115,6 +115,10 @@ async function clearFloor(gs, who = gs[0]) {   // win groups until the exit is o
 }
 const backHome = async gs => { for (const g of gs) g.press('Enter'); await frames(gs, 3); for (const g of gs) g.release('Enter'); await frames(gs, 30); };
 
+// WORLD: errors that the game catches and logs (MP.ticks / MP.worldDraw / MP.hudDraw run inside try / catch) are counted
+const ERRS = { n: 0 }, logErr = console.error;
+console.error = (...a) => { ERRS.n++; logErr(...a); };
+
 // ====================================================================================================
 const TESTS = {
   async dungeon2() {
@@ -362,6 +366,187 @@ const TESTS = {
     console.log('  (packed floors: ' + Math.min(...sizes) + ' to ' + Math.max(...sizes) + ' characters)');
   },
 
+  // WORLD: seeded floors do not depend on the browser's sort algorithm. Bob's copy of the game gets another (correct,
+  // but NOT stable) Array.prototype.sort: a selection sort, which asks the comparator in a different order than V8's
+  // TimSort. A `sort(() => Math.random() - 0.5)` anywhere on the generation path gives another floor under it.
+  async engines() {
+    const [A, B] = games; let n = 0, bad = 0, calls = 0;
+    B.run(`(() => { const AP = [].constructor.prototype; window.__sort = AP.sort; window.__sorts = 0;
+      AP.sort = function (cmp) { window.__sorts++; const c = cmp || ((x, y) => (String(x) < String(y) ? -1 : String(x) > String(y) ? 1 : 0)), a = this, n = a.length;
+        for (let i = 0; i < n - 1; i++) { let m = i; for (let j = n - 1; j > i; j--) if (c(a[j], a[m]) < 0) m = j; if (m !== i) { const t = a[i]; a[i] = a[m]; a[m] = t; } }
+        return a; }; })()`);
+    ok(B.run('[5, 3, 9, 1, 4].sort((a, b) => a - b).join()') === '1,3,4,5,9' && B.run('window.__sorts') > 0, "Bob's game sorts with another algorithm (a selection sort)");
+    try {
+      for (let tier = 1; tier <= 4; tier++) for (const seed of [3, 501, 90210, 20261115, 4000000001, 8675309]) {
+        for (const g of [A, B]) { g.win.__info = info([g], 'dungeon', tier, 'ENG' + tier, seed); g.run('MP.coop.start(__info)'); }
+        const code = `JSON.stringify([0, 1, 2, 3].map(i => { const F = MP.coop.genFloor(i, (${seed} * 131 + i * 7919) >>> 0); return [F.sum, F.R.plan ? F.R.plan.join(' ') : '', F.wild.length, F.R.plants.length, F.R.decor.length + F.R.baked.length]; }))`;
+        const a = JSON.parse(A.run(code)), b = JSON.parse(B.run(code));
+        for (let i = 0; i < 4; i++) { n++; if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) { bad++; if (bad <= 4) console.log('  differs: tier ' + tier + ' seed ' + seed + ' floor ' + i + (a[i][1] !== b[i][1] ? ' (another plan of sections)' : a[i][0] !== b[i][0] ? ' (same sections, other contents)' : '')); } }
+        for (const g of [A, B]) g.run('MP.coop.end()');
+        await frames([A, B], 3);
+      }
+      calls = B.run('window.__sorts');
+    } finally { B.run('[].constructor.prototype.sort = window.__sort'); }
+    ok(bad === 0, n + ' seeded floors (4 tiers) are identical under two different sort algorithms' + (bad ? ': ' + bad + ' differ' : ''));
+    console.log('  (' + n + ' floors compared; the other sort ran ' + calls + ' times)');
+  },
+
+  // WORLD: smash walls and crumbling blocks are the same for the whole party (host -> guests, guest -> host -> guests),
+  // a late arrival through the full-floor fetch gets what changed, and moving platforms follow the leader's clock
+  async tiles() {
+    const all = games.slice(0, 4), [A, B, C, D] = all, gs = [A, B, D], e0 = ERRS.n;
+    const grid = g => g.run('(() => { let h = 0; for (const t of G.room.grid) h = (h * 31 + t) >>> 0; return h; })()');
+    const count = (g, t) => g.run(`(() => { const r = MP.coop.state().room, s = r.send; window.__sent = 0; r.send = (m, to) => { if (m && m.t === ${JSON.stringify(t)}) window.__sent++; return s(m, to); }; })()`);
+    const thuds = g => g.run("(() => { window.__thud = 0; if (!window.__play) { window.__play = SFX.play; SFX.play = function (n, ...a) { if (n === 'thud' || n === 'flame') window.__thud++; return window.__play.call(this, n, ...a); }; } })()");
+    C.run('window.__bl = buildLevel; buildLevel = function (R) { __bl(R); if (R.grid) { for (let x = 30; x < 40; x++) setTile(R, x, 3, SOLID); } };');
+    const inf = info(all, 'dungeon', 4, 'TILE', 4);   /* (tier 4, seed 4: a first floor with crumbling blocks, smash walls and moving platforms) */
+    startAll(gs, inf);
+    if (!await until(gs, () => gs.every(g => fl(g) === 0 && g.run('G.mode') === 'play'), 3000, 'three of the four on floor 1 (the fourth comes late)')) return;
+    for (const g of gs) g.run('for (const e of G.wild) e.beaten = true');   /* (no battles in this test) */
+    ok(new Set(gs.map(grid)).size === 1, 'the floor starts identical on the three');
+    // ---- smash walls ----
+    const walls = JSON.parse(A.run('JSON.stringify(G.room.dashSpots.map((d, n) => [n, d.kind, d.x0, d.y1 === G.room.floorTop - 1 && [1, 2, 3].every(k => isSolidT(tileAt(d.x0 - k, G.room.floorTop)) && tileAt(d.x0 - k, G.room.floorTop - 1) === EMPTY)]).filter(d => d[1] === "barrier" && d[3]))'));
+    const blocks = JSON.parse(A.run('JSON.stringify(G.room.crumbleTiles)'));
+    ok(walls.length >= 2 && blocks.length >= 3 && A.run('G.room.movers.length') > 0, 'the test floor has ' + walls.length + ' smash walls on the ground, ' + blocks.length + ' crumbling blocks and ' + A.run('G.room.movers.length') + ' moving platforms');
+    if (walls.length < 2 || blocks.length < 3) return;
+    const beside = (g, w, dx) => g.run(`(() => { const R = G.room, P = G.player; P.x = ${w[2]} * TILE + ${dx}; P.y = R.floorTop * TILE - P.h; P.vx = P.vy = 0; P.face = 1; P.dashCd = 0; P.dashT = 0; P.onGround = true; })()`);
+    const dash = async (g, w) => { beside(g, w, -50); await frames(gs, 4); g.press('d'); g.press('Shift'); await frames(gs, 1); g.release('Shift'); await frames(gs, 25); g.release('d'); };
+    const broken = (g, w) => g.run(`G.room.dashSpots[${w[0]}].broken === true && tileAt(${w[2]}, G.room.floorTop - 1) === EMPTY`);
+    const far = walls[walls.length - 1], near = walls[0];
+    ok(far[2] * 30 > 1500, 'the far wall is far from the entrance (' + far[2] * 30 + ' px)');
+    toEntry(B); beside(D, far, -110); await frames(gs, 30); thuds(B); thuds(D);
+    await dash(A, far);
+    ok(broken(A, far), 'the host dashes through a smash wall: broken on its own screen');
+    await until(gs, () => broken(B, far) && broken(D, far), 60, "the host's wall is broken for both guests");
+    ok(D.run('window.__thud') >= 1 && B.run('window.__thud') === 0, 'with the crash where it is on screen (' + D.run('window.__thud') + '), quietly far away (' + B.run('window.__thud') + ')');
+    count(A, 'c.tile'); count(D, 'c.tile');
+    toEntry(A); toEntry(D); await frames(gs, 10);
+    await dash(B, near);
+    ok(broken(B, near), 'a guest dashes through another wall');
+    await until(gs, () => broken(A, near) && broken(D, near), 60, "the guest's wall is broken for the host and for the other guest");
+    ok(new Set(gs.map(grid)).size === 1, 'the grids are identical again');
+    // ---- crumbling blocks ----
+    const [tx, ty] = blocks[0], key = `(${ty} * G.room.cols + ${tx})`, tileIs = (g, x, y) => g.run(`tileAt(${x}, ${y})`), CR = A.run('CRUMBLE');
+    const stand = (g, x, y) => g.run(`(() => { const P = G.player; P.x = ${x} * TILE + 3; P.y = ${y} * TILE - P.h; P.vx = P.vy = 0; P.dashT = 0; })()`);
+    stand(B, tx, ty); await until(gs, () => B.run(`G.room.crumbles.has(${key})`), 20, "a block starts to crumble under the guest's hero");
+    toEntry(B);
+    await until(gs, () => gs.every(g => g.run(`G.room.crumbles.has(${key})`)), 30, 'the same block is crumbling on every screen');
+    const when = async (want, max, what) => { const at = gs.map(() => -1), f0 = FRAME; await until(gs, () => { gs.forEach((g, k) => { if (at[k] < 0 && (tileIs(g, tx, ty) === CR) === want) at[k] = FRAME - f0; }); return at.every(v => v >= 0); }, max, what); return at; };
+    const fell = await when(false, 90, 'the block falls for everyone'), fellAt = FRAME;
+    ok(Math.max(...fell) - Math.min(...fell) <= 12, 'it falls at about the same moment for all (frames ' + fell.join(', ') + ')');
+    ok(new Set(gs.map(grid)).size === 1, 'identical grids with the block gone');
+    const back = await when(true, 400, 'the block grows back for everyone');
+    ok(Math.max(...back) - Math.min(...back) <= 12 && Math.abs((FRAME - fellAt) / 60 - 4) < 0.6, 'it grows back about 4 s later, at about the same moment for all (frames ' + back.join(', ') + ')');
+    ok(A.run('window.__sent') === 0 && D.run('window.__sent') === 0, 'nobody echoes a tile it was told about');
+    ok(gs.every(g => g.run('G.room.crumbles.size') === 0) && new Set(gs.map(grid)).size === 1, 'and the floor is whole and identical again');
+    // ---- rubbish and floods ----
+    const g0 = grid(A), send = (g, m) => { g.win.__m = clone(m); try { g.run('MP.coop.state().room.send(__m)'); } catch (e) {} };
+    const chasm = A.run('G.room.dashSpots.findIndex(d => d.kind === "chasm")');
+    for (const m of [{ t: 'c.tile', i: 0, e: [[0, 1e9, 2], [0, 'x', 1], [0, 2, 2, 0], [0, -1, -1], [0, 1.5, 2], [1, 99, 1, 0], [1, chasm, 1, 0], [1, 'a'], [7, 1, 1], 'no', null, {}] }, { t: 'c.tile', i: 0, e: 'zz' }, { t: 'c.tile', i: 3, e: [[0, tx, ty, 0]] }, { t: 'c.tile' },
+      { t: 'c.tiles', i: 0, tl: { w: [0, 1, 2, 3, 4, 5], c: blocks.map(b => [b[0], b[1], 1, 40]) } }, { t: 'c.tiles', i: 0, tl: 'x' }]) send(B, m);
+    await frames(gs, 12);
+    ok(grid(A) === g0 && grid(D) === g0 && A.run('G.room.crumbles.size') === 0, "a guest's rubbish tile messages (outside the grid, not a block, no such wall, a forged snapshot) change nothing");
+    for (let k = 0; k < 4; k++) send(B, { t: 'c.tile', i: 0, e: new Array(24).fill([0, 1, 1, 0]) });
+    send(B, { t: 'c.tile', i: 0, e: [[0, blocks[1][0], blocks[1][1], 0]] });
+    await frames(gs, 12);
+    ok(A.run('G.room.crumbles.size') === 0, 'a flood of tile events is cut off (the one real event after 96 others is dropped)');
+    await frames(gs, 240);
+    send(B, { t: 'c.tile', i: 0, e: [[0, blocks[1][0], blocks[1][1], 0]] });
+    await until(gs, () => A.run('G.room.crumbles.size') === 1 && D.run('G.room.crumbles.size') === 1, 30, 'a few seconds later that player is heard again');
+    await until(gs, () => gs.every(g => g.run('G.room.crumbles.size') === 0 || g === B), 400, 'that block is back');
+    B.run('G.room.crumbles.clear()'); B.run(`setTile(G.room, ${blocks[1][0]}, ${blocks[1][1]}, CRUMBLE)`);
+    // ---- moving platforms: a guest's clock follows the leader's ----
+    const clk = g => g.run('G.room.movers[0].t');
+    await frames(gs, 60); const d0 = Math.abs(clk(B) - clk(A));
+    B.run('for (const m of G.room.movers) m.t += 1.2'); await frames(gs, 300);
+    ok(d0 < 0.3 && Math.abs(clk(B) - clk(A)) < 0.3, "a guest's platforms run with the leader's (" + d0.toFixed(2) + ' s apart; 1.2 s off is eased back to ' + Math.abs(clk(B) - clk(A)).toFixed(2) + ' s)');
+    B.run('for (const m of G.room.movers) m.t -= 40'); await frames(gs, 40);
+    ok(Math.abs(clk(B) - clk(A)) < 0.3, 'far off, they jump into step');
+    A.run('openPause()'); const c0 = clk(A); await frames(gs, 120);
+    ok(clk(A) - c0 > 1.8, "the leader's pause menu does not stop the platforms"); A.run('closePause()');
+    // ---- the late arrival, through the full-floor fetch ----
+    count(A, 'c.tiles');
+    startAll([C], inf);
+    await until(all, () => C.run('!!(MP.coop.state() && MP.coop.state().pend)'), 1200, 'the late player hears about the floor');
+    stand(B, blocks[2][0], blocks[2][1]); await frames(all, 3); toEntry(B);   /* (a block goes while the late player's floor is still on its way) */
+    await until(all, () => fl(C) === 0 && C.run('G.mode') === 'play', 1200, 'the late player is on the floor');
+    ok(C.run('MP.coop.state().fulls') === 1 && A.run('window.__sent') >= 1, 'it came through the full-floor fetch, followed by the changed tiles');
+    ok(broken(C, far) && broken(C, near), 'both smashed walls are open for the late player');
+    const k2 = `(${blocks[2][1]} * G.room.cols + ${blocks[2][0]})`;
+    ok(C.run(`G.room.crumbles.has(${k2})`) === A.run(`G.room.crumbles.has(${k2})`) && tileIs(C, blocks[2][0], blocks[2][1]) === tileIs(A, blocks[2][0], blocks[2][1]), 'and the block that crumbled meanwhile is in the same state as on the host');
+    ok(grid(C) === grid(A) && grid(B) === grid(A) && grid(D) === grid(A), 'all four grids are identical');
+    await frames(all, 330);
+    ok(all.every(g => g.run('G.room.crumbles.size') === 0) && new Set(all.map(grid)).size === 1, 'five seconds later every block is back, for all four');
+    C.portrait = true; await frames(all, 12); C.portrait = false;
+    for (const g of [B, D]) g.run('if (window.__play) { SFX.play = window.__play; window.__play = null; }');
+    C.run('buildLevel = window.__bl');
+    ok(ERRS.n === e0, 'no error was logged on the way (' + (ERRS.n - e0) + ')');
+  },
+
+  // WORLD: the other players' pets follow their heroes on every screen, from the team in their presence alone
+  async pets() {
+    const [A, B] = games, gs = [A, B], e0 = ERRS.n;
+    await gather(gs, info(gs, 'dungeon', 1, 'PETS', 21));
+    for (const g of gs) g.run('for (const e of G.wild) e.beaten = true');
+    await frames(gs, 30);
+    const of = (g, o) => `MP.coop.state().others.get(${JSON.stringify(o.uid)})`;
+    const pets = (g, o) => JSON.parse(g.run(`JSON.stringify((${of(g, o)}.pets || []).map(p => ({ k: p.k, x: p.x, y: p.y, lvl: p.it.plvl, col: p.it.g.col, shiny: p.it.g.shiny, face: p.face, g: p.g })))`));
+    ok(pets(B, A).map(p => p.k).join() === 'dog,fox,owl' && pets(A, B).map(p => p.k).join() === 'boar,toad,ferret', "each player sees the other's team as followers (" + pets(B, A).map(p => p.k).join() + ' / ' + pets(A, B).map(p => p.k).join() + ')');
+    ok(pets(B, A).map(p => p.lvl).join() === A.run('petSlots.filter(Boolean).map(petLvl).join()') && pets(B, A).every(p => Number.isFinite(p.x) && Number.isFinite(p.y)), 'with their level (baby or adult art) and a place in the world');
+    ok(A.run(`Object.keys(MP.coop.state().room.members.get(MP.net.uid).f).join()`) === 'x,y,vx,vy,f,g,fl,h', 'the 10x/s hero state carries no pets (' + A.run(`Object.keys(MP.coop.state().room.members.get(MP.net.uid).f).join()`) + ')');
+    // they follow: A walks right for two seconds
+    const x0 = pets(B, A).map(p => p.x), hx0 = A.run('G.player.x');
+    A.press('d'); await frames(gs, 120); A.release('d'); await frames(gs, 40);
+    const moved = A.run('G.player.x') - hx0, p1 = pets(B, A), hero = B.run(`${of(B, A)}.P.x + 12`), feet = B.run(`${of(B, A)}.P.y + 46`);
+    ok(moved > 150 && p1.every((p, k) => p.x > x0[k] + moved * 0.4), 'the hero walks ' + Math.round(moved) + ' px: every follower came along');
+    ok(p1[0].x < hero - 15 && p1[1].x < p1[0].x - 10 && p1.every(p => hero - p.x < 140), 'the walkers trail behind it in a line (' + p1.map(p => Math.round(hero - p.x)).join(', ') + ' px behind)');
+    ok(Math.abs(p1[0].y - feet) < 6 && p1[2].y < feet - 30, 'walkers on the ground at its feet, the owl in the air (' + Math.round(feet - p1[2].y) + ' px up)');
+    // they hop where the hero hopped
+    let top = 1e9; A.press('d'); A.press('w');
+    await frames(gs, 70, () => { top = Math.min(top, pets(B, A)[0].y); }); A.release('d'); A.release('w'); await frames(gs, 60);
+    ok(top < feet - 20, 'a walker hops where the hero hopped (' + Math.round(feet - top) + ' px up)');
+    // drawn with the game's sprites, dimmer; nothing drawn when they are off screen
+    const seen = () => B.run(`(() => { const f = drawAnim; let n = 0; drawAnim = (nm, an, i, x, y, fc, o) => { if (o && o.alpha === 0.82) n++; return f(nm, an, i, x, y, fc, o); }; try { draw(); } finally { drawAnim = f; } return n; })()`);
+    ok(seen() >= 3, 'the three followers are drawn (dimmer than my own) while they are on screen');
+    A.run('G.player.x = G.room.wpx - 300'); await frames(gs, 60);
+    ok(seen() === 0 && pets(B, A).every(p => Math.abs(p.x - A.run('G.player.x')) < 200), 'far away they are with their hero, and not drawn here');
+    toEntry(A); await frames(gs, 60);
+    // the team changes: the presence follows
+    A.run('petSlots[2] = null; syncPets()'); await until(gs, () => pets(B, A).length === 2, 120, "a changed team reaches the others' screens");
+    // team health in the party list
+    A.run('for (const it of petSlots) if (it) RUN.petHp[it.pid] = 0.4'); await frames(gs, 30);
+    ok(Math.abs(B.run(`${of(B, A)}.hp`) - 0.4) < 0.02, "the party list knows the other player's team health (" + B.run(`${of(B, A)}.hp`) + ')');
+    // rubbish in a presence is cleaned
+    B.run(`MP.coop.state().room.setPresence({ tm: [['nosuch', 3], ['dog', 1e9, 'yes', 99, -5, 1], ['__proto__', 1], ['fox', 2], 'x'] })`); await frames(gs, 30);
+    const junk = pets(A, B);
+    ok(junk.length === 1 && junk[0].k === 'dog' && junk[0].lvl === A.run('PET_MAX_LVL') && junk[0].col.join() === A.run('COAT_MELAN') + ',0', 'a rubbish team in a presence is cleaned (' + JSON.stringify(junk.map(p => [p.k, p.lvl, p.col])) + ')');
+    ok(JSON.stringify(A.run('MP.coop.cleanTeam("no")')) === '[]' && A.run('MP.coop.cleanTeam([[1], [null], {}]).length') === 0, 'and nonsense gives no followers at all');
+    for (const g of gs) { g.portrait = true; } await frames(gs, 12); for (const g of gs) g.step(1, true);
+    for (const g of gs) { g.portrait = false; } await frames(gs, 12); for (const g of gs) g.step(1, true);
+    ok(ERRS.n === e0, 'draw() logged no error, in landscape and in portrait (' + (ERRS.n - e0) + ')');
+  },
+
+  // WORLD: the door countdown and "waiting at the door" are shown over the world, in landscape and in portrait
+  async door() {
+    const [A, B] = games, gs = [A, B], e0 = ERRS.n;
+    await gather(gs, info(gs, 'dungeon', 1, 'DOOR', 33));
+    const texts = g => g.run(`(() => { ${g.portrait ? 'VIEW.portrait = true; VIEW.w = 540; VIEW.h = 1100; W = 540; H = portraitWorldOnly() ? 540 : VIEW.h;' : 'VIEW.portrait = false; W = 960; H = 540;'} let s = ''; const f = label; label = (t, ...a) => { s += t + '|'; return f(t, ...a); }; try { draw(); } finally { label = f; } return s; })()`);
+    ok(A.run('MP.coop.doorText()') === '' && !/at the door/.test(texts(A)), 'nothing about the door while the exit is shut');
+    for (const g of gs) g.run('for (const e of G.wild) e.beaten = true');
+    B.portrait = true; toEntry(B); toExit(A); await frames(gs, 40);
+    ok(fl(A) === 0 && A.run('MP.coop.state().cd') > 0 && B.run('MP.coop.state().cd') > 0, 'one of two at the door: the countdown runs');
+    const a = texts(A), b = texts(B);
+    ok(/Waiting at the door \(1\/2\)  ·  leaving in \d+s/.test(a), 'landscape, at the door: "' + ((a.match(/Waiting at the door[^|]*/) || [])[0] || '') + '"');
+    ok(/1\/2 at the door  ·  leaving in \d+s: come to the exit/.test(b), 'portrait, not there yet: "' + ((b.match(/\d\/\d at the door[^|]*/) || [])[0] || '') + '" over the world');
+    ok(B.run('(() => { W = 540; H = 540; ctx.font = "bold 15px " + UI; return ctx.measureText(MP.coop.doorText()).width + 36 <= 540 - 16; })()'), 'and it fits the portrait width');
+    A.portrait = true; B.portrait = false; await frames(gs, 6);
+    ok(/Waiting at the door \(1\/2\)/.test(texts(A)) && /at the door  ·  leaving in/.test(texts(B)), 'and the other way round (portrait at the door, landscape on the way)');
+    toExit(B); await until(gs, () => gs.every(g => fl(g) === 1 && g.run('G.mode') === 'play'), 600, 'both at the door: the next floor');
+    ok(A.run('MP.coop.doorText()') === '', 'the door text is gone on the new floor');
+    A.portrait = false;
+    ok(ERRS.n === e0, 'no error was logged (' + (ERRS.n - e0) + ')');
+  },
+
   async soloAfter() {
     const A = games[0], runs = A.run('SAVE.rec.runs');
     A.run('G.panel = null; newGame(selClass)'); A.step(30);
@@ -376,6 +561,28 @@ const TESTS = {
     A.run('B = null; G.mode = "play"; for (const w of G.wild) w.beaten = true; G.graceT = 0');
     toExit(A); A.step(90);
     ok(A.run('G.roomNum') === 2 && A.run('SAVE.rec.bestFloor') >= 2, 'the solo exit leads to floor 2 (and counts as best floor)');
+    A.run('enterHub()'); A.step(10);
+  },
+  // WORLD: the shared-tile hooks stay out of a solo run (a smash wall, a crumbling block and its 4 s)
+  async soloWorld() {
+    const A = games[0], e0 = ERRS.n;
+    A.run('G.panel = null; newGame(selClass)'); A.step(30);
+    ok(A.run('!G.coop && !MP.coop.active && !MP.coop.state()'), 'a solo run, no session');
+    A.run('for (const w of G.wild) w.beaten = true; G.graceT = 0');
+    const w = JSON.parse(A.run('JSON.stringify(G.room.dashSpots.map((d, n) => [n, d.kind, d.x0, d.y1 === G.room.floorTop - 1 && [1, 2, 3].every(k => isSolidT(tileAt(d.x0 - k, G.room.floorTop)) && tileAt(d.x0 - k, G.room.floorTop - 1) === EMPTY)]).filter(d => d[1] === "barrier" && d[3])[0] || null)'));
+    if (w) {
+      A.run(`(() => { const R = G.room, P = G.player; P.x = ${w[2]} * TILE - 50; P.y = R.floorTop * TILE - P.h; P.vx = P.vy = 0; P.face = 1; P.dashCd = 0; P.dashT = 0; P.onGround = true; })()`);
+      A.step(4); A.press('d'); A.press('Shift'); A.step(1); A.release('Shift'); A.step(25); A.release('d');
+      ok(A.run(`G.room.dashSpots[${w[0]}].broken === true && tileAt(${w[2]}, G.room.floorTop - 1) === EMPTY`) && A.run('G.player.x') > w[2] * 30, 'solo: a dash smashes the wall and goes through');
+    } else console.log('  (this solo floor has no smash wall on the ground: skipped)');
+    A.run('(() => { const R = G.room, P = G.player; setTile(R, 6, R.floorTop, CRUMBLE); R.crumbleTiles.push([6, R.floorTop]); P.x = 6 * TILE + 3; P.y = R.floorTop * TILE - P.h; P.vx = P.vy = 0; P.dashT = 0; })()');
+    A.step(4); ok(A.run('G.room.crumbles.size') === 1, 'solo: a block starts to crumble under the hero');
+    A.step(40); ok(A.run('tileAt(6, G.room.floorTop)') === A.run('EMPTY'), 'solo: it falls');
+    A.run('G.player.x = 2 * TILE; G.player.y = G.room.floorTop * TILE - G.player.h; G.player.vy = 0'); A.step(200);
+    ok(A.run('tileAt(6, G.room.floorTop)') === A.run('EMPTY'), 'solo: still gone 3.3 s later');
+    A.step(80); ok(A.run('tileAt(6, G.room.floorTop)') === A.run('CRUMBLE') && A.run('G.room.crumbles.size') === 0, 'solo: back after 4 s');
+    A.run('VIEW.portrait = true; VIEW.w = 540; VIEW.h = 1100; W = 540; H = 540;'); A.step(3); A.run('VIEW.portrait = false; W = 960; H = 540;'); A.step(3);
+    ok(ERRS.n === e0, 'no error was logged (' + (ERRS.n - e0) + ')');
     A.run('enterHub()'); A.step(10);
   },
 };

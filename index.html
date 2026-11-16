@@ -69,6 +69,9 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const randi = (a, b) => Math.floor(rand(a, b + 1));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const pick = a => a[Math.floor(Math.random() * a.length)];
+// Fisher-Yates, in place, on Math.random: unlike `sort(() => Math.random() - 0.5)` it gives the same order in every
+// browser's engine for the same dice (seeded co-op floors must come out identical on Chrome, Firefox and Safari)
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
 function wpick(entries) {
   let t = 0; for (const e of entries) t += Math.max(0, e[1]);
   let r = Math.random() * t;
@@ -3526,7 +3529,7 @@ function tryBuild(R, features) {
   plan[0] = 'flat'; plan[NSEG - 1] = 'flat';
   if (features) {
     // 3-4 dash obstacles spread along the level, at least one of each kind
-    const nDash = randi(3, 4), kinds = ['chasm', 'barrier', pick(['chasm', 'barrier']), pick(['chasm', 'barrier'])].slice(0, nDash).sort(() => Math.random() - 0.5);
+    const nDash = randi(3, 4), kinds = shuffle(['chasm', 'barrier', pick(['chasm', 'barrier']), pick(['chasm', 'barrier'])].slice(0, nDash));
     const span = (NSEG - 2) / nDash;
     kinds.forEach((kind, i) => { plan[clamp(1 + Math.floor(span * i + rand(0.5, span - 0.5)), 1, NSEG - 2)] = kind; });
   }
@@ -3534,7 +3537,7 @@ function tryBuild(R, features) {
   const pool = n => Object.keys(SEGMENTS).filter(k => SEGMENTS[k].acts.includes(act) && !SEGMENTS[k].hard && !!SEGMENTS[k].chest === n);
   const hardPool = Object.keys(SEGMENTS).filter(k => SEGMENTS[k].hard && SEGMENTS[k].acts.includes(act));
   const open = []; for (let k = 1; k < NSEG - 1; k++) if (!plan[k]) open.push(k);
-  open.sort(() => Math.random() - 0.5);
+  shuffle(open);
   const nHard = features && hardPool.length ? randi(2, 3) : 0, nChal = features ? (nHard ? randi(1, 2) : randi(2, 3)) : 0;   // (Acts III-IV: 2-3 hard sections too)
   open.forEach((k, i) => {
     if (!features) { plan[k] = 'flat'; return; }
@@ -3841,8 +3844,7 @@ function plantPlants(R, cells, etx, ety) {
   R.plants = [];
   const taken = [...(G.wild || []).map(e => [Math.floor((e.x + e.w / 2) / TILE), Math.floor((e.y + e.h) / TILE) - 1]),
                  ...R.chests.map(c => [Math.floor((c.x + c.w / 2) / TILE), Math.floor((c.y + c.h) / TILE) - 1])];
-  const spots = cells.filter(([x, y]) => Math.abs(x - etx) + Math.abs(y - ety) * 2 > 10 && tileAt(x, y) === EMPTY && tileAt(x, y - 1) === EMPTY)
-                     .sort(() => Math.random() - 0.5);
+  const spots = shuffle(cells.filter(([x, y]) => Math.abs(x - etx) + Math.abs(y - ety) * 2 > 10 && tileAt(x, y) === EMPTY && tileAt(x, y - 1) === EMPTY));
   const free = (x, y, d) => taken.every(([tx, ty]) => Math.abs(tx - x) > d || Math.abs(ty - y) > 1);
   const kinds = mandrakeW => Object.keys(PLANTS).map(k => [k, k === 'mandrake' ? mandrakeW : PLANTS[k].w]);
   const place = (kind, hidden) => {
@@ -3907,7 +3909,7 @@ function populate(R) {
   const busy = [...(G.wild || []).map(e => [(e.homeX || e.x + e.w / 2) / TILE, (e.y + e.h) / TILE - 1]), ...R.chests.map(c => [(c.x + c.w / 2) / TILE, (c.y + c.h) / TILE - 1]),
                 ...(R.plants || []).map(p => [p.x / TILE, p.y / TILE - 1]), ...(R.cages || []).map(c => [(c.x + (c.w || 30) / 2) / TILE, (c.y + (c.h || 30)) / TILE - 1]), ...(R.fire ? [[(R.fire.x + R.fire.w / 2) / TILE, (R.fire.y + R.fire.h) / TILE - 1]] : [])];
   const clear = c => busy.every(([bx, by]) => Math.abs(bx - (c[0] + 0.5)) > 1.6 || Math.abs(by - c[1]) > 1.2);   // (no decoration on an animal, a chest, a plant or a cage)
-  const T = R.theme, deco = T.deco, shuffled = cells.filter(clear).sort(() => Math.random() - 0.5), placed = [];
+  const T = R.theme, deco = T.deco, shuffled = shuffle(cells.filter(clear)), placed = [];
   const spaced = (x, y, d) => placed.every(([px, py]) => Math.abs(px - x) > d || Math.abs(py - y) > 2);
   for (const [x, y] of shuffled) {
     if (placed.length > (R.type === 'camp' ? 3 : 18)) break;
@@ -4132,12 +4134,21 @@ function smashWalls(P) {
     if (sp.kind !== 'barrier' || sp.broken) continue;
     const wr = { x: sp.x0 * TILE, y: (sp.y0 ?? 1) * TILE, w: (sp.x1 - sp.x0 + 1) * TILE, h: ((sp.y1 ?? R.floorTop - 1) - (sp.y0 ?? 1) + 1) * TILE };
     if (!overlap(box, wr)) continue;
-    sp.broken = true;
-    for (let y = sp.y0 ?? 1; y <= (sp.y1 ?? R.floorTop - 1); y++) for (let x = sp.x0; x <= sp.x1; x++) if (tileAt(x, y) === PHASE) R.grid[y * R.cols + x] = EMPTY;
-    const W0 = dashWallOf(R);
-    for (let i = 0; i < 26; i++) { const yy = rand(Math.max(wr.y, P.y - 60), Math.min(wr.y + wr.h, P.y + P.h + 40)); G.parts.push({ x: wr.x + rand(0, wr.w), y: yy, vx: d * rand(60, 260) + rand(-40, 40), vy: rand(-260, -40), life: rand(0.5, 1), max: 1, color: pick(W0.bits), size: rand(3, 6), grav: 900 }); }
-    G.shake = Math.max(G.shake || 0, 5); SFX.play(R.act === 2 ? 'flame' : 'thud');
+    breakDashWall(sp, d, P.y);
+    // MP: a wall smashed in co-op is smashed for the whole party
+    if (G.coop && MP.coop && MP.coop.tile) MP.coop.tile('w', R.dashSpots.indexOf(sp), d, P.y);
   }
+}
+// the wall `sp` goes down, hit at height py by something moving in direction d; `far` = somebody else broke it (co-op):
+// the same splinters and thud when it is on screen, silently otherwise
+function breakDashWall(sp, d, py, far) {
+  const R = G.room, wr = { x: sp.x0 * TILE, y: (sp.y0 ?? 1) * TILE, w: (sp.x1 - sp.x0 + 1) * TILE, h: ((sp.y1 ?? R.floorTop - 1) - (sp.y0 ?? 1) + 1) * TILE };
+  sp.broken = true;
+  for (let y = sp.y0 ?? 1; y <= (sp.y1 ?? R.floorTop - 1); y++) for (let x = sp.x0; x <= sp.x1; x++) if (tileAt(x, y) === PHASE) R.grid[y * R.cols + x] = EMPTY;
+  if (far && !inView(wr.x, clamp(py, wr.y, wr.y + wr.h), 120)) return;
+  const W0 = dashWallOf(R);
+  for (let i = 0; i < 26; i++) { const yy = rand(Math.max(wr.y, py - 60), Math.min(wr.y + wr.h, py + 86)); G.parts.push({ x: wr.x + rand(0, wr.w), y: yy, vx: d * rand(60, 260) + rand(-40, 40), vy: rand(-260, -40), life: rand(0.5, 1), max: 1, color: pick(W0.bits), size: rand(3, 6), grav: 900 }); }
+  G.shake = Math.max(G.shake || 0, far ? 2 : 5); SFX.play(R.act === 2 ? 'flame' : 'thud');
 }
 // y of the floor under a point (for dropping chests etc.)
 function groundBelow(x, y) {
@@ -4193,7 +4204,9 @@ function updateHazards(dt) {
       if (inView(tx * TILE, ty * TILE)) SFX.play('crumble');
     } else if (c.state === 'gone' && c.t <= 0) {
       const tx = k % R.cols, ty = Math.floor(k / R.cols);
-      if (!overlap(P, { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE })) { setTile(R, tx, ty, CRUMBLE); R.crumbles.delete(k); }
+      // MP: (in co-op a block does not grow back inside another player's hero either)
+      const cr = { x: tx * TILE, y: ty * TILE, w: TILE, h: TILE };
+      if (!overlap(P, cr) && !(G.coop && MP.coop && MP.coop.heroIn && MP.coop.heroIn(cr))) { setTile(R, tx, ty, CRUMBLE); R.crumbles.delete(k); }
     }
   }
 }
@@ -4219,10 +4232,12 @@ function vineUnder(o) {
   for (let ty = Math.floor((o.y + 4) / TILE); ty <= Math.floor((o.y + o.h - 2) / TILE); ty++) if (tileAt(tx, ty) === VINE) return true;
   return false;
 }
-function startCrumble(tx, ty) {
+function startCrumble(tx, ty, far) {   // far = seconds since another player's hero set it off (co-op), undefined = mine
   const R = G.room, k = ty * R.cols + tx;
   if (tileAt(tx, ty) !== CRUMBLE || R.crumbles.has(k)) return;
-  R.crumbles.set(k, { state: 'shake', t: 0.45 });
+  R.crumbles.set(k, { state: 'shake', t: 0.45 - (far || 0) });
+  // MP: a block crumbling under my hero crumbles for the whole party
+  if (far === undefined && G.coop && MP.coop && MP.coop.tile) MP.coop.tile('c', tx, ty);
 }
 function checkPlayerHazards() {
   const P = G.player, R = G.room;
