@@ -3,16 +3,78 @@
 const { bootGame } = require('./boot.js');
 const REG = {};
 const FAST_T = { pump: 25, pres: 40, fast: 25, ping: 100, hostDead: 500, guestDead: 700, hello: 500, stagger: 100, jitter: 30, retry: 50, give: 3000, grace: 600, bye: 40, linger: 30 };
-const pool = [], rooms = [];
+const pools = { mem: [], bc: [], peer: [] }, rooms = [];
 const quiet = console.error;
-function game(i) {
-  while (pool.length <= i) { const g = bootGame({ name: 'P' + pool.length, globals: { __MPMEM: REG } }); g.net = g.run('MP.net'); Object.assign(g.net.T, FAST_T); pool.push(g); }
-  return pool[i];
+
+// ----- stand-ins for the two browser transports, so their backends run here too (they model how BroadcastChannel and
+// PeerJS 1.5.4 behave as read from their documentation and source: this checks our wiring, not the real libraries) -----
+class FakeBC {
+  constructor(name) { this.name = name; this.onmessage = null; this.dead = false; FakeBC.all.push(this); }
+  postMessage(d) { if (this.dead) return; const s = JSON.stringify(d); for (const o of FakeBC.all) if (o !== this && o.name === this.name) setTimeout(() => { if (!o.dead && o.onmessage) o.onmessage({ data: JSON.parse(s) }); }, 1); }
+  close() { this.dead = true; }
+}
+FakeBC.all = [];
+class Emitter { constructor() { this._h = {}; } on(e, f) { (this._h[e] = this._h[e] || []).push(f); return this; } emit(e, ...a) { for (const f of (this._h[e] || []).slice()) f(...a); } }
+// the broker: ids -> peer; an offer for an id nobody holds waits (and is delivered if somebody takes the id), then expires as 'peer-unavailable'
+const BROKER = { ids: new Map(), expire: 300, peers: [], sent: 0, biggest: 0,
+  offer(o) {
+    const h = BROKER.ids.get(o.dst); if (o.from.destroyed || o.from.dead) return;
+    if (h && h.dead) return;
+    if (h) {
+      const r = new FakeDC(h, o.from.want); r.other = o.dc; o.dc.other = r; h.dcs.push(r); h.emit('connection', r);
+      setTimeout(() => { if (o.from.destroyed || h.destroyed || o.from.dead || h.dead) return; r.open = o.dc.open = true; r.emit('open'); o.dc.emit('open'); }, 5);
+    } else if (Date.now() - o.t > BROKER.expire) o.from.emit('error', { type: 'peer-unavailable' });
+    else setTimeout(() => BROKER.offer(o), 10);
+  },
+  of: tag => BROKER.peers.filter(p => p.tag === tag && !p.destroyed),
+  // the tab closes: everything of that player is torn down properly · the network dies: silence, and the id stays taken for `lag` ms
+  // (a closed tab runs no more code: its own listeners are removed first)
+  closeTab(tag) { for (const p of BROKER.of(tag)) { p._h = {}; for (const d of p.dcs) d._h = {}; p.destroy(); } },
+  cutNetwork(tag, lag) { for (const p of BROKER.of(tag)) { p.dead = true; setTimeout(() => { if (BROKER.ids.get(p.want) === p) BROKER.ids.delete(p.want); }, lag); } },
+  dropSocket(tag) { for (const p of BROKER.of(tag)) if (p.open) { p.emit('error', { type: 'network' }); p.disconnect(); } } };
+class FakeDC extends Emitter {
+  constructor(peer, remote) { super(); this.provider = peer; this.peer = remote; this.open = false; this.other = null; }
+  send(o) {
+    if (!this.open) { this.emit('error', { type: 'not-open-yet' }); return; }
+    const s = JSON.stringify(o), bytes = Buffer.byteLength(s); if (bytes >= 16300) { this.emit('error', { type: 'message-too-big' }); return; }
+    BROKER.sent++; BROKER.biggest = Math.max(BROKER.biggest, bytes);
+    const ot = this.other, me = this.provider; setTimeout(() => { if (ot && ot.open && !me.dead && !ot.provider.dead) ot.emit('data', JSON.parse(s)); }, 1);
+  }
+  close() { if (!this.open) return; this.open = false; this.emit('close'); const ot = this.other, me = this.provider; if (ot) setTimeout(() => { if (!me.dead && !ot.provider.dead) ot.close(); }, 1); }
+}
+function peerClass(tag) {
+  return class FakePeer extends Emitter {
+    constructor(id) { super(); this.tag = tag; this.want = typeof id === 'string' ? id : 'anon-' + (BROKER.peers.length + 1); this.id = null; this.open = false; this.destroyed = false; this.disconnected = false; this.dead = false; this.dcs = []; BROKER.peers.push(this); setTimeout(() => this._register(), 5); }
+    _register() {
+      if (this.destroyed || this.dead) return;
+      if (BROKER.ids.has(this.want)) { this.emit('error', { type: 'unavailable-id' }); if (this._last) this.disconnect(); else this.destroy(); return; }
+      BROKER.ids.set(this.want, this); this.id = this._last = this.want; this.open = true; this.disconnected = false; this.emit('open', this.id);
+    }
+    connect(dst) { const dc = new FakeDC(this, dst); this.dcs.push(dc); const o = { from: this, dc, dst, t: Date.now() }; setTimeout(() => BROKER.offer(o), 2); return dc; }
+    disconnect() { if (this.disconnected) return; this.disconnected = true; this.open = false; if (BROKER.ids.get(this.want) === this) BROKER.ids.delete(this.want); this.id = null; this.emit('disconnected'); }
+    reconnect() { if (!this.disconnected || this.destroyed) throw new Error('cannot reconnect'); this.disconnected = false; setTimeout(() => this._register(), 5); }
+    destroy() { if (this.destroyed) return; this.disconnect(); for (const d of this.dcs) d.close(); this.destroyed = true; this.emit('close'); }
+  };
+}
+const SETUP = {
+  mem: () => ({ globals: { __MPMEM: REG } }),
+  bc: () => ({ globals: { BroadcastChannel: FakeBC }, search: '?mpnet=bc' }),
+  peer: i => ({ globals: { Peer: peerClass('peer' + i) } }) };
+const KIND_T = { mem: {}, bc: { bcClaim: 60, bcConn: 150, bcPing: 60, bcDead: 250 }, peer: { conn: 1500, connMig: 500, connEarly: 200, reconn: 150 } };
+function game(i, kind = 'mem') {
+  const pl = pools[kind];
+  while (pl.length <= i) {
+    const g = bootGame(Object.assign({ name: 'P' + pl.length }, SETUP[kind](pl.length))); g.net = g.run('MP.net'); g.T0 = Object.assign({}, g.net.T); Object.assign(g.net.T, FAST_T, KIND_T[kind]);
+    if (g.net.backend !== kind) throw new Error('expected the ' + kind + ' backend, got ' + g.net.backend);
+    if (kind === 'bc') g.channel = FakeBC.all[FakeBC.all.length - 1];
+    g.tag = kind + pl.length; pl.push(g);
+  }
+  return pl[i];
 }
 // a room for copy i: `ev` collects its events
-function mk(i, opts) {
-  const ev = [], g = game(i);
-  const room = g.net.room(Object.assign({ on: e => ev.push(e) }, opts));
+function mk(i, opts, kind) {
+  const ev = [], g = game(i, kind);
+  const room = g.net.room(Object.assign({ on: e => { ev.push(e); if (room.onEv) room.onEv(e); } }, opts));
   room.ev = ev; room.g = g; room.of = t => ev.filter(e => e.type === t); rooms.push(room);
   return room;
 }
@@ -139,9 +201,10 @@ async function migration(end, count = 5, oldest = true) {
   const host = rs[0], rest = rs.slice(1), all = ids(rest[0]).split(',').filter(i => i !== host.me).sort().join(',');
   ok(await until(() => rest.every(r => rs.every(o => r.members.get(o.me).f))), 'fast states known');
   for (const r of rs) r.ev.length = 0;
+  let queued = null; rest[0].onEv = e => { if (e.type === 'state' && e.state === 'migrating') queued = rest[0].send({ t: 'q', s: 'queued' }); };
   await end(host, p + '1');
-  ok(await until(() => rest[0].state === 'migrating', 1500), 'the others should start migrating');
-  eq(rest[0].send({ t: 'q', s: 'queued' }), true, 'send() while migrating queues');
+  ok(await until(() => rest.every(r => r.of('state').some(e => e.state === 'migrating')), 1500), 'the others should start migrating');
+  eq(queued, true, 'send() while migrating queues');
   ok(await until(() => rest.every(r => r.state === 'open'), 6000), 'everyone should be open again: ' + rest.map(r => r.state).join());
   const hosts = rest.filter(r => r.isHost); eq(hosts.length, 1, 'exactly one new host'); if (oldest) ok(hosts[0] === rest[0], 'the oldest member takes over');
   for (const r of rest) { eq(r.hostId, hosts[0].me, 'hostId'); eq(r.n, 1, 'the instance number is kept'); eq(r.id, p + '1', 'the room id is kept'); eq(r.of('host').length, 1, 'one host event'); eq(r.of('host')[0].id, hosts[0].me, 'host event id'); }
@@ -249,6 +312,91 @@ test('leave() is safe in every state and a throwing listener does no harm', asyn
   } finally { console.error = quiet; }
 });
 
+test('with the real timings: 10 batches a second, and a killed host is replaced within a few seconds', async () => {
+  const gs = [0, 1, 2, 3].map(i => game(i)); for (const g of gs) Object.assign(g.net.T, g.T0);
+  try {
+    const p = pre(), rs = []; for (let i = 0; i < 4; i++) { const r = mk(i, { prefix: p }); r.join(); ok(await open([r]), 'opens'); rs.push(r); }
+    const pos = { x: 0 }; rs[1].setFast(pos); const n0 = rs[2].of('fast').length, t = Date.now();
+    while (Date.now() - t < 1000) { pos.x++; await sleep(4); }
+    const n = rs[2].of('fast').length - n0; ok(n >= 7 && n <= 11, 'about 10 batches in a second, got ' + n);
+    for (let i = 0; i < 30; i++) rs[3].setPresence({ i }); await sleep(1000);
+    const pn = rs[2].of('presence').filter(e => e.id === rs[3].me).length; ok(pn >= 1 && pn <= 3, 'presence is coalesced, got ' + pn); eq(rs[2].members.get(rs[3].me).p.i, 29, 'the last presence');
+    const t1 = Date.now(); REG.kill(p + '1'); const rest = rs.slice(1);
+    ok(await until(() => rest.every(r => r.state === 'open' && r.members.size === 3 && r.hostId === rs[1].me), 8000), 'migrated: ' + rest.map(r => r.state).join());
+    console.log('      (migration of 3 members with the real timings took ' + (Date.now() - t1) + ' ms)');
+  } finally { for (const r of rooms) r.leave(); for (const g of gs) Object.assign(g.net.T, FAST_T); }
+});
+
+// ----- the BroadcastChannel backend (over the stand-in channel) -----
+const bk = (i, opts) => mk(i, opts, 'bc');
+test('bc backend: two tabs joining at the same moment give one host; chat, presence and fast states work', async () => {
+  const p = pre(), a = bk(0, { prefix: p, presence: { name: 'A' } }), b = bk(1, { prefix: p, presence: { name: 'B' } }); a.join(); b.join();
+  ok(await open([a, b]), 'both open: ' + a.state + ' ' + b.state); eq([a, b].filter(r => r.isHost).length, 1, 'exactly one host'); eq(a.n, 1, 'instance'); eq(b.n, 1, 'instance');
+  const c = bk(2, { prefix: p, presence: { name: 'C' } }); c.join(); ok(await open([c]), 'C opens');
+  ok(await until(() => [a, b, c].every(r => r.members.size === 3)), 'three inside'); eq(c.members.get(a.me).p.name, 'A', 'presence');
+  c.send({ t: 'chat', s: 'hi' }); a.setFast({ x: 5 }); b.setPresence({ lv: 4 });
+  ok(await until(() => a.of('msg').length === 1 && b.of('msg').length === 1 && c.members.get(a.me).f && c.members.get(a.me).f.x === 5 && c.members.get(b.me).p.lv === 4), 'everything flows');
+  const d = bk(3, { id: 'bcfix-' + p, cap: 1 }), e = bk(4, { id: 'bcfix-' + p, cap: 1 }); d.join(); await open([d]); e.join(); ok(await until(() => e.state === 'error' && e.errCode === 'full'), 'full fixed room');
+});
+async function bcMigration(end) {
+  const p = pre(), rs = []; for (let i = 0; i < 4; i++) { const r = bk(i, { prefix: p }); r.join(); ok(await open([r]), 'opens'); rs.push(r); }
+  ok(await until(() => rs.every(r => r.members.size === 4)), 'four inside'); const rest = rs.slice(1);
+  end(rs[0]);
+  ok(await until(() => rest.every(r => r.of('state').some(e => e.state === 'migrating')), 2000), 'they notice');
+  ok(await until(() => rest.every(r => r.state === 'open' && r.members.size === 3), 6000), 'settled: ' + rest.map(r => r.state + r.members.size).join(' '));
+  eq(rest.filter(r => r.isHost).length, 1, 'one new host'); ok(rest.every(r => r.hostId === rs[1].me), 'the oldest'); ok(rest.every(r => r.of('host').length === 1), 'host events');
+  rest[2].send({ t: 'chat', s: 'again' }); ok(await until(() => rest[0].of('msg').length === 1 && rest[1].of('msg').length === 1), 'messages flow again');
+}
+test('bc backend: the host leaves politely -> migration', () => bcMigration(h => h.leave()));
+test('bc backend: the host tab dies without a word -> the silence is noticed -> migration', async () => {
+  try { await bcMigration(h => { h.g.channel.dead = true; }); } finally { for (const r of rooms) r.leave(); await sleep(400); for (const g of pools.bc) g.channel.dead = false; }
+});
+
+// ----- the PeerJS backend (over the stand-in Peer and broker) -----
+const pk = (i, opts) => mk(i, opts, 'peer');
+test('peer backend: join, a roster and messages bigger than one PeerJS frame, to all and to one', async () => {
+  const p = pre(), big = n => ({ name: 'P' + n, blob: String(n).repeat(3500) }), rs = [];
+  for (let i = 0; i < 6; i++) { const r = pk(i, { prefix: p, presence: big(i) }); r.join(); ok(await open([r]), 'opens ' + i + ': ' + r.state + ' ' + r.errCode); rs.push(r); }
+  eq(rs.filter(r => r.isHost).length, 1, 'one host'); ok(rs[0].isHost, 'the first'); ok(rs.every(r => r.n === 1), 'one instance');
+  ok(await until(() => rs.every(r => r.members.size === 6)), 'six inside');
+  ok(rs.every(r => rs.every((o, i) => r.members.get(o.me).p.blob === String(i).repeat(3500))), 'every presence arrived whole (the roster is ~21 KB)');
+  const long = 'é'.repeat(7000); eq(rs[3].send({ t: 'snap', s: long }), true, 'a 7000-character message with accents (14 KB of UTF-8)');
+  ok(await until(() => rs.every(r => r === rs[3] || r.of('msg').some(e => e.msg.s === long && e.from === rs[3].me))), 'arrives whole everywhere');
+  rs[5].send({ t: 'w', s: 1 }, rs[2].me); ok(await until(() => rs[2].of('msg').some(e => e.msg.t === 'w' && e.from === rs[5].me)), 'direct');
+  ok(BROKER.biggest < 16300, 'no frame over the PeerJS limit (biggest ' + BROKER.biggest + ' bytes)');
+  rs[4].leave(); ok(await until(() => rs[0].members.size === 5 && rs[1].members.size === 5), 'polite leave'); ok(await until(() => BROKER.of('peer4').length === 0), "the leaver's peers are destroyed");
+  const cap = pk(6, { id: 'pfix-' + p, cap: 1 }), no = pk(7, { id: 'pfix-' + p, cap: 1 }); cap.join(); await open([cap]); no.join(); ok(await until(() => no.state === 'error' && no.errCode === 'full'), 'full fixed room'); ok(await until(() => BROKER.of('peer7').length === 0), 'no peer left behind after an error');
+});
+async function peerMigration(end, wait = 6000) {
+  const p = pre(), rs = []; for (let i = 0; i < 5; i++) { const r = pk(i, { prefix: p, presence: { name: 'P' + i } }); r.join(); ok(await open([r]), 'opens'); rs.push(r); }
+  ok(await until(() => rs.every(r => r.members.size === 5)), 'five inside'); const rest = rs.slice(1);
+  end(rs[0]);
+  ok(await until(() => rest.every(r => r.of('state').some(e => e.state === 'migrating')), 2000), 'they notice');
+  ok(await until(() => rest.every(r => r.state === 'open' && r.members.size === 4), wait), 'settled: ' + rest.map(r => r.state + r.members.size).join(' '));
+  eq(rest.filter(r => r.isHost).length, 1, 'one new host'); ok(rest.every(r => r.of('host').length === 1 && r.n === 1), 'host events, same instance');
+  rest[2].send({ t: 'chat', s: 'again' }); ok(await until(() => rest.every(r => r === rest[2] || r.of('msg').length === 1)), 'messages flow again');
+  return { rs, rest };
+}
+test('peer backend: the host closes the tab -> migration, the oldest takes over', async () => { const m = await peerMigration(h => BROKER.closeTab(h.g.tag)); ok(m.rest[0].isHost, 'the oldest'); });
+test('peer backend: the host leaves politely -> migration', async () => { const m = await peerMigration(h => h.leave()); ok(m.rest[0].isHost, 'the oldest'); });
+test("peer backend: the host's network dies (no close event, the broker keeps its id 800 ms) -> heartbeat, retries, one host", async () => {
+  let dead; try { await peerMigration(h => { dead = h.g; BROKER.cutNetwork(h.g.tag, 800); }, 9000); }
+  finally { if (dead) { for (const r of rooms) if (r.g === dead) r.leave(); await sleep(100); for (const p of BROKER.peers) if (p.tag === dead.tag) { p.dead = false; p.destroy(); } } }
+});
+test("peer backend: the host loses the broker's socket, gets it back, and still takes guests", async () => {
+  const p = pre(), a = pk(0, { prefix: p }), b = pk(1, { prefix: p }); a.join(); await open([a]); b.join(); await open([b]);
+  BROKER.dropSocket('peer0'); ok(!BROKER.ids.has(p + '1'), 'the id is free for a moment');
+  b.send({ t: 'chat', s: 'still here' }); ok(await until(() => a.of('msg').length === 1), 'the data channel lives on');
+  ok(await until(() => BROKER.ids.has(p + '1'), 2000), 'the host re-registers its id');
+  const c = pk(2, { prefix: p }); c.join(); ok(await open([c]), 'a newcomer joins'); eq(c.hostId, a.me, 'the same host'); eq(a.state, 'open', 'never migrated'); eq(b.of('host').length, 0, 'no migration at the guest');
+});
+test("peer backend: the host's id is taken by a newcomer while its socket is down -> the old room moves over to the new host", async () => {
+  const p = pre(), a = pk(0, { prefix: p }), b = pk(1, { prefix: p }), c = pk(2, { prefix: p }); a.join(); await open([a]); b.join(); await open([b]);
+  BROKER.dropSocket('peer0'); c.join(); ok(await open([c]), 'the newcomer opens'); ok(c.isHost, 'and holds the id now');
+  ok(await until(() => [a, b, c].every(r => r.state === 'open' && r.members.size === 3 && r.hostId === c.me), 6000), 'everyone ends up in one room: ' + [a, b, c].map(r => r.state + r.members.size).join(' '));
+  a.send({ t: 'chat', s: 'together' }); ok(await until(() => b.of('msg').some(e => e.msg.s === 'together') && c.of('msg').some(e => e.msg.s === 'together')), 'and can talk');
+});
+
 (async () => {
   const t0 = Date.now();
   for (const [name, f] of tests) {
@@ -256,6 +404,6 @@ test('leave() is safe in every state and a throwing listener does no harm', asyn
     for (const r of rooms.splice(0)) r.leave();
     await sleep(80);
   }
-  console.log(`${failed ? 'FAILED' : 'ALL PASSED'}: ${tests.length - failed}/${tests.length} tests, ${pool.length} game copies, ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  console.log(`${failed ? 'FAILED' : 'ALL PASSED'}: ${tests.length - failed}/${tests.length} tests, ${pools.mem.length + pools.bc.length + pools.peer.length} game copies, ${((Date.now() - t0) / 1000).toFixed(1)} s`);
   process.exitCode = failed ? 1 : 0;
 })();
