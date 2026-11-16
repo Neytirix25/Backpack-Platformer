@@ -21,6 +21,8 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 | P / Esc | Pause menu: resume, restart the run, return to the Sanctuary or the title screen |
 | M | Music off / all sound off / on |
 
+**Controls (pause menu → Controls):** choose how you play: **Keyboard** (every action can be moved to other keys, two keys each, Reset keys), **Mouse** (the hero runs toward the cursor and stops inside a stop zone round him; flick the mouse up to jump, harder for higher, flick it down to drop through a ledge; right click uses / talks; double click dashes toward the cursor; left click stays with the buttons; sliders for the stop zone and how hard a flick must be) or **Controller** (left stick / D-pad move, A jump, B dash, X use, Y backpack, LB / RB pets / map, Start pause, Back music; in menus the D-pad moves the highlight, A chooses, B goes back; in battles the D-pad steps through the moves and then the targets; the right stick moves a pointer for anything else, RT / LT click; A and B can be swapped for Nintendo-style pads). A controller works whenever one is plugged in, and the keyboard always works. Settings are kept per device.
+
 ## How it works
 
 - **Your first companion:** a new game starts in the Sanctuary, where you pick a Shepherd Pup, a Fox Kit or a Cockatiel Chick.
