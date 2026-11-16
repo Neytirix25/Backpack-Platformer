@@ -445,7 +445,7 @@
     const g = await getDoc(id); let x = null;
     if (g.ok && g.row && g.row.seller === U.uid && g.row.state === 'open') x = await remove(id, g.row.ut);
     S.busy = '';
-    if (g.kind === 'gone' || (x && (x.ok || x.kind === 'gone'))) { S.mineDocs.delete(id); S.rows = S.rows.filter(r => r.id !== id); e.st = 'back'; saveAh(); if (!giveBack(a, false)) say('Cancelled. It waits here until your bag has room.'); return true; }
+    if (g.kind === 'gone' || (x && (x.ok || x.kind === 'gone'))) { S.mineDocs.delete(id); S.rows = S.rows.filter(r => r.id !== id); declareDead(a, e); saveAh(); if (!giveBack(a, false)) say('Cancelled. It waits here until your bag has room.'); return true; }
     if ((g.ok && g.row && g.row.state === 'sold') || (x && x.kind === 'changed')) { say('It was just sold!'); await settleNow(true); return false; }
     return no(g.kind === 'denied' || (x && x.kind === 'denied') ? MSG.closed : MSG.offline);
   }
