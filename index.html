@@ -10326,6 +10326,7 @@ function drawScreen() {
   if (G.hub) { drawPondWater(); drawDock(); drawCreel(); drawHubWorld(); }
   drawWild();
   drawPets();
+  mpRun(MP.worldDraw);
   drawPlayer();
   drawFx();
   if (G.mode === 'encounter') drawEncounterAlert();
@@ -10336,6 +10337,7 @@ function drawScreen() {
   if (port) { if (G.mode !== 'pack') drawPortraitHUD(); H = keepH; }
   if (G.mode === 'pack') { drawPack(); drawHUDMessageOnly(); return; }
   if (port) { if (G.hub) drawHubPanels(); } else if (G.hub) drawHubHUD(); else drawHUD();
+  mpRun(MP.hudDraw);
   if (G.mode === 'trans' || G.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${clamp(G.fade, 0, 1)})`; ctx.fillRect(0, 0, port ? VIEW.w : W, port ? VIEW.h : H); }
   if (G.mode === 'pause') drawPauseMenu();
   if (G.mode === 'won') drawOverlay('VICTORY!', `The ${CLASSES[G.cls].name} and their pets conquered all ${FINAL_FLOOR} floors · ${G.battlesWon || 0} battles won`, G.wonT > 1 ? 'Enter: keep descending (endless)  ·  Esc: back to the Sanctuary' : '');
@@ -10769,6 +10771,12 @@ function recordsClick() {
 //  Then: friendly battles (the host's game runs the fight and sends every move with its dice roll, so both games show
 //  the same thing), trades (each side offers one animal, both accept) and Yard visits (walk around together, live).
 // =====================================================================
+// MULTIPLAYER MODULES (the Kingdom Street hub, co-op dungeons and raids) live in mp/*.js, loaded after this script.
+// They hang themselves on MP (MP.net, MP.hub, MP.battle, MP.coop) and register here; with a file missing the game just runs without it.
+//   MP.ticks: fn(dt) every frame from update() · MP.worldDraw: fn() in world coordinates, after the animals and before your hero
+//   MP.hudDraw: fn() in screen coordinates, over the HUD and under the fade
+const MP = { ticks: [], worldDraw: [], hudDraw: [] };
+const mpRun = (list, a) => { for (const f of list) try { f(a); } catch (e) { console.error(e); } };
 const NET_VER = 1;
 const PEER_LIB = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
 const PEER_PREFIX = 'backpack-sanctuary-';
@@ -11533,6 +11541,7 @@ function update(dt) {
   }
   musicDirector(dt);
   netTick(dt);
+  mpRun(MP.ticks, dt);
   if (!G) {
     if (SCREEN === 'title') { if (hit('Enter', ' ')) { SFX.play('pick'); enterHub(); } return; }
     const i = CLASS_ORDER.indexOf(selClass), before = selClass;
@@ -11637,5 +11646,10 @@ function frame(t) {
 }
 requestAnimationFrame(frame);
 </script>
+<!-- the multiplayer modules (Kingdom Street hub, co-op dungeons and raids): same ?v= as BUILD -->
+<script src="mp/net.js?v=20261114g"></script>
+<script src="mp/battle.js?v=20261114g"></script>
+<script src="mp/coop.js?v=20261114g"></script>
+<script src="mp/hub.js?v=20261114g"></script>
 </body>
 </html>
