@@ -807,7 +807,7 @@
   function drawFollowers(o) {
     for (const p of o.pets || []) {
       if (p.x == null || !inView(p.x, p.y, 90)) continue;
-      const sheet = speciesSheet(p.k), fly = !!p.d.fly, opt = { alpha: 0.82, scale: PX * babyScale(p.it) };
+      const sheet = speciesSheet(p.k), fly = !!p.d.fly, opt = { alpha: 0.82, scale: PX * babyScale(p.it), shine: shineOf(p.it) };
       const anim = fly ? 'fly' : !p.g ? 'run' : p.mv ? 'run' : 'idle', i = fly ? Math.floor(TIME * 12 + p.phase) : !p.g ? 2 : p.mv ? Math.floor(p.runF) : Math.floor(p.idleF);
       const y = fly ? p.y - p.d.h / 2 : p.y + 1;
       if (!fly) footShadow(p.x, p.y, p.d.w * 0.5, p.g ? 0.6 : 0.3);
