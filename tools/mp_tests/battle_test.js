@@ -238,10 +238,10 @@ function testBadPicks() {
   if (!P.over() && P.until(() => asked(1) || P.over(), 3000) && !P.over()) {
     const id2 = H.run('B.coop.ask.u.id'), ab = H.run(`B.coop.ask.u.abil.find(a => ABIL[a].t === 'foe' && !(B.coop.ask.u.cd[a] > 0)) || B.coop.ask.u.abil[0]`);
     P.queue.push({ to: 'uid0', from: 'uid1', s: JSON.stringify({ t: 'b.pick', i: id2, ab, tg: 0 }) });   // "target" = an ally: not valid for an attack
-    const allies0 = H.run('JSON.stringify(B.allies.map(u => Math.round(u.hp)))');
+    const others = `JSON.stringify(B.allies.filter(u => u.id !== ${id2}).map(u => Math.round(u.hp)))`, allies0 = H.run(others);   // (the attacker itself may take thorns damage)
     ok(P.until(() => !H.run(`!!(B && B.coop.ask && B.coop.ask.u.id === ${id2} && !B.coop.ask.pick)`) || P.over(), 200), `${name}: a pick with an invalid target is still played`);
     P.step();
-    ok(H.run('JSON.stringify(B.allies.map(u => Math.round(u.hp)))') === allies0 || H.run('B.coop.stage') === 'foe', `${name}: ...on a valid foe, not on the ally it named`);
+    ok(H.run(others) === allies0 || H.run('B.coop.stage') === 'foe', `${name}: ...on a valid foe, not on the ally it named`);
   }
   Gst.picks = true;
   ok(P.until(P.over, 9000), `${name}: the battle ends normally`);

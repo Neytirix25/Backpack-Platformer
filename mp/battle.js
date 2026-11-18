@@ -169,7 +169,8 @@
   function withRoom(n, type, fn) { const R0 = G.room; G.room = Object.assign({}, R0 || {}, { n, type }); try { return fn(); } finally { G.room = R0; } }
   const tierFloor = (tier, floor) => (floor && actOf(floor) === tier ? floor : (tier - 1) * 10 + 6);
   const fcount = x => Math.floor(x) + (Math.random() < x - Math.floor(x) ? 1 : 0);
-  MB.partyLevel = (teams, tier) => { const ls = teams.flatMap(t => t.units.map(u => u.lvl)); return clamp(Math.round(ls.reduce((a, b) => a + b, 0) / Math.max(1, ls.length)), TIERS[tier].lo, TIERS[tier].hi); };
+  // the foes' level: the party's highest-level pet + the act bonus (as in solo runs: ACT_BONUS per act past the first)
+  MB.partyLevel = (teams, tier) => { const ls = teams.flatMap(t => t.units.map(u => u.lvl | 0)); return Math.max(1, ...ls) + (tier - 1) * ACT_BONUS; };
   function buildCoopFoes(enc, n, L) {
     const S = MB.scale(n), T = TIERS[enc.tier], raid = enc.kind === 'raid', TW = T.wildMul, TB = (raid ? T.raidMul : T.bossMul)[clamp(n, 1, 4)]; let foes;
     if (enc.kind === 'wild') {
@@ -181,7 +182,7 @@
       const m = fcount(raid ? S.raidMin : S.minions);
       foes = withRoom(tierFloor(enc.tier, 0), T.themes[0], () => buildFoes({ boss: T.boss }, 1 + m));
       const Lm = foes[1] ? foes[1].lvl : foes[0].lvl - 2;
-      foes.forEach((f, i) => relevel(f, Math.max(1, i ? L + (f.lvl - Lm) - 1 : L + 1)));
+      foes.forEach((f, i) => relevel(f, Math.max(1, i ? L + (f.lvl - Lm) - 2 : L + 2)));   /* boss +2, helpers -2 */
     }
     for (const f of foes) if (!f.boss && !f.coat && COATS[f.k] && f.k !== 'shade') f.coat = rollCoat();
     if (enc.coat) { const lead = foes.find(f => f.k === enc.k && !f.boss); if (lead) lead.coat = enc.coat; }
@@ -195,12 +196,12 @@
     }
     return { foes, side };
   }
-  // raid adds: the boss's own helpers, a level under the party
+  // raid adds: the boss's own helpers, 2 levels under the party's
   function buildAdds(C, n) {
     const T = TIERS[C.enc.tier], S = C.S;
     const adds = withRoom(tierFloor(C.enc.tier, 0), T.themes[0], () => buildFoes({ boss: T.boss }, 1 + n)).slice(1);
     const Lm = adds[0] ? adds[0].lvl : 1;
-    for (const f of adds) { relevel(f, Math.max(1, C.L - 1 + (f.lvl - Lm))); if (COATS[f.k] && f.k !== 'shade') f.coat = rollCoat(); }
+    for (const f of adds) { relevel(f, Math.max(1, C.L - 2 + (f.lvl - Lm))); if (COATS[f.k] && f.k !== 'shade') f.coat = rollCoat(); }
     kitFoes(adds);
     const TB = T.raidMul[clamp(C.n, 1, 4)];
     for (const f of adds) { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * T.wildMul[0] * TB[0])); f.atk *= S.atk * T.wildMul[1] * TB[1] * (DIFF.raid || 1); f.hp = f.maxHp; f.summoned = true; f.face = -1; }
