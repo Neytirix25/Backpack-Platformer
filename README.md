@@ -15,7 +15,7 @@ Open `index.html` in a browser (double-click works). No install or build step ne
 | E | In the Sanctuary: use / pet an animal |
 | B | Open the backpack |
 | T | Your pets: every pet you own, swap your team, talents (also the button by your team cards) |
-| 1–6 / mouse | Battle: pick an ability, then click a target |
+| 1–6 / mouse | Battle: pick an ability, then click a target (Enter / Space aims a single-foe attack at the closest foe) |
 | R / right-click | Rotate an item while packing · cancel a target in battle |
 | N | Toggle the minimap |
 | P / Esc | Pause menu: resume, restart the run, return to the Sanctuary or the title screen |

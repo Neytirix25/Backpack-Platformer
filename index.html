@@ -6324,7 +6324,7 @@ function drawWild() {
     if (!drawAnim(sheet, e.fly ? 'fly' : moving ? 'run' : 'idle', e.t * (moving ? 10 : 5), cx, e.fly ? e.y + e.h / 2 : e.y + e.h + 1, e.face, o)) { ctx.fillStyle = PETS[e.k].color; rr(e.x, e.y, e.w, e.h, 6); ctx.fill(); }
     ctx.filter = 'none';
     // what you'll face: species, level and how many
-    const n = petSlots.filter(Boolean).length, L = e.boss ? wildLevel(BOSS_INFO[e.boss].floor) + 2 : wildLevel(G.room.n);
+    const n = petSlots.filter(Boolean).length, L = wildLevel(G.room.n) + (e.boss ? 2 : 0);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `bold ${e.boss ? 13 : 11}px ${UI}`;
     const label = e.boss ? BOSS_INFO[e.boss].name.toUpperCase() : `Wild ${e.k === 'elder' ? 'Elder Dragon' : PETS[e.k].name}${n > 1 ? ' group' : ''} · Lv ${L}`;
     const tw = ctx.measureText(label).width + 12, ly = e.y - 12 + Math.sin(e.t * 3) * 1.5;
@@ -6665,7 +6665,12 @@ const COMPS = {
   hex:    { n: 'Hexers',        pick: (lead, i) => i % 2 ? pick(ROLE_OF.dps) : pick(ROLE_OF.hex) },
   venom:  { n: 'Venom',         pick: (lead, i) => pick(ROLE_OF.venom) },
 };
-const wildLevel = n => Math.max(1, Math.round(n <= 20 ? 1 + (n - 1) * 1.15 + (n > 10 ? 2 : 0) : n <= 30 ? 24.85 + (n - 20) * 0.8 : 32.85 + (n - 30) * 0.4));   // past floor 20 it climbs more gently, past 30 gentler still (pets top out at 30)
+// enemy levels: your team's highest-level pet, plus ACT_BONUS for each act past the first (Act I +0, II +2, III +4,
+// IV +6), the same on every floor of an act. Bosses are 2 above that, their helpers 2 below.
+const ACT_BONUS = 2;
+const actBonus = n => (actOf(n) - 1) * ACT_BONUS;
+const teamTopLevel = () => Math.max(1, ...petSlots.filter(Boolean).map(petLvl));
+const wildLevel = n => Math.max(1, teamTopLevel() + actBonus(n));
 function rollComp(R) {
   const n = R.n, opts = [['pack', 3], ['mixed', 4]];
   if (n >= 3) opts.push(['wall', 2], ['hex', 2]);
@@ -6676,27 +6681,27 @@ function rollComp(R) {
 function buildFoes(ent, count) {
   const R = G.room, n = R.n, pool = THEME_POOL[R.type] || PET_IDS.filter(k => BS[k] && !['shadowwolf', 'elder', 'unicorn', 'lakewyrm'].includes(k)), out = [];
   if (ent.boss === 'shadow') {
-    out.push(foeUnit('shadowwolf', wildLevel(10) + 2, { boss: 'shadow', name: 'The Shadow Wolf', acts: 2, scale: 1.7, mul: { hp: 4.6, atk: 1.25, def: 2 },
+    out.push(foeUnit('shadowwolf', wildLevel(n) + 2, { boss: 'shadow', name: 'The Shadow Wolf', acts: 2, scale: 1.7, mul: { hp: 4.6, atk: 1.25, def: 2 },
       abil: ['shadowclaw', 'dreadhowl', 'umbralveil', 'devourweak', 'callshades'] }));
-    for (let i = 1; i < count; i++) out.push(foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.6 }));
+    for (let i = 1; i < count; i++) out.push(foeUnit('shade', wildLevel(n) - 2, { name: 'Shade', sheet: 'shadowwolf', scale: 0.6 }));
     return out;
   }
   if (ent.boss === 'elder') {
-    out.push(foeUnit('elder', wildLevel(20) + 2, { boss: 'elder', name: 'The Elder Dragon', acts: 2, scale: 1.8, mul: { hp: 6.0, atk: 1.2, def: 3 },
+    out.push(foeUnit('elder', wildLevel(n) + 2, { boss: 'elder', name: 'The Elder Dragon', acts: 2, scale: 1.8, mul: { hp: 6.0, atk: 1.2, def: 3 },
       abil: ['elderclaw', 'elderbreath', 'tailsweep', 'wingguard'] }));
-    for (let i = 1; i < count; i++) out.push(foeUnit('dragon', wildLevel(20) - 2, { name: 'Whelp', scale: 0.8 }));
+    for (let i = 1; i < count; i++) out.push(foeUnit('dragon', wildLevel(n) - 2, { name: 'Whelp', scale: 0.8 }));
     return out;
   }
   if (ent.boss === 'wyrm') {   // the final boss, with a fey court at its side
-    out.push(foeUnit('lakewyrm', wildLevel(30) + 2, { boss: 'wyrm', name: 'The Lake Wyrm', acts: 2, scale: 1.9, mul: { hp: 7.0, atk: 1.2, def: 3 },
+    out.push(foeUnit('lakewyrm', wildLevel(n) + 2, { boss: 'wyrm', name: 'The Lake Wyrm', acts: 2, scale: 1.9, mul: { hp: 7.0, atk: 1.2, def: 3 },
       abil: ['wyrmcoil', 'tidalwave', 'glamourmist', 'lilyrest'] }));
-    for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'fairydragon' : 'spiritwolf', wildLevel(30) - 2, { scale: 0.85 }));
+    for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'fairydragon' : 'spiritwolf', wildLevel(n) - 2, { scale: 0.85 }));
     return out;
   }
   if (ent.boss === 'rune') {   // Act IV's boss: an ancient colossal turtle with a runic shell, a crab and a hydra at its side
-    out.push(foeUnit('runeshell', wildLevel(40) + 2, { boss: 'rune', name: 'The Runeshell Leviathan', acts: 2, scale: 1.8,
+    out.push(foeUnit('runeshell', wildLevel(n) + 2, { boss: 'rune', name: 'The Runeshell Leviathan', acts: 2, scale: 1.8,
       mul: { hp: 8.0, atk: 1.25, def: 3 }, abil: ['runeslam', 'tidalcrush', 'runeward', 'glyphcurse'] }));
-    for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'coralcrab' : 'hydra', wildLevel(40) - 2, { scale: 0.85 }));
+    for (let i = 1; i < count; i++) out.push(foeUnit(i === 1 ? 'coralcrab' : 'hydra', wildLevel(n) - 2, { scale: 0.85 }));
     return out;
   }
   const L = wildLevel(n), C = COMPS[ent.comp] || COMPS.mixed;
@@ -7006,7 +7011,8 @@ function act(u, ab, tgt) {
 }
 function summonShade(u) {
   if (B.foes.filter(o => !o.fainted).length >= 3) { const dead = B.foes.find(o => o.fainted && !o.boss); if (!dead) return; B.foes.splice(B.foes.indexOf(dead), 1); }
-  const s = foeUnit('shade', wildLevel(10), { name: 'Shade', sheet: 'shadowwolf', scale: 0.6 });
+  const s = foeUnit('shade', Math.max(1, u.lvl - 4), {   // (as its first shades: a helper's level, 2 under the floor's, the Wolf being 2 over it)
+    name: 'Shade', sheet: 'shadowwolf', scale: 0.6 });
   const used = B.foes.filter(o => !o.fainted).map(o => o.lx ?? o.x), spot = [605, 705].find(x => !used.includes(x)) || 705;
   s.x = s.lx = spot; s.face = -1; s.slot = B.foes.length; s.summoned = true; B.foes.push(s); bText(s, 'SUMMONED', '#b39ddb', 15);
 }
@@ -8046,6 +8052,22 @@ function battleInput() {
   const keys = ['1', '2', '3', '4', '5', '6'];
   keys.forEach((k, i) => { if (hit(k) && u.abil[i]) chooseAbility(u, u.abil[i]); });
   if (hit('Escape')) B.pick = null;
+  // a single-foe move (or a foe item) is waiting for its target: Enter / Space aims it at the closest foe
+  if (B.pick && pickTargetsFoe(B.pick) && hit('Enter', ' ')) {
+    const t = closestFoe(u);
+    if (!t) SFX.play('error'); else if (B.pick.item) heroUse(B.pick.item, t); else playerAct(B.pick.ab, t);
+  }
+}
+const pickTargetsFoe = P => (P.item ? USE_T[P.item.def.use] === 'foe' : ABIL[P.ab] && ABIL[P.ab].t === 'foe');
+function closestFoe(u) {   // the valid foe target nearest the pet that is acting (taunts etc. are respected by pickValid)
+  const uy = unitAnchorY(u);
+  let best = null, bd = Infinity;
+  for (const f of B.foes) {
+    if (!pickValid(f)) continue;
+    const d = Math.hypot(f.x - u.x, unitAnchorY(f) - uy);
+    if (d < bd) { bd = d; best = f; }
+  }
+  return best;
 }
 function chooseAbility(u, ab) {
   if (u.cd[ab] > 0) { SFX.play('error'); return; }
