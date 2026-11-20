@@ -144,7 +144,7 @@
       o.theme = T.themes.includes(e.theme) ? e.theme : T.themes[0];
       if (typeof e.k === 'string' && BS[e.k] && PETS[e.k]) o.k = e.k;
       o.comp = COMPS[e.comp] ? e.comp : 'mixed'; o.floor = clamp(e.floor | 0, 1, 40);
-      if (e.coat && Array.isArray(e.coat.col) && e.coat.col.length === 2 && e.coat.col.every(v => Number.isInteger(v) && v >= 0 && v <= COAT_MELAN)) o.coat = { col: e.coat.col.slice(), blend: !!e.coat.blend };
+      if (e.coat && Array.isArray(e.coat.col) && e.coat.col.length === 2 && e.coat.col.every(v => Number.isInteger(v) && v >= 0 && v <= COAT_MELAN)) o.coat = { col: e.coat.col.slice(), blend: !!e.coat.blend, pink: !!e.coat.pink };
     }
     if (typeof e.bg === 'string') o.bg = e.bg.slice(0, 20);
     return o;
@@ -184,7 +184,7 @@
       const Lm = foes[1] ? foes[1].lvl : foes[0].lvl - 2;
       foes.forEach((f, i) => relevel(f, Math.max(1, i ? L + (f.lvl - Lm) - 2 : L + 2)));   /* boss +2, helpers -2 */
     }
-    for (const f of foes) if (!f.boss && !f.coat && COATS[f.k] && f.k !== 'shade') f.coat = rollCoat();
+    for (const f of foes) if (!f.boss && !f.coat && f.k !== 'shade') f.coat = rollCoat();
     if (enc.coat) { const lead = foes.find(f => f.k === enc.k && !f.boss); if (lead) lead.coat = enc.coat; }
     const side = kitFoes(foes);
     for (const f of foes) {   /* the group-size knobs go on last, over talents and genes */
@@ -201,7 +201,7 @@
     const T = TIERS[C.enc.tier], S = C.S;
     const adds = withRoom(tierFloor(C.enc.tier, 0), T.themes[0], () => buildFoes({ boss: T.boss }, 1 + n)).slice(1);
     const Lm = adds[0] ? adds[0].lvl : 1;
-    for (const f of adds) { relevel(f, Math.max(1, C.L - 2 + (f.lvl - Lm))); if (COATS[f.k] && f.k !== 'shade') f.coat = rollCoat(); }
+    for (const f of adds) { relevel(f, Math.max(1, C.L - 2 + (f.lvl - Lm))); if (f.k !== 'shade') f.coat = rollCoat(); }
     kitFoes(adds);
     const TB = T.raidMul[clamp(C.n, 1, 4)];
     for (const f of adds) { f.maxHp = Math.max(1, Math.round(f.maxHp * S.hp * T.wildMul[0] * TB[0])); f.atk *= S.atk * T.wildMul[1] * TB[1] * (DIFF.raid || 1); f.hp = f.maxHp; f.summoned = true; f.face = -1; }
@@ -219,7 +219,7 @@
       abil: abil.length ? abil : BS[k].abil.slice(), cd: {}, st: {}, acts: clamp(o.acts | 0, 1, 6), scale: numIn(o.scale, 0.3, 3, 1), dodge: numIn(o.dodge, 0, 0.9, 0), hitB: numIn(o.hitB, 0, 1, 0),
       shiny: !!o.shiny, summoned: !!o.summoned, face: -1, x: 0 };
     if (typeof o.sheet === 'string' && PETS[o.sheet]) u.sheet = o.sheet; else if (o.sheet === 'shadowwolf') u.sheet = 'shadowwolf';
-    if (o.coat && Array.isArray(o.coat.col) && o.coat.col.length === 2 && o.coat.col.every(v => Number.isInteger(v) && v >= 0 && v <= COAT_MELAN)) u.coat = { col: o.coat.col.slice(), blend: !!o.coat.blend };
+    if (o.coat && Array.isArray(o.coat.col) && o.coat.col.length === 2 && o.coat.col.every(v => Number.isInteger(v) && v >= 0 && v <= COAT_MELAN)) u.coat = { col: o.coat.col.slice(), blend: !!o.coat.blend, pink: !!o.coat.pink };
     u.hp = u.maxHp; u.fainted = false;
     return u;
   }
