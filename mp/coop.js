@@ -27,7 +27,7 @@
 //     platforms and fire vents run on each client's own clock, eased toward the leader's (`ft` in 'c.wild').
 //  3. Sync. Heroes: room.setFast({ x, y, vx, vy, f, g, fl, h }) (h = my team's health, 0-100, for the party list) and
 //     the others are drawn as paper-doll heroes, eased toward their latest position. Their PETS: each player's
-//     presence carries `tm`, a light description of the team ([species, level, shiny, coat gene, coat gene, blend]
+//     presence carries `tm`, a light description of the team ([species, level, shiny, coat gene, coat gene, blend, pink]
 //     per animal, cleaned on receipt), and every client moves them itself as followers on the trail of that
 //     hero's eased position (walkers in a line, hopping where the hero hopped; flyers hover behind): no network
 //     traffic per pet. They are drawn a little dimmer, without health bars. Wild animals: the HOST's game (the room's host: the leader, until the leader goes) runs their
@@ -398,7 +398,7 @@
       const e = wildEntity(w.k, X(w.hx), Y(w.y), boss ? { boss, tint: BOSS_INFO[boss].tint } : { comp: COMPS_OK.includes(w.c) ? w.c : 'mixed' });
       const col = w.coat && Array.isArray(w.coat.col) && w.coat.col.length === 2 ? w.coat.col.map(v => int(v, 0, 9)) : null;
       Object.assign(e, { x: numIn(w.x, 0, wpx, e.x), y: numIn(w.y, -200, hpx, e.y), face: w.f < 0 ? -1 : 1, homeY: numIn(w.hy, -200, hpx, e.homeY), dir: w.d < 0 ? -1 : 1, t: numIn(w.t, 0, 10, 0),
-                         coat: boss || !COATS[w.k] || !col ? null : { col, blend: !!w.coat.blend }, id: wild.length });
+                         coat: boss || !col ? null : { col, blend: !!w.coat.blend, pink: !!w.coat.pink }, id: wild.length });
       wild.push(e);
     }
     return { R, wild, sum: 0 };
@@ -746,8 +746,8 @@
   }
 
   // ---------- the other players' pets: followers that every client moves by itself ----------
-  // my team for the others' screens, in my presence: [species, level, shiny, coat gene, coat gene, blend] per animal
-  const teamLite = () => petSlots.filter(Boolean).slice(0, 3).map(it => { const g = it.g || {}, c = Array.isArray(g.col) && g.col.length === 2 ? g.col : [0, 0]; return [it.def.pet, petLvl(it), g.shiny ? 1 : 0, c[0] | 0, c[1] | 0, g.blend ? 1 : 0]; });
+  // my team for the others' screens, in my presence: [species, level, shiny, coat gene, coat gene, blend, pink] per animal
+  const teamLite = () => petSlots.filter(Boolean).slice(0, 3).map(it => { const g = it.g || {}, c = Array.isArray(g.col) && g.col.length === 2 ? g.col : [0, 0]; return [it.def.pet, petLvl(it), g.shiny ? 1 : 0, c[0] | 0, c[1] | 0, g.blend ? 1 : 0, g.pink ? 1 : 0]; });
   const teamHp = () => { const its = petSlots.filter(Boolean); return its.length ? its.reduce((a, it) => a + clamp(runHp(it.pid) ?? 1, 0, 1), 0) / its.length : 1; };
   function shareTeam(room) {
     const sig = JSON.stringify(teamLite());
@@ -761,7 +761,7 @@
     for (const a of Array.isArray(tm) ? tm.slice(0, 3) : []) {
       if (!Array.isArray(a) || typeof a[0] !== 'string' || !Object.prototype.hasOwnProperty.call(PETS, a[0])) continue;
       const col = [int(a[3], 0, COAT_MELAN, 0), int(a[4], 0, COAT_MELAN, 0)];
-      out.push({ def: { pet: a[0] }, plvl: int(a[1], 1, PET_MAX_LVL, 1), g: { shiny: !!a[2], col, blend: !!a[5] && col[0] !== col[1] } });
+      out.push({ def: { pet: a[0] }, plvl: int(a[1], 1, PET_MAX_LVL, 1), g: { shiny: !!a[2], col, blend: !!a[5] && col[0] !== col[1], pink: !!a[6] } });
     }
     return out;
   }
@@ -807,7 +807,7 @@
   function drawFollowers(o) {
     for (const p of o.pets || []) {
       if (p.x == null || !inView(p.x, p.y, 90)) continue;
-      const sheet = speciesSheet(p.k), fly = !!p.d.fly, opt = { alpha: 0.82, scale: PX * babyScale(p.it), shine: shineOf(p.it) };
+      const sheet = speciesSheet(p.k), fly = !!p.d.fly, opt = { alpha: 0.82, scale: PX * babyScale(p.it), shine: shineOf(p.it), pink: pinkOf(p.it) };
       const anim = fly ? 'fly' : !p.g ? 'run' : p.mv ? 'run' : 'idle', i = fly ? Math.floor(TIME * 12 + p.phase) : !p.g ? 2 : p.mv ? Math.floor(p.runF) : Math.floor(p.idleF);
       const y = fly ? p.y - p.d.h / 2 : p.y + 1;
       if (!fly) footShadow(p.x, p.y, p.d.w * 0.5, p.g ? 0.6 : 0.3);
